@@ -1,0 +1,12 @@
+<?php
+
+return [
+    [
+        'group' => 'General',
+        'label' => '{{ studlyName }}',
+        'icon' => 'cube',
+        'route' => '{{ kebabName }}.index',
+        'permission' => '{{ snakeName }}.view',
+        'order' => 100,
+    ],
+];

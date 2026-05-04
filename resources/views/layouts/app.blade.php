@@ -1,5 +1,11 @@
 <x-layouts::app.sidebar :title="$title ?? null">
-    <flux:main>
-        {{ $slot }}
-    </flux:main>
+    @isset($breadcrumbs)
+        <x-slot:breadcrumbs>{{ $breadcrumbs }}</x-slot:breadcrumbs>
+    @endisset
+
+    @isset($actions)
+        <x-slot:actions>{{ $actions }}</x-slot:actions>
+    @endisset
+
+    {{ $slot }}
 </x-layouts::app.sidebar>

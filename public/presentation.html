@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mquik — Workshop Management System</title>
+  <link rel="icon" href="/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            mq: {
+              orange: '#EE7C2B',
+              'orange-soft': '#FBE5D2',
+              'orange-deep': '#D96A1A',
+              grey: '#8A8A8A',
+              ink: '#2B2B2B',
+              cream: '#FAF7F4',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .section { scroll-snap-align: start; }
+    @media (min-width: 1024px) {
+      html { scroll-snap-type: y mandatory; }
+    }
+    .gradient-orange { background: linear-gradient(135deg, #EE7C2B 0%, #D96A1A 100%); }
+    .underline-orange { background: linear-gradient(120deg, #FBE5D2 0%, #FBE5D2 100%); background-repeat: no-repeat; background-position: 0 88%; background-size: 100% 12px; }
+    .dot-pattern { background-image: radial-gradient(circle, #E5E7EB 1px, transparent 1px); background-size: 20px 20px; }
+  </style>
+</head>
+<body class="bg-mq-cream text-mq-ink antialiased">
+
+  <!-- ============== NAV ============== -->
+  <nav class="fixed top-0 inset-x-0 z-50 backdrop-blur bg-white/80 border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-3">
+        <img src="/mquik.png" alt="Mquik" class="h-8 w-auto">
+      </a>
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
+        <a href="#today" class="hover:text-mq-orange transition">Today</a>
+        <a href="#solution" class="hover:text-mq-orange transition">Solution</a>
+        <a href="#journey" class="hover:text-mq-orange transition">Journey</a>
+        <a href="#timeline" class="hover:text-mq-orange transition">Timeline</a>
+        <a href="#start" class="hover:text-mq-orange transition">Get started</a>
+      </div>
+      <a href="#start" class="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-mq-orange text-white text-sm font-semibold hover:bg-mq-orange-deep transition">
+        Begin →
+      </a>
+    </div>
+  </nav>
+
+  <!-- ============== HERO ============== -->
+  <section id="top" class="section min-h-screen flex items-center pt-20 pb-12 px-6 lg:px-12 dot-pattern">
+    <div class="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <img src="/mquik.png" alt="Mquik" class="h-16 lg:h-20 w-auto mb-8">
+        <div class="inline-block px-3 py-1 rounded-full bg-mq-orange-soft text-mq-orange-deep text-xs font-semibold tracking-wider uppercase mb-6">
+          Workshop Management System
+        </div>
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6">
+          One system to run<br>
+          <span class="underline-orange">your entire workshop.</span>
+        </h1>
+        <p class="text-lg lg:text-xl text-gray-600 mb-8 leading-relaxed max-w-xl">
+          From the moment a vehicle drives in to the moment it drives out — and everything that happens in between, after, and around it.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="#solution" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-mq-orange text-white font-semibold hover:bg-mq-orange-deep transition shadow-lg shadow-orange-200">
+            See what's inside
+            <span aria-hidden="true">→</span>
+          </a>
+          <a href="#timeline" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full border-2 border-gray-200 text-gray-700 font-semibold hover:border-mq-orange hover:text-mq-orange transition">
+            View the plan
+          </a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 lg:gap-6">
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div class="text-4xl lg:text-5xl font-extrabold text-mq-orange">2</div>
+          <div class="text-sm text-gray-500 mt-1">Months to launch</div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div class="text-4xl lg:text-5xl font-extrabold text-mq-orange">12+</div>
+          <div class="text-sm text-gray-500 mt-1">User roles supported</div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div class="text-4xl lg:text-5xl font-extrabold text-mq-orange">100+</div>
+          <div class="text-sm text-gray-500 mt-1">Reports built-in</div>
+        </div>
+        <div class="bg-mq-ink p-6 rounded-2xl text-white">
+          <div class="text-4xl lg:text-5xl font-extrabold">1</div>
+          <div class="text-sm text-gray-300 mt-1">Place for everything</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== TODAY ============== -->
+  <section id="today" class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-white">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-16">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">The reality today</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          Your workshop runs on a dozen tools that don't talk to each other.
+        </h2>
+        <p class="text-lg text-gray-600">
+          Information lives in paper, spreadsheets, WhatsApp groups, separate billing software, and people's heads. Things slip. Customers wait. Money is left on the table.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="p-6 rounded-2xl border border-gray-100 bg-gray-50">
+          <div class="text-2xl mb-3">📋</div>
+          <h3 class="font-semibold text-lg mb-2">Job cards on paper</h3>
+          <p class="text-gray-600 text-sm">Lost in transit between bays. Re-keyed at billing. Photographed for WhatsApp.</p>
+        </div>
+        <div class="p-6 rounded-2xl border border-gray-100 bg-gray-50">
+          <div class="text-2xl mb-3">💬</div>
+          <h3 class="font-semibold text-lg mb-2">Approvals over WhatsApp</h3>
+          <p class="text-gray-600 text-sm">Customer screenshots get lost. No audit trail. No one knows who approved what, when.</p>
+        </div>
+        <div class="p-6 rounded-2xl border border-gray-100 bg-gray-50">
+          <div class="text-2xl mb-3">📊</div>
+          <h3 class="font-semibold text-lg mb-2">Three different reports</h3>
+          <p class="text-gray-600 text-sm">Sales says one number. Accounts says another. Inventory says a third. All for the same week.</p>
+        </div>
+        <div class="p-6 rounded-2xl border border-gray-100 bg-gray-50">
+          <div class="text-2xl mb-3">🧾</div>
+          <h3 class="font-semibold text-lg mb-2">Manual GST reconciliation</h3>
+          <p class="text-gray-600 text-sm">Hours every month tying invoices to ledgers. Mismatches caught only at filing time.</p>
+        </div>
+        <div class="p-6 rounded-2xl border border-gray-100 bg-gray-50">
+          <div class="text-2xl mb-3">📞</div>
+          <h3 class="font-semibold text-lg mb-2">Lost follow-ups</h3>
+          <p class="text-gray-600 text-sm">Service-due reminders depend on whoever remembers. Insurance renewals slip past expiry.</p>
+        </div>
+        <div class="p-6 rounded-2xl border border-gray-100 bg-gray-50">
+          <div class="text-2xl mb-3">⏱️</div>
+          <h3 class="font-semibold text-lg mb-2">Hours spent typing</h3>
+          <p class="text-gray-600 text-sm">Same customer detail entered five times across five tools. Same part number re-entered for billing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== SOLUTION ============== -->
+  <section id="solution" class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-mq-cream">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-16">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">What you're getting</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          One workshop. <span class="underline-orange">One system.</span>
+        </h2>
+        <p class="text-lg text-gray-600">
+          Mquik replaces the patchwork. Every part of your workshop — appointments, inspection, parts, billing, accounting, HR, customer follow-ups — works from a single source of truth.
+        </p>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Front desk</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Online appointment booking</li>
+            <li>✓ Pickup &amp; drop scheduling</li>
+            <li>✓ Vehicle gate-in capture</li>
+            <li>✓ Customer document collection</li>
+            <li>✓ WhatsApp approvals</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Service floor</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Digital job cards with photos</li>
+            <li>✓ Vehicle inspection checklists</li>
+            <li>✓ Live job status tracking</li>
+            <li>✓ Auto-assigned technicians</li>
+            <li>✓ Time tracking per task</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Parts &amp; inventory</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Real-time stock levels</li>
+            <li>✓ Vendor price comparison</li>
+            <li>✓ Barcode-driven receiving</li>
+            <li>✓ Auto-reorder alerts</li>
+            <li>✓ Warranty tracking</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Billing &amp; cash</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Estimates with insurance share</li>
+            <li>✓ GST-ready invoicing</li>
+            <li>✓ E-Invoice with IRN/QR</li>
+            <li>✓ Multi-mode receipt &amp; refund</li>
+            <li>✓ Customer outstanding tracker</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">People &amp; payroll</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Mobile attendance with selfie</li>
+            <li>✓ Leave management</li>
+            <li>✓ Smart performance scoring</li>
+            <li>✓ Auto-calculated salary</li>
+            <li>✓ Incentive &amp; target tracking</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Customer care</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Service-due reminders (3 nudges)</li>
+            <li>✓ Insurance renewal alerts</li>
+            <li>✓ Feedback collection &amp; rating</li>
+            <li>✓ Complaint resolution tracking</li>
+            <li>✓ AMC &amp; combo packages</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Bodyshop &amp; insurance</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Claim intimation</li>
+            <li>✓ Surveyor inspection workflow</li>
+            <li>✓ Document collection &amp; delivery</li>
+            <li>✓ Insurance estimate approval</li>
+            <li>✓ DO &amp; gate pass coordination</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Accounting</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Chart of accounts</li>
+            <li>✓ Bank &amp; cash book + BRS</li>
+            <li>✓ GST returns (GSTR-1/2B/3B/9)</li>
+            <li>✓ P&amp;L, Balance Sheet, Cash Flow</li>
+            <li>✓ Expense &amp; petty cash</li>
+          </ul>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border-t-4 border-mq-orange shadow-sm">
+          <h3 class="text-xl font-bold mb-3">Insight &amp; control</h3>
+          <ul class="space-y-2 text-gray-700 text-sm">
+            <li>✓ Role-based dashboards</li>
+            <li>✓ 100+ ready reports</li>
+            <li>✓ Excel &amp; PDF export</li>
+            <li>✓ Global search across the system</li>
+            <li>✓ Full activity audit log</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== FOR EVERYONE ============== -->
+  <section class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-white">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-16">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">Built for everyone in the workshop</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          Each role sees only what they need.
+        </h2>
+        <p class="text-lg text-gray-600">
+          A clean, focused screen for every person — no clutter, no permission to break what isn't theirs.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Service Advisor</div><p class="text-gray-600 text-sm">Job cards, estimates, customer chat, deliveries.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Bodyshop Advisor</div><p class="text-gray-600 text-sm">Insurance claims, surveyor coordination, DO.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Tyre Advisor</div><p class="text-gray-600 text-sm">Tyre stock by dimension, fitment, sales tracking.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Floor In-charge</div><p class="text-gray-600 text-sm">Bay assignment, work allocation, final inspection.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Technician</div><p class="text-gray-600 text-sm">Today's jobs, checklists, time tracking, photos.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Store In-charge</div><p class="text-gray-600 text-sm">Inquiries, vendor orders, receiving, hand-over.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Cashier</div><p class="text-gray-600 text-sm">Receipts, refunds, gate pass, daily cash close.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Accountant</div><p class="text-gray-600 text-sm">Ledger, GST, payments, financial statements.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">HR</div><p class="text-gray-600 text-sm">Attendance, leave, payroll, performance.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">CRM</div><p class="text-gray-600 text-sm">Follow-ups, feedback, customer history.</p></div>
+        <div class="p-6 rounded-xl bg-mq-cream"><div class="font-semibold text-lg mb-1">Security Guard</div><p class="text-gray-600 text-sm">Gate in/out, vehicle photos, gate pass check.</p></div>
+        <div class="p-6 rounded-xl bg-mq-ink text-white"><div class="font-semibold text-lg mb-1">Admin / Owner</div><p class="text-gray-300 text-sm">Approvals, dashboards, full visibility, controls.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== JOURNEY ============== -->
+  <section id="journey" class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-mq-cream">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-16">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">The vehicle journey</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          From gate-in to gate-out — fully tracked.
+        </h2>
+        <p class="text-lg text-gray-600">
+          Every step is captured, photographed, time-stamped, and accountable. No more "where is that car?"
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">1</div>
+          <div><div class="font-semibold mb-1">Customer books</div><p class="text-sm text-gray-600">Online, by phone, or via the customer app. Time slot booked. Pickup arranged if needed.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">2</div>
+          <div><div class="font-semibold mb-1">Vehicle arrives</div><p class="text-sm text-gray-600">Number plate captured at the gate. Job card opened. T&amp;Cs accepted on screen.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">3</div>
+          <div><div class="font-semibold mb-1">Digital inspection</div><p class="text-sm text-gray-600">Technician walks through a checklist on a tablet, takes photos, marks issues.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">4</div>
+          <div><div class="font-semibold mb-1">Estimate &amp; approval</div><p class="text-sm text-gray-600">Estimate sent to customer on WhatsApp. Customer approves with one tap. Insurance share auto-calculated.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">5</div>
+          <div><div class="font-semibold mb-1">Parts sourced</div><p class="text-sm text-gray-600">Stock checked first, then vendors compared. Approved orders go out automatically.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">6</div>
+          <div><div class="font-semibold mb-1">Work executed</div><p class="text-sm text-gray-600">Technician time tracked per task. Customer can watch progress on the bay camera.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">7</div>
+          <div><div class="font-semibold mb-1">Final inspection &amp; bill</div><p class="text-sm text-gray-600">Quality check + test drive. Invoice generated. E-Invoice with IRN ready.</p></div>
+        </div>
+        <div class="grid grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr] gap-4 items-center bg-white p-5 rounded-xl border border-gray-100">
+          <div class="text-2xl sm:text-3xl font-extrabold text-mq-orange">8</div>
+          <div><div class="font-semibold mb-1">Payment &amp; delivery</div><p class="text-sm text-gray-600">Multi-mode payment. Gate pass issued. Vehicle out. Feedback request sent next day.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== TIMELINE ============== -->
+  <section id="timeline" class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-white">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-12">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">Two months. Three waves.</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          A clear plan to <span class="underline-orange">go live in 8 weeks.</span>
+        </h2>
+        <p class="text-lg text-gray-600">
+          Built in three planned waves so you see real working software every two weeks — not a black box for two months.
+        </p>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="bg-mq-cream p-8 rounded-2xl border-t-4 border-mq-orange">
+          <div class="flex items-baseline gap-3 mb-4">
+            <span class="text-mq-orange text-xs font-bold tracking-widest uppercase">Wave 1</span>
+            <span class="text-sm text-gray-500">Weeks 1 – 3</span>
+          </div>
+          <h3 class="text-2xl font-bold mb-3">Foundations &amp; daily operations</h3>
+          <p class="text-gray-600 text-sm mb-5">Login, roles, master data, attendance, appointments, gate-in, job cards, digital inspection.</p>
+          <div class="text-xs font-semibold text-mq-orange-deep uppercase tracking-wider mb-2">You'll see</div>
+          <ul class="text-sm text-gray-700 space-y-1.5">
+            <li>• A vehicle entering the gate becomes a tracked job</li>
+            <li>• Inspection checklist with photos works on a tablet</li>
+            <li>• Attendance with selfie captured on mobile</li>
+            <li>• Master data imported from Excel</li>
+          </ul>
+        </div>
+
+        <div class="bg-mq-cream p-8 rounded-2xl border-t-4 border-mq-orange">
+          <div class="flex items-baseline gap-3 mb-4">
+            <span class="text-mq-orange text-xs font-bold tracking-widest uppercase">Wave 2</span>
+            <span class="text-sm text-gray-500">Weeks 4 – 5</span>
+          </div>
+          <h3 class="text-2xl font-bold mb-3">Parts, billing &amp; closure</h3>
+          <p class="text-gray-600 text-sm mb-5">Stock, vendors, purchase, estimate, customer approval, proforma, invoices, receipt, gate pass.</p>
+          <div class="text-xs font-semibold text-mq-orange-deep uppercase tracking-wider mb-2">You'll see</div>
+          <ul class="text-sm text-gray-700 space-y-1.5">
+            <li>• Full lifecycle: gate-in → invoice → gate-out</li>
+            <li>• Customer approves estimate on WhatsApp</li>
+            <li>• Stock auto-deducts when parts issued</li>
+            <li>• GST-compliant invoice prints correctly</li>
+          </ul>
+        </div>
+
+        <div class="bg-mq-cream p-8 rounded-2xl border-t-4 border-mq-orange">
+          <div class="flex items-baseline gap-3 mb-4">
+            <span class="text-mq-orange text-xs font-bold tracking-widest uppercase">Wave 3</span>
+            <span class="text-sm text-gray-500">Weeks 6 – 8</span>
+          </div>
+          <h3 class="text-2xl font-bold mb-3">Accounting, CRM &amp; go-live</h3>
+          <p class="text-gray-600 text-sm mb-5">Bodyshop &amp; insurance, accounting, GST, follow-ups, dashboards, all reports, training, launch.</p>
+          <div class="text-xs font-semibold text-mq-orange-deep uppercase tracking-wider mb-2">You'll see</div>
+          <ul class="text-sm text-gray-700 space-y-1.5">
+            <li>• Insurance claims tracked end-to-end</li>
+            <li>• GST returns generated from real data</li>
+            <li>• Service-due reminders firing automatically</li>
+            <li>• Two days of UAT, then live</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-12 p-6 bg-mq-ink text-white rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+        <div class="text-3xl">🎯</div>
+        <div class="flex-1">
+          <div class="font-semibold text-lg mb-1">End of Week 8 — go live</div>
+          <p class="text-gray-300 text-sm">Real workshop running on Mquik. Real customers booked. Real invoices generated. Real reports landing in your inbox.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== DESIGNED FOR DAILY USE ============== -->
+  <section class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-mq-cream">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-16">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">Designed for daily use</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          Built around how your team actually works.
+        </h2>
+        <p class="text-lg text-gray-600">
+          Small details that add up to hours saved every day.
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Capital typing everywhere</div>
+          <p class="text-gray-600 text-sm">No more inconsistent customer names. The system handles it.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Auto-suggest as you type</div>
+          <p class="text-gray-600 text-sm">Search by ID or % match. Newest results on top. Less typing, fewer mistakes.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Pin your favourite menus</div>
+          <p class="text-gray-600 text-sm">Drag-drop the modules you use daily to the top. Different for every user.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Keyboard shortcuts</div>
+          <p class="text-gray-600 text-sm">For high-volume screens like billing and inventory. Speed for power users.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">One-click PDF / Excel</div>
+          <p class="text-gray-600 text-sm">Every report, every invoice, every receipt — exportable instantly.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Works on tablet at the bay</div>
+          <p class="text-gray-600 text-sm">Responsive screens for technicians. No desktop required.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Never lose data</div>
+          <p class="text-gray-600 text-sm">Daily auto-backup with confirmation. Restorable to any point.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">See who did what</div>
+          <p class="text-gray-600 text-sm">Every change logged. Every approval recorded. Full accountability.</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl">
+          <div class="font-semibold mb-2">Secure by default</div>
+          <p class="text-gray-600 text-sm">Single login per user. Auto-logout after 30 min idle. Out-of-hours alerts to admin.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== START ============== -->
+  <section id="start" class="section min-h-screen flex items-center py-20 px-6 lg:px-12 bg-white">
+    <div class="max-w-7xl mx-auto w-full">
+      <div class="max-w-3xl mb-16">
+        <div class="text-mq-orange text-sm font-semibold uppercase tracking-wider mb-3">Getting started</div>
+        <h2 class="text-3xl lg:text-5xl font-extrabold leading-tight mb-4">
+          Here's what we need from you.
+        </h2>
+        <p class="text-lg text-gray-600">
+          A few simple things to gather before Week 1 starts. The faster these arrive, the smoother the launch.
+        </p>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="p-8 rounded-2xl border-2 border-mq-orange-soft">
+          <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-mq-orange text-white text-sm font-bold">1</span>
+            Before we begin
+          </h3>
+          <ul class="space-y-3 text-gray-700">
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Spares catalog in Excel</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Labour catalog in Excel</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Employee list with designations</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Vendor list with GST &amp; bank details</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Workshop GST registration details</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Terms &amp; Conditions, letterheads</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Top-10 screen wireframes signed off</li>
+          </ul>
+        </div>
+
+        <div class="p-8 rounded-2xl border-2 border-mq-orange-soft">
+          <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-mq-orange text-white text-sm font-bold">2</span>
+            During the eight weeks
+          </h3>
+          <ul class="space-y-3 text-gray-700">
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> 30 minutes a day for clarifications</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Friday demo attendance &amp; sign-off</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> One named decision-maker (no escalation loops)</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Production credentials by Week 7</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Two full days of UAT in Week 8</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Decision on WhatsApp / SMS provider</li>
+            <li class="flex gap-3"><span class="text-mq-orange">✓</span> Decision on payment gateway (Razorpay)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-12 grid lg:grid-cols-2 gap-6">
+        <div class="p-6 rounded-2xl bg-mq-cream">
+          <h4 class="font-semibold text-lg mb-2">After launch</h4>
+          <p class="text-gray-600 text-sm">Four weeks of stabilisation — we fix anything that hurts in real-world use, and turn good features into great ones based on what your team actually says.</p>
+        </div>
+        <div class="p-6 rounded-2xl bg-mq-cream">
+          <h4 class="font-semibold text-lg mb-2">Beyond that</h4>
+          <p class="text-gray-600 text-sm">Native mobile apps · advanced analytics · biometric login · multi-branch — all already designed for, ready to add when you're ready.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== CTA ============== -->
+  <section class="section min-h-[90vh] flex items-center py-20 px-6 lg:px-12 gradient-orange text-white">
+    <div class="max-w-4xl mx-auto w-full text-center">
+      <img src="/mquik.png" alt="Mquik" class="h-14 w-auto mx-auto mb-8 brightness-0 invert">
+      <h2 class="text-4xl lg:text-6xl font-extrabold leading-tight mb-6">
+        Let's run your workshop better.
+      </h2>
+      <p class="text-lg lg:text-xl text-white/90 mb-10 max-w-2xl mx-auto">
+        Two months from a yes — your entire workshop runs on one system, with the visibility, control, and customer experience your business deserves.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="#top" class="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white text-mq-orange-deep font-bold hover:bg-gray-100 transition">
+          Start the conversation
+        </a>
+        <a href="#solution" class="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full border-2 border-white/40 text-white font-semibold hover:bg-white/10 transition">
+          Review the solution
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== FOOTER ============== -->
+  <footer class="py-10 px-6 lg:px-12 bg-mq-ink text-gray-400 text-sm">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="/mquik.png" alt="Mquik" class="h-6 w-auto brightness-0 invert opacity-60">
+      </div>
+      <div>Workshop Management System · Proposal · 2026</div>
+    </div>
+  </footer>
+
+</body>
+</html>

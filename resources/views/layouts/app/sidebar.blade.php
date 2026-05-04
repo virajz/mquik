@@ -1,101 +1,149 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
-    <head>
-        @include('partials.head')
-    </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
-            <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
-                <flux:sidebar.collapse class="lg:hidden" />
-            </flux:sidebar.header>
 
-            <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-            </flux:sidebar.nav>
+<head>
+    @include('partials.head')
+</head>
 
-            <flux:spacer />
+<body x-data="{ menuQ: '' }" class="min-h-screen bg-white dark:bg-zinc-900 antialiased">
 
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
+    {{-- Primary sidebar — fully collapsible (desktop + mobile) --}}
+    <flux:sidebar sticky collapsible
+        class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+
+        <flux:sidebar.header>
+            <flux:sidebar.brand :href="route('dashboard')" logo="/mquik.png" logo:dark="/mquik.png" wire:navigate />
+            <flux:sidebar.collapse
+                class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
+        </flux:sidebar.header>
+
+        <div class="px-3 py-2">
+            <flux:input
+                size="sm"
+                icon="magnifying-glass"
+                placeholder="{{ __('Search menu...') }}"
+                x-model.debounce.150ms="menuQ"
+                clearable
+            />
+        </div>
+
+        <flux:sidebar.nav>
+            <flux:sidebar.group
+                :heading="__('Platform')"
+                expandable
+                x-show="!menuQ || 'platform dashboard'.includes(menuQ.toLowerCase())"
+            >
+                <flux:sidebar.item
+                    icon="home"
+                    :href="route('dashboard')"
+                    :current="request()->routeIs('dashboard')"
+                    wire:navigate
+                    x-show="!menuQ || 'dashboard'.includes(menuQ.toLowerCase())"
+                >
+                    {{ __('Dashboard') }}
                 </flux:sidebar.item>
+            </flux:sidebar.group>
 
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
-
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
-        </flux:sidebar>
-
-        <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
-
-            <flux:spacer />
-
-            <flux:dropdown position="top" align="end">
-                <flux:profile
-                    :initials="auth()->user()->initials()"
-                    icon-trailing="chevron-down"
-                />
-
-                <flux:menu>
-                    <flux:menu.radio.group>
-                        <div class="p-0 text-sm font-normal">
-                            <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-                                <flux:avatar
-                                    :name="auth()->user()->name"
-                                    :initials="auth()->user()->initials()"
-                                />
-
-                                <div class="grid flex-1 text-start text-sm leading-tight">
-                                    <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
-                                    <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
-                                </div>
-                            </div>
-                        </div>
-                    </flux:menu.radio.group>
-
-                    <flux:menu.separator />
-
-                    <flux:menu.radio.group>
-                        <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
-                            {{ __('Settings') }}
-                        </flux:menu.item>
-                    </flux:menu.radio.group>
-
-                    <flux:menu.separator />
-
-                    <form method="POST" action="{{ route('logout') }}" class="w-full">
-                        @csrf
-                        <flux:menu.item
-                            as="button"
-                            type="submit"
-                            icon="arrow-right-start-on-rectangle"
-                            class="w-full cursor-pointer"
-                            data-test="logout-button"
+            @foreach (app(\App\Support\Menu::class)->forCurrentUser() as $group => $items)
+                @php
+                    $groupSearchHaystack = strtolower($group . ' ' . $items->pluck('label')->join(' '));
+                @endphp
+                <flux:sidebar.group
+                    :heading="__($group)"
+                    expandable
+                    x-show="!menuQ || @js($groupSearchHaystack).includes(menuQ.toLowerCase())"
+                >
+                    @foreach ($items as $item)
+                        <flux:sidebar.item
+                            :icon="$item['icon'] ?? 'cube'"
+                            :href="$item['route'] ? route($item['route']) : '#'"
+                            :current="$item['route'] && request()->routeIs($item['route'])"
+                            wire:navigate
+                            x-show="!menuQ || @js(strtolower($item['label'])).includes(menuQ.toLowerCase())"
                         >
+                            {{ __($item['label']) }}
+                        </flux:sidebar.item>
+                    @endforeach
+                </flux:sidebar.group>
+            @endforeach
+        </flux:sidebar.nav>
+
+        <flux:sidebar.spacer />
+
+        <flux:sidebar.nav>
+            <flux:sidebar.item icon="cog-6-tooth" :href="route('profile.edit')" wire:navigate>
+                {{ __('Settings') }}
+            </flux:sidebar.item>
+        </flux:sidebar.nav>
+
+        <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+    </flux:sidebar>
+
+    {{-- Secondary header — section navbar (groups) on desktop, sidebar toggle on mobile --}}
+    @php
+        $menu = app(\App\Support\Menu::class);
+        $sectionTabs = $menu->sectionTabs();
+        $activeGroup = $menu->activeGroup();
+    @endphp
+
+    <flux:header class="block! border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+
+        {{-- Mobile bar --}}
+        <flux:navbar class="lg:hidden w-full">
+            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+            <flux:spacer />
+            <flux:dropdown position="bottom" align="end">
+                <flux:profile :initials="auth()->user()->initials()" icon-trailing="chevron-down" />
+                <flux:menu>
+                    <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
+                        {{ __('Settings') }}
+                    </flux:menu.item>
+                    <flux:menu.separator />
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle"
+                            class="w-full cursor-pointer">
                             {{ __('Log out') }}
                         </flux:menu.item>
                     </form>
                 </flux:menu>
             </flux:dropdown>
-        </flux:header>
+        </flux:navbar>
 
+        {{-- Desktop section navbar — one tab per menu group --}}
+        <flux:navbar scrollable class="max-lg:hidden">
+            <flux:navbar.item
+                icon="home"
+                :href="route('dashboard')"
+                :current="request()->routeIs('dashboard')"
+                wire:navigate
+            >
+                {{ __('Dashboard') }}
+            </flux:navbar.item>
+
+            @foreach ($sectionTabs as $tab)
+                <flux:navbar.item
+                    :href="$tab['route'] ? route($tab['route']) : '#'"
+                    :current="$activeGroup === $tab['group']"
+                    wire:navigate
+                >
+                    {{ __($tab['label']) }}
+                </flux:navbar.item>
+            @endforeach
+        </flux:navbar>
+    </flux:header>
+
+    <flux:main class="px-6 py-6 lg:px-8 lg:py-8">
         {{ $slot }}
+    </flux:main>
 
-        @persist('toast')
-            <flux:toast.group>
-                <flux:toast />
-            </flux:toast.group>
-        @endpersist
+    @persist('toast')
+        <flux:toast.group>
+            <flux:toast />
+        </flux:toast.group>
+    @endpersist
 
-        @fluxScripts
-    </body>
+    @fluxScripts
+</body>
+
 </html>

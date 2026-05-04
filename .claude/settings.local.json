@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "mcp__laravel-boost__search-docs"
+      "mcp__laravel-boost__search-docs",
+      "mcp__laravel-boost__get-absolute-url",
+      "WebSearch",
+      "WebFetch(domain:fluxui.dev)"
     ]
   }
 }

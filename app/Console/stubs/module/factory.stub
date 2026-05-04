@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Modules\{{ studlyName }}\Database\Factories;
+
+use App\Modules\{{ studlyName }}\Models\{{ studlyName }};
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<{{ studlyName }}>
+ */
+class {{ studlyName }}Factory extends Factory
+{
+    protected $model = {{ studlyName }}::class;
+
+    public function definition(): array
+    {
+        return [
+            'name' => strtoupper($this->faker->words(2, true)),
+            'description' => $this->faker->sentence(),
+        ];
+    }
+}

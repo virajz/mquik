@@ -1,0 +1,75 @@
+<?php
+
+use App\Models\User;
+use App\Modules\{{ studlyName }}\Livewire\Form;
+use App\Modules\{{ studlyName }}\Livewire\Index;
+use App\Modules\{{ studlyName }}\Models\{{ studlyName }};
+use Livewire\Livewire;
+
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
+
+it('renders the index page', function () {
+    {{ studlyName }}::factory()->count(3)->create();
+
+    $this->get(route('{{ kebabName }}.index'))
+        ->assertOk()
+        ->assertSeeLivewire(Index::class);
+});
+
+it('filters records by search', function () {
+    {{ studlyName }}::factory()->create(['name' => 'ALPHA RECORD']);
+    {{ studlyName }}::factory()->create(['name' => 'BETA RECORD']);
+
+    Livewire::test(Index::class)
+        ->set('search', 'ALPHA')
+        ->assertSee('ALPHA RECORD')
+        ->assertDontSee('BETA RECORD');
+});
+
+it('creates a record via the form', function () {
+    Livewire::test(Form::class)
+        ->set('name', 'new vendor')
+        ->set('description', 'first line')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertDispatched('{{ kebabName }}:saved');
+
+    expect({{ studlyName }}::count())->toBe(1);
+    expect({{ studlyName }}::first()->name)->toBe('NEW VENDOR'); // capital typing enforced
+});
+
+it('updates an existing record via the form', function () {
+    $record = {{ studlyName }}::factory()->create(['name' => 'OLD']);
+
+    Livewire::test(Form::class)
+        ->dispatch('{{ kebabName }}:edit', id: $record->id)
+        ->set('name', 'updated')
+        ->call('save')
+        ->assertDispatched('{{ kebabName }}:saved');
+
+    expect($record->fresh()->name)->toBe('UPDATED');
+});
+
+it('deletes a record from the index', function () {
+    $record = {{ studlyName }}::factory()->create();
+
+    Livewire::test(Index::class)
+        ->call('delete', $record->id);
+
+    expect({{ studlyName }}::find($record->id))->toBeNull();
+});
+
+it('validates required name on save', function () {
+    Livewire::test(Form::class)
+        ->set('name', '')
+        ->call('save')
+        ->assertHasErrors(['name' => 'required']);
+});
+
+it('requires authentication', function () {
+    auth()->logout();
+
+    $this->get(route('{{ kebabName }}.index'))->assertRedirect(route('login'));
+});

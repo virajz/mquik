@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Modules\{{ studlyName }}\Database\Seeders;
+
+use App\Modules\{{ studlyName }}\Models\{{ studlyName }};
+use Illuminate\Database\Seeder;
+
+class {{ studlyName }}Seeder extends Seeder
+{
+    public function run(): void
+    {
+        {{ studlyName }}::factory()->count(10)->create();
+    }
+}

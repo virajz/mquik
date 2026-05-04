@@ -1,0 +1,14 @@
+<?php
+
+return [
+    'label' => '{{ studlyName }}',
+    'description' => null,
+    'group' => 'General',
+    'icon' => 'cube',
+    'permissions' => [
+        '{{ snakeName }}.view',
+        '{{ snakeName }}.create',
+        '{{ snakeName }}.update',
+        '{{ snakeName }}.delete',
+    ],
+];

@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Modules\{{ studlyName }}\Livewire;
+
+use App\Modules\{{ studlyName }}\Models\{{ studlyName }};
+use Flux\Flux;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Validate;
+use Livewire\Component;
+
+class Form extends Component
+{
+    public ?int $editingId = null;
+
+    #[Validate('required|string|max:255')]
+    public string $name = '';
+
+    #[Validate('nullable|string|max:1000')]
+    public ?string $description = null;
+
+    #[On('{{ kebabName }}:edit')]
+    public function load(?int $id): void
+    {
+        $this->resetForm();
+        $this->resetErrorBag();
+
+        if ($id === null) {
+            return;
+        }
+
+        $record = {{ studlyName }}::findOrFail($id);
+        $this->editingId = $record->id;
+        $this->name = $record->name;
+        $this->description = $record->description;
+    }
+
+    public function save(): void
+    {
+        $data = $this->validate();
+
+        // Workshop convention: capital typing for all string fields.
+        foreach ($data as $key => $value) {
+            if (is_string($value)) {
+                $data[$key] = strtoupper($value);
+            }
+        }
+
+        if ($this->editingId) {
+            {{ studlyName }}::findOrFail($this->editingId)->update($data);
+            Flux::toast(text: '{{ studlyName }} #'.$this->editingId.' updated.', variant: 'success');
+        } else {
+            $record = {{ studlyName }}::create($data);
+            Flux::toast(text: '{{ studlyName }} #'.$record->id.' created.', variant: 'success');
+        }
+
+        $this->dispatch('{{ kebabName }}:saved');
+        $this->resetForm();
+        Flux::modal('{{ kebabName }}-form')->close();
+    }
+
+    protected function resetForm(): void
+    {
+        $this->editingId = null;
+        $this->name = '';
+        $this->description = null;
+    }
+
+    public function render()
+    {
+        return view('{{ kebabName }}::form');
+    }
+}

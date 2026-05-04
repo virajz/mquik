@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Modules\{{ studlyName }}\Models;
+
+use App\Modules\{{ studlyName }}\Database\Factories\{{ studlyName }}Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class {{ studlyName }} extends Model
+{
+    use HasFactory;
+
+    protected $table = '{{ tableName }}';
+
+    protected $guarded = [];
+
+    protected static function newFactory(): {{ studlyName }}Factory
+    {
+        return {{ studlyName }}Factory::new();
+    }
+}
