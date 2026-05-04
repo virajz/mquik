@@ -33,21 +33,27 @@
                 </div>
 
                 <div>
-                    <flux:input
-                        type="file"
-                        wire:model="file"
-                        accept=".csv,text/csv,text/plain"
-                        label="CSV file"
-                    />
+                    <flux:file-upload wire:model="file" accept=".csv,text/csv,text/plain">
+                        @if (! $file)
+                            <flux:file-upload.dropzone
+                                heading="Drop your CSV here or click to browse"
+                                text="CSV files up to 10 MB"
+                                with-progress
+                            />
+                        @else
+                            <flux:file-item
+                                icon="document-text"
+                                heading="{{ $file->getClientOriginalName() }}"
+                                size="{{ $file->getSize() }}"
+                            >
+                                <flux:file-item.remove wire:click="$set('file', null)" />
+                            </flux:file-item>
+                        @endif
+                    </flux:file-upload>
 
                     @error('file')
                         <flux:text class="text-red-500 text-sm mt-2">{{ $message }}</flux:text>
                     @enderror
-
-                    <div wire:loading wire:target="file" class="text-sm text-zinc-500 mt-2 flex items-center gap-2">
-                        <flux:icon.arrow-path class="size-4 animate-spin" />
-                        Uploading…
-                    </div>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
