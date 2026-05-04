@@ -26,8 +26,9 @@
         </div>
     </div>
 
-    {{-- Export engine — listens for 'start-export' globally and matches on its module name --}}
+    {{-- Engines — listen for 'start-export' / 'start-import' globally, only act on matching module --}}
     <livewire:import-export.export-button :module="'SpareBrandMaster'" wire:key="export-spare-brands" />
+    <livewire:import-export.import-wizard :module="'SpareBrandMaster'" wire:key="import-spare-brands" />
 
     {{-- Filter bar --}}
     <div class="mb-4 flex items-center gap-3">

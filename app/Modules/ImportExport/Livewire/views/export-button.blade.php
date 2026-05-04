@@ -26,20 +26,28 @@
 
             <flux:separator variant="subtle" />
 
-            @if ($status !== 'completed' && $status !== 'failed')
-                <div class="space-y-3">
-                    <div class="flex items-baseline justify-between text-sm">
-                        <span class="text-zinc-500">Processing</span>
-                        <span class="font-mono font-medium">{{ $percent }}%</span>
-                    </div>
-                    <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <div
-                            class="h-full bg-mq-orange-500 transition-all duration-300"
-                            style="width: {{ $percent }}%"
-                        ></div>
-                    </div>
+            @php
+                $barColor = match ($status) {
+                    'completed' => 'bg-emerald-500',
+                    'failed' => 'bg-red-500',
+                    default => 'bg-mq-orange-500',
+                };
+            @endphp
+            <div class="space-y-3">
+                <div class="flex items-baseline justify-between text-sm">
+                    <span class="text-zinc-500">
+                        @if ($status === 'completed') Done
+                        @elseif ($status === 'failed') Failed
+                        @else Processing
+                        @endif
+                    </span>
+                    <span class="font-mono font-medium">{{ $percent }}%</span>
                 </div>
-            @endif
+                <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                    <div class="h-full {{ $barColor }} transition-all duration-300"
+                        style="width: {{ $percent }}%"></div>
+                </div>
+            </div>
 
             <div class="flex justify-end gap-2">
                 <flux:modal.close>

@@ -57,7 +57,7 @@ class GenerateExportJob implements ShouldQueue
             // Ensure directory exists
             @mkdir(dirname($absolutePath), 0755, true);
 
-            $writer = Writer::createFromPath($absolutePath, 'w+');
+            $writer = Writer::from($absolutePath, 'w+');
             $writer->insertOne($exporter->headers());
 
             $processed = 0;

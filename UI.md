@@ -246,6 +246,30 @@ Any `->with(...)` you add to an index must be matched by a column listed in `$fi
 
 ---
 
+## Import / Export
+
+Every module's index page has a `⋮` dropdown next to the **+ New** button with **Import…** and **Export** options. The shared engine lives in `app/Modules/ImportExport/`.
+
+**To make a module exportable:**
+1. Create `app/Modules/{Name}/Exporters/{Name}Exporter.php` implementing `Exportable` (`headers()`, `query()`, `row()`, `fileName()`)
+2. Add to `module.php`: `'exportable' => {Name}Exporter::class`
+
+**To make a module importable:**
+1. Create `app/Modules/{Name}/Importers/{Name}Importer.php` implementing `Importable` (`columns()`, `uniqueBy()`, `validateRow()`, `createRecord()`, `updateRecord()`)
+2. Add to `module.php`: `'importable' => {Name}Importer::class`
+
+The dropdown + wizard + progress modal + Reverb broadcasting come for free. The stub generator already wires both Livewire components into every new module.
+
+**Wizard flow:** Upload → Map columns (with auto-suggest) → Configure behavior → Dry-run preview → Run for real. Errors land in a downloadable CSV. Progress streams via Reverb (no polling).
+
+**Conventions:**
+- `uniqueBy()` returns the columns used to detect duplicates (usually `['name']` for masters)
+- `validateRow()` returns an array of error messages (empty = valid)
+- `createRecord()` / `updateRecord()` should reuse the module's `Form::save()` normalization (capital typing, defaults)
+- Importers can declare optional columns with defaults in `columns()` (`'default' => true` for booleans, etc.)
+
+---
+
 ## Reference screen
 
 Look at [DemoModule's index view](app/Modules/DemoModule/Livewire/views/index.blade.php) — that's the canonical pattern every module index follows. Look at [DemoModule's form view](app/Modules/DemoModule/Livewire/views/form.blade.php) — same for forms.

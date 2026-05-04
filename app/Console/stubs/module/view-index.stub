@@ -28,8 +28,9 @@
         </div>
     </div>
 
-    {{-- Engines: only act when their module name matches the dispatched event --}}
+    {{-- Engines — listen for 'start-export' / 'start-import' globally, only act on matching module --}}
     <livewire:import-export.export-button :module="'{{ studlyName }}'" wire:key="export-{{ kebabName }}" />
+    <livewire:import-export.import-wizard :module="'{{ studlyName }}'" wire:key="import-{{ kebabName }}" />
 
     {{-- Search bar --}}
     <div class="mb-4 flex items-center gap-3">

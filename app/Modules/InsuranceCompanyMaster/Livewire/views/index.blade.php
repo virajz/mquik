@@ -1,14 +1,36 @@
 <div>
-    {{-- Page heading + primary action (must live inside the Livewire component) --}}
+    {{-- Page heading + primary action + actions menu --}}
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
             <flux:heading size="xl" level="1">Insurance Companies</flux:heading>
             <flux:text class="mt-1">Insurers this workshop deals with for claims, surveys, and policy renewals.</flux:text>
         </div>
-        <flux:button variant="primary" icon="plus" wire:click="openCreate">
-            New Insurance Company
-        </flux:button>
+
+        <div class="flex items-center gap-2">
+            <flux:button variant="primary" icon="plus" wire:click="openCreate">
+                New Insurance Company
+            </flux:button>
+
+            <flux:dropdown align="end">
+                <flux:button variant="ghost" icon="ellipsis-vertical" />
+
+                <flux:menu>
+                    <flux:menu.item icon="arrow-up-tray"
+                        wire:click="$dispatch('start-import', { module: 'InsuranceCompanyMaster' })">
+                        Import…
+                    </flux:menu.item>
+                    <flux:menu.item icon="arrow-down-tray"
+                        wire:click="$dispatch('start-export', { module: 'InsuranceCompanyMaster' })">
+                        Export
+                    </flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+        </div>
     </div>
+
+    {{-- Engines — listen for 'start-export' / 'start-import' globally, only act on matching module --}}
+    <livewire:import-export.export-button :module="'InsuranceCompanyMaster'" wire:key="export-insurance-company-master" />
+    <livewire:import-export.import-wizard :module="'InsuranceCompanyMaster'" wire:key="import-insurance-company-master" />
 
     {{-- Search bar --}}
     <div class="mb-4 flex items-center gap-3">
