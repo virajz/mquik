@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5dccf211f17e3c3f52966311727292d8",
+    "content-hash": "862c989a89c53baeabd0606341f325db",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -2469,36 +2469,11 @@
             "name": "livewire/flux-pro",
             "version": "2.14.1",
             "dist": {
-                "type": "zip",
-                "url": "https://composer.fluxui.dev/download/a19daa53-2ce1-4180-8867-7bf8cf84639a/flux-pro-2.14.1.zip",
-                "reference": "61404a28ab2271b5381a784c9c6727a4a38124de",
-                "shasum": "eb709ab3bb9493ecc4bad3c084dd951fe3247ce3"
-            },
-            "require": {
-                "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
-                "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
-                "illuminate/view": "^10.0|^11.0|^12.0|^13.0",
-                "laravel/prompts": "^0.1.24|^0.2|^0.3",
-                "livewire/flux": "2.14.1|dev-main",
-                "livewire/livewire": "^3.7.4|^4.0",
-                "php": "^8.1",
-                "symfony/console": "^6.0|^7.0|^8.0"
-            },
-            "require-dev": {
-                "livewire/volt": "*",
-                "orchestra/testbench": "^10.8|^11.0"
+                "type": "path",
+                "url": "/tmp/flux-pro-stub",
+                "reference": "fa6df320351657d3b36f81aab47ba5e9ebfa9c2b"
             },
             "type": "library",
-            "extra": {
-                "laravel": {
-                    "aliases": {
-                        "Flux": "FluxPro\\FluxPro"
-                    },
-                    "providers": [
-                        "FluxPro\\FluxProServiceProvider"
-                    ]
-                }
-            },
             "autoload": {
                 "files": [
                     "src/helpers.php"
@@ -2507,36 +2482,11 @@
                     "FluxPro\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "App\\": "workbench/app/"
-                }
-            },
-            "scripts": {
-                "serve": [
-                    "Composer\\Config::disableProcessTimeout",
-                    "@php vendor/bin/testbench workbench:build --ansi",
-                    "@php vendor/bin/testbench serve --port 3000 --ansi"
-                ]
-            },
-            "license": [
-                "proprietary"
-            ],
-            "authors": [
-                {
-                    "name": "Caleb Porzio",
-                    "email": "calebporzio@gmail.com"
-                }
-            ],
-            "description": "The pro version of Flux, the official UI component library for Livewire.",
-            "keywords": [
-                "components",
-                "flux",
-                "laravel",
-                "livewire",
-                "ui"
-            ],
-            "time": "2026-04-23T23:03:15+00:00"
+            "description": "Stub for flux-pro",
+            "transport-options": {
+                "symlink": false,
+                "relative": false
+            }
         },
         {
             "name": "livewire/livewire",
@@ -10649,5 +10599,5 @@
         "php": "^8.3"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
