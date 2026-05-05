@@ -1,3 +1,17 @@
+# Mquik Project — Read Order
+
+> **AI agents and new devs:** read `HANDBOOK.md` at the project root FIRST. It's the consolidated dev/AI ready-reckoner — stack, conventions, current state, troubleshooting. Everything below is the Laravel Boost defaults; HANDBOOK.md tells you how this specific project layers on top.
+>
+> Other key docs (in priority order):
+> 1. `HANDBOOK.md` — start here every session
+> 2. `UI.md` — UI/UX conventions
+> 3. `modules.md` — full 127-module map
+> 4. `requirements.md` — client requirements (read the relevant rows BEFORE specifying any module)
+> 5. `timeline.md` — phasing
+> 6. `~/.claude/projects/-Users-viraj-Code-mquik/memory/MEMORY.md` — auto-loaded user preferences
+
+---
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

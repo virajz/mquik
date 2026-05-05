@@ -505,6 +505,11 @@ php artisan migrate                           # additive ONLY — safe
 | Flux Pro `composer install` 403 in CI/cloud container | Auth file in wrong location for cloud user split | Project-local `auth.json` (highest precedence), or `composer config http-basic.composer.fluxui.dev` in setup script |
 | `migrate:fresh` accidentally wiped dev DB | Used `migrate:fresh` instead of additive `migrate` | NEVER again — see §6 NEVER wipe dev DB |
 | Livewire file upload test errors `Undefined property: name` | Built `new UploadedFile(...)` manually instead of via `UploadedFile::fake()` | Use `UploadedFile::fake()->createWithContent(...)` for Livewire `WithFileUploads` |
+| Form modal placeholder text appears in `assertDontSee` and breaks tests | The placeholder string (e.g. "GJ 05 AA 1234") is in the HTML always — substring check fails | Change the placeholder to something abstract ("STATE RTO ALPHA NUMBER") OR make test data use distinct strings that don't collide with placeholders |
+| FK uniqueness within parent fails or false-allows duplicates | `Rule::unique` without scope — checks the whole table | Use `Rule::unique(...)->where(fn ($q) => $q->where('parent_id', $this->parent_id))->ignore($editingId)` |
+| Two icons collide in sidebar (same Heroicon for two modules) | Lazy icon picking | Audit `menu.php` icons across modules; use distinct shapes (truck, cube, swatch, building-storefront, shield-check, tag, user-circle) |
+| Sidebar order is chaotic | Each module set its own `order` independently | Cluster groups in 10-spaced order: people 10-20, vehicle reference 30-60, other reference 70+ |
+| Color picker inside a form shows hex but not as a swatch | Used `flux:input` with custom span | Use `<flux:color-picker type="input">` — built-in palette + live swatch |
 
 ---
 
@@ -573,16 +578,18 @@ Per `timeline.md`, we're tracking:
 | Wave | Scope | Status |
 |---|---|---|
 | **Day 1** | Foundation: app shell, generator, masters skeleton | ✓ done |
-| **Day 1.5** | Two real masters (Insurance Companies, Spare Brands) + ImportExport engine | ✓ done |
-| **Day 2** (next) | Core, Tenancy, Auth (already), **Authorization**, AuditLog | pending |
-| **Day 3** | Front-desk: Appointment, PickupDrop, GateInOut, JobCard, DigitalInspection | pending |
+| **Day 1.5** | InsuranceCompany + SpareBrand masters + ImportExport engine | ✓ done |
+| **Day 1.6** | Customer, Customer Vehicle, Vehicle Brand/Model/Variant/Color | ✓ done (8 masters now live) |
+| **Day 2** | Vehicle Inventory snapshot + Service Type + Service Package masters (still need before JobCard) | NEXT |
+| **Day 2.5** | Authorization, AuditLog (foundational engines) | pending |
+| **Day 3** | Front-desk workflow: Appointment → PickupDrop → GateInOut → JobCard → DigitalInspection | pending |
 | **Day 4** | Parts procurement chain (IPI/IPR/IPO/VPI/VPR/VPO + GRN) | pending |
 | **Day 5** | Sales: Estimate, Approval, Proforma, Invoices, Returns | pending |
 | **Day 6** | Cash, Closure, Outside Work, Bodyshop, Insurance | pending |
 | **Day 7** | Accounting, CRM follow-ups, Notifications, Mobile API | pending |
 | **Day 8** | Reports, Dashboards, Smart Salary, integrations, UAT, go-live | pending |
 
-**Right now we're between Day 1.5 and Day 2.** Authorization is the natural next architecture piece — until it lands, the menu engine's permission stubs are no-ops and `module.php`'s `permissions` array is dead weight.
+**Right now we're between Day 1.6 and Day 2.** Master-data foundation is mostly done. Before JobCard, we still need: Vehicle Inventory (the standard checklist a Job Card snapshots), Service Type (job category), Service Package / AMC (pre-defined service bundles), and several smaller lookup masters identified in `requirements.md` row 88. Authorization lands in parallel — until then, the menu engine's permission stubs are no-ops and `module.php`'s `permissions` arrays are dead weight.
 
 ---
 
