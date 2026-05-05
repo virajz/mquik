@@ -1,0 +1,42 @@
+<div>
+    <flux:modal name="vehicle-brand-master-form" class="md:w-md">
+        <form wire:submit="save" class="space-y-5">
+            <div>
+                <flux:heading size="lg">
+                    {{ $editingId ? 'Edit Brand' : 'New Brand' }}
+                </flux:heading>
+                <flux:subheading>
+                    {{ $editingId ? 'Update the vehicle brand details below.' : 'Add a vehicle brand the workshop services.' }}
+                </flux:subheading>
+            </div>
+
+            <flux:separator variant="subtle" />
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="md:col-span-2">
+                        <flux:input wire:model="name" label="Brand Name" placeholder="e.g. MARUTI SUZUKI" required autofocus />
+                    </div>
+                    <flux:input wire:model="code" label="Code" placeholder="MAR" maxlength="20" class:input="font-mono uppercase tracking-wide" />
+                </div>
+
+                <flux:input wire:model="country" label="Country of Origin" placeholder="e.g. INDIA" />
+
+                <flux:textarea wire:model="notes" label="Notes" placeholder="Anything the team should know about this brand" rows="2" />
+
+                <flux:separator variant="subtle" />
+
+                <flux:switch wire:model="is_active" label="Active" description="Inactive brands won't appear in dropdowns on new vehicles." />
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check">
+                    {{ $editingId ? 'Save changes' : 'Create' }}
+                </flux:button>
+            </div>
+        </form>
+    </flux:modal>
+</div>

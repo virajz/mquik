@@ -119,6 +119,18 @@ The stub generator already wires sort into every new module — for masters, def
 
 **Required vs optional:** mark required with the `required` attribute. Don't use asterisks in labels — let Flux handle it.
 
+**Always use the Flux variant, never native HTML:**
+
+| For | Use | Never |
+|---|---|---|
+| Dropdowns | `flux:select variant="listbox"` | native `<select>` or `flux:select` without listbox |
+| Dates | `flux:date-picker with-today selectable-header fixed-weeks type="input"` | `flux:input type="date"` or native date inputs |
+| File uploads | `flux:file-upload` + `flux:file-upload.dropzone` (+ `flux:file-item` for selected file) | `flux:input type="file"` |
+| Pagination | `flux:pagination :paginator="$rows"` | `{{ $rows->links() }}` |
+| Colors / hex | `flux:color-picker type="input"` | plain `flux:input` + custom swatch div |
+
+The native HTML versions look out of place next to other Flux components and lose the polish (calendar UI, drag-drop, mobile pickers, palette).
+
 ---
 
 ## Buttons
