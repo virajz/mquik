@@ -7,6 +7,6 @@ return [
         'icon' => 'truck',
         'route' => 'customer-vehicle-master.index',
         'permission' => 'customer_vehicle_master.view',
-        'order' => 35,
+        'order' => 20,
     ],
 ];

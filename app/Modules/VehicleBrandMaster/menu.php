@@ -4,9 +4,9 @@ return [
     [
         'group' => 'Masters',
         'label' => 'Vehicle Brands',
-        'icon' => 'truck',
+        'icon' => 'building-storefront',
         'route' => 'vehicle-brand-master.index',
         'permission' => 'vehicle_brand_master.view',
-        'order' => 40,
+        'order' => 30,
     ],
 ];

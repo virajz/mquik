@@ -7,6 +7,6 @@ return [
         'icon' => 'adjustments-horizontal',
         'route' => 'vehicle-variant-master.index',
         'permission' => 'vehicle_variant_master.view',
-        'order' => 55,
+        'order' => 50,
     ],
 ];

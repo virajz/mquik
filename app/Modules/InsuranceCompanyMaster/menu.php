@@ -7,6 +7,6 @@ return [
         'icon' => 'shield-check',
         'route' => 'insurance-company-master.index',
         'permission' => 'insurance_company_master.view',
-        'order' => 50,
+        'order' => 70,
     ],
 ];

@@ -7,6 +7,6 @@ return [
         'icon' => 'swatch',
         'route' => 'vehicle-color-master.index',
         'permission' => 'vehicle_color_master.view',
-        'order' => 70,
+        'order' => 60,
     ],
 ];

@@ -14,7 +14,7 @@
 | Why does it exist? | See `requirements.md` (client spec, ~600 KB) and `modules.md` (architecture map) |
 | Who builds it? | Solo dev + Claude as pair programmer · 8-week timeline · see `timeline.md` |
 | Strategic plan | See `exec-summary.md` (private — three bets: generator + engines + ship/function/stub honesty) |
-| What's shipped? | Module generator · 2 masters (Insurance Companies, Spare Brands) · ImportExport engine with Reverb-driven progress |
+| What's shipped? | Module generator + remover · 8 masters live (Insurance Companies, Spare Brands, Customers, Customer Vehicles, Vehicle Brands, Vehicle Models, Vehicle Variants, Vehicle Colors) · ImportExport engine with Reverb-driven progress · 121+ passing tests |
 
 **Other docs you should know about:**
 - `CLAUDE.md` — Laravel Boost guidelines (read by AI agents, governs MCP/skill behavior)
@@ -176,8 +176,77 @@ After generating, you customize: migration columns, factory definition, Form pro
 ### File size cap
 Livewire components and Blade views: **max 200 lines**. Split via traits, services, or partials when growing past 150.
 
-### Selects
-Always `<flux:select variant="listbox">`. Never `<select>` or default Flux variant.
+### Always-Flux table (never the native HTML version)
+
+| For | Use | Never |
+|---|---|---|
+| Dropdowns | `<flux:select variant="listbox">` | native `<select>` or default `flux:select` |
+| Dates | `<flux:date-picker with-today selectable-header fixed-weeks type="input">` | `flux:input type="date"` or native date inputs |
+| Colors / hex | `<flux:color-picker type="input">` | text input + custom swatch div |
+| File uploads | `<flux:file-upload>` + `<flux:file-upload.dropzone>` (+ `<flux:file-item>` for selected file) | `flux:input type="file"` |
+| Pagination | `<flux:pagination :paginator="$rows">` | `{{ $rows->links() }}` |
+
+The native HTML versions look out of place beside Flux components and lose the polish (calendar UI with 6-row fixed weeks, drag-drop zone, palette picker, mobile-friendly inputs).
+
+### Foreign-key pickers (the convention)
+
+When a form needs a FK select (e.g. Brand on a Model form, Customer on a CustomerVehicle form):
+
+```php
+// In the Livewire component
+use Livewire\Attributes\Computed;
+
+#[Computed]
+public function brands()
+{
+    return VehicleBrandMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+}
+```
+
+```blade
+<flux:select wire:model="brand_id" label="Brand" variant="listbox" placeholder="Select brand" searchable required>
+    @foreach ($this->brands as $b)
+        <flux:select.option :value="$b->id">{{ $b->name }}</flux:select.option>
+    @endforeach
+</flux:select>
+```
+
+Add `searchable` when the list could exceed ~10 items. Add a `placeholder="Pick a brand first"` and `:disabled="! $brand_id"` on dependent dropdowns (Variant depends on Model).
+
+Reset dependent FKs when parent changes:
+```php
+public function updatedModelId(): void
+{
+    $this->variant_id = null;
+}
+```
+
+For visual hints in option (color swatch, transmission icon), pass HTML inside `<flux:select.option>`:
+```blade
+<flux:select.option :value="$c->id">
+    <div class="flex items-center gap-2">
+        <span class="size-3 shrink-0 rounded-full border border-zinc-300" style="background-color: {{ $c->hex_code }}"></span>
+        <span>{{ $c->name }}</span>
+    </div>
+</flux:select.option>
+```
+
+### Cross-FK uniqueness (composite uniques)
+
+When a model is unique within a parent (e.g. a Vehicle Model name is unique per brand — Maruti Swift vs Nissan Swift):
+
+```php
+// Migration
+$table->unique(['brand_id', 'name']);
+
+// Form Rule
+'name' => [
+    'required', 'string', 'max:255',
+    Rule::unique('vehicle_models', 'name')
+        ->where(fn ($q) => $q->where('brand_id', $this->brand_id))
+        ->ignore($this->editingId),
+],
+```
 
 ---
 

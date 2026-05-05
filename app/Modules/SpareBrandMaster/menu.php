@@ -7,6 +7,6 @@ return [
         'icon' => 'tag',
         'route' => 'spare-brand-master.index',
         'permission' => 'spare_brand_master.view',
-        'order' => 60,
+        'order' => 80,
     ],
 ];

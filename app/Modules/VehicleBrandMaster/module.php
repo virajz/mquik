@@ -7,7 +7,7 @@ return [
     'label' => 'Vehicle Brands',
     'description' => 'Brands of vehicles serviced at this workshop.',
     'group' => 'Masters',
-    'icon' => 'truck',
+    'icon' => 'building-storefront',
     'permissions' => [
         'vehicle_brand_master.view',
         'vehicle_brand_master.create',

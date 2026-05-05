@@ -41,7 +41,13 @@
                     <flux:select wire:model="color_id" label="Color" variant="listbox" placeholder="Optional">
                         <flux:select.option value="">— Skip —</flux:select.option>
                         @foreach ($this->colors as $c)
-                            <flux:select.option :value="$c->id">{{ $c->name }}</flux:select.option>
+                            <flux:select.option :value="$c->id">
+                                <div class="flex items-center gap-2">
+                                    <span class="size-3 shrink-0 rounded-full border border-zinc-300 dark:border-zinc-600"
+                                        style="background-color: {{ $c->hex_code ?? '#cccccc' }}"></span>
+                                    <span>{{ $c->name }}</span>
+                                </div>
+                            </flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
