@@ -2,6 +2,7 @@
 
 use App\Modules\InsuranceCompanyMaster\Exporters\InsuranceCompanyExporter;
 use App\Modules\InsuranceCompanyMaster\Importers\InsuranceCompanyImporter;
+use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 
 return [
     'label' => 'Insurance Companies',
@@ -18,4 +19,8 @@ return [
     ],
     'exportable' => InsuranceCompanyExporter::class,
     'importable' => InsuranceCompanyImporter::class,
+    'searchable' => [
+        'model' => InsuranceCompanyMaster::class,
+        'route' => 'insurance-company-master.index',
+    ],
 ];

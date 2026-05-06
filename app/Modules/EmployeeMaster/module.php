@@ -2,6 +2,7 @@
 
 use App\Modules\EmployeeMaster\Exporters\EmployeeExporter;
 use App\Modules\EmployeeMaster\Importers\EmployeeImporter;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 
 return [
     'label' => 'Employees',
@@ -18,4 +19,8 @@ return [
     ],
     'exportable' => EmployeeExporter::class,
     'importable' => EmployeeImporter::class,
+    'searchable' => [
+        'model' => EmployeeMaster::class,
+        'route' => 'employee-master.index',
+    ],
 ];

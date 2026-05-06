@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleBrandMaster\Models;
 
+use App\Concerns\Searchable;
 use App\Modules\VehicleBrandMaster\Database\Factories\VehicleBrandMasterFactory;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,8 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class VehicleBrandMaster extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $table = 'vehicle_brands';
+
+    protected static array $searchableFields = ['name', 'code'];
 
     protected $guarded = [];
 

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Support\Menu;
 use App\Support\ModuleRegistry;
+use App\Support\SearchRegistry;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -16,6 +17,7 @@ class ModuleServiceProvider extends ServiceProvider
     {
         $this->app->singleton(Menu::class);
         $this->app->singleton(ModuleRegistry::class);
+        $this->app->singleton(SearchRegistry::class);
     }
 
     public function boot(): void

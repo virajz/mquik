@@ -2,6 +2,7 @@
 
 namespace App\Modules\EmployeeMaster\Models;
 
+use App\Concerns\Searchable;
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
 use App\Modules\EmployeeMaster\Database\Factories\EmployeeMasterFactory;
@@ -12,8 +13,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeMaster extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $table = 'employees';
+
+    protected static array $searchableFields = ['name', 'employee_code', 'phone', 'email'];
+
+    public function toSearchResult(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->name,
+            'subtitle' => $this->employee_code.($this->phone ? ' • +91 '.$this->phone : ''),
+        ];
+    }
 
     protected $guarded = [];
 

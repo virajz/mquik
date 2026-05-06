@@ -40,39 +40,42 @@ it('assigns incrementing positions to new pins', function () {
         ->and($pins->pluck('position')->all())->toBe([1, 2]);
 });
 
-it('moves a pin up via movePin', function () {
-    $userId = auth()->id();
-    UserMenuPin::create(['user_id' => $userId, 'route_name' => 'a', 'label' => 'A', 'position' => 1]);
-    $b = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'b', 'label' => 'B', 'position' => 2]);
-
-    Livewire::test(SidebarMenu::class)->call('movePin', $b->id, 'up');
-
-    $order = UserMenuPin::orderBy('position')->pluck('route_name')->all();
-    expect($order)->toBe(['b', 'a']);
-});
-
-it('moves a pin down via movePin', function () {
+it('reorders pins via reorderPins', function () {
     $userId = auth()->id();
     $a = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'a', 'label' => 'A', 'position' => 1]);
-    UserMenuPin::create(['user_id' => $userId, 'route_name' => 'b', 'label' => 'B', 'position' => 2]);
+    $b = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'b', 'label' => 'B', 'position' => 2]);
+    $c = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'c', 'label' => 'C', 'position' => 3]);
 
-    Livewire::test(SidebarMenu::class)->call('movePin', $a->id, 'down');
+    Livewire::test(SidebarMenu::class)
+        ->call('reorderPins', [(string) $c->id, (string) $a->id, (string) $b->id]);
 
     $order = UserMenuPin::orderBy('position')->pluck('route_name')->all();
-    expect($order)->toBe(['b', 'a']);
+    expect($order)->toBe(['c', 'a', 'b']);
 });
 
-it('does not move past the boundaries', function () {
+it('reorderPins ignores ids that belong to a different user', function () {
+    $other = User::factory()->create();
+    $foreign = UserMenuPin::create(['user_id' => $other->id, 'route_name' => 'foreign', 'label' => 'F', 'position' => 1]);
+
     $userId = auth()->id();
     $a = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'a', 'label' => 'A', 'position' => 1]);
     $b = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'b', 'label' => 'B', 'position' => 2]);
 
     Livewire::test(SidebarMenu::class)
-        ->call('movePin', $a->id, 'up')   // already first
-        ->call('movePin', $b->id, 'down'); // already last
+        ->call('reorderPins', [(string) $foreign->id, (string) $b->id, (string) $a->id]);
 
-    $order = UserMenuPin::orderBy('position')->pluck('route_name')->all();
-    expect($order)->toBe(['a', 'b']);
+    expect($foreign->fresh()->position)->toBe(1) // unchanged
+        ->and($b->fresh()->position)->toBe(1)
+        ->and($a->fresh()->position)->toBe(2);
+});
+
+it('reorderPins handles a no-op safely', function () {
+    $userId = auth()->id();
+    $a = UserMenuPin::create(['user_id' => $userId, 'route_name' => 'a', 'label' => 'A', 'position' => 1]);
+
+    Livewire::test(SidebarMenu::class)->call('reorderPins', []);
+
+    expect($a->fresh()->position)->toBe(1);
 });
 
 it('scopes pins to the current user', function () {

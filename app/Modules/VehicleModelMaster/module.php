@@ -2,6 +2,7 @@
 
 use App\Modules\VehicleModelMaster\Exporters\VehicleModelExporter;
 use App\Modules\VehicleModelMaster\Importers\VehicleModelImporter;
+use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 
 return [
     'label' => 'Vehicle Models',
@@ -18,4 +19,8 @@ return [
     ],
     'exportable' => VehicleModelExporter::class,
     'importable' => VehicleModelImporter::class,
+    'searchable' => [
+        'model' => VehicleModelMaster::class,
+        'route' => 'vehicle-model-master.index',
+    ],
 ];

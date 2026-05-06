@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleModelMaster\Models;
 
+use App\Concerns\Searchable;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Database\Factories\VehicleModelMasterFactory;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class VehicleModelMaster extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $table = 'vehicle_models';
 
@@ -21,6 +23,17 @@ class VehicleModelMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name'];
+
+    public function toSearchResult(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->name,
+            'subtitle' => $this->brand?->name,
+        ];
+    }
 
     public function brand(): BelongsTo
     {

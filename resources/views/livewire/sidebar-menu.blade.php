@@ -12,43 +12,42 @@
     <flux:sidebar.nav>
         @if ($pinnedItems->isNotEmpty())
             <flux:sidebar.group :heading="__('Pinned')" expandable>
-                @foreach ($pinnedItems as $i => $item)
-                    <div class="group/pin relative">
-                        <flux:sidebar.item
-                            :icon="$item['icon'] ?? 'cube'"
-                            :href="$item['route'] ? route($item['route']) : '#'"
-                            :current="$item['route'] && $currentRoute === $item['route']"
-                            wire:navigate
+                <div
+                    x-sort="$wire.reorderPins($event.target.sortable.toArray())"
+                    x-sort:config="{ handle: '[data-pin-handle]', ghostClass: 'opacity-50' }"
+                >
+                    @foreach ($pinnedItems as $item)
+                        <div
+                            wire:key="pin-{{ $item['pin_id'] }}"
+                            x-sort:item="{{ $item['pin_id'] }}"
+                            class="group/pin relative"
                         >
-                            {{ __($item['label']) }}
-                        </flux:sidebar.item>
+                            <flux:sidebar.item
+                                :icon="$item['icon'] ?? 'cube'"
+                                :href="$item['route'] ? route($item['route']) : '#'"
+                                :current="$item['route'] && $currentRoute === $item['route']"
+                                wire:navigate
+                            >
+                                {{ __($item['label']) }}
+                            </flux:sidebar.item>
 
-                        <div class="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover/pin:flex items-center gap-0.5 bg-zinc-50 dark:bg-zinc-900 pl-1 rounded">
-                            @if ($i > 0)
+                            <div class="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover/pin:flex items-center gap-0.5 bg-zinc-50 dark:bg-zinc-900 pl-1 rounded">
                                 <button type="button"
-                                    wire:click.stop="movePin({{ $item['pin_id'] }}, 'up')"
-                                    title="Move up"
-                                    class="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700">
-                                    <flux:icon.chevron-up class="size-3 text-zinc-500" />
+                                    data-pin-handle
+                                    title="Drag to reorder"
+                                    class="p-0.5 rounded cursor-grab active:cursor-grabbing hover:bg-zinc-200 dark:hover:bg-zinc-700">
+                                    <flux:icon.bars-3 class="size-3 text-zinc-500" />
                                 </button>
-                            @endif
-                            @if ($i < $pinnedItems->count() - 1)
                                 <button type="button"
-                                    wire:click.stop="movePin({{ $item['pin_id'] }}, 'down')"
-                                    title="Move down"
+                                    wire:click.stop="togglePin('{{ $item['route'] }}', '{{ addslashes($item['label']) }}', '{{ $item['icon'] ?? '' }}')"
+                                    title="Unpin"
                                     class="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700">
-                                    <flux:icon.chevron-down class="size-3 text-zinc-500" />
+                                    <flux:icon.x-mark class="size-3 text-zinc-500" />
                                 </button>
-                            @endif
-                            <button type="button"
-                                wire:click.stop="togglePin('{{ $item['route'] }}', '{{ addslashes($item['label']) }}', '{{ $item['icon'] ?? '' }}')"
-                                title="Unpin"
-                                class="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700">
-                                <flux:icon.x-mark class="size-3 text-zinc-500" />
-                            </button>
+                            </div>
                         </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </flux:sidebar.group>
         @endif
 

@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerVehicleMaster\Models;
 
+use App\Concerns\Searchable;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Database\Factories\CustomerVehicleMasterFactory;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CustomerVehicleMaster extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $table = 'customer_vehicles';
 
@@ -24,6 +26,17 @@ class CustomerVehicleMaster extends Model
         'insurance_expiry' => 'date',
         'puc_expiry' => 'date',
     ];
+
+    protected static array $searchableFields = ['registration_no', 'vin', 'engine_no'];
+
+    public function toSearchResult(): array
+    {
+        return [
+            'id' => $this->id,
+            'title' => $this->registration_no ?? '#'.$this->id,
+            'subtitle' => trim(($this->model?->brand?->name ?? '').' '.($this->model?->name ?? '')) ?: null,
+        ];
+    }
 
     public function customer(): BelongsTo
     {

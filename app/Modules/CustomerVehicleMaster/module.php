@@ -2,6 +2,7 @@
 
 use App\Modules\CustomerVehicleMaster\Exporters\CustomerVehicleExporter;
 use App\Modules\CustomerVehicleMaster\Importers\CustomerVehicleImporter;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 
 return [
     'label' => 'Customer Vehicles',
@@ -18,4 +19,8 @@ return [
     ],
     'exportable' => CustomerVehicleExporter::class,
     'importable' => CustomerVehicleImporter::class,
+    'searchable' => [
+        'model' => CustomerVehicleMaster::class,
+        'route' => 'customer-vehicle-master.index',
+    ],
 ];

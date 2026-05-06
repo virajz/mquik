@@ -8,8 +8,7 @@
 <body class="min-h-screen bg-white dark:bg-zinc-900 antialiased">
 
     {{-- Primary sidebar — fully collapsible (desktop + mobile) --}}
-    <flux:sidebar sticky collapsible
-        class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+    <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
 
         <flux:sidebar.header>
             <flux:sidebar.brand :href="route('dashboard')" logo="/mquik.png" logo:dark="/mquik.png" wire:navigate />
@@ -63,26 +62,33 @@
 
         {{-- Desktop section navbar — one tab per menu group --}}
         <flux:navbar scrollable class="max-lg:hidden">
-            <flux:navbar.item
-                icon="home"
-                :href="route('dashboard')"
-                :current="request()->routeIs('dashboard')"
-                wire:navigate
-            >
+            <flux:navbar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')"
+                wire:navigate>
                 {{ __('Dashboard') }}
             </flux:navbar.item>
 
             @foreach ($sectionTabs as $tab)
-                <flux:navbar.item
-                    :href="$tab['route'] ? route($tab['route']) : '#'"
-                    :current="$activeGroup === $tab['group']"
-                    wire:navigate
-                >
+                <flux:navbar.item :href="$tab['route'] ? route($tab['route']) : '#'"
+                    :current="$activeGroup === $tab['group']" wire:navigate>
                     {{ __($tab['label']) }}
                 </flux:navbar.item>
             @endforeach
+
+            <flux:spacer />
+
+            <flux:modal.trigger name="master-search" shortcut="cmd.k">
+                <button type="button"
+                    class="hidden lg:flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+                >
+                    <flux:icon.magnifying-glass class="size-4" />
+                    <span>Search...</span>
+                    <kbd class="ml-2 px-1.5 py-0.5 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded">⌘K</kbd>
+                </button>
+            </flux:modal.trigger>
         </flux:navbar>
     </flux:header>
+
+    <livewire:master-search />
 
     <flux:main class="px-6 py-6 lg:px-8 lg:py-8">
         {{ $slot }}

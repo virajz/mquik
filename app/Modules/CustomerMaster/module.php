@@ -2,6 +2,7 @@
 
 use App\Modules\CustomerMaster\Exporters\CustomerExporter;
 use App\Modules\CustomerMaster\Importers\CustomerImporter;
+use App\Modules\CustomerMaster\Models\CustomerMaster;
 
 return [
     'label' => 'Customers',
@@ -18,4 +19,8 @@ return [
     ],
     'exportable' => CustomerExporter::class,
     'importable' => CustomerImporter::class,
+    'searchable' => [
+        'model' => CustomerMaster::class,
+        'route' => 'customer-master.index',
+    ],
 ];

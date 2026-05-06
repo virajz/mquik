@@ -45,36 +45,45 @@ class SidebarMenu extends Component
         ]);
     }
 
-    public function movePin(int $id, string $direction): void
+    /**
+     * @param  array<int, int|string>  $orderedIds  pin ids in their new visual order
+     */
+    public function reorderPins(array $orderedIds): void
     {
         if (! $userId = auth()->id()) {
             return;
         }
 
-        $pins = UserMenuPin::query()
+        $ids = array_values(array_filter(array_map('intval', $orderedIds)));
+        if (empty($ids)) {
+            return;
+        }
+
+        $owned = UserMenuPin::query()
             ->where('user_id', $userId)
-            ->orderBy('position')
-            ->orderBy('id')
-            ->get();
+            ->whereIn('id', $ids)
+            ->pluck('id')
+            ->all();
 
-        $index = $pins->search(fn ($p) => $p->id === $id);
-        if ($index === false) {
-            return;
+        // Phase 1: park everything at negative positions to dodge the (user_id, position) unique.
+        UserMenuPin::query()
+            ->where('user_id', $userId)
+            ->whereIn('id', $owned)
+            ->each(function (UserMenuPin $p, int $i): void {
+                $p->update(['position' => -1 - $i]);
+            });
+
+        // Phase 2: assign final positions in the requested order.
+        $position = 1;
+        foreach ($ids as $id) {
+            if (! in_array($id, $owned, true)) {
+                continue;
+            }
+            UserMenuPin::query()
+                ->where('user_id', $userId)
+                ->where('id', $id)
+                ->update(['position' => $position++]);
         }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-        if (! isset($pins[$swapWith])) {
-            return;
-        }
-
-        [$a, $b] = [$pins[$index], $pins[$swapWith]];
-        // Use a sentinel value to dodge the unique (user_id, position) constraint during swap.
-        $temp = -1;
-        $aPos = $a->position;
-        $bPos = $b->position;
-        $a->update(['position' => $temp]);
-        $b->update(['position' => $aPos]);
-        $a->update(['position' => $bPos]);
     }
 
     public function render()

@@ -2,6 +2,7 @@
 
 use App\Modules\VehicleBrandMaster\Exporters\VehicleBrandExporter;
 use App\Modules\VehicleBrandMaster\Importers\VehicleBrandImporter;
+use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 
 return [
     'label' => 'Vehicle Brands',
@@ -18,4 +19,8 @@ return [
     ],
     'exportable' => VehicleBrandExporter::class,
     'importable' => VehicleBrandImporter::class,
+    'searchable' => [
+        'model' => VehicleBrandMaster::class,
+        'route' => 'vehicle-brand-master.index',
+    ],
 ];
