@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Modules\ServiceTypeMaster\Models;
+
+use App\Modules\ServiceTypeMaster\Database\Factories\ServiceTypeMasterFactory;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class ServiceTypeMaster extends Model
+{
+    use HasFactory;
+
+    protected $table = 'service_types';
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'requires_advisor' => 'boolean',
+        'is_active' => 'boolean',
+    ];
+
+    public function workshopDepartment(): BelongsTo
+    {
+        return $this->belongsTo(WorkshopDepartmentMaster::class, 'workshop_department_id');
+    }
+
+    protected static function newFactory(): ServiceTypeMasterFactory
+    {
+        return ServiceTypeMasterFactory::new();
+    }
+}

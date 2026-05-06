@@ -5,7 +5,7 @@
     @include('partials.head')
 </head>
 
-<body x-data="{ menuQ: '' }" class="min-h-screen bg-white dark:bg-zinc-900 antialiased">
+<body class="min-h-screen bg-white dark:bg-zinc-900 antialiased">
 
     {{-- Primary sidebar — fully collapsible (desktop + mobile) --}}
     <flux:sidebar sticky collapsible
@@ -17,56 +17,7 @@
                 class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
         </flux:sidebar.header>
 
-        <div class="px-3 py-2">
-            <flux:input
-                size="sm"
-                icon="magnifying-glass"
-                placeholder="{{ __('Search menu...') }}"
-                x-model.debounce.150ms="menuQ"
-                clearable
-            />
-        </div>
-
-        <flux:sidebar.nav>
-            <flux:sidebar.group
-                :heading="__('Platform')"
-                expandable
-                x-show="!menuQ || 'platform dashboard'.includes(menuQ.toLowerCase())"
-            >
-                <flux:sidebar.item
-                    icon="home"
-                    :href="route('dashboard')"
-                    :current="request()->routeIs('dashboard')"
-                    wire:navigate
-                    x-show="!menuQ || 'dashboard'.includes(menuQ.toLowerCase())"
-                >
-                    {{ __('Dashboard') }}
-                </flux:sidebar.item>
-            </flux:sidebar.group>
-
-            @foreach (app(\App\Support\Menu::class)->forCurrentUser() as $group => $items)
-                @php
-                    $groupSearchHaystack = strtolower($group . ' ' . $items->pluck('label')->join(' '));
-                @endphp
-                <flux:sidebar.group
-                    :heading="__($group)"
-                    expandable
-                    x-show="!menuQ || @js($groupSearchHaystack).includes(menuQ.toLowerCase())"
-                >
-                    @foreach ($items as $item)
-                        <flux:sidebar.item
-                            :icon="$item['icon'] ?? 'cube'"
-                            :href="$item['route'] ? route($item['route']) : '#'"
-                            :current="$item['route'] && request()->routeIs($item['route'])"
-                            wire:navigate
-                            x-show="!menuQ || @js(strtolower($item['label'])).includes(menuQ.toLowerCase())"
-                        >
-                            {{ __($item['label']) }}
-                        </flux:sidebar.item>
-                    @endforeach
-                </flux:sidebar.group>
-            @endforeach
-        </flux:sidebar.nav>
+        <livewire:sidebar-menu />
 
         <flux:sidebar.spacer />
 
