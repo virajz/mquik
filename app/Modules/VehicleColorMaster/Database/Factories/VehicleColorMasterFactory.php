@@ -16,7 +16,7 @@ class VehicleColorMasterFactory extends Factory
     {
         return [
             'name' => strtoupper($this->faker->unique()->safeColorName()).' '.$this->faker->randomNumber(3),
-            'hex_code' => '#'.dechex(random_int(0, 0xFFFFFF)),
+            'hex_code' => '#'.strtoupper(sprintf('%06X', random_int(0, 0xFFFFFF))),
             'is_active' => true,
             'notes' => null,
         ];
