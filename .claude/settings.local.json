@@ -4,7 +4,10 @@
       "mcp__laravel-boost__search-docs",
       "mcp__laravel-boost__get-absolute-url",
       "WebSearch",
-      "WebFetch(domain:fluxui.dev)"
+      "WebFetch(domain:fluxui.dev)",
+      "Bash(php artisan *)",
+      "Bash(composer dump-autoload *)",
+      "Bash(vendor/bin/pint --dirty --format agent)"
     ]
   }
 }
