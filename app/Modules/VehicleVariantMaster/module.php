@@ -6,7 +6,7 @@ use App\Modules\VehicleVariantMaster\Importers\VehicleVariantImporter;
 return [
     'label' => 'Vehicle Variants',
     'description' => 'Trim levels within each vehicle model.',
-    'group' => 'Masters',
+    'group' => 'Vehicles',
     'icon' => 'adjustments-horizontal',
     'permissions' => [
         'vehicle_variant_master.view',

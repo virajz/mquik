@@ -6,7 +6,7 @@ use App\Modules\VehicleModelMaster\Importers\VehicleModelImporter;
 return [
     'label' => 'Vehicle Models',
     'description' => 'Models within each vehicle brand.',
-    'group' => 'Masters',
+    'group' => 'Vehicles',
     'icon' => 'cube',
     'permissions' => [
         'vehicle_model_master.view',

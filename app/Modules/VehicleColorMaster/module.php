@@ -6,7 +6,7 @@ use App\Modules\VehicleColorMaster\Importers\VehicleColorImporter;
 return [
     'label' => 'Vehicle Colors',
     'description' => 'Paint colors used on customer vehicles.',
-    'group' => 'Masters',
+    'group' => 'Vehicles',
     'icon' => 'swatch',
     'permissions' => [
         'vehicle_color_master.view',

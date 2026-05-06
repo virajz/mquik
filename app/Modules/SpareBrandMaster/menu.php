@@ -2,11 +2,11 @@
 
 return [
     [
-        'group' => 'Masters',
+        'group' => 'Inventory',
         'label' => 'Spare Brands',
         'icon' => 'tag',
         'route' => 'spare-brand-master.index',
         'permission' => 'spare_brand_master.view',
-        'order' => 80,
+        'order' => 30,
     ],
 ];

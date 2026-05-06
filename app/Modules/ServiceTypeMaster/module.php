@@ -6,7 +6,7 @@ use App\Modules\ServiceTypeMaster\Importers\ServiceTypeImporter;
 return [
     'label' => 'Service Types',
     'description' => 'How the workshop categorises a job — drives advisor routing, packages, and reports.',
-    'group' => 'Masters',
+    'group' => 'Workshop',
     'icon' => 'wrench-screwdriver',
     'permissions' => [
         'service_type_master.view',

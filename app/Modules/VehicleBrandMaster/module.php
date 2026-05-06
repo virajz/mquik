@@ -6,7 +6,7 @@ use App\Modules\VehicleBrandMaster\Importers\VehicleBrandImporter;
 return [
     'label' => 'Vehicle Brands',
     'description' => 'Brands of vehicles serviced at this workshop.',
-    'group' => 'Masters',
+    'group' => 'Vehicles',
     'icon' => 'building-storefront',
     'permissions' => [
         'vehicle_brand_master.view',

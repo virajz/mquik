@@ -2,11 +2,11 @@
 
 return [
     [
-        'group' => 'Masters',
+        'group' => 'Vehicles',
         'label' => 'Vehicle Colors',
         'icon' => 'swatch',
         'route' => 'vehicle-color-master.index',
         'permission' => 'vehicle_color_master.view',
-        'order' => 60,
+        'order' => 40,
     ],
 ];

@@ -6,7 +6,7 @@ use App\Modules\CustomerVehicleMaster\Importers\CustomerVehicleImporter;
 return [
     'label' => 'Customer Vehicles',
     'description' => 'Vehicles owned by customers — used by appointments, job cards, and insurance claims.',
-    'group' => 'Masters',
+    'group' => 'Customers',
     'icon' => 'truck',
     'permissions' => [
         'customer_vehicle_master.view',

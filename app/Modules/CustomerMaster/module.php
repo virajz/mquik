@@ -6,7 +6,7 @@ use App\Modules\CustomerMaster\Importers\CustomerImporter;
 return [
     'label' => 'Customers',
     'description' => 'Customers who book services, buy parts, or own vehicles serviced here.',
-    'group' => 'Masters',
+    'group' => 'Customers',
     'icon' => 'user-circle',
     'permissions' => [
         'customer_master.view',

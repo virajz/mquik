@@ -2,7 +2,7 @@
 
 return [
     [
-        'group' => 'Masters',
+        'group' => 'Customers',
         'label' => 'Customer Vehicles',
         'icon' => 'truck',
         'route' => 'customer-vehicle-master.index',

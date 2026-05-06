@@ -569,6 +569,39 @@ You confirm or tweak in chat, then Claude scaffolds via `make:module`, customize
 
 **Claude's persistent memory:** `~/.claude/projects/-Users-viraj-Code-mquik/memory/` — small files that remember user preferences and project facts across sessions. The index is `MEMORY.md`.
 
+### §14.1 — Quality bar (non-negotiable, written after the 2026-05-06 incident)
+
+These rules exist because we shipped:
+- A flaky factory (`VehicleColorMaster` `dechex` without zero-pad → ~7% test failure rate)
+- Two modules with stale scaffolder defaults in `menu.php` (group=`General`, label=`InventoryGroupMaster`) because the agent's report was trusted instead of verified
+
+**Definition of "done" for any change:**
+1. **Verify, don't trust agent reports.** If an agent (or batch of edits) claims a file was modified, open it. `cat` it. Confirm. Reports lie when the agent edited the wrong file or skipped one silently.
+2. **Run the full test suite — at least once, more if factories changed.** Any new factory or random-data generator runs **5 consecutive `php artisan test` passes** before the change is "done". Flaky tests die at birth, not in production.
+3. **Smoke the UI.** For any change that touches blade templates, sidebar, menu, layout, or form rendering — open the dev server and look at the actual page once. Screenshot if the change is visual.
+4. **`menu.php` and `module.php` consistency check.** Both files declare `group`. They must match. Drift means the sidebar renders one thing while the rest of the system thinks something else. Run the audit script:
+   ```bash
+   for d in app/Modules/*/; do
+     m=$(basename "$d"); mg=$(grep "'group' =>" "$d/menu.php" 2>/dev/null | head -1 | sed -E "s/.*=> '([^']+)'.*/\1/")
+     cg=$(grep "'group' =>" "$d/module.php" 2>/dev/null | head -1 | sed -E "s/.*=> '([^']+)'.*/\1/")
+     [ -n "$mg" ] && [ "$mg" != "$cg" ] && echo "DRIFT: $m → menu=$mg, module=$cg"
+   done
+   ```
+5. **Pint, then tests, then visual.** Two of three is no longer enough.
+
+**When delegating to a sub-agent:**
+- Give it an explicit **post-condition checklist** ("after writing, verify menu.php has these exact strings: ...").
+- Demand a **diff or `cat` of every modified file** in its report, not just a "modified" filename list.
+- After it returns, **re-read the files yourself** before declaring success. The session of 2026-05-06 cost us an hour of debugging because we trusted a report.
+
+**When fixing a bug:**
+- Always run the failing test multiple times to confirm it's deterministic. If it passes 4/5 runs, you have a flaky test, not a fixed bug. Look at all `random_int`, `dechex`, `bothify`, `numerify` and Faker calls in the touched factory.
+
+**Sidebar changes specifically:**
+- After adding any new module, audit groups via the script above.
+- A module's `module.php` group is the source of truth for the badge in audit logs / permission UI; `menu.php` group is the sidebar bucket. Keep them aligned.
+- The "General" group should only appear if you genuinely have an uncategorised utility. If a real master ends up in "General", it's almost certainly a missed `menu.php` edit.
+
 ---
 
 ## §15 — Phasing reminder (where in the plan are we)

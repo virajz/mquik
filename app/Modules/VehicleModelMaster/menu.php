@@ -2,11 +2,11 @@
 
 return [
     [
-        'group' => 'Masters',
+        'group' => 'Vehicles',
         'label' => 'Vehicle Models',
         'icon' => 'cube',
         'route' => 'vehicle-model-master.index',
         'permission' => 'vehicle_model_master.view',
-        'order' => 40,
+        'order' => 20,
     ],
 ];

@@ -6,7 +6,7 @@ use App\Modules\InsuranceCompanyMaster\Importers\InsuranceCompanyImporter;
 return [
     'label' => 'Insurance Companies',
     'description' => 'Insurers this workshop deals with for claims and policy renewals.',
-    'group' => 'Masters',
+    'group' => 'Insurance',
     'icon' => 'shield-check',
     'permissions' => [
         'insurance_company_master.view',

@@ -2,7 +2,7 @@
 
 return [
     [
-        'group' => 'Masters',
+        'group' => 'Customers',
         'label' => 'Customers',
         'icon' => 'user-circle',
         'route' => 'customer-master.index',

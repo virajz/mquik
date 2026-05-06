@@ -2,11 +2,11 @@
 
 return [
     [
-        'group' => 'Masters',
+        'group' => 'Insurance',
         'label' => 'Insurance Companies',
         'icon' => 'shield-check',
         'route' => 'insurance-company-master.index',
         'permission' => 'insurance_company_master.view',
-        'order' => 70,
+        'order' => 10,
     ],
 ];

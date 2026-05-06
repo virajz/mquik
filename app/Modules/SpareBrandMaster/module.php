@@ -6,7 +6,7 @@ use App\Modules\SpareBrandMaster\Importers\SpareBrandImporter;
 return [
     'label' => 'Spare Brands',
     'description' => 'Brands used across spares, inquiries, and procurement.',
-    'group' => 'Masters',
+    'group' => 'Inventory',
     'icon' => 'tag',
     'permissions' => [
         'spare_brand_master.view',
