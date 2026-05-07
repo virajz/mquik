@@ -7,7 +7,8 @@
       "WebFetch(domain:fluxui.dev)",
       "Bash(php artisan *)",
       "Bash(composer dump-autoload *)",
-      "Bash(vendor/bin/pint --dirty --format agent)"
+      "Bash(vendor/bin/pint --dirty --format agent)",
+      "Bash(composer require *)"
     ]
   }
 }

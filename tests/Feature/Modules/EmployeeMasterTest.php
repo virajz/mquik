@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
 use App\Modules\EmployeeMaster\Livewire\Form;
@@ -9,7 +8,7 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
     $this->serviceDept = DepartmentMaster::firstOrCreate(['name' => 'SERVICE'], ['is_active' => true]);
     $this->mechAdvisor = DesignationMaster::firstOrCreate(['name' => 'MECHANICAL ADVISOR'], ['is_active' => true]);
     $this->technicianDesig = DesignationMaster::firstOrCreate(['name' => 'TECHNICIAN'], ['is_active' => true]);

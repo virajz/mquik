@@ -3,6 +3,6 @@
 use App\Modules\VehicleColorMaster\Livewire\Index;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:vehicle_color_master.view'])->group(function () {
     Route::get('/vehicle-color-master', Index::class)->name('vehicle-color-master.index');
 });

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SearchRegistry
 {
@@ -24,6 +25,8 @@ class SearchRegistry
      */
     public function sources(): Collection
     {
+        $user = auth()->user();
+
         return $this->modules->all()
             ->filter(fn (array $m) => is_array($m['searchable'] ?? null) && ! empty($m['searchable']['model']))
             ->map(function (array $m) {
@@ -35,9 +38,37 @@ class SearchRegistry
                     'label' => $s['label'] ?? $m['label'],
                     'icon' => $s['icon'] ?? $m['icon'],
                     'route' => $s['route'] ?? null,
+                    'permission' => $s['permission'] ?? $this->derivePermission($m['name']),
                 ];
             })
+            ->filter(function (array $source) use ($user) {
+                if ($source['permission'] === null) {
+                    return true;
+                }
+                if (! $user) {
+                    return false;
+                }
+
+                return $user->can($source['permission']);
+            })
             ->values();
+    }
+
+    /**
+     * Default search permission for a module: `{snake_module}.view` if it appears in the
+     * module's permission list. Returns null if no view permission is declared.
+     */
+    protected function derivePermission(string $moduleName): ?string
+    {
+        $module = $this->modules->get($moduleName);
+        if (! $module) {
+            return null;
+        }
+        $snake = Str::snake($moduleName);
+        $candidate = $snake.'.view';
+        $permissions = (array) ($module['permissions'] ?? []);
+
+        return in_array($candidate, $permissions, true) ? $candidate : null;
     }
 
     /**

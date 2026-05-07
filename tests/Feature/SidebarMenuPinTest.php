@@ -6,7 +6,7 @@ use App\Models\UserMenuPin;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders without errors when no pins exist', function () {

@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\User;
 use App\Modules\InspectionItemGroupMaster\Livewire\Form;
 use App\Modules\InspectionItemGroupMaster\Livewire\Index;
 use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {

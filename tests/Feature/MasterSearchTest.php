@@ -1,7 +1,6 @@
 <?php
 
 use App\Livewire\MasterSearch;
-use App\Models\User;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
@@ -9,7 +8,7 @@ use App\Support\SearchRegistry;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('returns empty results for an empty term', function () {

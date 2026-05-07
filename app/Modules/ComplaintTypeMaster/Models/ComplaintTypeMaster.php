@@ -2,12 +2,14 @@
 
 namespace App\Modules\ComplaintTypeMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\ComplaintTypeMaster\Database\Factories\ComplaintTypeMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ComplaintTypeMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'complaint_types';

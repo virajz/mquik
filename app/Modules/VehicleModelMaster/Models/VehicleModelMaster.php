@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleModelMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Database\Factories\VehicleModelMasterFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VehicleModelMaster extends Model
 {
+    use Auditable;
     use HasFactory;
     use Searchable;
 

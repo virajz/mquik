@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
 use App\Modules\InspectionItemMaster\Livewire\Form;
 use App\Modules\InspectionItemMaster\Livewire\Index;
@@ -8,7 +7,7 @@ use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
     $this->group = InspectionItemGroupMaster::factory()->create([
         'name' => 'TEST-GROUP',
         'is_active' => true,

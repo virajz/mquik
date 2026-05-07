@@ -2,12 +2,14 @@
 
 namespace App\Modules\JobCardCancelReasonMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\JobCardCancelReasonMaster\Database\Factories\JobCardCancelReasonMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class JobCardCancelReasonMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'job_card_cancel_reasons';

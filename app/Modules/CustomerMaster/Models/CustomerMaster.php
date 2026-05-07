@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\CustomerMaster\Database\Factories\CustomerMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class CustomerMaster extends Model
 {
+    use Auditable;
     use HasFactory;
     use Searchable;
 

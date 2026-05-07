@@ -83,17 +83,13 @@ class Menu
         }
 
         $user = auth()->user();
-
         if (! $user) {
             return false;
         }
 
-        // Authorization module wires up real checks on Day 2.
-        // Until then everything is allowed for authenticated users.
-        if (! method_exists($user, 'hasPermission')) {
-            return true;
-        }
-
-        return $user->hasPermission($permission);
+        // Spatie's HasRoles trait is on User; can() flows through Gate::before for super-admin
+        // checks and falls back to permission lookup. Returns false if the permission isn't
+        // registered yet (e.g. before the first auth:sync-permissions run).
+        return $user->can($permission);
     }
 }

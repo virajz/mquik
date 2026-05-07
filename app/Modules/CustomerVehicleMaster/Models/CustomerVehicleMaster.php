@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerVehicleMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Database\Factories\CustomerVehicleMasterFactory;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CustomerVehicleMaster extends Model
 {
+    use Auditable;
     use HasFactory;
     use Searchable;
 

@@ -2,6 +2,7 @@
 
 namespace App\Modules\ServiceTypeMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\ServiceTypeMaster\Database\Factories\ServiceTypeMasterFactory;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ServiceTypeMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'service_types';

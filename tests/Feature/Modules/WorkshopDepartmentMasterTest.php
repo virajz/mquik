@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\User;
 use App\Modules\WorkshopDepartmentMaster\Livewire\Form;
 use App\Modules\WorkshopDepartmentMaster\Livewire\Index;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {

@@ -2,6 +2,7 @@
 
 namespace App\Modules\InspectionTemplateMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Database\Factories\InspectionTemplateMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class InspectionTemplateMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'inspection_templates';

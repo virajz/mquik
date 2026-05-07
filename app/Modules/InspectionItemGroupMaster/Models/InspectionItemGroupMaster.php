@@ -2,6 +2,7 @@
 
 namespace App\Modules\InspectionItemGroupMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\InspectionItemGroupMaster\Database\Factories\InspectionItemGroupMasterFactory;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InspectionItemGroupMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'inspection_item_groups';

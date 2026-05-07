@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use App\Modules\VendorMaster\Livewire\Form;
 use App\Modules\VendorMaster\Livewire\Index;
 use App\Modules\VendorMaster\Models\VendorMaster;
@@ -8,7 +7,7 @@ use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
     $this->sparesType = VendorTypeMaster::firstOrCreate(['name' => 'SPARE PARTS'], ['is_active' => true, 'code' => 'SP']);
     $this->oslType = VendorTypeMaster::firstOrCreate(['name' => 'OSL'], ['is_active' => true, 'code' => 'OSL']);
 });

@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use App\Modules\ImportExport\Livewire\ImportWizard;
 use App\Modules\ImportExport\Models\Import;
 use App\Modules\ImportExport\Support\MappingSuggester;
@@ -9,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 function makeCsv(string $content): UploadedFile

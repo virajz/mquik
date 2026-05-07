@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Livewire\Form;
 use App\Modules\VehicleModelMaster\Livewire\Index;
@@ -8,7 +7,7 @@ use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {

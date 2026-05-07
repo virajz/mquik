@@ -1,6 +1,11 @@
 <?php
 
+use App\Models\User;
+use App\Support\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -47,4 +52,30 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Create a fully-permissioned user for tests. The default user model created by
+ * `User::factory()->create()` has no roles, so it 403s on every gated route. Use this
+ * helper as the default test user; opt back to a bare factory when you specifically
+ * want to assert a 403 / unauthorized scenario.
+ */
+function adminUser(array $attrs = []): User
+{
+    PermissionRegistrar::class && app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    // Ensure every declared module permission exists in tests.
+    foreach (app(ModuleRegistry::class)->all() as $module) {
+        foreach ((array) ($module['permissions'] ?? []) as $slug) {
+            Permission::firstOrCreate(['name' => $slug, 'guard_name' => 'web']);
+        }
+    }
+
+    $role = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']);
+    $role->syncPermissions(Permission::query()->pluck('name')->all());
+
+    $user = User::factory()->create($attrs);
+    $user->assignRole($role);
+
+    return $user;
 }

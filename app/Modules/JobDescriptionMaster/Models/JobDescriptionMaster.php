@@ -2,6 +2,7 @@
 
 namespace App\Modules\JobDescriptionMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\JobDescriptionMaster\Database\Factories\JobDescriptionMasterFactory;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class JobDescriptionMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'job_descriptions';

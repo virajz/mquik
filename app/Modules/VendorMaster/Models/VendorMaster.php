@@ -2,6 +2,7 @@
 
 namespace App\Modules\VendorMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\VendorMaster\Database\Factories\VendorMasterFactory;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VendorMaster extends Model
 {
+    use Auditable;
     use HasFactory;
     use Searchable;
 

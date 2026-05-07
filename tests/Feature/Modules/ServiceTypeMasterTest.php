@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use App\Modules\ServiceTypeMaster\Livewire\Form;
 use App\Modules\ServiceTypeMaster\Livewire\Index;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
@@ -8,7 +7,7 @@ use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
     $this->serviceDept = WorkshopDepartmentMaster::firstOrCreate(['name' => 'SERVICE'], ['is_active' => true]);
     $this->bodyshopDept = WorkshopDepartmentMaster::firstOrCreate(['name' => 'BODYSHOP'], ['is_active' => true]);
 });

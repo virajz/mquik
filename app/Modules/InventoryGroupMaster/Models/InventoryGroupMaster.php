@@ -2,6 +2,7 @@
 
 namespace App\Modules\InventoryGroupMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\InventoryGroupMaster\Database\Factories\InventoryGroupMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryGroupMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'inventory_groups';

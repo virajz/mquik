@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\User;
 use App\Modules\VehicleColorMaster\Livewire\Form;
 use App\Modules\VehicleColorMaster\Livewire\Index;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {

@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\User;
 use App\Modules\SpareBrandMaster\Livewire\Form;
 use App\Modules\SpareBrandMaster\Livewire\Index;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {

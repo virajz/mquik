@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleVariantMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Database\Factories\VehicleVariantMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VehicleVariantMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'vehicle_variants';

@@ -2,6 +2,7 @@
 
 namespace App\Modules\EmployeeMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmployeeMaster extends Model
 {
+    use Auditable;
     use HasFactory;
     use Searchable;
 

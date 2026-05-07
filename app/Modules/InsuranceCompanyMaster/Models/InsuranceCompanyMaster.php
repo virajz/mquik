@@ -2,6 +2,7 @@
 
 namespace App\Modules\InsuranceCompanyMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\InsuranceCompanyMaster\Database\Factories\InsuranceCompanyMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class InsuranceCompanyMaster extends Model
 {
+    use Auditable;
     use HasFactory;
     use Searchable;
 

@@ -2,12 +2,14 @@
 
 namespace App\Modules\VendorTypeMaster\Models;
 
+use App\Concerns\Auditable;
 use App\Modules\VendorTypeMaster\Database\Factories\VendorTypeMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class VendorTypeMaster extends Model
 {
+    use Auditable;
     use HasFactory;
 
     protected $table = 'vendor_types';

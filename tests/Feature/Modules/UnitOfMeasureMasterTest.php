@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\User;
 use App\Modules\UnitOfMeasureMaster\Livewire\Form;
 use App\Modules\UnitOfMeasureMaster\Livewire\Index;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {
