@@ -61,6 +61,70 @@ class Users extends Component
         Flux::modal('authorization-master-user-form')->show();
     }
 
+    public function toggleActive(int $id): void
+    {
+        $this->authorize('authorization_master.update');
+
+        $user = User::findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            Flux::toast(text: 'You cannot deactivate your own account.', variant: 'danger');
+
+            return;
+        }
+
+        // Don't let the workshop end up with no active Super Admin.
+        if ($user->is_active && $user->hasRole('Super Admin') && $this->lastActiveSuperAdmin()) {
+            Flux::toast(
+                text: 'Cannot deactivate the only active Super Admin. Promote someone else first.',
+                variant: 'danger',
+            );
+
+            return;
+        }
+
+        $user->forceFill(['is_active' => ! $user->is_active])->save();
+
+        Flux::toast(
+            text: $user->name.' '.($user->is_active ? 'reactivated' : 'deactivated').'.',
+            variant: 'success',
+        );
+    }
+
+    public function delete(int $id): void
+    {
+        $this->authorize('authorization_master.delete');
+
+        $user = User::findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            Flux::toast(text: 'You cannot delete your own account.', variant: 'danger');
+
+            return;
+        }
+
+        if ($user->hasRole('Super Admin') && $this->lastActiveSuperAdmin()) {
+            Flux::toast(
+                text: 'Cannot delete the only active Super Admin. Assign someone else the role first.',
+                variant: 'danger',
+            );
+
+            return;
+        }
+
+        $name = $user->name;
+        $user->delete();
+        Flux::toast(text: $name.' deleted.', variant: 'success');
+    }
+
+    /** True if exactly one active Super Admin exists in the whole system. */
+    protected function lastActiveSuperAdmin(): bool
+    {
+        return User::active()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'Super Admin'))
+            ->count() <= 1;
+    }
+
     #[On('authorization-master:user-roles-saved')]
     #[On('authorization-master:user-created')]
     public function refreshAfterSave(): void

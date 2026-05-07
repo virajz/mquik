@@ -44,10 +44,11 @@
                 Email
             </flux:table.column>
             <flux:table.column>Roles</flux:table.column>
+            <flux:table.column class="w-24">Status</flux:table.column>
             <flux:table.column class="w-40" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection" wire:click="sort('created_at')">
                 Joined
             </flux:table.column>
-            <flux:table.column class="w-40" align="end">Actions</flux:table.column>
+            <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
         <flux:table.rows>
@@ -75,6 +76,14 @@
                         @endif
                     </flux:table.cell>
 
+                    <flux:table.cell>
+                        @if ($row->is_active)
+                            <flux:badge color="lime" size="sm">Active</flux:badge>
+                        @else
+                            <flux:badge color="zinc" size="sm">Inactive</flux:badge>
+                        @endif
+                    </flux:table.cell>
+
                     <flux:table.cell class="text-zinc-500 text-xs">
                         {{ $row->created_at?->format('d M Y') ?? '—' }}
                     </flux:table.cell>
@@ -83,14 +92,61 @@
                         <div class="flex items-center justify-end gap-1">
                             <flux:button size="sm" variant="ghost" icon="user-plus"
                                 wire:click="openManageRoles({{ $row->id }})">
-                                Manage Roles
+                                Manage
                             </flux:button>
+
+                            @if ($row->id !== auth()->id() && (auth()->user()->can('authorization_master.update') || auth()->user()->can('authorization_master.delete')))
+                                <flux:dropdown align="end">
+                                    <flux:button size="sm" variant="ghost" icon="ellipsis-vertical" />
+                                    <flux:menu>
+                                        @can('authorization_master.update')
+                                            <flux:menu.item
+                                                :icon="$row->is_active ? 'no-symbol' : 'check-circle'"
+                                                wire:click="toggleActive({{ $row->id }})"
+                                            >
+                                                {{ $row->is_active ? 'Deactivate' : 'Activate' }}
+                                            </flux:menu.item>
+                                        @endcan
+                                        @can('authorization_master.delete')
+                                            <flux:menu.separator />
+                                            <flux:modal.trigger :name="'authorization-master-user-delete-'.$row->id">
+                                                <flux:menu.item icon="trash" variant="danger">Delete user</flux:menu.item>
+                                            </flux:modal.trigger>
+                                        @endcan
+                                    </flux:menu>
+                                </flux:dropdown>
+                            @endif
+
+                            @can('authorization_master.delete')
+                                @if ($row->id !== auth()->id())
+                                    <flux:modal :name="'authorization-master-user-delete-'.$row->id">
+                                        <div class="space-y-4">
+                                            <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
+                                            <flux:text>
+                                                This permanently removes the account and revokes all roles.
+                                                The audit history of what they did is preserved.
+                                                Consider <strong>Deactivate</strong> instead if you may need to restore access.
+                                            </flux:text>
+                                            <div class="flex gap-2 justify-end">
+                                                <flux:modal.close>
+                                                    <flux:button variant="ghost">Cancel</flux:button>
+                                                </flux:modal.close>
+                                                <flux:button variant="danger"
+                                                    wire:click="delete({{ $row->id }})"
+                                                    x-on:click="$flux.modal('authorization-master-user-delete-{{ $row->id }}').close()">
+                                                    Delete
+                                                </flux:button>
+                                            </div>
+                                        </div>
+                                    </flux:modal>
+                                @endif
+                            @endcan
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
                         <flux:icon.users class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No users yet</div>
                         <flux:text class="mt-1">Users will appear here once they sign up.</flux:text>

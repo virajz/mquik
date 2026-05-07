@@ -56,18 +56,24 @@
             @endforeach
         </flux:select>
 
-        <flux:input
-            type="date"
+        <flux:date-picker
             wire:model.live="dateFrom"
-            class="max-w-44"
             placeholder="From"
+            type="input"
+            with-today
+            selectable-header
+            fixed-weeks
+            class="max-w-44"
         />
 
-        <flux:input
-            type="date"
+        <flux:date-picker
             wire:model.live="dateTo"
-            class="max-w-44"
             placeholder="To"
+            type="input"
+            with-today
+            selectable-header
+            fixed-weeks
+            class="max-w-44"
         />
     </div>
 
