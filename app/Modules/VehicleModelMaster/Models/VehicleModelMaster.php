@@ -6,6 +6,7 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Database\Factories\VehicleModelMasterFactory;
+use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -40,6 +41,11 @@ class VehicleModelMaster extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(VehicleBrandMaster::class, 'brand_id');
+    }
+
+    public function vehicleSegment(): BelongsTo
+    {
+        return $this->belongsTo(VehicleSegmentMaster::class, 'vehicle_segment_id');
     }
 
     public function variants(): HasMany

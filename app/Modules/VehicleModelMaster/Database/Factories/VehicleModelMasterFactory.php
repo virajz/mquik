@@ -4,6 +4,7 @@ namespace App\Modules\VehicleModelMaster\Database\Factories;
 
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class VehicleModelMasterFactory extends Factory
         return [
             'brand_id' => VehicleBrandMaster::factory(),
             'name' => strtoupper($this->faker->unique()->word()).' '.$this->faker->randomNumber(3),
-            'segment' => $this->faker->randomElement(['hatchback', 'sedan', 'suv', 'muv']),
+            'vehicle_segment_id' => VehicleSegmentMaster::factory(),
             'fuel_type' => $this->faker->randomElement(['petrol', 'diesel', 'cng', 'electric']),
             'is_active' => true,
             'notes' => null,

@@ -4,9 +4,11 @@ namespace App\Modules\CustomerMaster\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Database\Factories\CustomerMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CustomerMaster extends Model
 {
@@ -17,6 +19,11 @@ class CustomerMaster extends Model
     protected $table = 'customers';
 
     protected $guarded = [];
+
+    public function businessType(): BelongsTo
+    {
+        return $this->belongsTo(BusinessTypeMaster::class, 'business_type_id');
+    }
 
     protected $casts = [
         'date_of_birth' => 'date',

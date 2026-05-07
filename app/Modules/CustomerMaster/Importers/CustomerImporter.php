@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Importers;
 
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\ImportExport\Contracts\Importable;
 use Illuminate\Support\Facades\Validator;
@@ -17,7 +18,7 @@ class CustomerImporter implements Importable
     {
         return [
             'name' => ['label' => 'Name', 'required' => true, 'type' => 'string'],
-            'customer_type' => ['label' => 'Type', 'required' => false, 'type' => 'string', 'help' => 'walking | loyal | corporate'],
+            'business_type' => ['label' => 'Business Type', 'required' => false, 'type' => 'string', 'help' => 'Walking | Loyal | Corporate | Government — match by name (case-insensitive). Defaults to Walking.'],
             'phone' => ['label' => 'Phone', 'required' => true, 'type' => 'string'],
             'alternate_phone' => ['label' => 'Alternate Phone', 'required' => false, 'type' => 'string'],
             'email' => ['label' => 'Email', 'required' => false, 'type' => 'string'],
@@ -34,15 +35,14 @@ class CustomerImporter implements Importable
 
     public function uniqueBy(): array
     {
-        // Phone is the natural key at the workshop counter — most customers don't have email.
         return ['phone'];
     }
 
     public function validateRow(array $data): array
     {
-        $validator = Validator::make($data, [
+        $errors = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
-            'customer_type' => ['nullable', 'in:walking,loyal,corporate'],
+            'business_type' => ['nullable', 'string'],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -54,9 +54,13 @@ class CustomerImporter implements Importable
             'date_of_birth' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['nullable', 'boolean'],
-        ]);
+        ])->errors()->all();
 
-        return $validator->errors()->all();
+        if (! empty($data['business_type']) && ! $this->resolveBusinessTypeId($data['business_type'])) {
+            $errors[] = 'Business Type "'.$data['business_type'].'" does not exist or is inactive.';
+        }
+
+        return $errors;
     }
 
     public function createRecord(array $data): void
@@ -72,24 +76,33 @@ class CustomerImporter implements Importable
 
     protected function normalize(array $data): array
     {
-        $skipUppercase = ['email', 'customer_type', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar', 'pincode'];
+        $skipUppercase = ['email', 'business_type', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar', 'pincode'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skipUppercase, true)) {
                 $data[$key] = strtoupper($value);
             }
         }
 
-        // Normalize customer_type — accept any case from CSV
-        if (isset($data['customer_type']) && is_string($data['customer_type'])) {
-            $data['customer_type'] = strtolower($data['customer_type']);
-        } else {
-            $data['customer_type'] ??= 'walking';
-        }
-
         if (! array_key_exists('is_active', $data) || $data['is_active'] === null) {
             $data['is_active'] = true;
         }
 
+        $data['business_type_id'] = $this->resolveBusinessTypeId($data['business_type'] ?? null)
+            ?? BusinessTypeMaster::firstOrCreate(['name' => 'WALKING'], ['is_active' => true])->id;
+        unset($data['business_type']);
+
         return $data;
+    }
+
+    protected function resolveBusinessTypeId(?string $name): ?int
+    {
+        if (! $name) {
+            return null;
+        }
+
+        return BusinessTypeMaster::query()
+            ->whereLike('name', $name, caseSensitive: false)
+            ->where('is_active', true)
+            ->value('id');
     }
 }

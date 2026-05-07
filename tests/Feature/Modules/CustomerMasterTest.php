@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Livewire\Form;
 use App\Modules\CustomerMaster\Livewire\Index;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
@@ -7,6 +8,9 @@ use Livewire\Livewire;
 
 beforeEach(function () {
     $this->actingAs(adminUser());
+    $this->walking = BusinessTypeMaster::firstOrCreate(['name' => 'WALKING'], ['is_active' => true]);
+    $this->loyal = BusinessTypeMaster::firstOrCreate(['name' => 'LOYAL'], ['is_active' => true]);
+    $this->corporate = BusinessTypeMaster::firstOrCreate(['name' => 'CORPORATE'], ['is_active' => true]);
 });
 
 it('renders the index page', function () {
@@ -39,12 +43,12 @@ it('filters by customer type', function () {
     CustomerMaster::factory()->loyal()->create(['name' => 'LOYAL ONE']);
     CustomerMaster::factory()->corporate()->create(['name' => 'CORPORATE ONE']);
 
-    Livewire::test(Index::class)->set('typeFilter', 'loyal')
+    Livewire::test(Index::class)->set('typeFilter', (string) $this->loyal->id)
         ->assertSee('LOYAL ONE')
         ->assertDontSee('WALKING ONE')
         ->assertDontSee('CORPORATE ONE');
 
-    Livewire::test(Index::class)->set('typeFilter', 'corporate')
+    Livewire::test(Index::class)->set('typeFilter', (string) $this->corporate->id)
         ->assertSee('CORPORATE ONE')
         ->assertDontSee('WALKING ONE');
 });
@@ -65,7 +69,7 @@ it('filters by active status', function () {
 it('creates a customer with full details', function () {
     Livewire::test(Form::class)
         ->set('name', 'ravi sharma')
-        ->set('customer_type', 'loyal')
+        ->set('business_type_id', $this->loyal->id)
         ->set('phone', '9876543210')
         ->set('email', 'ravi@example.com')
         ->set('address', 'satellite road')
@@ -80,7 +84,7 @@ it('creates a customer with full details', function () {
 
     $r = CustomerMaster::firstOrFail();
     expect($r->name)->toBe('RAVI SHARMA')
-        ->and($r->customer_type)->toBe('loyal')
+        ->and($r->business_type_id)->toBe($this->loyal->id)
         ->and($r->phone)->toBe('9876543210')         // not uppercased
         ->and($r->email)->toBe('ravi@example.com')   // not uppercased
         ->and($r->city)->toBe('AHMEDABAD')
@@ -91,18 +95,18 @@ it('creates a customer with full details', function () {
 });
 
 it('updates an existing customer', function () {
-    $r = CustomerMaster::factory()->create(['name' => 'OLD NAME', 'customer_type' => 'walking']);
+    $r = CustomerMaster::factory()->create(['name' => 'OLD NAME', 'business_type_id' => $this->walking->id]);
 
     Livewire::test(Form::class)
         ->dispatch('customer-master:edit', id: $r->id)
         ->set('name', 'updated name')
-        ->set('customer_type', 'loyal')
+        ->set('business_type_id', $this->loyal->id)
         ->call('save')
         ->assertHasNoErrors();
 
     $fresh = $r->fresh();
     expect($fresh->name)->toBe('UPDATED NAME')
-        ->and($fresh->customer_type)->toBe('loyal');
+        ->and($fresh->business_type_id)->toBe($this->loyal->id);
 });
 
 it('deletes a customer from the index', function () {

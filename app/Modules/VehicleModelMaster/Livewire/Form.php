@@ -4,6 +4,7 @@ namespace App\Modules\VehicleModelMaster\Livewire;
 
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -18,7 +19,7 @@ class Form extends Component
 
     public string $name = '';
 
-    public ?string $segment = null;
+    public ?int $vehicle_segment_id = null;
 
     public ?string $fuel_type = null;
 
@@ -36,7 +37,7 @@ class Form extends Component
                     ->where(fn ($q) => $q->where('brand_id', $this->brand_id))
                     ->ignore($this->editingId),
             ],
-            'segment' => ['nullable', 'in:hatchback,sedan,suv,muv,pickup,commercial'],
+            'vehicle_segment_id' => ['nullable', 'integer', Rule::exists('vehicle_segments', 'id')->where('is_active', true)],
             'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -47,6 +48,12 @@ class Form extends Component
     public function brands()
     {
         return VehicleBrandMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function segments()
+    {
+        return VehicleSegmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[On('vehicle-model-master:edit')]
@@ -62,7 +69,7 @@ class Form extends Component
         $this->editingId = $r->id;
         $this->brand_id = $r->brand_id;
         $this->name = $r->name;
-        $this->segment = $r->segment;
+        $this->vehicle_segment_id = $r->vehicle_segment_id;
         $this->fuel_type = $r->fuel_type;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
@@ -72,7 +79,6 @@ class Form extends Component
     {
         $data = $this->validate();
 
-        // Uppercase only the textual fields, leave enums + booleans + brand_id alone
         foreach (['name', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
@@ -97,7 +103,7 @@ class Form extends Component
         $this->editingId = null;
         $this->brand_id = null;
         $this->name = '';
-        $this->segment = null;
+        $this->vehicle_segment_id = null;
         $this->fuel_type = null;
         $this->is_active = true;
         $this->notes = null;

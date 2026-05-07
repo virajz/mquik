@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Livewire;
 
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
@@ -34,7 +35,7 @@ class Index extends Component
     public string $sortDirection = 'desc';
 
     /** Whitelist sortable columns — never trust the URL */
-    protected array $sortable = ['id', 'name', 'customer_type', 'phone', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'business_type_id', 'phone', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {
@@ -103,6 +104,7 @@ class Index extends Component
         $status = $this->statusFilter;
 
         $rows = CustomerMaster::query()
+            ->with('businessType:id,name')
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($query) use ($search) {
                     $term = '%'.$search.'%';
@@ -113,12 +115,15 @@ class Index extends Component
                         ->orWhereLike('pan', $term, caseSensitive: false);
                 });
             })
-            ->when($type !== 'all', fn ($q) => $q->where('customer_type', $type))
+            ->when($type !== 'all', fn ($q) => $q->where('business_type_id', $type))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 
-        return view('customer-master::index', ['rows' => $rows]);
+        return view('customer-master::index', [
+            'rows' => $rows,
+            'businessTypes' => BusinessTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 }

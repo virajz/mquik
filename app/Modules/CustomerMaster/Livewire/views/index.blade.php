@@ -38,11 +38,11 @@
             class="max-w-md"
         />
 
-        <flux:select wire:model.live="typeFilter" variant="listbox" class="max-w-40">
+        <flux:select wire:model.live="typeFilter" variant="listbox" searchable class="max-w-44">
             <flux:select.option value="all">All types</flux:select.option>
-            <flux:select.option value="walking">Walking</flux:select.option>
-            <flux:select.option value="loyal">Loyal</flux:select.option>
-            <flux:select.option value="corporate">Corporate</flux:select.option>
+            @foreach ($businessTypes as $bt)
+                <flux:select.option :value="(string) $bt->id">{{ $bt->name }}</flux:select.option>
+            @endforeach
         </flux:select>
 
         <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-40">
@@ -61,7 +61,7 @@
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">
                 Name
             </flux:table.column>
-            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'customer_type'" :direction="$sortDirection" wire:click="sort('customer_type')">
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'business_type_id'" :direction="$sortDirection" wire:click="sort('business_type_id')">
                 Type
             </flux:table.column>
             <flux:table.column>Email</flux:table.column>
@@ -86,14 +86,18 @@
                     </flux:table.cell>
 
                     <flux:table.cell>
-                        @php
-                            $color = match ($row->customer_type) {
-                                'loyal' => 'amber',
-                                'corporate' => 'blue',
-                                default => 'zinc',
-                            };
-                        @endphp
-                        <flux:badge :color="$color" size="sm">{{ ucfirst($row->customer_type) }}</flux:badge>
+                        @if ($row->businessType)
+                            @php
+                                $color = match (strtoupper($row->businessType->name)) {
+                                    'LOYAL' => 'amber',
+                                    'CORPORATE', 'GOVERNMENT' => 'blue',
+                                    default => 'zinc',
+                                };
+                            @endphp
+                            <flux:badge :color="$color" size="sm">{{ $row->businessType->name }}</flux:badge>
+                        @else
+                            <span class="text-zinc-400 text-xs">—</span>
+                        @endif
                     </flux:table.cell>
 
                     <flux:table.cell class="text-zinc-500 text-sm">

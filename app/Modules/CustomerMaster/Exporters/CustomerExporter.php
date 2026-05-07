@@ -24,7 +24,7 @@ class CustomerExporter implements Exportable
 
     public function query(): Builder
     {
-        return CustomerMaster::query()->latest('id');
+        return CustomerMaster::query()->with('businessType:id,name')->latest('id');
     }
 
     /**
@@ -35,7 +35,7 @@ class CustomerExporter implements Exportable
         return [
             $model->id,
             $model->name,
-            ucfirst($model->customer_type),
+            $model->businessType?->name,
             $model->phone,
             $model->alternate_phone,
             $model->email,

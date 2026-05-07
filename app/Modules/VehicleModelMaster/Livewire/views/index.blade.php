@@ -36,7 +36,7 @@
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">ID</flux:table.column>
             <flux:table.column>Brand</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">Model</flux:table.column>
-            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'segment'" :direction="$sortDirection" wire:click="sort('segment')">Segment</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'vehicle_segment_id'" :direction="$sortDirection" wire:click="sort('vehicle_segment_id')">Segment</flux:table.column>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'fuel_type'" :direction="$sortDirection" wire:click="sort('fuel_type')">Fuel</flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
@@ -48,7 +48,7 @@
                     <flux:table.cell class="font-mono text-xs text-zinc-500">#{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}</flux:table.cell>
                     <flux:table.cell class="text-zinc-500">{{ $row->brand?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $row->name }}</flux:table.cell>
-                    <flux:table.cell class="text-zinc-500 text-sm">{{ $row->segment ? ucfirst($row->segment) : '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-zinc-500 text-sm">{{ $row->vehicleSegment?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-zinc-500 text-sm">{{ $row->fuel_type ? ucfirst($row->fuel_type) : '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @if ($row->is_active)

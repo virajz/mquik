@@ -4,6 +4,7 @@ use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Livewire\Form;
 use App\Modules\VehicleModelMaster\Livewire\Index;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -17,11 +18,12 @@ it('renders the index page', function () {
 
 it('creates a model with brand FK', function () {
     $brand = VehicleBrandMaster::factory()->create(['name' => 'MARUTI']);
+    $hatchback = VehicleSegmentMaster::firstOrCreate(['name' => 'HATCHBACK'], ['is_active' => true]);
 
     Livewire::test(Form::class)
         ->set('brand_id', $brand->id)
         ->set('name', 'swift')
-        ->set('segment', 'hatchback')
+        ->set('vehicle_segment_id', $hatchback->id)
         ->set('fuel_type', 'petrol')
         ->call('save')
         ->assertHasNoErrors()
@@ -30,7 +32,7 @@ it('creates a model with brand FK', function () {
     $r = VehicleModelMaster::firstOrFail();
     expect($r->name)->toBe('SWIFT')
         ->and($r->brand_id)->toBe($brand->id)
-        ->and($r->segment)->toBe('hatchback')
+        ->and($r->vehicle_segment_id)->toBe($hatchback->id)
         ->and($r->fuel_type)->toBe('petrol');
 });
 

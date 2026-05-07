@@ -35,7 +35,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    protected array $sortable = ['id', 'name', 'segment', 'fuel_type', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'vehicle_segment_id', 'fuel_type', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {
@@ -101,7 +101,7 @@ class Index extends Component
         $search = $this->search;
 
         $rows = VehicleModelMaster::query()
-            ->with('brand:id,name')
+            ->with(['brand:id,name', 'vehicleSegment:id,name'])
             ->when($search !== '', fn ($q) => $q->whereLike('name', '%'.$search.'%', caseSensitive: false))
             ->when($this->brandFilter !== 'all', fn ($q) => $q->where('brand_id', $this->brandFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

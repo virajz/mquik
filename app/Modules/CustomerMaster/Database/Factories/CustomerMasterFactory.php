@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Database\Factories;
 
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,7 +17,7 @@ class CustomerMasterFactory extends Factory
     {
         return [
             'name' => strtoupper($this->faker->name()),
-            'customer_type' => 'walking',
+            'business_type_id' => BusinessTypeMaster::firstOrCreate(['name' => 'WALKING'], ['is_active' => true])->id,
             'phone' => $this->faker->numerify('98########'),
             'alternate_phone' => null,
             'email' => $this->faker->safeEmail(),
@@ -33,13 +34,15 @@ class CustomerMasterFactory extends Factory
 
     public function loyal(): static
     {
-        return $this->state(fn () => ['customer_type' => 'loyal']);
+        return $this->state(fn () => [
+            'business_type_id' => BusinessTypeMaster::firstOrCreate(['name' => 'LOYAL'], ['is_active' => true])->id,
+        ]);
     }
 
     public function corporate(): static
     {
         return $this->state(fn () => [
-            'customer_type' => 'corporate',
+            'business_type_id' => BusinessTypeMaster::firstOrCreate(['name' => 'CORPORATE'], ['is_active' => true])->id,
             'name' => strtoupper($this->faker->company()),
         ]);
     }

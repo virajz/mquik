@@ -4,6 +4,7 @@ namespace App\Modules\VehicleModelMaster\Database\Seeders;
 
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use Illuminate\Database\Seeder;
 
 class VehicleModelMasterSeeder extends Seeder
@@ -35,6 +36,11 @@ class VehicleModelMasterSeeder extends Seeder
             ],
         ];
 
+        $segmentId = fn (string $name) => VehicleSegmentMaster::firstOrCreate(
+            ['name' => strtoupper($name)],
+            ['is_active' => true],
+        )->id;
+
         foreach ($catalogue as $brandName => $models) {
             $brand = VehicleBrandMaster::where('name', $brandName)->first();
             if (! $brand) {
@@ -43,7 +49,7 @@ class VehicleModelMasterSeeder extends Seeder
             foreach ($models as [$name, $segment, $fuel]) {
                 VehicleModelMaster::firstOrCreate(
                     ['brand_id' => $brand->id, 'name' => $name],
-                    ['segment' => $segment, 'fuel_type' => $fuel, 'is_active' => true],
+                    ['vehicle_segment_id' => $segmentId($segment), 'fuel_type' => $fuel, 'is_active' => true],
                 );
             }
         }

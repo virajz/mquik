@@ -5,6 +5,7 @@ namespace App\Modules\VehicleModelMaster\Importers;
 use App\Modules\ImportExport\Contracts\Importable;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use Illuminate\Support\Facades\Validator;
 
 class VehicleModelImporter implements Importable
@@ -19,7 +20,7 @@ class VehicleModelImporter implements Importable
         return [
             'brand_name' => ['label' => 'Brand', 'required' => true, 'type' => 'string', 'help' => 'Must match an existing Vehicle Brand name'],
             'name' => ['label' => 'Model', 'required' => true, 'type' => 'string'],
-            'segment' => ['label' => 'Segment', 'required' => false, 'type' => 'string', 'help' => 'hatchback | sedan | suv | muv | pickup | commercial'],
+            'segment' => ['label' => 'Segment', 'required' => false, 'type' => 'string', 'help' => 'Match by name (case-insensitive). Optional.'],
             'fuel_type' => ['label' => 'Fuel Type', 'required' => false, 'type' => 'string', 'help' => 'petrol | diesel | cng | electric | hybrid'],
             'is_active' => ['label' => 'Active', 'required' => false, 'type' => 'boolean', 'default' => true],
             'notes' => ['label' => 'Notes', 'required' => false, 'type' => 'string'],
@@ -41,9 +42,13 @@ class VehicleModelImporter implements Importable
             $errors[] = "Brand '{$brandName}' not found in Vehicle Brands";
         }
 
+        if (! empty($data['segment']) && ! $this->resolveSegmentId($data['segment'])) {
+            $errors[] = 'Segment "'.$data['segment'].'" does not exist or is inactive.';
+        }
+
         $fieldErrors = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
-            'segment' => ['nullable', 'in:hatchback,sedan,suv,muv,pickup,commercial'],
+            'segment' => ['nullable', 'string'],
             'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -77,16 +82,29 @@ class VehicleModelImporter implements Importable
             $data['notes'] = strtoupper($data['notes']);
         }
 
-        foreach (['segment', 'fuel_type'] as $k) {
-            if (isset($data[$k]) && is_string($data[$k])) {
-                $data[$k] = strtolower($data[$k]);
-            }
+        if (isset($data['fuel_type']) && is_string($data['fuel_type'])) {
+            $data['fuel_type'] = strtolower($data['fuel_type']);
         }
+
+        $data['vehicle_segment_id'] = $this->resolveSegmentId($data['segment'] ?? null);
+        unset($data['segment']);
 
         if (! array_key_exists('is_active', $data) || $data['is_active'] === null) {
             $data['is_active'] = true;
         }
 
         return $data;
+    }
+
+    protected function resolveSegmentId(?string $name): ?int
+    {
+        if (! $name) {
+            return null;
+        }
+
+        return VehicleSegmentMaster::query()
+            ->whereLike('name', $name, caseSensitive: false)
+            ->where('is_active', true)
+            ->value('id');
     }
 }

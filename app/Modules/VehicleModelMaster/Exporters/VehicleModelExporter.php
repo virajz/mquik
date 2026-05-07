@@ -20,7 +20,7 @@ class VehicleModelExporter implements Exportable
 
     public function query(): Builder
     {
-        return VehicleModelMaster::query()->with('brand:id,name')->orderBy('name');
+        return VehicleModelMaster::query()->with(['brand:id,name', 'vehicleSegment:id,name'])->orderBy('name');
     }
 
     public function row(object $model): array
@@ -29,7 +29,7 @@ class VehicleModelExporter implements Exportable
             $model->id,
             $model->brand?->name,
             $model->name,
-            $model->segment,
+            $model->vehicleSegment?->name,
             $model->fuel_type,
             $model->is_active ? 'YES' : 'NO',
             $model->notes,

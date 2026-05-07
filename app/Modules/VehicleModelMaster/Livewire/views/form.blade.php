@@ -19,14 +19,11 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="segment" label="Segment" variant="listbox" placeholder="Optional">
-                        <flux:select.option value="">— Skip —</flux:select.option>
-                        <flux:select.option value="hatchback">Hatchback</flux:select.option>
-                        <flux:select.option value="sedan">Sedan</flux:select.option>
-                        <flux:select.option value="suv">SUV</flux:select.option>
-                        <flux:select.option value="muv">MUV</flux:select.option>
-                        <flux:select.option value="pickup">Pickup</flux:select.option>
-                        <flux:select.option value="commercial">Commercial</flux:select.option>
+                    <flux:select wire:model="vehicle_segment_id" label="Segment" variant="listbox" searchable placeholder="Optional">
+                        <flux:select.option value="">— None —</flux:select.option>
+                        @foreach ($this->segments as $s)
+                            <flux:select.option :value="$s->id">{{ $s->name }}</flux:select.option>
+                        @endforeach
                     </flux:select>
                     <flux:select wire:model="fuel_type" label="Fuel Type" variant="listbox" placeholder="Optional">
                         <flux:select.option value="">— Skip —</flux:select.option>

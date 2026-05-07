@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Livewire;
 
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,7 @@ class Form extends Component
 
     public string $name = '';
 
-    public string $customer_type = 'walking';
+    public ?int $business_type_id = null;
 
     public string $phone = '';
 
@@ -42,7 +43,7 @@ class Form extends Component
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'customer_type' => ['required', 'in:walking,loyal,corporate'],
+            'business_type_id' => ['required', 'integer', Rule::exists('business_types', 'id')->where('is_active', true)],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -77,7 +78,7 @@ class Form extends Component
         $r = CustomerMaster::findOrFail($id);
         $this->editingId = $r->id;
         $this->name = $r->name;
-        $this->customer_type = $r->customer_type;
+        $this->business_type_id = $r->business_type_id;
         $this->phone = $r->phone;
         $this->alternate_phone = $r->alternate_phone;
         $this->email = $r->email;
@@ -95,8 +96,7 @@ class Form extends Component
     {
         $data = $this->validate();
 
-        // Capital typing on textual fields. Skip email, enums, dates, booleans, numeric strings.
-        $skip = ['email', 'customer_type', 'date_of_birth', 'is_active', 'pincode', 'phone', 'alternate_phone', 'aadhar'];
+        $skip = ['email', 'business_type_id', 'date_of_birth', 'is_active', 'pincode', 'phone', 'alternate_phone', 'aadhar'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -120,7 +120,7 @@ class Form extends Component
     {
         $this->editingId = null;
         $this->name = '';
-        $this->customer_type = 'walking';
+        $this->business_type_id = null;
         $this->phone = '';
         $this->alternate_phone = null;
         $this->email = null;
@@ -136,6 +136,8 @@ class Form extends Component
 
     public function render()
     {
-        return view('customer-master::form');
+        return view('customer-master::form', [
+            'businessTypes' => BusinessTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 }

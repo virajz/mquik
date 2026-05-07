@@ -26,10 +26,10 @@
                             autofocus
                         />
                     </div>
-                    <flux:select wire:model="customer_type" variant="listbox" label="Type">
-                        <flux:select.option value="walking">Walking</flux:select.option>
-                        <flux:select.option value="loyal">Loyal</flux:select.option>
-                        <flux:select.option value="corporate">Corporate</flux:select.option>
+                    <flux:select wire:model="business_type_id" variant="listbox" searchable label="Type" required>
+                        @foreach ($businessTypes as $bt)
+                            <flux:select.option :value="$bt->id">{{ $bt->name }}</flux:select.option>
+                        @endforeach
                     </flux:select>
                 </div>
 
