@@ -207,6 +207,91 @@ it('records a customer referral', function () {
         ->and($referrer->refresh()->referrals)->toHaveCount(1);
 });
 
+it('create-option: creates a new business type from the Type combobox and selects it', function () {
+    Livewire::test(Edit::class)
+        ->set('businessTypeSearch', 'fleet')
+        ->call('createBusinessType')
+        ->assertHasNoErrors();
+
+    $type = BusinessTypeMaster::where('name', 'FLEET')->firstOrFail();
+
+    Livewire::test(Edit::class)
+        ->set('businessTypeSearch', 'fleet')
+        ->call('createBusinessType')
+        ->assertSet('business_type_id', $type->id)
+        ->assertSet('businessTypeSearch', '');
+});
+
+it('create-option: re-typing an existing name selects the existing type, no duplicate', function () {
+    $existing = BusinessTypeMaster::create(['name' => 'FLEET', 'is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('businessTypeSearch', 'fleet')
+        ->call('createBusinessType')
+        ->assertSet('business_type_id', $existing->id);
+
+    expect(BusinessTypeMaster::where('name', 'FLEET')->count())->toBe(1);
+});
+
+it('create-option: empty search is a no-op', function () {
+    $countBefore = BusinessTypeMaster::count();
+
+    Livewire::test(Edit::class)
+        ->set('businessTypeSearch', '   ')
+        ->call('createBusinessType')
+        ->assertSet('business_type_id', null);
+
+    expect(BusinessTypeMaster::count())->toBe($countBefore);
+});
+
+it('create-option region: creates a new pincode for the selected address row', function () {
+    $component = Livewire::test(Edit::class);
+
+    // Type into row 0's region search and click "Create as Pincode"
+    $component
+        ->set('addresses.0.regionSearch', '380058')
+        ->call('createRegionForAddress', 0, 'pincode');
+
+    $region = RegionMaster::where('kind', 'pincode')->where('name', '380058')->firstOrFail();
+
+    $component
+        ->assertSet('addresses.0.region_id', $region->id)
+        ->assertSet('addresses.0.regionSearch', '');
+});
+
+it('create-option region: re-typing an existing kind+name selects the existing row, no duplicate', function () {
+    $existing = RegionMaster::create(['kind' => 'city', 'name' => 'AHMEDABAD', 'parent_id' => null, 'is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('addresses.0.regionSearch', 'ahmedabad')
+        ->call('createRegionForAddress', 0, 'city')
+        ->assertSet('addresses.0.region_id', $existing->id);
+
+    expect(RegionMaster::where('kind', 'city')->where('name', 'AHMEDABAD')->where('parent_id', null)->count())->toBe(1);
+});
+
+it('create-option region: invalid kind is a no-op', function () {
+    $countBefore = RegionMaster::count();
+
+    Livewire::test(Edit::class)
+        ->set('addresses.0.regionSearch', 'BOGUS')
+        ->call('createRegionForAddress', 0, 'galaxy')
+        ->assertSet('addresses.0.region_id', null);
+
+    expect(RegionMaster::count())->toBe($countBefore);
+});
+
+it('create-option region: empty search is a no-op', function () {
+    $countBefore = RegionMaster::count();
+
+    Livewire::test(Edit::class)
+        ->set('addresses.0.regionSearch', '   ')
+        ->call('createRegionForAddress', 0, 'pincode')
+        ->assertSet('addresses.0.region_id', null);
+
+    expect(RegionMaster::count())->toBe($countBefore);
+});
+
 it('rejects self-referral on edit', function () {
     $r = CustomerMaster::factory()->create();
 

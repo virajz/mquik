@@ -45,10 +45,18 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model="business_type_id" variant="listbox" searchable label="Type" required>
+                    <flux:select wire:model="business_type_id" variant="combobox" label="Type" required>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="businessTypeSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($businessTypes as $bt)
-                            <flux:select.option :value="$bt->id">{{ $bt->name }}</flux:select.option>
+                            <flux:select.option :value="$bt->id" wire:key="bt-{{ $bt->id }}">{{ $bt->name }}</flux:select.option>
                         @endforeach
+                        @can('business_type_master.create')
+                            <flux:select.option.create wire:click="createBusinessType" min-length="2">
+                                Create "<span wire:text="businessTypeSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
 
                     <flux:select
@@ -158,17 +166,33 @@
                             <div class="md:col-span-2">
                                 <flux:select
                                     wire:model="addresses.{{ $i }}.region_id"
-                                    variant="listbox"
-                                    searchable
+                                    variant="combobox"
                                     label="Region"
-                                    placeholder="Search city, area, or pincode…"
                                     clearable
                                 >
+                                    <x-slot name="input">
+                                        <flux:select.input
+                                            wire:model="addresses.{{ $i }}.regionSearch"
+                                            placeholder="Search city, area, or pincode…"
+                                        />
+                                    </x-slot>
+
                                     @foreach ($this->regions as $r)
-                                        <flux:select.option :value="$r['id']">
+                                        <flux:select.option :value="$r['id']" wire:key="r-{{ $i }}-{{ $r['id'] }}">
                                             {{ $r['name'] }}{{ $r['chain'] ? ' — '.$r['chain'] : '' }} ({{ ucfirst($r['kind']) }})
                                         </flux:select.option>
                                     @endforeach
+
+                                    @can('region_master.create')
+                                        @foreach (['pincode' => 'Pincode', 'area' => 'Area', 'city' => 'City', 'state' => 'State'] as $k => $label)
+                                            <flux:select.option.create
+                                                wire:click="createRegionForAddress({{ $i }}, '{{ $k }}')"
+                                                min-length="2"
+                                            >
+                                                Create as {{ $label }} "<span wire:text="addresses.{{ $i }}.regionSearch"></span>"
+                                            </flux:select.option.create>
+                                        @endforeach
+                                    @endcan
                                 </flux:select>
                             </div>
                         </div>

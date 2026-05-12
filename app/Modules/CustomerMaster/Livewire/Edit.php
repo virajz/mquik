@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
@@ -17,6 +18,8 @@ use Livewire\Component;
 #[Title('Customer')]
 class Edit extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
 
     public string $first_name = '';
@@ -26,6 +29,9 @@ class Edit extends Component
     public ?string $last_name = null;
 
     public ?int $business_type_id = null;
+
+    /** Combobox search string for the Type picker — also used as the "Create" name. */
+    public string $businessTypeSearch = '';
 
     public ?int $referred_by_customer_id = null;
 
@@ -86,6 +92,7 @@ class Edit extends Component
                 'label' => $a->label,
                 'address_line' => $a->address_line,
                 'region_id' => $a->region_id,
+                'regionSearch' => '',
                 'is_primary' => (bool) $a->is_primary,
             ])
             ->all();
@@ -138,6 +145,54 @@ class Edit extends Component
             'addresses.*.region_id.exists' => 'Selected region is invalid or inactive.',
             'referred_by_customer_id.exists' => 'Selected referrer is invalid (cannot self-refer).',
         ];
+    }
+
+    public function createBusinessType(): void
+    {
+        $this->quickCreate(
+            modelClass: BusinessTypeMaster::class,
+            targetProperty: 'business_type_id',
+            searchProperty: 'businessTypeSearch',
+            permission: 'business_type_master.create',
+            label: 'Business type',
+        );
+    }
+
+    /**
+     * Region quick-create from inside the addresses repeater.
+     * The trait can't model this case (per-row search + caller-chosen kind),
+     * so this is the explicit handler.
+     */
+    public function createRegionForAddress(int $index, string $kind): void
+    {
+        $this->authorize('region_master.create');
+
+        if (! in_array($kind, RegionMaster::kinds(), true)) {
+            return;
+        }
+        if (! isset($this->addresses[$index])) {
+            return;
+        }
+
+        $name = strtoupper(trim((string) ($this->addresses[$index]['regionSearch'] ?? '')));
+        if ($name === '') {
+            return;
+        }
+
+        // Region uniqueness is (kind, parent_id, name). Quick-add creates
+        // top-level orphans — user can attach a parent later in RegionMaster.
+        $region = RegionMaster::firstOrCreate(
+            ['kind' => $kind, 'parent_id' => null, 'name' => $name],
+            ['is_active' => true],
+        );
+
+        $this->addresses[$index]['region_id'] = $region->id;
+        $this->addresses[$index]['regionSearch'] = '';
+
+        Flux::toast(
+            text: ucfirst($kind).' "'.$region->name.'" added.',
+            variant: 'success',
+        );
     }
 
     public function addAddress(): void
@@ -253,7 +308,7 @@ class Edit extends Component
         $customer->addresses()->whereNotIn('id', $keptIds)->delete();
     }
 
-    /** @return array{id: null, label: null, address_line: null, region_id: null, is_primary: bool} */
+    /** @return array{id: null, label: null, address_line: null, region_id: null, regionSearch: string, is_primary: bool} */
     protected function blankAddress(bool $primary): array
     {
         return [
@@ -261,6 +316,7 @@ class Edit extends Component
             'label' => null,
             'address_line' => null,
             'region_id' => null,
+            'regionSearch' => '',
             'is_primary' => $primary,
         ];
     }
