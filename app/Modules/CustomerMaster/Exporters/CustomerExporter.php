@@ -17,10 +17,10 @@ class CustomerExporter implements Exportable
     {
         return [
             'ID', 'First Name', 'Middle Name', 'Last Name', 'Type',
-            'Phone', 'Alternate Phone', 'Email',
+            'Phone', 'Alternate Phone', 'Email', 'Secondary Email',
             'Primary Address', 'Primary Region', 'Primary Pincode', 'Address Count',
             'Referred By (Phone)',
-            'Aadhar', 'PAN', 'Date of Birth',
+            'Aadhar', 'Aadhar File', 'PAN', 'PAN File', 'Date of Birth',
             'Active', 'Created At',
         ];
     }
@@ -64,13 +64,16 @@ class CustomerExporter implements Exportable
             $model->phone,
             $model->alternate_phone,
             $model->email,
+            $model->secondary_email,
             $primary?->address_line,
             $primary?->regionChain(),
             $pincode,
             $model->addresses->count(),
             $model->referredBy?->phone,
             $model->aadhar,
+            $model->aadhar_file_name,
             $model->pan,
+            $model->pan_file_name,
             $model->date_of_birth?->format('Y-m-d'),
             $model->is_active ? 'YES' : 'NO',
             $model->created_at?->toIso8601String(),

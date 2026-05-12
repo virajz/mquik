@@ -117,13 +117,22 @@
                     </flux:field>
                 </div>
 
-                <flux:input
-                    wire:model="email"
-                    type="email"
-                    label="Email"
-                    placeholder="customer@example.com"
-                    icon="envelope"
-                />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input
+                        wire:model="email"
+                        type="email"
+                        label="Email"
+                        placeholder="customer@example.com"
+                        icon="envelope"
+                    />
+                    <flux:input
+                        wire:model="secondary_email"
+                        type="email"
+                        label="Secondary Email"
+                        placeholder="optional second contact"
+                        icon="envelope"
+                    />
+                </div>
             </div>
         </section>
 
@@ -229,24 +238,89 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Identity proofs and date of birth.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="md:col-span-2">
-                        <flux:input
-                            wire:model="aadhar"
-                            label="Aadhar"
-                            mask="9999 9999 9999"
-                            placeholder="0000 0000 0000"
-                            class:input="font-mono uppercase tracking-wide"
-                            inputmode="numeric"
-                        />
-                    </div>
+                {{-- Aadhar number + scan --}}
+                <div class="space-y-2">
+                    <flux:input
+                        wire:model="aadhar"
+                        label="Aadhar Number"
+                        mask="9999 9999 9999"
+                        placeholder="0000 0000 0000"
+                        class:input="font-mono uppercase tracking-wide"
+                        inputmode="numeric"
+                    />
+                    @if ($aadhar_file)
+                        <flux:file-item
+                            :heading="$aadhar_file->getClientOriginalName()"
+                            :size="$aadhar_file->getSize()"
+                        >
+                            <x-slot name="actions">
+                                <flux:file-item.remove wire:click="removeAadharFile" />
+                            </x-slot>
+                        </flux:file-item>
+                    @elseif ($aadhar_file_path && $editingId)
+                        <flux:file-item :heading="$aadhar_file_name ?? 'Aadhar document'">
+                            <x-slot name="actions">
+                                <flux:button
+                                    size="xs"
+                                    variant="ghost"
+                                    icon="arrow-down-tray"
+                                    :href="route('customer-master.file', ['customer' => $editingId, 'type' => 'aadhar'])"
+                                    target="_blank"
+                                />
+                                <flux:file-item.remove wire:click="removeAadharFile" />
+                            </x-slot>
+                        </flux:file-item>
+                    @else
+                        <flux:file-upload wire:model="aadhar_file" accept="image/jpeg,image/png,application/pdf">
+                            <flux:file-upload.dropzone
+                                heading="Upload Aadhar scan"
+                                text="JPG, PNG, or PDF up to 5 MB"
+                            />
+                        </flux:file-upload>
+                    @endif
+                    <flux:error name="aadhar_file" />
+                </div>
+
+                {{-- PAN number + scan --}}
+                <div class="space-y-2">
                     <flux:input
                         wire:model="pan"
-                        label="PAN"
+                        label="PAN Number"
                         placeholder="ABCDE1234F"
                         maxlength="10"
                         class:input="font-mono uppercase tracking-wide"
                     />
+                    @if ($pan_file)
+                        <flux:file-item
+                            :heading="$pan_file->getClientOriginalName()"
+                            :size="$pan_file->getSize()"
+                        >
+                            <x-slot name="actions">
+                                <flux:file-item.remove wire:click="removePanFile" />
+                            </x-slot>
+                        </flux:file-item>
+                    @elseif ($pan_file_path && $editingId)
+                        <flux:file-item :heading="$pan_file_name ?? 'PAN document'">
+                            <x-slot name="actions">
+                                <flux:button
+                                    size="xs"
+                                    variant="ghost"
+                                    icon="arrow-down-tray"
+                                    :href="route('customer-master.file', ['customer' => $editingId, 'type' => 'pan'])"
+                                    target="_blank"
+                                />
+                                <flux:file-item.remove wire:click="removePanFile" />
+                            </x-slot>
+                        </flux:file-item>
+                    @else
+                        <flux:file-upload wire:model="pan_file" accept="image/jpeg,image/png,application/pdf">
+                            <flux:file-upload.dropzone
+                                heading="Upload PAN scan"
+                                text="JPG, PNG, or PDF up to 5 MB"
+                            />
+                        </flux:file-upload>
+                    @endif
+                    <flux:error name="pan_file" />
                 </div>
 
                 <flux:date-picker

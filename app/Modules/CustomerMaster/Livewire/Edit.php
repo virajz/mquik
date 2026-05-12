@@ -8,17 +8,21 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Customer')]
 class Edit extends Component
 {
     use HasQuickCreate;
+    use WithFileUploads;
 
     public ?int $editingId = null;
 
@@ -41,9 +45,26 @@ class Edit extends Component
 
     public ?string $email = null;
 
+    public ?string $secondary_email = null;
+
     public ?string $aadhar = null;
 
     public ?string $pan = null;
+
+    /** Pending Aadhar upload (TemporaryUploadedFile) — null if no new file staged. */
+    public $aadhar_file = null;
+
+    /** Pending PAN upload — null if no new file staged. */
+    public $pan_file = null;
+
+    /** Existing file metadata loaded on edit, mutated by remove actions. */
+    public ?string $aadhar_file_path = null;
+
+    public ?string $aadhar_file_name = null;
+
+    public ?string $pan_file_path = null;
+
+    public ?string $pan_file_name = null;
 
     public ?string $date_of_birth = null;
 
@@ -78,8 +99,13 @@ class Edit extends Component
         $this->phone = $customer->phone;
         $this->alternate_phone = $customer->alternate_phone;
         $this->email = $customer->email;
+        $this->secondary_email = $customer->secondary_email;
         $this->aadhar = $customer->aadhar;
         $this->pan = $customer->pan;
+        $this->aadhar_file_path = $customer->aadhar_file_path;
+        $this->aadhar_file_name = $customer->aadhar_file_name;
+        $this->pan_file_path = $customer->pan_file_path;
+        $this->pan_file_name = $customer->pan_file_name;
         $this->date_of_birth = $customer->date_of_birth?->format('Y-m-d');
         $this->notes = $customer->notes;
         $this->is_active = $customer->is_active;
@@ -118,6 +144,7 @@ class Edit extends Component
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
+            'secondary_email' => ['nullable', 'email', 'max:255', 'different:email'],
             'aadhar' => [
                 'nullable', 'string', 'size:12',
                 Rule::unique('customers', 'aadhar')->ignore($this->editingId),
@@ -127,6 +154,8 @@ class Edit extends Component
                 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/',
                 Rule::unique('customers', 'pan')->ignore($this->editingId),
             ],
+            'aadhar_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'pan_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
@@ -195,6 +224,24 @@ class Edit extends Component
         );
     }
 
+    /**
+     * Remove a staged or persisted KYC file. For persisted files, the actual
+     * delete from storage happens at save() time so users can still cancel.
+     */
+    public function removeAadharFile(): void
+    {
+        $this->aadhar_file = null;
+        $this->aadhar_file_path = null;
+        $this->aadhar_file_name = null;
+    }
+
+    public function removePanFile(): void
+    {
+        $this->pan_file = null;
+        $this->pan_file_path = null;
+        $this->pan_file_name = null;
+    }
+
     public function addAddress(): void
     {
         $this->addresses[] = $this->blankAddress(false);
@@ -243,9 +290,9 @@ class Edit extends Component
 
         $this->validate();
         $addresses = $this->addresses;
-        $data = collect($this->validate())->except('addresses')->all();
+        $data = collect($this->validate())->except(['addresses', 'aadhar_file', 'pan_file'])->all();
 
-        $skip = ['email', 'business_type_id', 'referred_by_customer_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
+        $skip = ['email', 'secondary_email', 'business_type_id', 'referred_by_customer_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -253,8 +300,12 @@ class Edit extends Component
         }
 
         $isCreate = $this->editingId === null;
+        $aadharFile = $this->aadhar_file;
+        $panFile = $this->pan_file;
+        $aadharCleared = $this->aadhar_file_path === null;
+        $panCleared = $this->pan_file_path === null;
 
-        $customer = DB::transaction(function () use ($data, $addresses) {
+        $customer = DB::transaction(function () use ($data, $addresses, $aadharFile, $panFile, $aadharCleared, $panCleared) {
             if ($this->editingId) {
                 $c = CustomerMaster::findOrFail($this->editingId);
                 $c->update($data);
@@ -264,6 +315,8 @@ class Edit extends Component
             }
 
             $this->syncAddresses($c, $addresses);
+            $this->syncKycFile($c, 'aadhar', $aadharFile, $aadharCleared);
+            $this->syncKycFile($c, 'pan', $panFile, $panCleared);
 
             return $c;
         });
@@ -274,6 +327,38 @@ class Edit extends Component
         );
 
         return redirect()->route('customer-master.index');
+    }
+
+    /**
+     * Persist a freshly-staged upload, clear a removed file, or leave existing alone.
+     * `$type` is 'aadhar' or 'pan'. The original filename is kept so downloads
+     * stream as the file the client uploaded.
+     */
+    protected function syncKycFile(CustomerMaster $customer, string $type, $newFile, bool $clearedByUser): void
+    {
+        $pathCol = $type.'_file_path';
+        $nameCol = $type.'_file_name';
+        $existing = $customer->{$pathCol};
+
+        if ($newFile instanceof TemporaryUploadedFile) {
+            // Upload (or replace). Delete old then store new.
+            if ($existing) {
+                Storage::delete($existing);
+            }
+            $path = $newFile->store("customers/{$customer->id}/{$type}");
+            $customer->forceFill([
+                $pathCol => $path,
+                $nameCol => $newFile->getClientOriginalName(),
+            ])->save();
+
+            return;
+        }
+
+        if ($clearedByUser && $existing) {
+            // User removed the existing file without staging a replacement.
+            Storage::delete($existing);
+            $customer->forceFill([$pathCol => null, $nameCol => null])->save();
+        }
     }
 
     /**

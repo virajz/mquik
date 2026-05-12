@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerMaster extends Model
 {
@@ -109,5 +110,20 @@ class CustomerMaster extends Model
     protected static function newFactory(): CustomerMasterFactory
     {
         return CustomerMasterFactory::new();
+    }
+
+    /**
+     * Wipe KYC files from storage when the customer record is deleted, so
+     * orphaned blobs don't accumulate on S3 / disk.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $customer) {
+            foreach (['aadhar_file_path', 'pan_file_path'] as $col) {
+                if ($customer->{$col}) {
+                    Storage::delete($customer->{$col});
+                }
+            }
+        });
     }
 }

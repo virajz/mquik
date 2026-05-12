@@ -6,6 +6,8 @@ use App\Modules\CustomerMaster\Livewire\Index;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -290,6 +292,119 @@ it('create-option region: empty search is a no-op', function () {
         ->assertSet('addresses.0.region_id', null);
 
     expect(RegionMaster::count())->toBe($countBefore);
+});
+
+it('saves a secondary email and rejects it being identical to the primary', function () {
+    Livewire::test(Edit::class)
+        ->set('first_name', 'A')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9876543210')
+        ->set('email', 'primary@test.com')
+        ->set('secondary_email', 'primary@test.com')
+        ->call('save')
+        ->assertHasErrors(['secondary_email']);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'A')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9876543210')
+        ->set('email', 'primary@test.com')
+        ->set('secondary_email', 'backup@test.com')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(CustomerMaster::firstOrFail()->secondary_email)->toBe('backup@test.com');
+});
+
+it('uploads aadhar file, persists path + original filename, can stream download', function () {
+    Storage::fake();
+
+    $upload = UploadedFile::fake()->image('My Aadhar.jpg', 800, 600);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'A')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9876543210')
+        ->set('aadhar_file', $upload)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $customer = CustomerMaster::firstOrFail();
+    expect($customer->aadhar_file_path)->toStartWith("customers/{$customer->id}/aadhar/")
+        ->and($customer->aadhar_file_name)->toBe('My Aadhar.jpg');
+
+    Storage::disk(config('filesystems.default'))->assertExists($customer->aadhar_file_path);
+
+    // Secured download serves the original filename (Symfony quotes spaces).
+    $response = $this->get(route('customer-master.file', ['customer' => $customer, 'type' => 'aadhar']))
+        ->assertOk();
+
+    expect($response->headers->get('content-disposition'))->toContain('My Aadhar.jpg');
+});
+
+it('replacing an aadhar file deletes the old one from storage', function () {
+    Storage::fake();
+    $customer = CustomerMaster::factory()->create();
+    $oldUpload = UploadedFile::fake()->image('old.jpg');
+    $oldPath = $oldUpload->store("customers/{$customer->id}/aadhar");
+    $customer->forceFill(['aadhar_file_path' => $oldPath, 'aadhar_file_name' => 'old.jpg'])->save();
+
+    Livewire::test(Edit::class, ['customer' => $customer])
+        ->set('aadhar_file', UploadedFile::fake()->image('new.jpg'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    Storage::assertMissing($oldPath);
+
+    $fresh = $customer->fresh();
+    expect($fresh->aadhar_file_name)->toBe('new.jpg')
+        ->and($fresh->aadhar_file_path)->not->toBe($oldPath);
+    Storage::assertExists($fresh->aadhar_file_path);
+});
+
+it('removing an existing aadhar file wipes path + name + storage on save', function () {
+    Storage::fake();
+    $customer = CustomerMaster::factory()->create();
+    $existingPath = UploadedFile::fake()->image('keep.jpg')->store("customers/{$customer->id}/aadhar");
+    $customer->forceFill(['aadhar_file_path' => $existingPath, 'aadhar_file_name' => 'keep.jpg'])->save();
+
+    Livewire::test(Edit::class, ['customer' => $customer])
+        ->call('removeAadharFile')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    Storage::assertMissing($existingPath);
+    $fresh = $customer->fresh();
+    expect($fresh->aadhar_file_path)->toBeNull()
+        ->and($fresh->aadhar_file_name)->toBeNull();
+});
+
+it('rejects unsupported file types', function () {
+    Storage::fake();
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'A')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9876543210')
+        ->set('aadhar_file', UploadedFile::fake()->create('virus.exe', 100, 'application/octet-stream'))
+        ->call('save')
+        ->assertHasErrors(['aadhar_file']);
+});
+
+it('deleting a customer removes their KYC files from storage', function () {
+    Storage::fake();
+    $customer = CustomerMaster::factory()->create();
+    $aadharPath = UploadedFile::fake()->image('a.jpg')->store("customers/{$customer->id}/aadhar");
+    $panPath = UploadedFile::fake()->image('p.jpg')->store("customers/{$customer->id}/pan");
+    $customer->forceFill([
+        'aadhar_file_path' => $aadharPath, 'aadhar_file_name' => 'a.jpg',
+        'pan_file_path' => $panPath, 'pan_file_name' => 'p.jpg',
+    ])->save();
+
+    $customer->delete();
+
+    Storage::assertMissing($aadharPath);
+    Storage::assertMissing($panPath);
 });
 
 it('rejects self-referral on edit', function () {
