@@ -21,8 +21,6 @@ class Form extends Component
 
     public ?int $vehicle_segment_id = null;
 
-    public ?string $fuel_type = null;
-
     public bool $is_active = true;
 
     public ?string $notes = null;
@@ -38,7 +36,6 @@ class Form extends Component
                     ->ignore($this->editingId),
             ],
             'vehicle_segment_id' => ['nullable', 'integer', Rule::exists('vehicle_segments', 'id')->where('is_active', true)],
-            'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -70,7 +67,6 @@ class Form extends Component
         $this->brand_id = $r->brand_id;
         $this->name = $r->name;
         $this->vehicle_segment_id = $r->vehicle_segment_id;
-        $this->fuel_type = $r->fuel_type;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
     }
@@ -104,7 +100,6 @@ class Form extends Component
         $this->brand_id = null;
         $this->name = '';
         $this->vehicle_segment_id = null;
-        $this->fuel_type = null;
         $this->is_active = true;
         $this->notes = null;
     }

@@ -23,6 +23,8 @@ class VehicleVariantImporter implements Importable
             'name' => ['label' => 'Variant', 'required' => true, 'type' => 'string'],
             'transmission' => ['label' => 'Transmission', 'required' => false, 'type' => 'string'],
             'engine_cc' => ['label' => 'Engine', 'required' => false, 'type' => 'string'],
+            'fuel_type' => ['label' => 'Fuel Type', 'required' => false, 'type' => 'string', 'help' => 'petrol | diesel | cng | electric | hybrid'],
+            'year' => ['label' => 'Year', 'required' => false, 'type' => 'integer'],
             'is_active' => ['label' => 'Active', 'required' => false, 'type' => 'boolean', 'default' => true],
             'notes' => ['label' => 'Notes', 'required' => false, 'type' => 'string'],
         ];
@@ -52,6 +54,8 @@ class VehicleVariantImporter implements Importable
             'name' => ['required', 'string', 'max:255'],
             'transmission' => ['nullable', 'in:manual,automatic,amt,cvt,dct'],
             'engine_cc' => ['nullable', 'string', 'max:20'],
+            'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
+            'year' => ['nullable', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ])->errors()->all();
@@ -88,6 +92,9 @@ class VehicleVariantImporter implements Importable
         }
         if (isset($data['transmission']) && is_string($data['transmission'])) {
             $data['transmission'] = strtolower($data['transmission']);
+        }
+        if (isset($data['fuel_type']) && is_string($data['fuel_type'])) {
+            $data['fuel_type'] = strtolower($data['fuel_type']);
         }
 
         if (! array_key_exists('is_active', $data) || $data['is_active'] === null) {

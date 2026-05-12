@@ -26,7 +26,19 @@
                         <flux:select.option value="cvt">CVT</flux:select.option>
                         <flux:select.option value="dct">DCT</flux:select.option>
                     </flux:select>
+                    <flux:select wire:model="fuel_type" label="Fuel Type" variant="listbox" placeholder="Optional">
+                        <flux:select.option value="">— Skip —</flux:select.option>
+                        <flux:select.option value="petrol">Petrol</flux:select.option>
+                        <flux:select.option value="diesel">Diesel</flux:select.option>
+                        <flux:select.option value="cng">CNG</flux:select.option>
+                        <flux:select.option value="electric">Electric</flux:select.option>
+                        <flux:select.option value="hybrid">Hybrid</flux:select.option>
+                    </flux:select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:input wire:model="engine_cc" label="Engine" placeholder="e.g. 1197cc" maxlength="20" />
+                    <flux:input wire:model="year" label="Year" type="number" min="1980" :max="now()->year + 1" placeholder="e.g. 2024" />
                 </div>
 
                 <flux:textarea wire:model="notes" label="Notes" rows="2" />

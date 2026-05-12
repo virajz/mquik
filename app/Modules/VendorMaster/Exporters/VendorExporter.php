@@ -16,7 +16,7 @@ class VendorExporter implements Exportable
     public function headers(): array
     {
         return [
-            'ID', 'Code', 'Name', 'Vendor Types', 'Phone', 'Alt Phone',
+            'ID', 'Code', 'Name', 'Vendor Types', 'Parts Brands', 'Phone', 'Alt Phone',
             'Email', 'Secondary Email',
             'Address', 'Region', 'Pincode',
             'Aadhar', 'Aadhar File', 'PAN', 'PAN File', 'GSTIN',
@@ -31,6 +31,7 @@ class VendorExporter implements Exportable
         return VendorMaster::query()
             ->with([
                 'vendorTypes:id,name',
+                'spareBrands:id,name',
                 'region.parent.parent.parent',
                 'bank:id,name',
                 'terms:id,vendor_id,name,value,sort_order',
@@ -44,6 +45,7 @@ class VendorExporter implements Exportable
     public function row(object $model): array
     {
         $types = $model->vendorTypes->pluck('name')->implode('; ');
+        $brands = $model->spareBrands->pluck('name')->implode('; ');
         $terms = $model->terms->map(fn ($t) => $t->name.': '.$t->value)->implode(' | ');
 
         // Walk the region chain to get the human-readable string and the leaf pincode.
@@ -66,7 +68,7 @@ class VendorExporter implements Exportable
 
         return [
             $model->id, $model->vendor_code, $model->name,
-            $types,
+            $types, $brands,
             $model->phone, $model->alternate_phone,
             $model->email, $model->secondary_email,
             $model->address, $regionChain, $pincode,

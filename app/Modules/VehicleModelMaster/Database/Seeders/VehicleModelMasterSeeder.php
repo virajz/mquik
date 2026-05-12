@@ -11,28 +11,29 @@ class VehicleModelMasterSeeder extends Seeder
 {
     public function run(): void
     {
-        // Real Indian-market vehicles by brand
+        // Real Indian-market vehicles by brand. Fuel type now lives at the
+        // variant level, not the model level.
         $catalogue = [
             'MARUTI SUZUKI' => [
-                ['SWIFT', 'hatchback', 'petrol'],
-                ['DZIRE', 'sedan', 'petrol'],
-                ['BREZZA', 'suv', 'petrol'],
-                ['ERTIGA', 'muv', 'petrol'],
+                ['SWIFT', 'hatchback'],
+                ['DZIRE', 'sedan'],
+                ['BREZZA', 'suv'],
+                ['ERTIGA', 'muv'],
             ],
             'HYUNDAI' => [
-                ['CRETA', 'suv', 'petrol'],
-                ['VENUE', 'suv', 'petrol'],
-                ['I20', 'hatchback', 'petrol'],
+                ['CRETA', 'suv'],
+                ['VENUE', 'suv'],
+                ['I20', 'hatchback'],
             ],
             'TATA' => [
-                ['NEXON', 'suv', 'petrol'],
-                ['PUNCH', 'suv', 'petrol'],
-                ['HARRIER', 'suv', 'diesel'],
+                ['NEXON', 'suv'],
+                ['PUNCH', 'suv'],
+                ['HARRIER', 'suv'],
             ],
             'MAHINDRA' => [
-                ['XUV700', 'suv', 'diesel'],
-                ['SCORPIO N', 'suv', 'diesel'],
-                ['THAR', 'suv', 'diesel'],
+                ['XUV700', 'suv'],
+                ['SCORPIO N', 'suv'],
+                ['THAR', 'suv'],
             ],
         ];
 
@@ -46,10 +47,10 @@ class VehicleModelMasterSeeder extends Seeder
             if (! $brand) {
                 continue;
             }
-            foreach ($models as [$name, $segment, $fuel]) {
+            foreach ($models as [$name, $segment]) {
                 VehicleModelMaster::firstOrCreate(
                     ['brand_id' => $brand->id, 'name' => $name],
-                    ['vehicle_segment_id' => $segmentId($segment), 'fuel_type' => $fuel, 'is_active' => true],
+                    ['vehicle_segment_id' => $segmentId($segment), 'is_active' => true],
                 );
             }
         }

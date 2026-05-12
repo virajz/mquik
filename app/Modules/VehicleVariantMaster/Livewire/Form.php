@@ -22,6 +22,10 @@ class Form extends Component
 
     public ?string $engine_cc = null;
 
+    public ?string $fuel_type = null;
+
+    public ?int $year = null;
+
     public bool $is_active = true;
 
     public ?string $notes = null;
@@ -38,6 +42,8 @@ class Form extends Component
             ],
             'transmission' => ['nullable', 'in:manual,automatic,amt,cvt,dct'],
             'engine_cc' => ['nullable', 'string', 'max:20'],
+            'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
+            'year' => ['nullable', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -63,6 +69,8 @@ class Form extends Component
         $this->name = $r->name;
         $this->transmission = $r->transmission;
         $this->engine_cc = $r->engine_cc;
+        $this->fuel_type = $r->fuel_type;
+        $this->year = $r->year;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
     }
@@ -97,6 +105,8 @@ class Form extends Component
         $this->name = '';
         $this->transmission = null;
         $this->engine_cc = null;
+        $this->fuel_type = null;
+        $this->year = null;
         $this->is_active = true;
         $this->notes = null;
     }

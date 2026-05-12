@@ -20,7 +20,6 @@ class VehicleModelMasterFactory extends Factory
             'brand_id' => VehicleBrandMaster::factory(),
             'name' => strtoupper($this->faker->unique()->word()).' '.$this->faker->randomNumber(3),
             'vehicle_segment_id' => VehicleSegmentMaster::factory(),
-            'fuel_type' => $this->faker->randomElement(['petrol', 'diesel', 'cng', 'electric']),
             'is_active' => true,
             'notes' => null,
         ];

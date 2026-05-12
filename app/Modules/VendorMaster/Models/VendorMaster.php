@@ -6,6 +6,7 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Database\Factories\VendorMasterFactory;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -49,6 +50,16 @@ class VendorMaster extends Model
             'vendor_vendor_type',
             'vendor_id',
             'vendor_type_id',
+        );
+    }
+
+    public function spareBrands(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SpareBrandMaster::class,
+            'spare_brand_vendor',
+            'vendor_id',
+            'spare_brand_id',
         );
     }
 

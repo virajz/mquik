@@ -5,6 +5,7 @@ namespace App\Modules\VendorMaster\Importers;
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\ImportExport\Contracts\Importable;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class VendorImporter implements Importable
             'vendor_code' => ['label' => 'Code', 'required' => true, 'type' => 'string'],
             'name' => ['label' => 'Name', 'required' => true, 'type' => 'string'],
             'vendor_types' => ['label' => 'Vendor Types', 'required' => true, 'type' => 'string', 'help' => 'Semicolon-separated names — must match existing Vendor Types (case-insensitive). e.g. "SPARE PARTS; OSL"'],
+            'spare_brands' => ['label' => 'Parts Brands', 'required' => false, 'type' => 'string', 'help' => 'Semicolon-separated brand names — looked up in Parts Brand master (case-insensitive). e.g. "BOSCH; MAHLE"'],
             'phone' => ['label' => 'Phone', 'required' => true, 'type' => 'string'],
             'alternate_phone' => ['label' => 'Alt Phone', 'required' => false, 'type' => 'string'],
             'email' => ['label' => 'Email', 'required' => false, 'type' => 'string'],
@@ -56,6 +58,7 @@ class VendorImporter implements Importable
             'vendor_code' => ['required', 'string', 'max:30'],
             'name' => ['required', 'string', 'max:255'],
             'vendor_types' => ['required', 'string'],
+            'spare_brands' => ['nullable', 'string'],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email'],
@@ -82,25 +85,27 @@ class VendorImporter implements Importable
 
     public function createRecord(array $data): void
     {
-        [$vendorData, $typeIds] = $this->split($data);
+        [$vendorData, $typeIds, $brandIds] = $this->split($data);
         $vendor = VendorMaster::create($vendorData);
         $vendor->vendorTypes()->sync($typeIds);
+        $vendor->spareBrands()->sync($brandIds);
     }
 
     public function updateRecord(object $existing, array $data): void
     {
         /** @var VendorMaster $existing */
-        [$vendorData, $typeIds] = $this->split($data);
+        [$vendorData, $typeIds, $brandIds] = $this->split($data);
         $existing->update($vendorData);
         $existing->vendorTypes()->sync($typeIds);
+        $existing->spareBrands()->sync($brandIds);
     }
 
     /**
-     * @return array{0: array<string, mixed>, 1: list<int>}
+     * @return array{0: array<string, mixed>, 1: list<int>, 2: list<int>}
      */
     protected function split(array $data): array
     {
-        $skip = ['email', 'secondary_email', 'vendor_types', 'phone', 'alternate_phone', 'pincode', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'bank'];
+        $skip = ['email', 'secondary_email', 'vendor_types', 'spare_brands', 'phone', 'alternate_phone', 'pincode', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'bank'];
         foreach ($data as $k => $v) {
             if (is_string($v) && ! in_array($k, $skip, true)) {
                 $data[$k] = strtoupper($v);
@@ -111,12 +116,30 @@ class VendorImporter implements Importable
         }
 
         $typeIds = $this->resolveVendorTypeIds($data['vendor_types'] ?? '');
+        $brandIds = $this->resolveSpareBrandIds($data['spare_brands'] ?? '');
         $data['region_id'] = $this->resolveRegionId($data['pincode'] ?? null, $data['city'] ?? null);
         $data['bank_id'] = $this->resolveBankId($data['bank'] ?? null);
 
-        unset($data['vendor_types'], $data['pincode'], $data['city'], $data['bank']);
+        unset($data['vendor_types'], $data['spare_brands'], $data['pincode'], $data['city'], $data['bank']);
 
-        return [$data, $typeIds];
+        return [$data, $typeIds, $brandIds];
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function resolveSpareBrandIds(string $names): array
+    {
+        $parts = array_filter(array_map('trim', explode(';', $names)));
+        if (empty($parts)) {
+            return [];
+        }
+
+        return SpareBrandMaster::query()
+            ->where('is_active', true)
+            ->whereIn(DB::raw('LOWER(name)'), array_map(fn ($n) => mb_strtolower($n), $parts))
+            ->pluck('id')
+            ->all();
     }
 
     protected function resolveRegionId(?string $pincode, ?string $city): ?int

@@ -6,7 +6,6 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -54,21 +53,6 @@ class Index extends Component
             $this->sortDirection = 'asc';
         }
     }
-
-    public function openCreate(): void
-    {
-        $this->dispatch('customer-vehicle-master:edit', id: null);
-        Flux::modal('customer-vehicle-master-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('customer-vehicle-master:edit', id: $id);
-        Flux::modal('customer-vehicle-master-form')->show();
-    }
-
-    #[On('customer-vehicle-master:saved')]
-    public function refreshAfterSave(): void {}
 
     public function delete(int $id): void
     {

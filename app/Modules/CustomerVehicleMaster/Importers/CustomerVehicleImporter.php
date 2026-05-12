@@ -31,8 +31,6 @@ class CustomerVehicleImporter implements Importable
             'vin' => ['label' => 'VIN', 'required' => false, 'type' => 'string'],
             'engine_no' => ['label' => 'Engine No', 'required' => false, 'type' => 'string'],
             'odometer_km' => ['label' => 'Odometer KM', 'required' => false, 'type' => 'integer'],
-            'insurance_expiry' => ['label' => 'Insurance Expiry', 'required' => false, 'type' => 'date'],
-            'puc_expiry' => ['label' => 'PUC Expiry', 'required' => false, 'type' => 'date'],
             'is_active' => ['label' => 'Active', 'required' => false, 'type' => 'boolean', 'default' => true],
             'notes' => ['label' => 'Notes', 'required' => false, 'type' => 'string'],
         ];
@@ -70,8 +68,6 @@ class CustomerVehicleImporter implements Importable
             'vin' => ['nullable', 'string', 'size:17'],
             'engine_no' => ['nullable', 'string', 'max:30'],
             'odometer_km' => ['nullable', 'integer', 'min:0'],
-            'insurance_expiry' => ['nullable', 'date'],
-            'puc_expiry' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ])->errors()->all();

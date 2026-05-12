@@ -25,8 +25,6 @@ class CustomerVehicleMaster extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'insurance_expiry' => 'date',
-        'puc_expiry' => 'date',
     ];
 
     protected static array $searchableFields = ['registration_no', 'vin', 'engine_no'];

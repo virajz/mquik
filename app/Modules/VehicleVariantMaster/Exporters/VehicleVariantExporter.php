@@ -15,7 +15,7 @@ class VehicleVariantExporter implements Exportable
 
     public function headers(): array
     {
-        return ['ID', 'Brand', 'Model', 'Variant', 'Transmission', 'Engine', 'Active', 'Notes', 'Created At'];
+        return ['ID', 'Brand', 'Model', 'Variant', 'Transmission', 'Engine', 'Fuel', 'Year', 'Active', 'Notes', 'Created At'];
     }
 
     public function query(): Builder
@@ -32,6 +32,8 @@ class VehicleVariantExporter implements Exportable
             $model->name,
             $model->transmission,
             $model->engine_cc,
+            $model->fuel_type,
+            $model->year,
             $model->is_active ? 'YES' : 'NO',
             $model->notes,
             $model->created_at?->toIso8601String(),

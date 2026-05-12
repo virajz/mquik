@@ -21,7 +21,6 @@ class VehicleModelImporter implements Importable
             'brand_name' => ['label' => 'Brand', 'required' => true, 'type' => 'string', 'help' => 'Must match an existing Vehicle Brand name'],
             'name' => ['label' => 'Model', 'required' => true, 'type' => 'string'],
             'segment' => ['label' => 'Segment', 'required' => false, 'type' => 'string', 'help' => 'Match by name (case-insensitive). Optional.'],
-            'fuel_type' => ['label' => 'Fuel Type', 'required' => false, 'type' => 'string', 'help' => 'petrol | diesel | cng | electric | hybrid'],
             'is_active' => ['label' => 'Active', 'required' => false, 'type' => 'boolean', 'default' => true],
             'notes' => ['label' => 'Notes', 'required' => false, 'type' => 'string'],
         ];
@@ -49,7 +48,6 @@ class VehicleModelImporter implements Importable
         $fieldErrors = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'segment' => ['nullable', 'string'],
-            'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ])->errors()->all();
@@ -80,10 +78,6 @@ class VehicleModelImporter implements Importable
         }
         if (isset($data['notes']) && is_string($data['notes'])) {
             $data['notes'] = strtoupper($data['notes']);
-        }
-
-        if (isset($data['fuel_type']) && is_string($data['fuel_type'])) {
-            $data['fuel_type'] = strtolower($data['fuel_type']);
         }
 
         $data['vehicle_segment_id'] = $this->resolveSegmentId($data['segment'] ?? null);

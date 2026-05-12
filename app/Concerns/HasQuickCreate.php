@@ -26,6 +26,9 @@ use Illuminate\Support\Str;
 trait HasQuickCreate
 {
     /**
+     * Returns true on success (record created or matched + assigned), false on no-op
+     * (empty search). Lets callers conditionally close a quick-add modal.
+     *
      * @param  class-string<Model>  $modelClass
      * @param  array<string, mixed>  $defaults  attributes set when creating a fresh row
      * @param  bool  $appendToList  when true, target property is treated as a list and the new id is appended (deduped). Use for multi-select pickers.
@@ -39,12 +42,12 @@ trait HasQuickCreate
         string $column = 'name',
         ?string $label = null,
         bool $appendToList = false,
-    ): void {
+    ): bool {
         $this->authorize($permission);
 
         $value = strtoupper(trim((string) ($this->{$searchProperty} ?? '')));
         if ($value === '') {
-            return;
+            return false;
         }
 
         /** @var Model $record */
@@ -63,5 +66,7 @@ trait HasQuickCreate
             text: ($label ?? Str::headline(class_basename($modelClass))).' "'.$record->{$column}.'" added.',
             variant: 'success',
         );
+
+        return true;
     }
 }

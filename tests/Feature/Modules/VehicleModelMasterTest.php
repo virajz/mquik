@@ -24,7 +24,6 @@ it('creates a model with brand FK', function () {
         ->set('brand_id', $brand->id)
         ->set('name', 'swift')
         ->set('vehicle_segment_id', $hatchback->id)
-        ->set('fuel_type', 'petrol')
         ->call('save')
         ->assertHasNoErrors()
         ->assertDispatched('vehicle-model-master:saved');
@@ -32,8 +31,7 @@ it('creates a model with brand FK', function () {
     $r = VehicleModelMaster::firstOrFail();
     expect($r->name)->toBe('SWIFT')
         ->and($r->brand_id)->toBe($brand->id)
-        ->and($r->vehicle_segment_id)->toBe($hatchback->id)
-        ->and($r->fuel_type)->toBe('petrol');
+        ->and($r->vehicle_segment_id)->toBe($hatchback->id);
 });
 
 it('requires brand_id', function () {

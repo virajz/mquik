@@ -41,33 +41,65 @@
 
                 <flux:field>
                     <flux:label>Vendor Types <span class="text-red-500">*</span></flux:label>
-                    <flux:select
-                        wire:model="vendor_type_ids"
-                        variant="listbox"
-                        multiple
-                        searchable
-                        placeholder="Pick one or more types…"
-                    >
-                        @foreach ($vendorTypes as $t)
-                            <flux:select.option :value="$t->id" wire:key="vt-{{ $t->id }}">{{ $t->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    @can('vendor_type_master.create')
-                        {{-- Flux's listbox+multiple doesn't support the inline create-option (combobox-only),
-                             so quick-add lives in this small companion input. --}}
-                        <div class="flex items-stretch gap-2 mt-2">
-                            <flux:input
-                                wire:model="vendorTypeSearch"
-                                placeholder="Type a new vendor type and click Add…"
-                                class="flex-1"
-                            />
-                            <flux:button variant="ghost" icon="plus" wire:click="createVendorType" type="button">
-                                Add
-                            </flux:button>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select
+                                wire:model="vendor_type_ids"
+                                variant="listbox"
+                                multiple
+                                searchable
+                                placeholder="Pick one or more types…"
+                            >
+                                @foreach ($vendorTypes as $t)
+                                    <flux:select.option :value="$t->id" wire:key="vt-{{ $t->id }}">{{ $t->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
                         </div>
-                    @endcan
+                        @can('vendor_type_master.create')
+                            <flux:tooltip content="Quick add a new vendor type">
+                                <flux:button
+                                    icon="plus"
+                                    variant="ghost"
+                                    type="button"
+                                    x-on:click="$flux.modal('vendor-type-quick-add').show()"
+                                />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
                     <flux:error name="vendor_type_ids" />
                     <flux:error name="vendor_type_ids.0" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Parts Brands Supplied</flux:label>
+                    <flux:description>If this vendor supplies parts, pick the brands they carry.</flux:description>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select
+                                wire:model="spare_brand_ids"
+                                variant="listbox"
+                                multiple
+                                searchable
+                                placeholder="Pick one or more brands…"
+                            >
+                                @foreach ($this->spareBrands as $b)
+                                    <flux:select.option :value="$b->id" wire:key="sb-{{ $b->id }}">{{ $b->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+                        @can('spare_brand_master.create')
+                            <flux:tooltip content="Quick add a new parts brand">
+                                <flux:button
+                                    icon="plus"
+                                    variant="ghost"
+                                    type="button"
+                                    x-on:click="$flux.modal('spare-brand-quick-add').show()"
+                                />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
+                    <flux:error name="spare_brand_ids" />
+                    <flux:error name="spare_brand_ids.0" />
                 </flux:field>
             </div>
         </section>
@@ -451,4 +483,53 @@
             </div>
         </div>
     </form>
+
+    {{-- Quick-add modals (outside the main form so submitting them doesn't post the parent). --}}
+    @can('vendor_type_master.create')
+        <flux:modal name="vendor-type-quick-add" class="md:w-md">
+            <form wire:submit.prevent="createVendorType" class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Quick add Vendor Type</flux:heading>
+                    <flux:subheading>Just the name. Add more details later from the Vendor Types page.</flux:subheading>
+                </div>
+                <flux:input
+                    wire:model="vendorTypeSearch"
+                    label="Name"
+                    placeholder="e.g. CORPORATE"
+                    autofocus
+                    required
+                />
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:modal.close>
+                        <flux:button variant="ghost" type="button">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Add</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+    @endcan
+
+    @can('spare_brand_master.create')
+        <flux:modal name="spare-brand-quick-add" class="md:w-md">
+            <form wire:submit.prevent="createSpareBrand" class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Quick add Parts Brand</flux:heading>
+                    <flux:subheading>Just the name. Add more details later from the Parts Brands page.</flux:subheading>
+                </div>
+                <flux:input
+                    wire:model="spareBrandSearch"
+                    label="Name"
+                    placeholder="e.g. BOSCH"
+                    autofocus
+                    required
+                />
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:modal.close>
+                        <flux:button variant="ghost" type="button">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Add</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+    @endcan
 </div>

@@ -5,7 +5,7 @@
             <flux:text class="mt-1">Vehicles owned by customers — used by appointments, job cards, and insurance claims.</flux:text>
         </div>
         <div class="flex items-center gap-2">
-            <flux:button variant="primary" icon="plus" wire:click="openCreate">New Vehicle</flux:button>
+            <flux:button variant="primary" icon="plus" :href="route('customer-vehicle-master.create')" wire:navigate>New Vehicle</flux:button>
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
                 <flux:menu>
@@ -69,7 +69,7 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                            <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('customer-vehicle-master.edit', $row)" wire:navigate>Edit</flux:button>
                             <flux:modal.trigger :name="'customer-vehicle-master-delete-' . $row->id">
                                 <flux:button size="sm" variant="ghost" icon="trash" />
                             </flux:modal.trigger>
@@ -100,7 +100,6 @@
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
 
-    <livewire:customer-vehicle-master.form />
     <livewire:import-export.export-button :module="'CustomerVehicleMaster'" wire:key="export-customer-vehicle-master" />
     <livewire:import-export.import-wizard :module="'CustomerVehicleMaster'" wire:key="import-customer-vehicle-master" />
 </div>

@@ -19,7 +19,7 @@ class CustomerVehicleExporter implements Exportable
             'ID', 'Registration No', 'Customer', 'Customer Phone',
             'Brand', 'Model', 'Variant', 'Color',
             'Year', 'VIN', 'Engine No', 'Odometer KM',
-            'Insurance Expiry', 'PUC Expiry', 'Active', 'Notes', 'Created At',
+            'Active', 'Notes', 'Created At',
         ];
     }
 
@@ -45,8 +45,6 @@ class CustomerVehicleExporter implements Exportable
             $model->vin,
             $model->engine_no,
             $model->odometer_km,
-            $model->insurance_expiry?->format('Y-m-d'),
-            $model->puc_expiry?->format('Y-m-d'),
             $model->is_active ? 'YES' : 'NO',
             $model->notes,
             $model->created_at?->toIso8601String(),

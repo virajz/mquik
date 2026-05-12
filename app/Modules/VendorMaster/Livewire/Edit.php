@@ -5,6 +5,7 @@ namespace App\Modules\VendorMaster\Livewire;
 use App\Concerns\HasQuickCreate;
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Flux\Flux;
@@ -36,6 +37,12 @@ class Edit extends Component
 
     /** Combobox search string for the multi-select Type picker — also used as the "Create" name. */
     public string $vendorTypeSearch = '';
+
+    /** @var list<int> */
+    public array $spare_brand_ids = [];
+
+    /** Search string for the multi-select Parts Brand picker — also used as the "Create" name. */
+    public string $spareBrandSearch = '';
 
     public string $phone = '';
 
@@ -103,7 +110,7 @@ class Edit extends Component
 
     protected function load(VendorMaster $vendor): void
     {
-        $vendor->load(['vendorTypes:id', 'terms']);
+        $vendor->load(['vendorTypes:id', 'spareBrands:id', 'terms']);
 
         $this->editingId = $vendor->id;
         foreach (['vendor_code', 'name', 'phone', 'alternate_phone', 'email', 'secondary_email', 'address', 'aadhar', 'pan', 'gstin', 'bank_branch', 'ifsc', 'account_no', 'account_holder', 'notes', 'aadhar_file_path', 'aadhar_file_name', 'pan_file_path', 'pan_file_name'] as $k) {
@@ -112,6 +119,7 @@ class Edit extends Component
         $this->region_id = $vendor->region_id;
         $this->bank_id = $vendor->bank_id;
         $this->vendor_type_ids = $vendor->vendorTypes->pluck('id')->all();
+        $this->spare_brand_ids = $vendor->spareBrands->pluck('id')->all();
         $this->credit_days = (int) $vendor->credit_days;
         $this->credit_limit = (float) $vendor->credit_limit;
         $this->is_active = $vendor->is_active;
@@ -132,6 +140,8 @@ class Edit extends Component
             'name' => ['required', 'string', 'max:255'],
             'vendor_type_ids' => ['required', 'array', 'min:1'],
             'vendor_type_ids.*' => ['integer', Rule::exists('vendor_types', 'id')->where('is_active', true)],
+            'spare_brand_ids' => ['array'],
+            'spare_brand_ids.*' => ['integer', Rule::exists('spare_brands', 'id')->where('is_active', true)],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -161,7 +171,7 @@ class Edit extends Component
 
     public function createVendorType(): void
     {
-        $this->quickCreate(
+        $created = $this->quickCreate(
             modelClass: VendorTypeMaster::class,
             targetProperty: 'vendor_type_ids',
             searchProperty: 'vendorTypeSearch',
@@ -169,6 +179,24 @@ class Edit extends Component
             label: 'Vendor type',
             appendToList: true,
         );
+        if ($created) {
+            Flux::modal('vendor-type-quick-add')->close();
+        }
+    }
+
+    public function createSpareBrand(): void
+    {
+        $created = $this->quickCreate(
+            modelClass: SpareBrandMaster::class,
+            targetProperty: 'spare_brand_ids',
+            searchProperty: 'spareBrandSearch',
+            permission: 'spare_brand_master.create',
+            label: 'Parts brand',
+            appendToList: true,
+        );
+        if ($created) {
+            Flux::modal('spare-brand-quick-add')->close();
+        }
     }
 
     public function createBank(): void
@@ -255,6 +283,15 @@ class Edit extends Component
             ->get(['id', 'name']);
     }
 
+    #[Computed]
+    public function spareBrands()
+    {
+        return SpareBrandMaster::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
     public function addTerm(): void
     {
         $this->terms[] = ['id' => null, 'name' => '', 'value' => ''];
@@ -295,13 +332,14 @@ class Edit extends Component
 
         $terms = $this->terms;
         $typeIds = array_map('intval', $this->vendor_type_ids);
+        $brandIds = array_map('intval', $this->spare_brand_ids);
         $aadharFile = $this->aadhar_file;
         $panFile = $this->pan_file;
         $aadharCleared = $this->aadhar_file_path === null;
         $panCleared = $this->pan_file_path === null;
 
         $data = collect($this->validate())->except([
-            'vendor_type_ids', 'terms', 'aadhar_file', 'pan_file',
+            'vendor_type_ids', 'spare_brand_ids', 'terms', 'aadhar_file', 'pan_file',
         ])->all();
 
         $skip = ['email', 'secondary_email', 'phone', 'alternate_phone', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'region_id', 'bank_id'];
@@ -313,7 +351,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $vendor = DB::transaction(function () use ($data, $typeIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
+        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
             if ($this->editingId) {
                 $v = VendorMaster::findOrFail($this->editingId);
                 $v->update($data);
@@ -323,6 +361,7 @@ class Edit extends Component
             }
 
             $v->vendorTypes()->sync($typeIds);
+            $v->spareBrands()->sync($brandIds);
             $this->syncTerms($v, $terms);
             $this->syncKycFile($v, 'aadhar', $aadharFile, $aadharCleared);
             $this->syncKycFile($v, 'pan', $panFile, $panCleared);

@@ -5,7 +5,7 @@ namespace App\Modules\CustomerVehicleMaster\Database\Factories;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
-use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,20 +21,25 @@ class CustomerVehicleMasterFactory extends Factory
         $rto = $this->faker->numerify('##');
         $alpha = strtoupper($this->faker->lexify('??'));
         $num = $this->faker->numerify('####');
-        $regNo = $this->faker->randomElement($stateCodes)." {$rto} {$alpha} {$num}";
+        // Stored without spaces; form layer strips whitespace before save.
+        $regNo = $this->faker->randomElement($stateCodes).$rto.$alpha.$num;
+
+        // Create a variant with its model auto-built; bind both to keep the
+        // (model_id, variant_id) pair consistent so factory-built rows
+        // round-trip cleanly through the form.
+        $variant = VehicleVariantMaster::factory()->create();
 
         return [
             'customer_id' => CustomerMaster::factory(),
-            'model_id' => VehicleModelMaster::factory(),
-            'variant_id' => null,
+            'model_id' => $variant->model_id,
+            'variant_id' => $variant->id,
             'color_id' => VehicleColorMaster::factory(),
             'registration_no' => $regNo,
+            'number_plate_type' => 'private',
             'year_of_manufacture' => $this->faker->numberBetween(2010, (int) date('Y')),
             'vin' => strtoupper($this->faker->bothify('?????????????????')),
             'engine_no' => strtoupper($this->faker->bothify('???########')),
             'odometer_km' => $this->faker->numberBetween(1000, 200000),
-            'insurance_expiry' => $this->faker->dateTimeBetween('-6 months', '+1 year')->format('Y-m-d'),
-            'puc_expiry' => $this->faker->dateTimeBetween('-6 months', '+1 year')->format('Y-m-d'),
             'is_active' => true,
             'notes' => null,
         ];

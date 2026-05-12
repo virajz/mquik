@@ -2,6 +2,7 @@
 
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Livewire\Edit;
 use App\Modules\VendorMaster\Livewire\Index;
 use App\Modules\VendorMaster\Models\VendorMaster;
@@ -291,6 +292,73 @@ it('create-option: empty search is a no-op', function () {
         ->assertSet('vendor_type_ids', []);
 
     expect(VendorTypeMaster::count())->toBe($countBefore);
+});
+
+it('attaches multiple parts brands and replaces them on edit', function () {
+    $bosch = SpareBrandMaster::firstOrCreate(['name' => 'BOSCH'], ['is_active' => true]);
+    $mahle = SpareBrandMaster::firstOrCreate(['name' => 'MAHLE'], ['is_active' => true]);
+    $valeo = SpareBrandMaster::firstOrCreate(['name' => 'VALEO'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-PB1')
+        ->set('name', 'PARTS HOUSE')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->set('spare_brand_ids', [$bosch->id, $mahle->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $vendor = VendorMaster::with('spareBrands')->where('vendor_code', 'VND-PB1')->firstOrFail();
+    expect($vendor->spareBrands->pluck('id')->all())->toEqualCanonicalizing([$bosch->id, $mahle->id]);
+
+    Livewire::test(Edit::class, ['vendor' => $vendor])
+        ->set('spare_brand_ids', [$valeo->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($vendor->fresh()->spareBrands->pluck('id')->all())->toBe([$valeo->id]);
+});
+
+it('rejects unknown spare_brand_ids', function () {
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-X')
+        ->set('name', 'TEST')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9999999999')
+        ->set('spare_brand_ids', [99999])
+        ->call('save')
+        ->assertHasErrors(['spare_brand_ids.0']);
+});
+
+it('create-option: creates a new parts brand from the multi-picker and appends it', function () {
+    $existing = SpareBrandMaster::firstOrCreate(['name' => 'BOSCH'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('spare_brand_ids', [$existing->id])
+        ->set('spareBrandSearch', 'denso')
+        ->call('createSpareBrand')
+        ->assertHasNoErrors();
+
+    $denso = SpareBrandMaster::where('name', 'DENSO')->firstOrFail();
+
+    Livewire::test(Edit::class)
+        ->set('spare_brand_ids', [$existing->id])
+        ->set('spareBrandSearch', 'denso')
+        ->call('createSpareBrand')
+        ->assertSet('spare_brand_ids', [$existing->id, $denso->id])
+        ->assertSet('spareBrandSearch', '');
+});
+
+it('create-option: re-typing an existing brand does not duplicate the selection', function () {
+    $bosch = SpareBrandMaster::firstOrCreate(['name' => 'BOSCH'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('spare_brand_ids', [$bosch->id])
+        ->set('spareBrandSearch', 'bosch')
+        ->call('createSpareBrand')
+        ->assertSet('spare_brand_ids', [$bosch->id]);
+
+    expect(SpareBrandMaster::where('name', 'BOSCH')->count())->toBe(1);
 });
 
 it('saves region_id picked from RegionMaster', function () {
