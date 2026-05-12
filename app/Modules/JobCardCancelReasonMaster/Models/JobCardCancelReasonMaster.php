@@ -3,6 +3,7 @@
 namespace App\Modules\JobCardCancelReasonMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\JobCardCancelReasonMaster\Database\Factories\JobCardCancelReasonMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ class JobCardCancelReasonMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'job_card_cancel_reasons';
 
@@ -19,6 +21,8 @@ class JobCardCancelReasonMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     protected static function newFactory(): JobCardCancelReasonMasterFactory
     {

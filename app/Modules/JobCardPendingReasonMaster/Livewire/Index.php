@@ -95,13 +95,7 @@ class Index extends Component
         $status = $this->statusFilter;
 
         $rows = JobCardPendingReasonMaster::query()
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $term = '%'.$search.'%';
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)

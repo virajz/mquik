@@ -86,7 +86,7 @@ class Index extends Component
         $status = $this->statusFilter;
 
         $rows = VehicleColorMaster::query()
-            ->when($search !== '', fn ($q) => $q->whereLike('name', '%'.$search.'%', caseSensitive: false))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)

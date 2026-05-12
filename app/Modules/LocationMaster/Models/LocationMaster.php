@@ -3,6 +3,7 @@
 namespace App\Modules\LocationMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\LocationMaster\Database\Factories\LocationMasterFactory;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class LocationMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'locations';
 
@@ -22,6 +24,8 @@ class LocationMaster extends Model
         'is_head_office' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code', 'gstin'];
 
     public function city(): BelongsTo
     {

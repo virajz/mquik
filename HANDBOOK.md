@@ -286,6 +286,20 @@ Every searchable, filterable, sortable column gets an index in the migration. Ex
 
 Cheaper to ship with indexes than add later.
 
+### Master Search (`App\Concerns\Searchable`)
+Models opt into the global Cmd+K palette via the `Searchable` trait + a `searchable` key in `module.php`. The `scopeSearch($term)` method:
+
+1. **Tokenizes** the term on whitespace.
+2. **Multi-token AND, multi-field OR**: every token must match somewhere; each token can land in any of the model's `$searchableFields`.
+3. **Fuzzy fallback (Postgres only)**: tokens of 4+ characters also accept a `word_similarity(token, field) > 0.4` match. Catches typos like `viaraj`→`Viraj`, `zveri`→`Zaveri`. SQLite (used by tests) skips this branch.
+
+Examples:
+- `ra ri` → matches `Viraj Zaveri` (both tokens land in `name`)
+- `viraj 7874` → matches a customer with name `Viraj …` AND phone `…7874…`
+- `viaraj` → matches `Viraj` on Postgres only
+
+The `enable_pg_trgm_and_create_search_indexes` migration enables `pg_trgm` and creates a GIN trigram index per (table, searchable_field). Re-run if a new searchable field is added: `php artisan migrate`. The migration is idempotent (`CREATE INDEX IF NOT EXISTS`).
+
 ### NEVER wipe dev DB
 Forbidden against the Postgres dev DB without explicit user permission:
 - `php artisan migrate:fresh`

@@ -30,7 +30,7 @@ class CustomerMaster extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['name', 'phone', 'email', 'city'];
+    protected static array $searchableFields = ['name', 'phone', 'email', 'city', 'aadhar', 'pan'];
 
     public function toSearchResult(): array
     {

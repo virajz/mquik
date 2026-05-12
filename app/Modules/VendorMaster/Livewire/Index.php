@@ -93,16 +93,7 @@ class Index extends Component
     {
         $rows = VendorMaster::query()
             ->with(['vendorType:id,name'])
-            ->when($this->search !== '', function ($q) {
-                $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('vendor_code', $term, caseSensitive: false)
-                        ->orWhereLike('phone', $term, caseSensitive: false)
-                        ->orWhereLike('email', $term, caseSensitive: false)
-                        ->orWhereLike('gstin', $term, caseSensitive: false);
-                });
-            })
+            ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('vendor_type_id', $this->typeFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->when($this->statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))

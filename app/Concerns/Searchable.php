@@ -23,6 +23,19 @@ trait Searchable
 {
     /**
      * Postgres-safe case-insensitive search across the configured fields.
+     *
+     * Multi-token: the term is split on whitespace; each token must match SOMEWHERE
+     * across the searchable fields (OR), and ALL tokens must match (AND).
+     *
+     * Fuzzy (Postgres only): for tokens of 4+ characters, also accepts trigram-similarity
+     * matches (`pg_trgm`). Catches typos like "viraj" ≈ "viaraj". GIN trigram indexes per
+     * column are created by the `enable_pg_trgm_and_create_search_indexes` migration.
+     *
+     * Examples:
+     *   "ra ri"       → "Viraj Zaveri" matches (both tokens land in `name`)
+     *   "viraj 7874"  → matches a customer with name "Viraj …" AND phone "…7874…"
+     *   "viaraj"      → matches "Viraj" on Postgres via similarity > 0.4
+     *   "viraj xxxx"  → does NOT match if "xxxx" appears in no field
      */
     public function scopeSearch(Builder $query, string $term): Builder
     {
@@ -31,14 +44,39 @@ trait Searchable
             return $query;
         }
 
-        $fields = static::searchableFields();
+        $tokens = preg_split('/\s+/', $term, -1, PREG_SPLIT_NO_EMPTY);
+        if (empty($tokens)) {
+            return $query;
+        }
 
-        return $query->where(function (Builder $q) use ($fields, $term) {
-            $needle = '%'.$term.'%';
-            foreach ($fields as $field) {
-                $q->orWhereLike($field, $needle, caseSensitive: false);
+        $fields = static::searchableFields();
+        $isPostgres = $query->getConnection()->getDriverName() === 'pgsql';
+
+        return $query->where(function (Builder $outer) use ($fields, $tokens, $isPostgres) {
+            foreach ($tokens as $token) {
+                $needle = '%'.$token.'%';
+                $outer->where(function (Builder $sub) use ($fields, $needle, $token, $isPostgres) {
+                    foreach ($fields as $field) {
+                        $sub->orWhereLike($field, $needle, caseSensitive: false);
+
+                        // Fuzzy fallback (Postgres only): word_similarity scans for the best
+                        // matching word/substring within the field value, not the whole string.
+                        // Min 4 chars on the token keeps short inputs from over-matching.
+                        // Threshold 0.4 catches typos ("viaraj"→"VIRAJ", "zveri"→"ZAVERI") without
+                        // returning unrelated rows.
+                        if ($isPostgres && mb_strlen($token) >= 4 && self::isSafeIdentifier($field)) {
+                            $sub->orWhereRaw(sprintf('word_similarity(?, "%s"::text) > 0.4', $field), [$token]);
+                        }
+                    }
+                });
             }
         });
+    }
+
+    /** Defensive: only allow simple identifier names through `whereRaw`. */
+    protected static function isSafeIdentifier(string $field): bool
+    {
+        return (bool) preg_match('/^[a-z][a-z0-9_]*$/i', $field);
     }
 
     /**

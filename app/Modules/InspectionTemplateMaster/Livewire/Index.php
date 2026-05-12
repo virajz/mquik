@@ -95,13 +95,7 @@ class Index extends Component
     {
         $rows = InspectionTemplateMaster::query()
             ->withCount('items')
-            ->when($this->search !== '', function ($q) {
-                $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->appliesToFilter !== 'all', fn ($q) => $q->where('applies_to', $this->appliesToFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->when($this->statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))

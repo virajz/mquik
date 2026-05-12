@@ -3,6 +3,7 @@
 namespace App\Modules\InventoryGroupMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\InventoryGroupMaster\Database\Factories\InventoryGroupMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ class InventoryGroupMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'inventory_groups';
 
@@ -21,6 +23,8 @@ class InventoryGroupMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     public function parent(): BelongsTo
     {

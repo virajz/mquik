@@ -3,6 +3,7 @@
 namespace App\Modules\InspectionTemplateMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Database\Factories\InspectionTemplateMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class InspectionTemplateMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'inspection_templates';
 
@@ -21,6 +23,8 @@ class InspectionTemplateMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     public static function appliesToOptions(): array
     {

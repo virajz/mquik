@@ -3,6 +3,7 @@
 namespace App\Modules\VehicleVariantMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Database\Factories\VehicleVariantMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class VehicleVariantMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'vehicle_variants';
 
@@ -21,6 +23,8 @@ class VehicleVariantMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name'];
 
     public function model(): BelongsTo
     {

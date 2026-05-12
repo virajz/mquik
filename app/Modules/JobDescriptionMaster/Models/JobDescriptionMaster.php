@@ -3,6 +3,7 @@
 namespace App\Modules\JobDescriptionMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\JobDescriptionMaster\Database\Factories\JobDescriptionMasterFactory;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class JobDescriptionMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'job_descriptions';
 
@@ -22,6 +24,8 @@ class JobDescriptionMaster extends Model
         'standard_hours' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     public static function categories(): array
     {

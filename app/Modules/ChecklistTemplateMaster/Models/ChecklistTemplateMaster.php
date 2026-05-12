@@ -3,6 +3,7 @@
 namespace App\Modules\ChecklistTemplateMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\ChecklistGroupMaster\Models\ChecklistGroupMaster;
 use App\Modules\ChecklistTemplateMaster\Database\Factories\ChecklistTemplateMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class ChecklistTemplateMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'checklist_templates';
 
@@ -22,6 +24,8 @@ class ChecklistTemplateMaster extends Model
         'items' => 'array',
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     public static function appliesToOptions(): array
     {

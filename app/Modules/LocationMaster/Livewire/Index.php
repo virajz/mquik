@@ -104,14 +104,7 @@ class Index extends Component
 
         $rows = LocationMaster::query()
             ->with(['city:id,name', 'state:id,name'])
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $term = '%'.$search.'%';
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false)
-                        ->orWhereLike('gstin', $term, caseSensitive: false);
-                });
-            })
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->when($headOffice === 'head_office', fn ($q) => $q->where('is_head_office', true))

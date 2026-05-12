@@ -3,6 +3,7 @@
 namespace App\Modules\VehicleInventoryItemMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\VehicleInventoryItemMaster\Database\Factories\VehicleInventoryItemMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ class VehicleInventoryItemMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'vehicle_inventory_items';
 
@@ -19,6 +21,8 @@ class VehicleInventoryItemMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     protected static function newFactory(): VehicleInventoryItemMasterFactory
     {

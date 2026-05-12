@@ -114,3 +114,84 @@ it('SearchRegistry sources include the 6 wired modules', function () {
         ->toContain('VehicleModelMaster')
         ->toContain('InsuranceCompanyMaster');
 });
+
+it('multi-token search: "ra ri" matches Viraj Zaveri (both tokens in name)', function () {
+    // Pin every searchable field — the factory's random city/email may otherwise contain
+    // "ra" by coincidence and pull in unintended rows.
+    CustomerMaster::factory()->create([
+        'name' => 'VIRAJ ZAVERI', 'phone' => '9876543210',
+        'email' => 'v@test.test', 'city' => 'DELHI',
+    ]);
+    CustomerMaster::factory()->create([
+        'name' => 'PRIYA PATEL', 'phone' => '9123456780',
+        'email' => 'p@test.test', 'city' => 'DELHI',
+    ]);
+
+    $found = CustomerMaster::query()->search('ra ri')->get();
+
+    expect($found)->toHaveCount(1)
+        ->and($found->first()->name)->toBe('VIRAJ ZAVERI');
+});
+
+it('multi-token search: "viraj 7874" matches a name+phone combo across fields', function () {
+    CustomerMaster::factory()->create(['name' => 'VIRAJ ZAVERI', 'phone' => '7874940123']);
+    CustomerMaster::factory()->create(['name' => 'VIRAJ MEHTA', 'phone' => '9876543210']); // wrong phone
+    CustomerMaster::factory()->create(['name' => 'PRIYA PATEL', 'phone' => '7874940000']); // wrong name
+
+    $found = CustomerMaster::query()->search('viraj 7874')->get();
+
+    expect($found)->toHaveCount(1)
+        ->and($found->first()->name)->toBe('VIRAJ ZAVERI');
+});
+
+it('multi-token search: every token must match somewhere (AND across tokens)', function () {
+    CustomerMaster::factory()->create(['name' => 'VIRAJ ZAVERI', 'phone' => '9876543210']);
+
+    // "viraj zzzzz" — first token matches, second matches nothing → no result.
+    $found = CustomerMaster::query()->search('viraj zzzzz')->get();
+
+    expect($found)->toHaveCount(0);
+});
+
+it('multi-token search: tokens are independent (one in name, one in email)', function () {
+    CustomerMaster::factory()->create([
+        'name' => 'VIRAJ ZAVERI',
+        'phone' => '9876543210',
+        'email' => 'viraj@gmail.com',
+    ]);
+
+    $found = CustomerMaster::query()->search('viraj gmail')->get();
+
+    expect($found)->toHaveCount(1)
+        ->and($found->first()->name)->toBe('VIRAJ ZAVERI');
+});
+
+it('multi-token search: extra whitespace is ignored', function () {
+    CustomerMaster::factory()->create(['name' => 'VIRAJ ZAVERI']);
+
+    expect(CustomerMaster::query()->search('  ra    ri  ')->count())->toBe(1)
+        ->and(CustomerMaster::query()->search("ra\tri")->count())->toBe(1);
+});
+
+it('on SQLite: scopeSearch emits ILIKE-only SQL (no word_similarity)', function () {
+    if (CustomerMaster::query()->getConnection()->getDriverName() === 'pgsql') {
+        $this->markTestSkipped('Test only runs against the SQLite test DB.');
+    }
+
+    $sql = CustomerMaster::query()->search('viaraj')->toRawSql();
+
+    expect($sql)->not->toContain('word_similarity')
+        ->and(strtolower($sql))->toContain('like');
+});
+
+it('on Postgres: scopeSearch emits a word_similarity OR clause for tokens >= 4 chars', function () {
+    if (CustomerMaster::query()->getConnection()->getDriverName() !== 'pgsql') {
+        $this->markTestSkipped('Test only runs against Postgres.');
+    }
+
+    $sqlLong = CustomerMaster::query()->search('viaraj')->toRawSql();
+    $sqlShort = CustomerMaster::query()->search('vir')->toRawSql();
+
+    expect($sqlLong)->toContain('word_similarity')
+        ->and($sqlShort)->not->toContain('word_similarity'); // short token skips fuzzy
+});

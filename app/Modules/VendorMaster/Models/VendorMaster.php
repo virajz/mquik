@@ -18,7 +18,7 @@ class VendorMaster extends Model
 
     protected $table = 'vendors';
 
-    protected static array $searchableFields = ['name', 'vendor_code', 'phone', 'gstin'];
+    protected static array $searchableFields = ['name', 'vendor_code', 'phone', 'email', 'gstin'];
 
     public function toSearchResult(): array
     {

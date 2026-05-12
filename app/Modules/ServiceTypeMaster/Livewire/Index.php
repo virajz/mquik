@@ -101,13 +101,7 @@ class Index extends Component
 
         $rows = ServiceTypeMaster::query()
             ->with('workshopDepartment:id,name')
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $term = '%'.$search.'%';
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($dept !== 'all', fn ($q) => $q->where('workshop_department_id', $dept))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))

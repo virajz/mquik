@@ -77,14 +77,7 @@ class Index extends Component
         $search = $this->search;
 
         $rows = InsuranceCompanyMaster::query()
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $term = '%'.$search.'%';
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('short_name', $term, caseSensitive: false)
-                        ->orWhereLike('gstin', $term, caseSensitive: false);
-                });
-            })
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 

@@ -104,13 +104,7 @@ class Index extends Component
     {
         $rows = ChecklistTemplateMaster::query()
             ->with('group:id,name')
-            ->when($this->search !== '', function ($q) {
-                $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->groupFilter !== 'all', fn ($q) => $q->where('checklist_group_id', $this->groupFilter))
             ->when($this->appliesToFilter !== 'all', fn ($q) => $q->where('applies_to', $this->appliesToFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

@@ -3,6 +3,7 @@
 namespace App\Modules\ServiceTypeMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\ServiceTypeMaster\Database\Factories\ServiceTypeMasterFactory;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class ServiceTypeMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'service_types';
 
@@ -22,6 +24,8 @@ class ServiceTypeMaster extends Model
         'requires_advisor' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     public function workshopDepartment(): BelongsTo
     {

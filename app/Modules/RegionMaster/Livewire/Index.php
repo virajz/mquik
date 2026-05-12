@@ -136,13 +136,7 @@ class Index extends Component
 
         $rows = RegionMaster::query()
             ->with('parent:id,name')
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $term = '%'.$search.'%';
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->kindFilter !== 'all', fn ($q) => $q->where('kind', $this->kindFilter))
             ->when($this->parentFilter !== 'all', fn ($q) => $q->where('parent_id', $this->parentFilter))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))

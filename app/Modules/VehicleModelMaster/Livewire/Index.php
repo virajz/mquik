@@ -102,7 +102,7 @@ class Index extends Component
 
         $rows = VehicleModelMaster::query()
             ->with(['brand:id,name', 'vehicleSegment:id,name'])
-            ->when($search !== '', fn ($q) => $q->whereLike('name', '%'.$search.'%', caseSensitive: false))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->brandFilter !== 'all', fn ($q) => $q->where('brand_id', $this->brandFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->when($this->statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))

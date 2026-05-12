@@ -3,6 +3,7 @@
 namespace App\Modules\InspectionItemGroupMaster\Models;
 
 use App\Concerns\Auditable;
+use App\Concerns\Searchable;
 use App\Modules\InspectionItemGroupMaster\Database\Factories\InspectionItemGroupMasterFactory;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ class InspectionItemGroupMaster extends Model
 {
     use Auditable;
     use HasFactory;
+    use Searchable;
 
     protected $table = 'inspection_item_groups';
 
@@ -21,6 +23,8 @@ class InspectionItemGroupMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static array $searchableFields = ['name', 'code'];
 
     public function items(): HasMany
     {

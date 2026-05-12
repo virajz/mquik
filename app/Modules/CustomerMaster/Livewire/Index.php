@@ -105,16 +105,7 @@ class Index extends Component
 
         $rows = CustomerMaster::query()
             ->with('businessType:id,name')
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($query) use ($search) {
-                    $term = '%'.$search.'%';
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('phone', $term, caseSensitive: false)
-                        ->orWhereLike('email', $term, caseSensitive: false)
-                        ->orWhereLike('aadhar', $term, caseSensitive: false)
-                        ->orWhereLike('pan', $term, caseSensitive: false);
-                });
-            })
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($type !== 'all', fn ($q) => $q->where('business_type_id', $type))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))

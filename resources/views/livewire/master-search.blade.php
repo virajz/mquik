@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="master-search" variant="bare" class="md:w-2xl">
-        <flux:command @close="$wire.set('term', '')" class="shadow-2xl bg-white dark:bg-zinc-800">
+        <flux:command @close="$wire.set('term', '')" :filter="false" class="shadow-2xl bg-white dark:bg-zinc-800">
             <flux:command.input wire:model.live.debounce.150ms="term"
                 placeholder="Search customers, vehicles, employees, brands..." closable />
 

@@ -102,15 +102,7 @@ class Index extends Component
     {
         $rows = EmployeeMaster::query()
             ->with(['department:id,name', 'designation:id,name'])
-            ->when($this->search !== '', function ($q) {
-                $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('employee_code', $term, caseSensitive: false)
-                        ->orWhereLike('phone', $term, caseSensitive: false)
-                        ->orWhereLike('email', $term, caseSensitive: false);
-                });
-            })
+            ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->deptFilter !== 'all', fn ($q) => $q->where('department_id', $this->deptFilter))
             ->when($this->designationFilter !== 'all', fn ($q) => $q->where('designation_id', $this->designationFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

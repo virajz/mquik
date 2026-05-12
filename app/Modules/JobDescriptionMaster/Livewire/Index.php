@@ -104,13 +104,7 @@ class Index extends Component
     {
         $rows = JobDescriptionMaster::query()
             ->with('serviceType:id,name')
-            ->when($this->search !== '', function ($q) {
-                $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->categoryFilter !== 'all', fn ($q) => $q->where('category', $this->categoryFilter))
             ->when($this->serviceTypeFilter !== 'all', fn ($q) => $q->where('service_type_id', $this->serviceTypeFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

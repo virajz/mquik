@@ -18,7 +18,7 @@ class VehicleBrandMaster extends Model
 
     protected $table = 'vehicle_brands';
 
-    protected static array $searchableFields = ['name', 'code'];
+    protected static array $searchableFields = ['name', 'code', 'country'];
 
     protected $guarded = [];
 

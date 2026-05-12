@@ -104,13 +104,7 @@ class Index extends Component
     {
         $rows = InspectionItemMaster::query()
             ->with('group:id,name')
-            ->when($this->search !== '', function ($q) {
-                $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
-                    $query->whereLike('name', $term, caseSensitive: false)
-                        ->orWhereLike('code', $term, caseSensitive: false);
-                });
-            })
+            ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->groupFilter !== 'all', fn ($q) => $q->where('inspection_item_group_id', $this->groupFilter))
             ->when($this->checkTypeFilter !== 'all', fn ($q) => $q->where('check_type', $this->checkTypeFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
