@@ -2,6 +2,7 @@
 
 namespace App\Modules\EmployeeMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
@@ -12,7 +13,13 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
+
+    public string $designationSearch = '';
+
+    public string $departmentSearch = '';
 
     public string $employee_code = '';
 
@@ -108,8 +115,32 @@ class Form extends Component
         $this->is_active = $r->is_active;
     }
 
+    public function createDesignation(): void
+    {
+        $this->quickCreate(
+            modelClass: DesignationMaster::class,
+            targetProperty: 'designation_id',
+            searchProperty: 'designationSearch',
+            permission: 'designation_master.create',
+            label: 'Designation',
+        );
+    }
+
+    public function createDepartment(): void
+    {
+        $this->quickCreate(
+            modelClass: DepartmentMaster::class,
+            targetProperty: 'department_id',
+            searchProperty: 'departmentSearch',
+            permission: 'department_master.create',
+            label: 'Department',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'employee_master.update' : 'employee_master.create');
+
         $data = $this->validate();
 
         $skip = ['email', 'gender', 'designation_id', 'department_id', 'date_of_birth', 'joining_date', 'exit_date', 'is_active', 'phone', 'alternate_phone', 'aadhar', 'pincode', 'account_no'];

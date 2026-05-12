@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleModelMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
@@ -13,13 +14,19 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
 
     public ?int $brand_id = null;
 
+    public string $brandSearch = '';
+
     public string $name = '';
 
     public ?int $vehicle_segment_id = null;
+
+    public string $vehicleSegmentSearch = '';
 
     public bool $is_active = true;
 
@@ -71,8 +78,32 @@ class Form extends Component
         $this->notes = $r->notes;
     }
 
+    public function createBrand(): void
+    {
+        $this->quickCreate(
+            modelClass: VehicleBrandMaster::class,
+            targetProperty: 'brand_id',
+            searchProperty: 'brandSearch',
+            permission: 'vehicle_brand_master.create',
+            label: 'Vehicle brand',
+        );
+    }
+
+    public function createSegment(): void
+    {
+        $this->quickCreate(
+            modelClass: VehicleSegmentMaster::class,
+            targetProperty: 'vehicle_segment_id',
+            searchProperty: 'vehicleSegmentSearch',
+            permission: 'vehicle_segment_master.create',
+            label: 'Vehicle segment',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'vehicle_model_master.update' : 'vehicle_model_master.create');
+
         $data = $this->validate();
 
         foreach (['name', 'notes'] as $k) {

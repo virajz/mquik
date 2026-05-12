@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('checklist_group_master.delete');
+
         try {
             ChecklistGroupMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Checklist group #'.$id.' deleted.', variant: 'success');

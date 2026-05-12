@@ -95,6 +95,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('region_master.delete');
+
         try {
             RegionMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Region #'.$id.' deleted.', variant: 'success');

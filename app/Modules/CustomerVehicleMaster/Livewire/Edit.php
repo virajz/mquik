@@ -177,6 +177,8 @@ class Edit extends Component
 
     public function save()
     {
+        $this->authorize($this->editingId ? 'customer_vehicle_master.update' : 'customer_vehicle_master.create');
+
         // Strip whitespace from plate before validation so paste-with-spaces doesn't trip the regex.
         $this->registration_no = strtoupper(preg_replace('/\s+/', '', (string) $this->registration_no) ?? '');
 

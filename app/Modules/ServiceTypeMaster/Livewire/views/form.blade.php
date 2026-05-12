@@ -29,10 +29,18 @@
                     />
                 </div>
 
-                <flux:select wire:model="workshop_department_id" label="Workshop Department" variant="listbox" placeholder="Select department" searchable required>
+                <flux:select wire:model="workshop_department_id" label="Workshop Department" variant="combobox" required>
+                    <x-slot name="input">
+                        <flux:select.input wire:model="workshopDepartmentSearch" placeholder="Pick or type to add…" />
+                    </x-slot>
                     @foreach ($departments as $d)
-                        <flux:select.option :value="$d->id">{{ $d->name }}</flux:select.option>
+                        <flux:select.option :value="$d->id" wire:key="wd-{{ $d->id }}">{{ $d->name }}</flux:select.option>
                     @endforeach
+                    @can('workshop_department_master.create')
+                        <flux:select.option.create wire:click="createWorkshopDepartment" min-length="2">
+                            Create "<span wire:text="workshopDepartmentSearch"></span>"
+                        </flux:select.option.create>
+                    @endcan
                 </flux:select>
 
                 <flux:textarea wire:model="notes" label="Notes" rows="2" />

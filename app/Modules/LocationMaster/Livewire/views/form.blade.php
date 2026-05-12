@@ -42,18 +42,32 @@
                 <flux:textarea wire:model="address" label="Address" rows="2" placeholder="Street, building, landmark" />
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <flux:select wire:model="city_id" label="City" variant="listbox" placeholder="Select city" searchable>
-                        <flux:select.option value="">— None —</flux:select.option>
+                    <flux:select wire:model="city_id" label="City" variant="combobox" clearable>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="citySearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($cities as $c)
-                            <flux:select.option :value="$c->id">{{ $c->name }}</flux:select.option>
+                            <flux:select.option :value="$c->id" wire:key="city-{{ $c->id }}">{{ $c->name }}</flux:select.option>
                         @endforeach
+                        @can('region_master.create')
+                            <flux:select.option.create wire:click="createCity" min-length="2">
+                                Create city "<span wire:text="citySearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
 
-                    <flux:select wire:model="state_id" label="State" variant="listbox" placeholder="Select state" searchable>
-                        <flux:select.option value="">— None —</flux:select.option>
+                    <flux:select wire:model="state_id" label="State" variant="combobox" clearable>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="stateSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($states as $s)
-                            <flux:select.option :value="$s->id">{{ $s->name }}</flux:select.option>
+                            <flux:select.option :value="$s->id" wire:key="state-{{ $s->id }}">{{ $s->name }}</flux:select.option>
                         @endforeach
+                        @can('region_master.create')
+                            <flux:select.option.create wire:click="createState" min-length="2">
+                                Create state "<span wire:text="stateSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
 
                     <flux:input wire:model="pincode" label="Pincode" mask="999999" inputmode="numeric" maxlength="6" placeholder="380015" />

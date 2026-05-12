@@ -63,6 +63,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'authorization_master.update' : 'authorization_master.create');
+
         $data = $this->validate();
 
         if ($this->editingId) {

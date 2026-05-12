@@ -54,6 +54,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'unit_of_measure_master.update' : 'unit_of_measure_master.create');
+
         $data = $this->validate();
 
         $skip = ['is_active'];

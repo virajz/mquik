@@ -114,6 +114,9 @@ class Index extends Component
 
     public function save(): void
     {
+        // Singleton: $this->id is set when an existing row was loaded.
+        $this->authorize($this->id ? 'company_master.update' : 'company_master.create');
+
         $validated = $this->validate();
 
         // Handle file uploads (not part of the persisted columns directly).

@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('tax_master.delete');
+
         try {
             TaxMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Tax #'.$id.' deleted.', variant: 'success');

@@ -68,6 +68,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('authorization_master.delete');
+
         $role = Role::query()->withCount('users')->find($id);
 
         if (! $role) {

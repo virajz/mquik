@@ -80,6 +80,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('inspection_template_master.delete');
+
         try {
             InspectionTemplateMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Inspection template #'.$id.' deleted.', variant: 'success');

@@ -21,10 +21,18 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="checklist_group_id" label="Group" variant="listbox" searchable required placeholder="Select a group">
+                    <flux:select wire:model="checklist_group_id" label="Group" variant="combobox" required>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="checklistGroupSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($groupOptions as $g)
-                            <flux:select.option :value="$g->id">{{ $g->name }}</flux:select.option>
+                            <flux:select.option :value="$g->id" wire:key="cg-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                         @endforeach
+                        @can('checklist_group_master.create')
+                            <flux:select.option.create wire:click="createChecklistGroup" min-length="2">
+                                Create "<span wire:text="checklistGroupSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
 
                     <flux:select wire:model="applies_to" label="Applies To" variant="listbox" required>

@@ -77,6 +77,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'vehicle_variant_master.update' : 'vehicle_variant_master.create');
+
         $data = $this->validate();
         if (isset($data['name'])) {
             $data['name'] = strtoupper($data['name']);

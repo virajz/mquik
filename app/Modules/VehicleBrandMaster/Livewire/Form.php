@@ -58,6 +58,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'vehicle_brand_master.update' : 'vehicle_brand_master.create');
+
         $data = $this->validate();
 
         $skip = ['is_active'];

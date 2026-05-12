@@ -322,6 +322,8 @@ class Edit extends Component
 
     public function save()
     {
+        $this->authorize($this->editingId ? 'vendor_master.update' : 'vendor_master.create');
+
         // Drop empty term rows so blank-row noise doesn't fail validation.
         $this->terms = array_values(array_filter(
             $this->terms,

@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('unit_of_measure_master.delete');
+
         try {
             UnitOfMeasureMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Unit of Measure #'.$id.' deleted.', variant: 'success');

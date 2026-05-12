@@ -2,6 +2,7 @@
 
 namespace App\Modules\InventoryGroupMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,8 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
 
     public string $name = '';
@@ -18,6 +21,8 @@ class Form extends Component
     public ?string $code = null;
 
     public ?int $parent_id = null;
+
+    public string $parentSearch = '';
 
     public bool $is_active = true;
 
@@ -81,8 +86,21 @@ class Form extends Component
         $this->notes = $record->notes;
     }
 
+    public function createParent(): void
+    {
+        $this->quickCreate(
+            modelClass: InventoryGroupMaster::class,
+            targetProperty: 'parent_id',
+            searchProperty: 'parentSearch',
+            permission: 'inventory_group_master.create',
+            label: 'Parent group',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'inventory_group_master.update' : 'inventory_group_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields.

@@ -25,14 +25,20 @@
                         <flux:select
                             wire:model="parent_id"
                             label="Parent"
-                            variant="listbox"
-                            placeholder="— Select parent —"
-                            searchable
+                            variant="combobox"
                             required
                         >
+                            <x-slot name="input">
+                                <flux:select.input wire:model="parentSearch" placeholder="Pick or type to add…" />
+                            </x-slot>
                             @foreach ($this->parentOptions as $p)
-                                <flux:select.option :value="$p->id">{{ $p->name }}</flux:select.option>
+                                <flux:select.option :value="$p->id" wire:key="rp-{{ $p->id }}">{{ $p->name }}</flux:select.option>
                             @endforeach
+                            @can('region_master.create')
+                                <flux:select.option.create wire:click="createParent" min-length="2">
+                                    Create "<span wire:text="parentSearch"></span>"
+                                </flux:select.option.create>
+                            @endcan
                         </flux:select>
                     @else
                         <div class="flex items-end text-sm text-zinc-500">

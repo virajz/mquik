@@ -54,6 +54,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'job_card_cancel_reason_master.update' : 'job_card_cancel_reason_master.create');
+
         $data = $this->validate();
 
         $skip = ['is_active'];

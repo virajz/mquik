@@ -58,6 +58,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'vendor_type_master.update' : 'vendor_type_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields.

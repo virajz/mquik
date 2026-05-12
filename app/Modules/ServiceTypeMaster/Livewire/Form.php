@@ -2,6 +2,7 @@
 
 namespace App\Modules\ServiceTypeMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
@@ -11,7 +12,11 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
+
+    public string $workshopDepartmentSearch = '';
 
     public string $name = '';
 
@@ -63,8 +68,21 @@ class Form extends Component
         $this->notes = $r->notes;
     }
 
+    public function createWorkshopDepartment(): void
+    {
+        $this->quickCreate(
+            modelClass: WorkshopDepartmentMaster::class,
+            targetProperty: 'workshop_department_id',
+            searchProperty: 'workshopDepartmentSearch',
+            permission: 'workshop_department_master.create',
+            label: 'Workshop department',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'service_type_master.update' : 'service_type_master.create');
+
         $data = $this->validate();
 
         $skip = ['workshop_department_id', 'requires_advisor', 'is_active'];

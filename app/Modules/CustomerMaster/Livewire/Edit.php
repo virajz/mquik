@@ -271,6 +271,8 @@ class Edit extends Component
 
     public function save()
     {
+        $this->authorize($this->editingId ? 'customer_master.update' : 'customer_master.create');
+
         $this->addresses = array_values(array_filter(
             $this->addresses,
             fn ($a) => ! empty($a['label']) || ! empty($a['address_line']) || ! empty($a['region_id']),

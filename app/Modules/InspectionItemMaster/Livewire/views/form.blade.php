@@ -21,11 +21,18 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="inspection_item_group_id" label="Group" variant="listbox" placeholder="Optional" searchable>
-                        <flux:select.option value="">— Skip —</flux:select.option>
+                    <flux:select wire:model="inspection_item_group_id" label="Group" variant="combobox" clearable>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="inspectionItemGroupSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($groups as $g)
-                            <flux:select.option :value="$g->id">{{ $g->name }}</flux:select.option>
+                            <flux:select.option :value="$g->id" wire:key="iig-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                         @endforeach
+                        @can('inspection_item_group_master.create')
+                            <flux:select.option.create wire:click="createInspectionItemGroup" min-length="2">
+                                Create "<span wire:text="inspectionItemGroupSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
 
                     <flux:select wire:model.live="check_type" label="Check Type" variant="listbox" required>

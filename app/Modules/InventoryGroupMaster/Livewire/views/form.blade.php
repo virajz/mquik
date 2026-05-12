@@ -33,11 +33,18 @@
                     />
                 </div>
 
-                <flux:select wire:model="parent_id" label="Parent Group" variant="listbox" placeholder="— No parent —" searchable>
-                    <flux:select.option :value="null">— No parent —</flux:select.option>
+                <flux:select wire:model="parent_id" label="Parent Group" variant="combobox" clearable>
+                    <x-slot name="input">
+                        <flux:select.input wire:model="parentSearch" placeholder="Pick or type to add…" />
+                    </x-slot>
                     @foreach ($this->parents as $p)
-                        <flux:select.option :value="$p->id">{{ $p->name }}</flux:select.option>
+                        <flux:select.option :value="$p->id" wire:key="ig-{{ $p->id }}">{{ $p->name }}</flux:select.option>
                     @endforeach
+                    @can('inventory_group_master.create')
+                        <flux:select.option.create wire:click="createParent" min-length="2">
+                            Create "<span wire:text="parentSearch"></span>"
+                        </flux:select.option.create>
+                    @endcan
                 </flux:select>
 
                 <flux:textarea

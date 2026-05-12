@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('bank_master.delete');
+
         try {
             BankMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Bank #'.$id.' deleted.', variant: 'success');

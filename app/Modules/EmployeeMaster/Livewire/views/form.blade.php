@@ -57,15 +57,31 @@
 
                 {{-- EMPLOYMENT --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="designation_id" label="Designation" variant="listbox" placeholder="Select designation" searchable required>
+                    <flux:select wire:model="designation_id" label="Designation" variant="combobox" required>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="designationSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($designations as $d)
-                            <flux:select.option :value="$d->id">{{ $d->name }}</flux:select.option>
+                            <flux:select.option :value="$d->id" wire:key="dg-{{ $d->id }}">{{ $d->name }}</flux:select.option>
                         @endforeach
+                        @can('designation_master.create')
+                            <flux:select.option.create wire:click="createDesignation" min-length="2">
+                                Create "<span wire:text="designationSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
-                    <flux:select wire:model="department_id" label="Department" variant="listbox" placeholder="Select department" searchable required>
+                    <flux:select wire:model="department_id" label="Department" variant="combobox" required>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="departmentSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($departments as $d)
-                            <flux:select.option :value="$d->id">{{ $d->name }}</flux:select.option>
+                            <flux:select.option :value="$d->id" wire:key="dp-{{ $d->id }}">{{ $d->name }}</flux:select.option>
                         @endforeach
+                        @can('department_master.create')
+                            <flux:select.option.create wire:click="createDepartment" min-length="2">
+                                Create "<span wire:text="departmentSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
                 </div>
 

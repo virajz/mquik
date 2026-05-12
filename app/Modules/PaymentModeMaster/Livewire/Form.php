@@ -54,6 +54,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'payment_mode_master.update' : 'payment_mode_master.create');
+
         $data = $this->validate();
 
         $skip = ['is_active'];

@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('gst_type_master.delete');
+
         try {
             GstTypeMaster::findOrFail($id)->delete();
             Flux::toast(text: 'GST type #'.$id.' deleted.', variant: 'success');

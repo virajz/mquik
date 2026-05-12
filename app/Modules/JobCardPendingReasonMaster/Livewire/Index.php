@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('job_card_pending_reason_master.delete');
+
         try {
             JobCardPendingReasonMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Pending reason #'.$id.' deleted.', variant: 'success');

@@ -23,11 +23,18 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model="service_type_id" label="Service Type" variant="listbox" placeholder="Optional" searchable>
-                        <flux:select.option value="">— Skip —</flux:select.option>
+                    <flux:select wire:model="service_type_id" label="Service Type" variant="combobox" clearable>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="serviceTypeSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($serviceTypes as $st)
-                            <flux:select.option :value="$st->id">{{ $st->name }}</flux:select.option>
+                            <flux:select.option :value="$st->id" wire:key="st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
                         @endforeach
+                        @can('service_type_master.create')
+                            <flux:select.option.create wire:click="createServiceType" min-length="2">
+                                Create "<span wire:text="serviceTypeSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
                 </div>
 

@@ -2,6 +2,7 @@
 
 namespace App\Modules\ChecklistTemplateMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\ChecklistGroupMaster\Models\ChecklistGroupMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use Flux\Flux;
@@ -11,7 +12,11 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
+
+    public string $checklistGroupSearch = '';
 
     public string $name = '';
 
@@ -96,8 +101,21 @@ class Form extends Component
         $this->items = array_values($this->items);
     }
 
+    public function createChecklistGroup(): void
+    {
+        $this->quickCreate(
+            modelClass: ChecklistGroupMaster::class,
+            targetProperty: 'checklist_group_id',
+            searchProperty: 'checklistGroupSearch',
+            permission: 'checklist_group_master.create',
+            label: 'Checklist group',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'checklist_template_master.update' : 'checklist_template_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields except enums/ids/array/booleans.

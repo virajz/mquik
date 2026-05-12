@@ -20,6 +20,8 @@ class Form extends Component
 
     public ?int $parent_id = null;
 
+    public string $parentSearch = '';
+
     public bool $is_active = true;
 
     public ?string $notes = null;
@@ -132,8 +134,39 @@ class Form extends Component
         $this->notes = $record->notes;
     }
 
+    /**
+     * Quick-create a parent region of the kind required by the current `$kind`.
+     * (e.g. when creating a city, the parent must be a state.)
+     */
+    public function createParent(): void
+    {
+        $this->authorize('region_master.create');
+
+        $parentKind = $this->parentKindFor($this->kind);
+        if ($parentKind === null) {
+            return; // states have no parent
+        }
+
+        $name = strtoupper(trim($this->parentSearch));
+        if ($name === '') {
+            return;
+        }
+
+        $parent = RegionMaster::firstOrCreate(
+            ['kind' => $parentKind, 'parent_id' => null, 'name' => $name],
+            ['is_active' => true],
+        );
+
+        $this->parent_id = $parent->id;
+        $this->parentSearch = '';
+
+        Flux::toast(text: ucfirst($parentKind).' "'.$parent->name.'" added.', variant: 'success');
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'region_master.update' : 'region_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields.

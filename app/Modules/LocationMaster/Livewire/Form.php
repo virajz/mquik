@@ -23,7 +23,11 @@ class Form extends Component
 
     public ?int $city_id = null;
 
+    public string $citySearch = '';
+
     public ?int $state_id = null;
+
+    public string $stateSearch = '';
 
     public ?string $pincode = null;
 
@@ -85,8 +89,44 @@ class Form extends Component
         $this->notes = $record->notes;
     }
 
+    /**
+     * Region quick-create with kind locked to the picker's role.
+     * Uses firstOrCreate keyed on (kind, parent_id, name) to dedupe.
+     */
+    public function createCity(): void
+    {
+        $this->createRegionForKind('city', 'city_id', 'citySearch');
+    }
+
+    public function createState(): void
+    {
+        $this->createRegionForKind('state', 'state_id', 'stateSearch');
+    }
+
+    protected function createRegionForKind(string $kind, string $targetProperty, string $searchProperty): void
+    {
+        $this->authorize('region_master.create');
+
+        $name = strtoupper(trim((string) $this->{$searchProperty}));
+        if ($name === '') {
+            return;
+        }
+
+        $region = RegionMaster::firstOrCreate(
+            ['kind' => $kind, 'parent_id' => null, 'name' => $name],
+            ['is_active' => true],
+        );
+
+        $this->{$targetProperty} = $region->id;
+        $this->{$searchProperty} = '';
+
+        Flux::toast(text: ucfirst($kind).' "'.$region->name.'" added.', variant: 'success');
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'location_master.update' : 'location_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields. Skip FKs, contact fields, booleans, pincode.

@@ -48,6 +48,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'vehicle_color_master.update' : 'vehicle_color_master.create');
+
         $data = $this->validate();
         // hex_code stays as-is (case sensitive); name + notes uppercased
         foreach (['name', 'notes'] as $k) {

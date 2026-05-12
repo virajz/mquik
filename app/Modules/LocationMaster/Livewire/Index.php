@@ -85,6 +85,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('location_master.delete');
+
         try {
             LocationMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Location #'.$id.' deleted.', variant: 'success');

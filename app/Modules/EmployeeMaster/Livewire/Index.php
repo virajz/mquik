@@ -90,6 +90,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('employee_master.delete');
+
         try {
             EmployeeMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Employee #'.$id.' deleted.', variant: 'success');

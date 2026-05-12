@@ -2,6 +2,7 @@
 
 namespace App\Modules\JobDescriptionMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use Flux\Flux;
@@ -11,7 +12,11 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
+
+    public string $serviceTypeSearch = '';
 
     public string $name = '';
 
@@ -69,8 +74,21 @@ class Form extends Component
         $this->notes = $r->notes;
     }
 
+    public function createServiceType(): void
+    {
+        $this->quickCreate(
+            modelClass: ServiceTypeMaster::class,
+            targetProperty: 'service_type_id',
+            searchProperty: 'serviceTypeSearch',
+            permission: 'service_type_master.create',
+            label: 'Service type',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'job_description_master.update' : 'job_description_master.create');
+
         $data = $this->validate();
 
         $skip = ['category', 'service_type_id', 'standard_hours', 'is_active'];

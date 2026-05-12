@@ -68,6 +68,8 @@ class Form extends Component
 
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'insurance_company_master.update' : 'insurance_company_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields (skip email).

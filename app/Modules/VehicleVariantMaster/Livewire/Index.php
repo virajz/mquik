@@ -82,6 +82,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('vehicle_variant_master.delete');
+
         try {
             VehicleVariantMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Variant #'.$id.' deleted.', variant: 'success');

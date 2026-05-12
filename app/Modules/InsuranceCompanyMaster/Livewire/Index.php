@@ -68,6 +68,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('insurance_company_master.delete');
+
         InsuranceCompanyMaster::findOrFail($id)->delete();
         Flux::toast(text: 'Insurance company #'.$id.' deleted.', variant: 'success');
     }

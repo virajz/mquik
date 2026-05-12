@@ -10,19 +10,34 @@
 
             <div class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="brand_id" label="Brand" variant="listbox" placeholder="Select brand" required>
+                    <flux:select wire:model="brand_id" label="Brand" variant="combobox" required>
+                        <x-slot name="input">
+                            <flux:select.input wire:model="brandSearch" placeholder="Pick or type to add…" />
+                        </x-slot>
                         @foreach ($this->brands as $b)
-                            <flux:select.option :value="$b->id">{{ $b->name }}</flux:select.option>
+                            <flux:select.option :value="$b->id" wire:key="b-{{ $b->id }}">{{ $b->name }}</flux:select.option>
                         @endforeach
+                        @can('vehicle_brand_master.create')
+                            <flux:select.option.create wire:click="createBrand" min-length="2">
+                                Create "<span wire:text="brandSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
                     <flux:input wire:model="name" label="Model Name" placeholder="e.g. SWIFT" required />
                 </div>
 
-                <flux:select wire:model="vehicle_segment_id" label="Segment" variant="listbox" searchable placeholder="Optional">
-                    <flux:select.option value="">— None —</flux:select.option>
+                <flux:select wire:model="vehicle_segment_id" label="Segment" variant="combobox" clearable>
+                    <x-slot name="input">
+                        <flux:select.input wire:model="vehicleSegmentSearch" placeholder="Pick or type to add…" />
+                    </x-slot>
                     @foreach ($this->segments as $s)
-                        <flux:select.option :value="$s->id">{{ $s->name }}</flux:select.option>
+                        <flux:select.option :value="$s->id" wire:key="vs-{{ $s->id }}">{{ $s->name }}</flux:select.option>
                     @endforeach
+                    @can('vehicle_segment_master.create')
+                        <flux:select.option.create wire:click="createSegment" min-length="2">
+                            Create "<span wire:text="vehicleSegmentSearch"></span>"
+                        </flux:select.option.create>
+                    @endcan
                 </flux:select>
 
                 <flux:textarea wire:model="notes" label="Notes" rows="2" />

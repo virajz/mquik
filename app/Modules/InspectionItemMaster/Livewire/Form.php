@@ -2,6 +2,7 @@
 
 namespace App\Modules\InspectionItemMaster\Livewire;
 
+use App\Concerns\HasQuickCreate;
 use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use Flux\Flux;
@@ -11,7 +12,11 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use HasQuickCreate;
+
     public ?int $editingId = null;
+
+    public string $inspectionItemGroupSearch = '';
 
     public string $name = '';
 
@@ -69,8 +74,21 @@ class Form extends Component
         $this->notes = $r->notes;
     }
 
+    public function createInspectionItemGroup(): void
+    {
+        $this->quickCreate(
+            modelClass: InspectionItemGroupMaster::class,
+            targetProperty: 'inspection_item_group_id',
+            searchProperty: 'inspectionItemGroupSearch',
+            permission: 'inspection_item_group_master.create',
+            label: 'Inspection item group',
+        );
+    }
+
     public function save(): void
     {
+        $this->authorize($this->editingId ? 'inspection_item_master.update' : 'inspection_item_master.create');
+
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields except enums/ids/booleans/numbers.

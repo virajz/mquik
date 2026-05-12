@@ -77,6 +77,8 @@ class Index extends Component
 
     public function delete(int $id): void
     {
+        $this->authorize('vehicle_segment_master.delete');
+
         try {
             VehicleSegmentMaster::findOrFail($id)->delete();
             Flux::toast(text: 'Vehicle segment #'.$id.' deleted.', variant: 'success');
