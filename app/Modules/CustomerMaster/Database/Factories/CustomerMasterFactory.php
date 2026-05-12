@@ -3,6 +3,7 @@
 namespace App\Modules\CustomerMaster\Database\Factories;
 
 use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
+use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,9 +22,6 @@ class CustomerMasterFactory extends Factory
             'phone' => $this->faker->numerify('98########'),
             'alternate_phone' => null,
             'email' => $this->faker->safeEmail(),
-            'address' => strtoupper($this->faker->streetAddress()),
-            'city' => strtoupper($this->faker->city()),
-            'pincode' => $this->faker->numerify('######'),
             'aadhar' => null,
             'pan' => null,
             'date_of_birth' => $this->faker->dateTimeBetween('-65 years', '-18 years')->format('Y-m-d'),
@@ -58,5 +56,15 @@ class CustomerMasterFactory extends Factory
             'aadhar' => $this->faker->unique()->numerify('############'),
             'pan' => strtoupper($this->faker->bothify('?????####?')),
         ]);
+    }
+
+    public function withAddress(?string $label = null): static
+    {
+        return $this->afterCreating(function (CustomerMaster $customer) use ($label) {
+            CustomerAddress::factory()->primary()->create([
+                'customer_id' => $customer->id,
+                'label' => $label,
+            ]);
+        });
     }
 }

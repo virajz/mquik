@@ -9,6 +9,8 @@ use App\Modules\CustomerMaster\Database\Factories\CustomerMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CustomerMaster extends Model
 {
@@ -25,12 +27,22 @@ class CustomerMaster extends Model
         return $this->belongsTo(BusinessTypeMaster::class, 'business_type_id');
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(CustomerAddress::class, 'customer_id');
+    }
+
+    public function primaryAddress(): HasOne
+    {
+        return $this->hasOne(CustomerAddress::class, 'customer_id')->where('is_primary', true);
+    }
+
     protected $casts = [
         'date_of_birth' => 'date',
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['name', 'phone', 'email', 'city', 'aadhar', 'pan'];
+    protected static array $searchableFields = ['name', 'phone', 'email', 'aadhar', 'pan'];
 
     public function toSearchResult(): array
     {

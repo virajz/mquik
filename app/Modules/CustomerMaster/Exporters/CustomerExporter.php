@@ -17,14 +17,17 @@ class CustomerExporter implements Exportable
     {
         return [
             'ID', 'Name', 'Type', 'Phone', 'Alternate Phone', 'Email',
-            'Address', 'City', 'Pincode', 'Aadhar', 'PAN', 'Date of Birth',
+            'Primary Address', 'Primary Region', 'Primary Pincode',
+            'Address Count', 'Aadhar', 'PAN', 'Date of Birth',
             'Active', 'Created At',
         ];
     }
 
     public function query(): Builder
     {
-        return CustomerMaster::query()->with('businessType:id,name')->latest('id');
+        return CustomerMaster::query()
+            ->with(['businessType:id,name', 'primaryAddress.region.parent.parent.parent', 'addresses:id,customer_id'])
+            ->latest('id');
     }
 
     /**
@@ -32,6 +35,19 @@ class CustomerExporter implements Exportable
      */
     public function row(object $model): array
     {
+        $primary = $model->primaryAddress;
+        $pincode = null;
+        $node = $primary?->region;
+        $depth = 0;
+        while ($node && $depth < 6) {
+            if ($node->kind === 'pincode') {
+                $pincode = $node->name;
+                break;
+            }
+            $node = $node->parent;
+            $depth++;
+        }
+
         return [
             $model->id,
             $model->name,
@@ -39,9 +55,10 @@ class CustomerExporter implements Exportable
             $model->phone,
             $model->alternate_phone,
             $model->email,
-            $model->address,
-            $model->city,
-            $model->pincode,
+            $primary?->address_line,
+            $primary?->regionChain(),
+            $pincode,
+            $model->addresses->count(),
             $model->aadhar,
             $model->pan,
             $model->date_of_birth?->format('Y-m-d'),

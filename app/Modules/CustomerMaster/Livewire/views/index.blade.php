@@ -7,7 +7,7 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <flux:button variant="primary" icon="plus" wire:click="openCreate">
+            <flux:button variant="primary" icon="plus" :href="route('customer-master.create')" wire:navigate>
                 New Customer
             </flux:button>
 
@@ -83,6 +83,12 @@
                         @if ($row->phone)
                             <div class="text-xs text-zinc-500 mt-0.5 font-mono">+91 {{ $row->phone }}</div>
                         @endif
+                        @if ($row->primaryAddress?->region)
+                            <div class="text-xs text-zinc-500 mt-0.5">
+                                <flux:icon.map-pin class="inline size-3 -mt-0.5" />
+                                {{ $row->primaryAddress->regionChain() }}
+                            </div>
+                        @endif
                     </flux:table.cell>
 
                     <flux:table.cell>
@@ -115,7 +121,7 @@
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             <flux:button size="sm" variant="ghost" icon="pencil-square"
-                                wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                                :href="route('customer-master.edit', $row)" wire:navigate>Edit</flux:button>
 
                             <flux:modal.trigger :name="'customer-master-delete-' . $row->id">
                                 <flux:button size="sm" variant="ghost" icon="trash" />
@@ -159,7 +165,6 @@
     @endif
 
     {{-- Engines --}}
-    <livewire:customer-master.form />
     <livewire:import-export.export-button :module="'CustomerMaster'" wire:key="export-customer-master" />
     <livewire:import-export.import-wizard :module="'CustomerMaster'" wire:key="import-customer-master" />
 </div>

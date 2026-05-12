@@ -116,15 +116,15 @@ it('SearchRegistry sources include the 6 wired modules', function () {
 });
 
 it('multi-token search: "ra ri" matches Viraj Zaveri (both tokens in name)', function () {
-    // Pin every searchable field — the factory's random city/email may otherwise contain
-    // "ra" by coincidence and pull in unintended rows.
+    // Pin email — the factory's random email may otherwise contain "ra"
+    // by coincidence and pull in unintended rows.
     CustomerMaster::factory()->create([
         'name' => 'VIRAJ ZAVERI', 'phone' => '9876543210',
-        'email' => 'v@test.test', 'city' => 'DELHI',
+        'email' => 'v@test.test',
     ]);
     CustomerMaster::factory()->create([
         'name' => 'PRIYA PATEL', 'phone' => '9123456780',
-        'email' => 'p@test.test', 'city' => 'DELHI',
+        'email' => 'p@test.test',
     ]);
 
     $found = CustomerMaster::query()->search('ra ri')->get();

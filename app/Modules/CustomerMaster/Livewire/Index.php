@@ -7,7 +7,6 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -66,24 +65,6 @@ class Index extends Component
         }
     }
 
-    public function openCreate(): void
-    {
-        $this->dispatch('customer-master:edit', id: null);
-        Flux::modal('customer-master-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('customer-master:edit', id: $id);
-        Flux::modal('customer-master-form')->show();
-    }
-
-    #[On('customer-master:saved')]
-    public function refreshAfterSave(): void
-    {
-        // Re-render — pagination cursor preserved.
-    }
-
     public function delete(int $id): void
     {
         try {
@@ -104,7 +85,7 @@ class Index extends Component
         $status = $this->statusFilter;
 
         $rows = CustomerMaster::query()
-            ->with('businessType:id,name')
+            ->with(['businessType:id,name', 'primaryAddress.region.parent.parent.parent'])
             ->when($search !== '', fn ($q) => $q->search($search))
             ->when($type !== 'all', fn ($q) => $q->where('business_type_id', $type))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
