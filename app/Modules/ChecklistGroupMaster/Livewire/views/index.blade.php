@@ -15,12 +15,16 @@
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
 
                 <flux:menu>
+                    @can('checklist_group_master.import')
                     <flux:menu.item icon="arrow-up-tray" wire:click="$dispatch('start-import', { module: 'ChecklistGroupMaster' })">
                         Import…
                     </flux:menu.item>
+                    @endcan
+                    @can('checklist_group_master.export')
                     <flux:menu.item icon="arrow-down-tray" wire:click="$dispatch('start-export', { module: 'ChecklistGroupMaster' })">
                         Export
                     </flux:menu.item>
+                    @endcan
                 </flux:menu>
             </flux:dropdown>
         </div>

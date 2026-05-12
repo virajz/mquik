@@ -9,11 +9,29 @@
             <flux:separator variant="subtle" />
 
             <div class="space-y-4">
-                <flux:select wire:model="model_id" label="Model" variant="listbox" placeholder="Select model" searchable required>
-                    @foreach ($this->models as $m)
-                        <flux:select.option :value="$m->id">{{ $m->brand?->name }} {{ $m->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <flux:field>
+                    <flux:label>Model <span class="text-red-500">*</span></flux:label>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select wire:model="model_id" variant="listbox" placeholder="Select model" searchable>
+                                @foreach ($this->models as $m)
+                                    <flux:select.option :value="$m->id">{{ $m->brand?->name }} {{ $m->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+                        @can('vehicle_model_master.create')
+                            <flux:tooltip content="Quick add a new model">
+                                <flux:button
+                                    icon="plus"
+                                    variant="ghost"
+                                    type="button"
+                                    x-on:click="$flux.modal('vehicle-model-quick-add').show()"
+                                />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
+                    <flux:error name="model_id" />
+                </flux:field>
 
                 <flux:input wire:model="name" label="Variant Name" placeholder="e.g. VXi" required />
 
@@ -54,4 +72,9 @@
             </div>
         </form>
     </flux:modal>
+
+    {{-- Model quick-add wizard — backed by the CanQuickAddModel trait. --}}
+    @can('vehicle_model_master.create')
+        @include('vehicle-model-master::_quick_add_modal')
+    @endcan
 </div>

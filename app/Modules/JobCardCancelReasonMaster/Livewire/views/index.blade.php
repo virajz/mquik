@@ -15,12 +15,16 @@
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
 
                 <flux:menu>
+                    @can('job_card_cancel_reason_master.import')
                     <flux:menu.item icon="arrow-up-tray" wire:click="$dispatch('start-import', { module: 'JobCardCancelReasonMaster' })">
                         Import…
                     </flux:menu.item>
+                    @endcan
+                    @can('job_card_cancel_reason_master.export')
                     <flux:menu.item icon="arrow-down-tray" wire:click="$dispatch('start-export', { module: 'JobCardCancelReasonMaster' })">
                         Export
                     </flux:menu.item>
+                    @endcan
                 </flux:menu>
             </flux:dropdown>
         </div>

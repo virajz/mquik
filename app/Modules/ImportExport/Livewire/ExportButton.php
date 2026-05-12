@@ -6,6 +6,7 @@ use App\Modules\ImportExport\Jobs\GenerateExportJob;
 use App\Modules\ImportExport\Models\Export;
 use App\Support\ModuleRegistry;
 use Flux\Flux;
+use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -49,6 +50,11 @@ class ExportButton extends Component
 
     public function start(): void
     {
+        // Gate: require the master's *.export permission. Slug is derived from the
+        // module folder name (CustomerMaster → customer_master.export) which matches
+        // the convention in each module.php manifest.
+        $this->authorize(Str::snake($this->module).'.export');
+
         $registry = app(ModuleRegistry::class);
         $manifest = $registry->get($this->module);
 

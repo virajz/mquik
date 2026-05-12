@@ -15,14 +15,18 @@
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
 
                 <flux:menu>
+                    @can('insurance_company_master.import')
                     <flux:menu.item icon="arrow-up-tray"
                         wire:click="$dispatch('start-import', { module: 'InsuranceCompanyMaster' })">
                         Import…
                     </flux:menu.item>
+                    @endcan
+                    @can('insurance_company_master.export')
                     <flux:menu.item icon="arrow-down-tray"
                         wire:click="$dispatch('start-export', { module: 'InsuranceCompanyMaster' })">
                         Export
                     </flux:menu.item>
+                    @endcan
                 </flux:menu>
             </flux:dropdown>
         </div>

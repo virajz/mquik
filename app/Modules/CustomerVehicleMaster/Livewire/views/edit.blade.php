@@ -20,18 +20,34 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Who this vehicle belongs to.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:select
-                    wire:model="customer_id"
-                    label="Customer"
-                    variant="listbox"
-                    placeholder="Select customer"
-                    searchable
-                    required
-                >
-                    @foreach ($this->customers as $c)
-                        <flux:select.option :value="$c->id">{{ $c->name }} — +91 {{ $c->phone }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <flux:field>
+                    <flux:label>Customer <span class="text-red-500">*</span></flux:label>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select
+                                wire:model="customer_id"
+                                variant="listbox"
+                                placeholder="Select customer"
+                                searchable
+                            >
+                                @foreach ($this->customers as $c)
+                                    <flux:select.option :value="$c->id">{{ $c->name }} — +91 {{ $c->phone }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+                        @can('customer_master.create')
+                            <flux:tooltip content="Quick add a new customer">
+                                <flux:button
+                                    icon="plus"
+                                    variant="ghost"
+                                    type="button"
+                                    x-on:click="$flux.modal('customer-quick-add').show()"
+                                />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
+                    <flux:error name="customer_id" />
+                </flux:field>
             </div>
         </section>
 
@@ -46,20 +62,36 @@
                 </flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:select
-                    wire:model="variant_id"
-                    label="Vehicle"
-                    variant="listbox"
-                    placeholder="Search by brand, model, or variant…"
-                    searchable
-                    required
-                >
-                    @forelse ($this->vehicles as $v)
-                        <flux:select.option :value="$v->id">{{ $v->label }}</flux:select.option>
-                    @empty
-                        <flux:select.option value="" disabled>No active variants in the catalogue.</flux:select.option>
-                    @endforelse
-                </flux:select>
+                <flux:field>
+                    <flux:label>Vehicle <span class="text-red-500">*</span></flux:label>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select
+                                wire:model="variant_id"
+                                variant="listbox"
+                                placeholder="Search by brand, model, or variant…"
+                                searchable
+                            >
+                                @forelse ($this->vehicles as $v)
+                                    <flux:select.option :value="$v->id">{{ $v->label }}</flux:select.option>
+                                @empty
+                                    <flux:select.option value="" disabled>No active variants in the catalogue.</flux:select.option>
+                                @endforelse
+                            </flux:select>
+                        </div>
+                        @can('vehicle_variant_master.create')
+                            <flux:tooltip content="Quick add a new vehicle (brand → model → variant)">
+                                <flux:button
+                                    icon="plus"
+                                    variant="ghost"
+                                    type="button"
+                                    x-on:click="$flux.modal('vehicle-quick-add').show()"
+                                />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
+                    <flux:error name="variant_id" />
+                </flux:field>
 
                 {{-- Color: single-value picker → combobox + inline create-option per the picker rule. --}}
                 <flux:select
@@ -201,4 +233,14 @@
             </div>
         </div>
     </form>
+
+    {{-- Customer quick-add modal — backed by the CanQuickAddCustomer trait. --}}
+    @can('customer_master.create')
+        @include('customer-master::_quick_add_modal')
+    @endcan
+
+    {{-- Vehicle (Variant) quick-add wizard — backed by the CanQuickAddVehicle trait. --}}
+    @can('vehicle_variant_master.create')
+        @include('customer-vehicle-master::_quick_add_vehicle_modal')
+    @endcan
 </div>

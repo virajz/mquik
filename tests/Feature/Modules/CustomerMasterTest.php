@@ -407,6 +407,38 @@ it('deleting a customer removes their KYC files from storage', function () {
     Storage::assertMissing($panPath);
 });
 
+it('quick-add Customer wizard creates a referrer and assigns it to referred_by_customer_id', function () {
+    Livewire::test(Edit::class)
+        ->set('quickCustomer.first_name', 'wizard')
+        ->set('quickCustomer.phone', '9000111222')
+        ->set('quickCustomer.business_type_id', $this->walking->id)
+        ->call('createQuickCustomer')
+        ->assertHasNoErrors();
+
+    $newReferrer = CustomerMaster::where('phone', '9000111222')->firstOrFail();
+
+    expect($newReferrer->first_name)->toBe('WIZARD')
+        ->and($newReferrer->business_type_id)->toBe($this->walking->id);
+
+    Livewire::test(Edit::class)
+        ->set('quickCustomer.first_name', 'WIZARD2')
+        ->set('quickCustomer.phone', '9000111223')
+        ->set('quickCustomer.business_type_id', $this->walking->id)
+        ->call('createQuickCustomer')
+        ->assertSet('referred_by_customer_id', CustomerMaster::where('phone', '9000111223')->value('id'))
+        ->assertSet('quickCustomer.first_name', '');
+});
+
+it('quick-add Customer wizard requires first_name + phone + business_type_id', function () {
+    Livewire::test(Edit::class)
+        ->call('createQuickCustomer')
+        ->assertHasErrors([
+            'quickCustomer.first_name',
+            'quickCustomer.phone',
+            'quickCustomer.business_type_id',
+        ]);
+});
+
 it('rejects self-referral on edit', function () {
     $r = CustomerMaster::factory()->create();
 

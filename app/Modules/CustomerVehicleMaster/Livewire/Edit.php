@@ -2,6 +2,8 @@
 
 namespace App\Modules\CustomerVehicleMaster\Livewire;
 
+use App\Concerns\CanQuickAddCustomer;
+use App\Concerns\CanQuickAddVehicle;
 use App\Concerns\HasQuickCreate;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
@@ -19,6 +21,8 @@ use Livewire\Component;
 #[Title('Customer Vehicle')]
 class Edit extends Component
 {
+    use CanQuickAddCustomer;
+    use CanQuickAddVehicle;
     use HasQuickCreate;
 
     public ?int $editingId = null;
@@ -162,6 +166,18 @@ class Edit extends Component
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'hex_code']);
+    }
+
+    /** Customer quick-add (CanQuickAddCustomer trait) writes the new id back to the customer picker. */
+    protected function quickCustomerTargetProperty(): string
+    {
+        return 'customer_id';
+    }
+
+    /** Vehicle quick-add (CanQuickAddVehicle trait) writes the new variant id back to the vehicle picker. */
+    protected function quickVehicleTargetProperty(): string
+    {
+        return 'variant_id';
     }
 
     public function createColor(): void

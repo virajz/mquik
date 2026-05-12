@@ -9,8 +9,12 @@
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
                 <flux:menu>
+                    @can('customer_vehicle_master.import')
                     <flux:menu.item icon="arrow-up-tray" wire:click="$dispatch('start-import', { module: 'CustomerVehicleMaster' })">Import…</flux:menu.item>
+                    @endcan
+                    @can('customer_vehicle_master.export')
                     <flux:menu.item icon="arrow-down-tray" wire:click="$dispatch('start-export', { module: 'CustomerVehicleMaster' })">Export</flux:menu.item>
+                    @endcan
                 </flux:menu>
             </flux:dropdown>
         </div>

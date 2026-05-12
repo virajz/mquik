@@ -15,14 +15,18 @@
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
 
                 <flux:menu>
+                    @can('customer_master.import')
                     <flux:menu.item icon="arrow-up-tray"
                         wire:click="$dispatch('start-import', { module: 'CustomerMaster' })">
                         Import…
                     </flux:menu.item>
+                    @endcan
+                    @can('customer_master.export')
                     <flux:menu.item icon="arrow-down-tray"
                         wire:click="$dispatch('start-export', { module: 'CustomerMaster' })">
                         Export
                     </flux:menu.item>
+                    @endcan
                 </flux:menu>
             </flux:dropdown>
         </div>

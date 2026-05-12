@@ -6,6 +6,9 @@ use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Livewire\Edit as CustomerEdit;
 use App\Modules\CustomerMaster\Livewire\Index as CustomerIndex;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
+use App\Modules\ImportExport\Livewire\ExportButton;
+use App\Modules\ImportExport\Livewire\ImportWizard;
+use App\Modules\ImportExport\Models\Export;
 use App\Modules\VehicleBrandMaster\Livewire\Form as VehicleBrandForm;
 use App\Modules\VehicleBrandMaster\Livewire\Index as VehicleBrandIndex;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
@@ -182,4 +185,49 @@ it('modal Index::delete() enforces inline authorize', function () {
         ->assertStatus(403);
 
     expect(VehicleBrandMaster::find($brand->id))->not->toBeNull();
+});
+
+it('ExportButton::start blocks a user without the module export permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('customer_master.view');
+    $this->actingAs($user);
+
+    Livewire::test(ExportButton::class, ['module' => 'CustomerMaster', 'userId' => $user->id])
+        ->call('start')
+        ->assertStatus(403);
+
+    expect(Export::count())->toBe(0);
+});
+
+it('ExportButton::start succeeds with the module export permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['customer_master.view', 'customer_master.export']);
+    $this->actingAs($user);
+
+    Livewire::test(ExportButton::class, ['module' => 'CustomerMaster', 'userId' => $user->id])
+        ->call('start');
+
+    expect(Export::count())->toBe(1);
+});
+
+it('ImportWizard::maybeStart blocks a user without the module import permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('customer_master.view');
+    $this->actingAs($user);
+
+    Livewire::test(ImportWizard::class, ['module' => 'CustomerMaster', 'userId' => $user->id])
+        ->call('maybeStart', 'CustomerMaster')
+        ->assertStatus(403);
+});
+
+it('ImportWizard::maybeStart ignores events for other modules without authorizing', function () {
+    // A page bound to BankMaster shouldn't 403 when a "start-import for CustomerMaster"
+    // event flies past — it should silently no-op.
+    $user = User::factory()->create();
+    $user->givePermissionTo('customer_master.view');
+    $this->actingAs($user);
+
+    Livewire::test(ImportWizard::class, ['module' => 'BankMaster', 'userId' => $user->id])
+        ->call('maybeStart', 'CustomerMaster')
+        ->assertOk();
 });

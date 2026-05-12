@@ -77,10 +77,16 @@ class ImportWizard extends Component
     #[On('start-import')]
     public function maybeStart(string $module): void
     {
-        if ($module !== $this->module || ! $this->resolveImporter()) {
-            if ($module === $this->module) {
-                Flux::toast(text: 'This module is not importable yet.', variant: 'danger');
-            }
+        if ($module !== $this->module) {
+            return;
+        }
+
+        // Gate: require the master's *.import permission. Slug derived from module
+        // folder name (CustomerMaster → customer_master.import).
+        $this->authorize(Str::snake($this->module).'.import');
+
+        if (! $this->resolveImporter()) {
+            Flux::toast(text: 'This module is not importable yet.', variant: 'danger');
 
             return;
         }

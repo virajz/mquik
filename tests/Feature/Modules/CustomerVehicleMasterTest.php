@@ -1,10 +1,13 @@
 <?php
 
+use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Livewire\Edit;
 use App\Modules\CustomerVehicleMaster\Livewire\Index;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
+use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Livewire\Livewire;
 
@@ -168,6 +171,99 @@ it('quick-adds a new color from the form via inline create-option', function () 
         ->call('createColor')
         ->assertSet('color_id', $color->id)
         ->assertSet('colorSearch', '');
+});
+
+it('quick-add Customer wizard creates a customer and assigns it to customer_id', function () {
+    $businessType = BusinessTypeMaster::firstOrCreate(
+        ['name' => 'WALKING'],
+        ['is_active' => true],
+    );
+
+    Livewire::test(Edit::class)
+        ->set('quickCustomer.first_name', 'wizard')
+        ->set('quickCustomer.phone', '9000111222')
+        ->set('quickCustomer.business_type_id', $businessType->id)
+        ->call('createQuickCustomer')
+        ->assertHasNoErrors();
+
+    $newCustomer = CustomerMaster::where('phone', '9000111222')->firstOrFail();
+    expect($newCustomer->first_name)->toBe('WIZARD');
+
+    Livewire::test(Edit::class)
+        ->set('quickCustomer.first_name', 'WIZARD2')
+        ->set('quickCustomer.phone', '9000111223')
+        ->set('quickCustomer.business_type_id', $businessType->id)
+        ->call('createQuickCustomer')
+        ->assertSet('customer_id', CustomerMaster::where('phone', '9000111223')->value('id'));
+});
+
+it('quick-add Vehicle wizard creates brand + model + variant chain and assigns variant_id', function () {
+    $brand = VehicleBrandMaster::firstOrCreate(['name' => 'HYUNDAI'], ['is_active' => true]);
+    $model = VehicleModelMaster::firstOrCreate(
+        ['brand_id' => $brand->id, 'name' => 'CRETA'],
+        ['is_active' => true],
+    );
+
+    Livewire::test(Edit::class)
+        ->set('quickVehicle.brand_id', $brand->id)
+        ->set('quickVehicle.model_id', $model->id)
+        ->set('quickVehicle.name', 'sx 2024')
+        ->set('quickVehicle.fuel_type', 'petrol')
+        ->set('quickVehicle.year', 2024)
+        ->call('createQuickVehicle')
+        ->assertHasNoErrors();
+
+    $variant = VehicleVariantMaster::where('name', 'SX 2024')->where('model_id', $model->id)->firstOrFail();
+
+    expect($variant->fuel_type)->toBe('petrol')
+        ->and($variant->year)->toBe(2024);
+
+    Livewire::test(Edit::class)
+        ->set('quickVehicle.brand_id', $brand->id)
+        ->set('quickVehicle.model_id', $model->id)
+        ->set('quickVehicle.name', 'sx 2024')
+        ->call('createQuickVehicle')
+        ->assertSet('variant_id', $variant->id);
+});
+
+it('quick-add Vehicle wizard requires brand + model + variant name', function () {
+    Livewire::test(Edit::class)
+        ->call('createQuickVehicle')
+        ->assertHasErrors([
+            'quickVehicle.brand_id',
+            'quickVehicle.model_id',
+            'quickVehicle.name',
+        ]);
+});
+
+it('createQuickVehicleBrand creates a brand inline and resets the model selection', function () {
+    Livewire::test(Edit::class)
+        ->set('quickVehicleBrandSearch', 'kia')
+        ->call('createQuickVehicleBrand')
+        ->assertSet('quickVehicle.model_id', null)
+        ->assertSet('quickVehicleBrandSearch', '');
+
+    expect(VehicleBrandMaster::where('name', 'KIA')->exists())->toBeTrue();
+});
+
+it('createQuickVehicleModel needs a brand picked first', function () {
+    Livewire::test(Edit::class)
+        ->set('quickVehicleModelSearch', 'newmodel')
+        ->call('createQuickVehicleModel')
+        ->assertHasErrors(['quickVehicle.brand_id']);
+});
+
+it('createQuickVehicleModel creates a model under the selected brand', function () {
+    $brand = VehicleBrandMaster::firstOrCreate(['name' => 'TATA'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('quickVehicle.brand_id', $brand->id)
+        ->set('quickVehicleModelSearch', 'punch')
+        ->call('createQuickVehicleModel')
+        ->assertSet('quickVehicleModelSearch', '');
+
+    $model = VehicleModelMaster::where('brand_id', $brand->id)->where('name', 'PUNCH')->first();
+    expect($model)->not->toBeNull();
 });
 
 it('deletes a customer vehicle', function () {

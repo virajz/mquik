@@ -11,8 +11,12 @@
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
                 <flux:menu>
+                    @can('checklist_template_master.import')
                     <flux:menu.item icon="arrow-up-tray" wire:click="$dispatch('start-import', { module: 'ChecklistTemplateMaster' })">Import…</flux:menu.item>
+                    @endcan
+                    @can('checklist_template_master.export')
                     <flux:menu.item icon="arrow-down-tray" wire:click="$dispatch('start-export', { module: 'ChecklistTemplateMaster' })">Export</flux:menu.item>
+                    @endcan
                 </flux:menu>
             </flux:dropdown>
         </div>

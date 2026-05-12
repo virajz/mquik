@@ -59,20 +59,36 @@
                         @endcan
                     </flux:select>
 
-                    <flux:select
-                        wire:model="referred_by_customer_id"
-                        variant="listbox"
-                        searchable
-                        label="Referred by"
-                        placeholder="Optional — search by name or phone…"
-                        clearable
-                    >
-                        @foreach ($this->referrers as $r)
-                            <flux:select.option :value="$r->id">
-                                {{ $r->name }}{{ $r->phone ? ' — +91 '.$r->phone : '' }}
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
+                    <flux:field>
+                        <flux:label>Referred by</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex-1 min-w-0">
+                                <flux:select
+                                    wire:model="referred_by_customer_id"
+                                    variant="listbox"
+                                    searchable
+                                    placeholder="Optional — search by name or phone…"
+                                    clearable
+                                >
+                                    @foreach ($this->referrers as $r)
+                                        <flux:select.option :value="$r->id">
+                                            {{ $r->name }}{{ $r->phone ? ' — +91 '.$r->phone : '' }}
+                                        </flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                            @can('customer_master.create')
+                                <flux:tooltip content="Quick add a new customer">
+                                    <flux:button
+                                        icon="plus"
+                                        variant="ghost"
+                                        type="button"
+                                        x-on:click="$flux.modal('customer-quick-add').show()"
+                                    />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                    </flux:field>
                 </div>
             </div>
         </section>
@@ -371,4 +387,9 @@
             </div>
         </div>
     </form>
+
+    {{-- Customer quick-add modal — backed by the CanQuickAddCustomer trait. --}}
+    @can('customer_master.create')
+        @include('customer-master::_quick_add_modal')
+    @endcan
 </div>

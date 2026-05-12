@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerMaster\Livewire;
 
+use App\Concerns\CanQuickAddCustomer;
 use App\Concerns\HasQuickCreate;
 use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
@@ -21,6 +22,7 @@ use Livewire\WithFileUploads;
 #[Title('Customer')]
 class Edit extends Component
 {
+    use CanQuickAddCustomer;
     use HasQuickCreate;
     use WithFileUploads;
 
@@ -174,6 +176,12 @@ class Edit extends Component
             'addresses.*.region_id.exists' => 'Selected region is invalid or inactive.',
             'referred_by_customer_id.exists' => 'Selected referrer is invalid (cannot self-refer).',
         ];
+    }
+
+    /** Customer quick-add (CanQuickAddCustomer trait) writes the new id back to the referrer picker. */
+    protected function quickCustomerTargetProperty(): string
+    {
+        return 'referred_by_customer_id';
     }
 
     public function createBusinessType(): void

@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleVariantMaster\Livewire;
 
+use App\Concerns\CanQuickAddModel;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Flux\Flux;
@@ -12,6 +13,8 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    use CanQuickAddModel;
+
     public ?int $editingId = null;
 
     public ?int $model_id = null;
@@ -73,6 +76,12 @@ class Form extends Component
         $this->year = $r->year;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
+    }
+
+    /** Quick-add Model wizard writes the new id back to the model picker. */
+    protected function quickModelTargetProperty(): string
+    {
+        return 'model_id';
     }
 
     public function save(): void
