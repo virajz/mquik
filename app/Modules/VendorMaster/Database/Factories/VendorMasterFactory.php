@@ -2,6 +2,7 @@
 
 namespace App\Modules\VendorMaster\Database\Factories;
 
+use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,28 +19,52 @@ class VendorMasterFactory extends Factory
         return [
             'vendor_code' => 'VND-'.$this->faker->unique()->numerify('#####'),
             'name' => strtoupper($this->faker->company()),
-            'vendor_type_id' => VendorTypeMaster::factory(),
             'phone' => $this->faker->numerify('98########'),
             'alternate_phone' => null,
             'email' => $this->faker->safeEmail(),
+            'secondary_email' => null,
             'address' => null,
-            'city' => strtoupper($this->faker->city()),
-            'state' => strtoupper($this->faker->randomElement(['GUJARAT', 'MAHARASHTRA', 'KARNATAKA', 'DELHI', 'RAJASTHAN'])),
-            'pincode' => $this->faker->numerify('######'),
-            // KYC + banking left null by default
+            'region_id' => null,
+            'aadhar' => null,
             'pan' => null,
             'gstin' => null,
-            'bank_name' => null,
+            'bank_id' => null,
             'bank_branch' => null,
             'ifsc' => null,
             'account_no' => null,
             'account_holder' => null,
             'credit_days' => 30,
             'credit_limit' => 50000,
-            'payment_terms' => null,
             'is_active' => true,
             'notes' => null,
         ];
+    }
+
+    /**
+     * Auto-attach one vendor type so tests that don't care about types still
+     * produce a vendor that satisfies the "at least one type" requirement.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (VendorMaster $vendor) {
+            if ($vendor->vendorTypes()->count() === 0) {
+                $vendor->vendorTypes()->attach(VendorTypeMaster::factory()->create()->id);
+            }
+        });
+    }
+
+    /**
+     * @param  int|VendorTypeMaster|array<int|VendorTypeMaster>  $types
+     */
+    public function withTypes(int|VendorTypeMaster|array $types): static
+    {
+        $ids = collect(is_array($types) ? $types : [$types])
+            ->map(fn ($t) => $t instanceof VendorTypeMaster ? $t->id : (int) $t)
+            ->all();
+
+        return $this->afterCreating(function (VendorMaster $vendor) use ($ids) {
+            $vendor->vendorTypes()->sync($ids);
+        });
     }
 
     public function inactive(): static
@@ -57,12 +82,19 @@ class VendorMasterFactory extends Factory
 
     public function withBanking(): static
     {
-        return $this->state(fn () => [
-            'bank_name' => strtoupper($this->faker->randomElement(['HDFC BANK', 'ICICI BANK', 'SBI', 'AXIS BANK'])),
-            'bank_branch' => strtoupper($this->faker->city()),
-            'ifsc' => strtoupper($this->faker->bothify('????0######')),
-            'account_no' => $this->faker->numerify('###############'),
-            'account_holder' => strtoupper($this->faker->company()),
-        ]);
+        return $this->state(function () {
+            $bank = BankMaster::firstOrCreate(
+                ['name' => $this->faker->randomElement(['HDFC BANK', 'ICICI BANK', 'SBI', 'AXIS BANK'])],
+                ['is_active' => true],
+            );
+
+            return [
+                'bank_id' => $bank->id,
+                'bank_branch' => strtoupper($this->faker->city()),
+                'ifsc' => strtoupper($this->faker->bothify('????0######')),
+                'account_no' => $this->faker->numerify('###############'),
+                'account_holder' => strtoupper($this->faker->company()),
+            ];
+        });
     }
 }

@@ -28,6 +28,7 @@ trait HasQuickCreate
     /**
      * @param  class-string<Model>  $modelClass
      * @param  array<string, mixed>  $defaults  attributes set when creating a fresh row
+     * @param  bool  $appendToList  when true, target property is treated as a list and the new id is appended (deduped). Use for multi-select pickers.
      */
     protected function quickCreate(
         string $modelClass,
@@ -37,6 +38,7 @@ trait HasQuickCreate
         array $defaults = ['is_active' => true],
         string $column = 'name',
         ?string $label = null,
+        bool $appendToList = false,
     ): void {
         $this->authorize($permission);
 
@@ -48,7 +50,13 @@ trait HasQuickCreate
         /** @var Model $record */
         $record = $modelClass::firstOrCreate([$column => $value], $defaults);
 
-        $this->{$targetProperty} = $record->getKey();
+        if ($appendToList) {
+            $current = (array) ($this->{$targetProperty} ?? []);
+            $current[] = $record->getKey();
+            $this->{$targetProperty} = array_values(array_unique($current));
+        } else {
+            $this->{$targetProperty} = $record->getKey();
+        }
         $this->{$searchProperty} = '';
 
         Flux::toast(

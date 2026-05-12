@@ -7,7 +7,6 @@ use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -34,7 +33,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    protected array $sortable = ['id', 'vendor_code', 'name', 'vendor_type_id', 'credit_limit', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'vendor_code', 'name', 'credit_limit', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {
@@ -64,21 +63,6 @@ class Index extends Component
         }
     }
 
-    public function openCreate(): void
-    {
-        $this->dispatch('vendor-master:edit', id: null);
-        Flux::modal('vendor-master-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('vendor-master:edit', id: $id);
-        Flux::modal('vendor-master-form')->show();
-    }
-
-    #[On('vendor-master:saved')]
-    public function refreshAfterSave(): void {}
-
     public function delete(int $id): void
     {
         try {
@@ -92,9 +76,9 @@ class Index extends Component
     public function render()
     {
         $rows = VendorMaster::query()
-            ->with(['vendorType:id,name'])
+            ->with(['vendorTypes:id,name'])
             ->when($this->search !== '', fn ($q) => $q->search($this->search))
-            ->when($this->typeFilter !== 'all', fn ($q) => $q->where('vendor_type_id', $this->typeFilter))
+            ->when($this->typeFilter !== 'all', fn ($q) => $q->whereHas('vendorTypes', fn ($vt) => $vt->where('vendor_types.id', $this->typeFilter)))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->when($this->statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)

@@ -5,7 +5,7 @@
             <flux:text class="mt-1">Suppliers of parts, labour, services, and insurance.</flux:text>
         </div>
         <div class="flex items-center gap-2">
-            <flux:button variant="primary" icon="plus" wire:click="openCreate">New Vendor</flux:button>
+            <flux:button variant="primary" icon="plus" :href="route('vendor-master.create')" wire:navigate>New Vendor</flux:button>
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
                 <flux:menu>
@@ -36,7 +36,7 @@
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">ID</flux:table.column>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'vendor_code'" :direction="$sortDirection" wire:click="sort('vendor_code')">Code</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">Name</flux:table.column>
-            <flux:table.column class="w-40" sortable :sorted="$sortBy === 'vendor_type_id'" :direction="$sortDirection" wire:click="sort('vendor_type_id')">Type</flux:table.column>
+            <flux:table.column class="w-44">Types</flux:table.column>
             <flux:table.column class="w-44" sortable :sorted="$sortBy === 'credit_limit'" :direction="$sortDirection" wire:click="sort('credit_limit')">Credit</flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
@@ -54,8 +54,12 @@
                         @endif
                     </flux:table.cell>
                     <flux:table.cell>
-                        @if ($row->vendorType)
-                            <flux:badge color="zinc" size="sm">{{ $row->vendorType->name }}</flux:badge>
+                        @if ($row->vendorTypes->isNotEmpty())
+                            <div class="flex flex-wrap gap-1">
+                                @foreach ($row->vendorTypes as $t)
+                                    <flux:badge color="zinc" size="sm">{{ $t->name }}</flux:badge>
+                                @endforeach
+                            </div>
                         @else
                             <span class="text-zinc-400 text-sm">—</span>
                         @endif
@@ -73,7 +77,7 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                            <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('vendor-master.edit', $row)" wire:navigate>Edit</flux:button>
                             <flux:modal.trigger :name="'vendor-master-delete-' . $row->id">
                                 <flux:button size="sm" variant="ghost" icon="trash" />
                             </flux:modal.trigger>
@@ -104,7 +108,6 @@
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
 
-    <livewire:vendor-master.form />
     <livewire:import-export.export-button :module="'VendorMaster'" wire:key="export-vendor-master" />
     <livewire:import-export.import-wizard :module="'VendorMaster'" wire:key="import-vendor-master" />
 </div>
