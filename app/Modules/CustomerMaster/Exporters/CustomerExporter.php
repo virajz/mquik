@@ -16,9 +16,11 @@ class CustomerExporter implements Exportable
     public function headers(): array
     {
         return [
-            'ID', 'Name', 'Type', 'Phone', 'Alternate Phone', 'Email',
-            'Primary Address', 'Primary Region', 'Primary Pincode',
-            'Address Count', 'Aadhar', 'PAN', 'Date of Birth',
+            'ID', 'First Name', 'Middle Name', 'Last Name', 'Type',
+            'Phone', 'Alternate Phone', 'Email',
+            'Primary Address', 'Primary Region', 'Primary Pincode', 'Address Count',
+            'Referred By (Phone)',
+            'Aadhar', 'PAN', 'Date of Birth',
             'Active', 'Created At',
         ];
     }
@@ -26,7 +28,12 @@ class CustomerExporter implements Exportable
     public function query(): Builder
     {
         return CustomerMaster::query()
-            ->with(['businessType:id,name', 'primaryAddress.region.parent.parent.parent', 'addresses:id,customer_id'])
+            ->with([
+                'businessType:id,name',
+                'primaryAddress.region.parent.parent.parent',
+                'addresses:id,customer_id',
+                'referredBy:id,phone',
+            ])
             ->latest('id');
     }
 
@@ -50,7 +57,9 @@ class CustomerExporter implements Exportable
 
         return [
             $model->id,
-            $model->name,
+            $model->first_name,
+            $model->middle_name,
+            $model->last_name,
             $model->businessType?->name,
             $model->phone,
             $model->alternate_phone,
@@ -59,6 +68,7 @@ class CustomerExporter implements Exportable
             $primary?->regionChain(),
             $pincode,
             $model->addresses->count(),
+            $model->referredBy?->phone,
             $model->aadhar,
             $model->pan,
             $model->date_of_birth?->format('Y-m-d'),

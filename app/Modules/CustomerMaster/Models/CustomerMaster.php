@@ -27,6 +27,16 @@ class CustomerMaster extends Model
         return $this->belongsTo(BusinessTypeMaster::class, 'business_type_id');
     }
 
+    public function referredBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'referred_by_customer_id');
+    }
+
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(self::class, 'referred_by_customer_id');
+    }
+
     public function addresses(): HasMany
     {
         return $this->hasMany(CustomerAddress::class, 'customer_id');
@@ -42,7 +52,50 @@ class CustomerMaster extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['name', 'phone', 'email', 'aadhar', 'pan'];
+    protected static array $searchableFields = ['first_name', 'middle_name', 'last_name', 'phone', 'email', 'aadhar', 'pan'];
+
+    /**
+     * Virtual `name` attribute — joins first/middle/last for display.
+     * Lets all callers continue to use $customer->name without changes.
+     */
+    public function getNameAttribute(): string
+    {
+        return collect([$this->first_name, $this->middle_name, $this->last_name])
+            ->filter()
+            ->implode(' ');
+    }
+
+    /**
+     * Virtual `name` setter — accepts a single string and splits it across
+     * first/middle/last using the same heuristic as the migration backfill,
+     * so existing factories / seeders / imports that pass `name` keep working.
+     */
+    public function setNameAttribute(?string $value): void
+    {
+        $value = trim(preg_replace('/\s+/', ' ', (string) $value) ?? '');
+        if ($value === '') {
+            $this->attributes['first_name'] = null;
+            $this->attributes['middle_name'] = null;
+            $this->attributes['last_name'] = null;
+
+            return;
+        }
+
+        $parts = explode(' ', $value);
+        match (count($parts)) {
+            1 => $this->fillNameParts($parts[0], null, null),
+            2 => $this->fillNameParts($parts[0], null, $parts[1]),
+            3 => $this->fillNameParts($parts[0], $parts[1], $parts[2]),
+            default => $this->fillNameParts($value, null, null), // 4+ → assume company
+        };
+    }
+
+    protected function fillNameParts(?string $first, ?string $middle, ?string $last): void
+    {
+        $this->attributes['first_name'] = $first;
+        $this->attributes['middle_name'] = $middle;
+        $this->attributes['last_name'] = $last;
+    }
 
     public function toSearchResult(): array
     {

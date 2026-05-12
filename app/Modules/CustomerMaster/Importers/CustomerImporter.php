@@ -18,8 +18,11 @@ class CustomerImporter implements Importable
     public function columns(): array
     {
         return [
-            'name' => ['label' => 'Name', 'required' => true, 'type' => 'string'],
+            'first_name' => ['label' => 'First Name', 'required' => true, 'type' => 'string', 'help' => 'For company customers, put the full company name here.'],
+            'middle_name' => ['label' => 'Middle Name', 'required' => false, 'type' => 'string'],
+            'last_name' => ['label' => 'Last Name', 'required' => false, 'type' => 'string'],
             'business_type' => ['label' => 'Business Type', 'required' => false, 'type' => 'string', 'help' => 'Walking | Loyal | Corporate | Government — match by name (case-insensitive). Defaults to Walking.'],
+            'referred_by_phone' => ['label' => 'Referred By (Phone)', 'required' => false, 'type' => 'string', 'help' => 'Phone of an existing customer who referred this one.'],
             'phone' => ['label' => 'Phone', 'required' => true, 'type' => 'string'],
             'alternate_phone' => ['label' => 'Alternate Phone', 'required' => false, 'type' => 'string'],
             'email' => ['label' => 'Email', 'required' => false, 'type' => 'string'],
@@ -43,8 +46,11 @@ class CustomerImporter implements Importable
     public function validateRow(array $data): array
     {
         $errors = Validator::make($data, [
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
             'business_type' => ['nullable', 'string'],
+            'referred_by_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -86,7 +92,7 @@ class CustomerImporter implements Importable
      */
     protected function split(array $data): array
     {
-        $skipUppercase = ['email', 'business_type', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar', 'pincode'];
+        $skipUppercase = ['email', 'business_type', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar', 'pincode', 'referred_by_phone'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skipUppercase, true)) {
                 $data[$key] = strtoupper($value);
@@ -100,15 +106,29 @@ class CustomerImporter implements Importable
         $data['business_type_id'] = $this->resolveBusinessTypeId($data['business_type'] ?? null)
             ?? BusinessTypeMaster::firstOrCreate(['name' => 'WALKING'], ['is_active' => true])->id;
 
+        $data['referred_by_customer_id'] = $this->resolveReferrerId($data['referred_by_phone'] ?? null);
+
         $address = [
             'address_line' => $data['address_line'] ?? null,
             'region_id' => $this->resolveRegionId($data['pincode'] ?? null, $data['city'] ?? null),
             'label' => $data['address_label'] ?? null,
         ];
 
-        unset($data['business_type'], $data['address_line'], $data['city'], $data['pincode'], $data['address_label']);
+        unset($data['business_type'], $data['referred_by_phone'], $data['address_line'], $data['city'], $data['pincode'], $data['address_label']);
 
         return [$data, $address];
+    }
+
+    protected function resolveReferrerId(?string $phone): ?int
+    {
+        if (! $phone) {
+            return null;
+        }
+
+        return CustomerMaster::query()
+            ->where('phone', $phone)
+            ->where('is_active', true)
+            ->value('id');
     }
 
     /**

@@ -17,8 +17,11 @@ class CustomerMasterFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => strtoupper($this->faker->name()),
+            'first_name' => strtoupper($this->faker->firstName()),
+            'middle_name' => null,
+            'last_name' => strtoupper($this->faker->lastName()),
             'business_type_id' => BusinessTypeMaster::firstOrCreate(['name' => 'WALKING'], ['is_active' => true])->id,
+            'referred_by_customer_id' => null,
             'phone' => $this->faker->numerify('98########'),
             'alternate_phone' => null,
             'email' => $this->faker->safeEmail(),
@@ -41,7 +44,9 @@ class CustomerMasterFactory extends Factory
     {
         return $this->state(fn () => [
             'business_type_id' => BusinessTypeMaster::firstOrCreate(['name' => 'CORPORATE'], ['is_active' => true])->id,
-            'name' => strtoupper($this->faker->company()),
+            'first_name' => strtoupper($this->faker->company()),
+            'middle_name' => null,
+            'last_name' => null,
         ]);
     }
 

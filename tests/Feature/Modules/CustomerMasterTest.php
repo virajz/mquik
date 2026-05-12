@@ -86,7 +86,8 @@ it('filters by active status', function () {
 
 it('creates a customer with full details', function () {
     Livewire::test(Edit::class)
-        ->set('name', 'ravi sharma')
+        ->set('first_name', 'ravi')
+        ->set('last_name', 'sharma')
         ->set('business_type_id', $this->loyal->id)
         ->set('phone', '9876543210')
         ->set('email', 'ravi@example.com')
@@ -99,6 +100,8 @@ it('creates a customer with full details', function () {
 
     $r = CustomerMaster::firstOrFail();
     expect($r->name)->toBe('RAVI SHARMA')
+        ->and($r->first_name)->toBe('RAVI')
+        ->and($r->last_name)->toBe('SHARMA')
         ->and($r->business_type_id)->toBe($this->loyal->id)
         ->and($r->phone)->toBe('9876543210')         // not uppercased
         ->and($r->email)->toBe('ravi@example.com')   // not uppercased
@@ -114,7 +117,8 @@ it('creates a customer with multiple addresses and one primary', function () {
     $pincode = RegionMaster::firstOrCreate(['kind' => 'pincode', 'parent_id' => $area->id, 'name' => '380015'], ['is_active' => true]);
 
     Livewire::test(Edit::class)
-        ->set('name', 'ravi sharma')
+        ->set('first_name', 'ravi')
+        ->set('last_name', 'sharma')
         ->set('business_type_id', $this->loyal->id)
         ->set('phone', '9876543210')
         ->set('addresses', [
@@ -139,7 +143,7 @@ it('creates a customer with multiple addresses and one primary', function () {
 
 it('makes the first address primary if none flagged', function () {
     Livewire::test(Edit::class)
-        ->set('name', 'A')
+        ->set('first_name', 'A')
         ->set('business_type_id', $this->walking->id)
         ->set('phone', '9876543210')
         ->set('addresses', [
@@ -156,7 +160,7 @@ it('makes the first address primary if none flagged', function () {
 
 it('drops blank address rows on save', function () {
     Livewire::test(Edit::class)
-        ->set('name', 'A')
+        ->set('first_name', 'A')
         ->set('business_type_id', $this->walking->id)
         ->set('phone', '9876543210')
         ->set('addresses', [
@@ -185,11 +189,39 @@ it('replaces removed addresses on edit', function () {
         ->and(CustomerAddress::find($a->id)->address_line)->toBe('UPDATED A');
 });
 
+it('records a customer referral', function () {
+    $referrer = CustomerMaster::factory()->create(['first_name' => 'REFERRER', 'last_name' => 'ONE', 'phone' => '9000111222']);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'NEW')
+        ->set('last_name', 'CUSTOMER')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9876543210')
+        ->set('referred_by_customer_id', $referrer->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $created = CustomerMaster::with('referredBy')->where('phone', '9876543210')->firstOrFail();
+    expect($created->referred_by_customer_id)->toBe($referrer->id)
+        ->and($created->referredBy->name)->toBe('REFERRER ONE')
+        ->and($referrer->refresh()->referrals)->toHaveCount(1);
+});
+
+it('rejects self-referral on edit', function () {
+    $r = CustomerMaster::factory()->create();
+
+    Livewire::test(Edit::class, ['customer' => $r])
+        ->set('referred_by_customer_id', $r->id)
+        ->call('save')
+        ->assertHasErrors(['referred_by_customer_id']);
+});
+
 it('updates an existing customer', function () {
     $r = CustomerMaster::factory()->create(['name' => 'OLD NAME', 'business_type_id' => $this->walking->id]);
 
     Livewire::test(Edit::class, ['customer' => $r])
-        ->set('name', 'updated name')
+        ->set('first_name', 'updated')
+        ->set('last_name', 'name')
         ->set('business_type_id', $this->loyal->id)
         ->call('save')
         ->assertHasNoErrors();
@@ -209,15 +241,15 @@ it('deletes a customer from the index', function () {
 
 it('validates required fields', function () {
     Livewire::test(Edit::class)
-        ->set('name', '')
+        ->set('first_name', '')
         ->set('phone', '')
         ->call('save')
-        ->assertHasErrors(['name' => 'required', 'phone' => 'required']);
+        ->assertHasErrors(['first_name' => 'required', 'phone' => 'required']);
 });
 
 it('validates PAN format', function () {
     Livewire::test(Edit::class)
-        ->set('name', 'TEST')
+        ->set('first_name', 'TEST')
         ->set('phone', '9876543210')
         ->set('pan', 'INVALID-PAN')
         ->call('save')
@@ -226,7 +258,7 @@ it('validates PAN format', function () {
 
 it('validates aadhar must be exactly 12 chars if provided', function () {
     Livewire::test(Edit::class)
-        ->set('name', 'TEST')
+        ->set('first_name', 'TEST')
         ->set('phone', '9876543210')
         ->set('aadhar', '123')
         ->call('save')
@@ -237,7 +269,7 @@ it('rejects duplicate aadhar', function () {
     CustomerMaster::factory()->create(['aadhar' => '111122223333']);
 
     Livewire::test(Edit::class)
-        ->set('name', 'TEST')
+        ->set('first_name', 'TEST')
         ->set('phone', '9876543210')
         ->set('aadhar', '111122223333')
         ->call('save')

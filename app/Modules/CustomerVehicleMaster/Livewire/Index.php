@@ -83,14 +83,15 @@ class Index extends Component
     public function render()
     {
         $rows = CustomerVehicleMaster::query()
-            ->with(['customer:id,name,phone', 'model:id,name,brand_id', 'model.brand:id,name', 'variant:id,name', 'color:id,name,hex_code'])
+            ->with(['customer:id,first_name,middle_name,last_name,phone', 'model:id,name,brand_id', 'model.brand:id,name', 'variant:id,name', 'color:id,name,hex_code'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
-                $q->where(function ($query) use ($term) {
+                $rawTerm = $this->search;
+                $q->where(function ($query) use ($term, $rawTerm) {
                     $query->whereLike('registration_no', $term, caseSensitive: false)
                         ->orWhereLike('vin', $term, caseSensitive: false)
                         ->orWhereLike('engine_no', $term, caseSensitive: false)
-                        ->orWhereHas('customer', fn ($c) => $c->whereLike('name', $term, caseSensitive: false)->orWhereLike('phone', $term, caseSensitive: false));
+                        ->orWhereHas('customer', fn ($c) => $c->search($rawTerm));
                 });
             })
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

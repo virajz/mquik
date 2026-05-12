@@ -19,9 +19,15 @@ class Edit extends Component
 {
     public ?int $editingId = null;
 
-    public string $name = '';
+    public string $first_name = '';
+
+    public ?string $middle_name = null;
+
+    public ?string $last_name = null;
 
     public ?int $business_type_id = null;
+
+    public ?int $referred_by_customer_id = null;
 
     public string $phone = '';
 
@@ -58,8 +64,11 @@ class Edit extends Component
         $customer->load('addresses');
 
         $this->editingId = $customer->id;
-        $this->name = $customer->name;
+        $this->first_name = (string) $customer->first_name;
+        $this->middle_name = $customer->middle_name;
+        $this->last_name = $customer->last_name;
         $this->business_type_id = $customer->business_type_id;
+        $this->referred_by_customer_id = $customer->referred_by_customer_id;
         $this->phone = $customer->phone;
         $this->alternate_phone = $customer->alternate_phone;
         $this->email = $customer->email;
@@ -89,8 +98,16 @@ class Edit extends Component
     protected function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
             'business_type_id' => ['required', 'integer', Rule::exists('business_types', 'id')->where('is_active', true)],
+            'referred_by_customer_id' => [
+                'nullable', 'integer',
+                $this->editingId !== null
+                    ? Rule::exists('customers', 'id')->whereNot('id', $this->editingId)
+                    : Rule::exists('customers', 'id'),
+            ],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'alternate_phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -119,6 +136,7 @@ class Edit extends Component
     {
         return [
             'addresses.*.region_id.exists' => 'Selected region is invalid or inactive.',
+            'referred_by_customer_id.exists' => 'Selected referrer is invalid (cannot self-refer).',
         ];
     }
 
@@ -172,7 +190,7 @@ class Edit extends Component
         $addresses = $this->addresses;
         $data = collect($this->validate())->except('addresses')->all();
 
-        $skip = ['email', 'business_type_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
+        $skip = ['email', 'business_type_id', 'referred_by_customer_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -245,6 +263,17 @@ class Edit extends Component
             'region_id' => null,
             'is_primary' => $primary,
         ];
+    }
+
+    #[Computed]
+    public function referrers()
+    {
+        return CustomerMaster::query()
+            ->when($this->editingId, fn ($q) => $q->where('id', '!=', $this->editingId))
+            ->where('is_active', true)
+            ->orderBy('first_name')
+            ->limit(500)
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'phone']);
     }
 
     #[Computed]

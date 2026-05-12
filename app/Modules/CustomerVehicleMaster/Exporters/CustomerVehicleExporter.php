@@ -26,7 +26,7 @@ class CustomerVehicleExporter implements Exportable
     public function query(): Builder
     {
         return CustomerVehicleMaster::query()
-            ->with(['customer:id,name,phone', 'model.brand', 'variant:id,name', 'color:id,name'])
+            ->with(['customer:id,first_name,middle_name,last_name,phone', 'model.brand', 'variant:id,name', 'color:id,name'])
             ->orderBy('id', 'desc');
     }
 

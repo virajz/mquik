@@ -58,7 +58,7 @@
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">
                 ID
             </flux:table.column>
-            <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">
+            <flux:table.column sortable :sorted="$sortBy === 'first_name'" :direction="$sortDirection" wire:click="sort('first_name')">
                 Name
             </flux:table.column>
             <flux:table.column class="w-32" sortable :sorted="$sortBy === 'business_type_id'" :direction="$sortDirection" wire:click="sort('business_type_id')">

@@ -34,7 +34,7 @@ class Index extends Component
     public string $sortDirection = 'desc';
 
     /** Whitelist sortable columns — never trust the URL */
-    protected array $sortable = ['id', 'name', 'business_type_id', 'phone', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'first_name', 'business_type_id', 'phone', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {
