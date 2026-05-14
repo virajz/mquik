@@ -128,6 +128,11 @@ class JobCard extends Model
         return $this->hasMany(JobCardInventoryItem::class, 'job_card_id');
     }
 
+    public function photos(): HasMany
+    {
+        return $this->hasMany(JobCardPhoto::class, 'job_card_id')->orderBy('sequence_no');
+    }
+
     /**
      * @return array<string, string>
      */

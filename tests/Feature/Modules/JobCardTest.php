@@ -11,8 +11,11 @@ use App\Modules\JobCard\Livewire\Index;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardComplaint;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
+use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -257,4 +260,216 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('job-card.index'))->assertRedirect(route('login'));
+});
+
+it('uploads photos and stores rows + files on the public disk', function () {
+    Storage::fake('public');
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('newPhotos', [
+            UploadedFile::fake()->image('dent-front.jpg', 800, 600),
+            UploadedFile::fake()->image('rear-quarter.jpg', 800, 600),
+        ])
+        ->set('newPhotoCaptions.0', 'dent on bumper')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $jc = JobCard::first();
+    expect($jc->photos)->toHaveCount(2);
+    expect($jc->photos[0]->caption)->toBe('DENT ON BUMPER');  // upper-cased
+    expect($jc->photos[0]->sequence_no)->toBe(1);
+    expect($jc->photos[1]->sequence_no)->toBe(2);
+    Storage::disk('public')->assertExists($jc->photos[0]->path);
+    Storage::disk('public')->assertExists($jc->photos[1]->path);
+});
+
+it('removes existing photos on edit, deleting the file too', function () {
+    Storage::fake('public');
+
+    $jc = JobCard::factory()->create();
+    $stored = UploadedFile::fake()->image('old.jpg')->store("job-cards/{$jc->id}/photos", 'public');
+    $photo = JobCardPhoto::create([
+        'job_card_id' => $jc->id,
+        'path' => $stored,
+        'original_name' => 'old.jpg',
+        'mime_type' => 'image/jpeg',
+        'sequence_no' => 1,
+    ]);
+
+    Livewire::test(Edit::class, ['jobCard' => $jc])
+        ->call('removeExistingPhoto', $photo->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(JobCardPhoto::find($photo->id))->toBeNull();
+    Storage::disk('public')->assertMissing($stored);
+});
+
+it('undoes a pending photo removal before save', function () {
+    Storage::fake('public');
+
+    $jc = JobCard::factory()->create();
+    $stored = UploadedFile::fake()->image('keepme.jpg')->store("job-cards/{$jc->id}/photos", 'public');
+    $photo = JobCardPhoto::create([
+        'job_card_id' => $jc->id,
+        'path' => $stored,
+        'original_name' => 'keepme.jpg',
+        'sequence_no' => 1,
+    ]);
+
+    Livewire::test(Edit::class, ['jobCard' => $jc])
+        ->call('removeExistingPhoto', $photo->id)
+        ->call('undoRemoveExistingPhoto', $photo->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(JobCardPhoto::find($photo->id))->not->toBeNull();
+    Storage::disk('public')->assertExists($stored);
+});
+
+it('drops a staged new-photo before submitting', function () {
+    Storage::fake('public');
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('newPhotos', [
+            UploadedFile::fake()->image('a.jpg'),
+            UploadedFile::fake()->image('b.jpg'),
+        ])
+        ->call('removeNewPhoto', 0)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(JobCard::first()->photos)->toHaveCount(1);
+});
+
+it('rejects oversized photos', function () {
+    Storage::fake('public');
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('newPhotos', [
+            // 9 MB image, photo cap is 8 MB
+            UploadedFile::fake()->image('huge.jpg')->size(9000),
+        ])
+        ->call('save')
+        ->assertHasErrors(['newPhotos.0']);
+
+    expect(JobCard::count())->toBe(0);
+});
+
+it('captures customer signature on save and stamps the path', function () {
+    Storage::fake('public');
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('terms_accepted', true)
+        ->set('signatureUpload', UploadedFile::fake()->image('signature.png'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $jc = JobCard::first();
+    expect($jc->customer_signature_path)->not->toBeNull();
+    expect($jc->customer_signature_path)->toStartWith("job-cards/{$jc->id}/signature/");
+    Storage::disk('public')->assertExists($jc->customer_signature_path);
+});
+
+it('replaces an existing signature and deletes the old file', function () {
+    Storage::fake('public');
+
+    $jc = JobCard::factory()->create();
+    $oldPath = UploadedFile::fake()->image('old-sig.png')->store("job-cards/{$jc->id}/signature", 'public');
+    $jc->forceFill(['customer_signature_path' => $oldPath])->save();
+
+    Livewire::test(Edit::class, ['jobCard' => $jc])
+        ->set('signatureUpload', UploadedFile::fake()->image('new-sig.png'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $fresh = $jc->fresh();
+    expect($fresh->customer_signature_path)->not->toBe($oldPath);
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists($fresh->customer_signature_path);
+});
+
+it('clears an existing signature when markClearSignature is invoked', function () {
+    Storage::fake('public');
+
+    $jc = JobCard::factory()->create();
+    $oldPath = UploadedFile::fake()->image('to-clear.png')->store("job-cards/{$jc->id}/signature", 'public');
+    $jc->forceFill(['customer_signature_path' => $oldPath])->save();
+
+    Livewire::test(Edit::class, ['jobCard' => $jc])
+        ->call('markClearSignature')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($jc->fresh()->customer_signature_path)->toBeNull();
+    Storage::disk('public')->assertMissing($oldPath);
+});
+
+it('rejects oversized signature uploads', function () {
+    Storage::fake('public');
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('signatureUpload', UploadedFile::fake()->image('big-sig.png')->size(3000))  // 3 MB > 2 MB cap
+        ->call('save')
+        ->assertHasErrors(['signatureUpload']);
+
+    expect(JobCard::count())->toBe(0);
+});
+
+it('cascades photo rows when a job card is deleted', function () {
+    $jc = JobCard::factory()->create();
+    JobCardPhoto::create([
+        'job_card_id' => $jc->id,
+        'path' => "job-cards/{$jc->id}/photos/x.jpg",
+        'sequence_no' => 1,
+    ]);
+
+    Livewire::test(Index::class)->call('delete', $jc->id);
+
+    expect(JobCardPhoto::where('job_card_id', $jc->id)->count())->toBe(0);
 });

@@ -8,24 +8,31 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Job Card')]
 class Edit extends Component
 {
+    use WithFileUploads;
+
     public ?int $editingId = null;
 
     public ?string $job_card_no = null;
@@ -71,6 +78,19 @@ class Edit extends Component
 
     /** @var array<int, array{is_present: bool, condition_notes: ?string}>  keyed by vehicle_inventory_item_id */
     public array $inventoryItems = [];
+
+    /** @var array<int, TemporaryUploadedFile>  staged uploads */
+    public array $newPhotos = [];
+
+    /** @var array<int, string|null>  parallel array to newPhotos for caption per upload */
+    public array $newPhotoCaptions = [];
+
+    /** @var array<int, int>  ids of existing photos the user removed during this edit */
+    public array $removedPhotoIds = [];
+
+    public ?UploadedFile $signatureUpload = null;
+
+    public bool $clearSignature = false;
 
     #[Url(as: 'from-appointment')]
     public ?int $fromAppointment = null;
@@ -207,6 +227,13 @@ class Edit extends Component
             'complaints.*.severity' => ['required', 'string', 'in:low,medium,high'],
             'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'complaints.*.sequence_no' => ['integer', 'min:1', 'max:99'],
+
+            'newPhotos' => ['array', 'max:20'],
+            'newPhotos.*' => ['image', 'max:8192'],  // 8 MB per photo
+            'newPhotoCaptions' => ['array'],
+            'newPhotoCaptions.*' => ['nullable', 'string', 'max:255'],
+
+            'signatureUpload' => ['nullable', 'image', 'max:2048'],
         ];
     }
 
@@ -233,6 +260,42 @@ class Edit extends Component
         }
         unset($this->complaints[$index]);
         $this->complaints = array_values($this->complaints);
+    }
+
+    public function updatedNewPhotos(): void
+    {
+        // Keep the captions array length aligned with newPhotos.
+        foreach (array_keys($this->newPhotos) as $i) {
+            $this->newPhotoCaptions[$i] = $this->newPhotoCaptions[$i] ?? null;
+        }
+    }
+
+    public function removeNewPhoto(int $index): void
+    {
+        unset($this->newPhotos[$index], $this->newPhotoCaptions[$index]);
+        $this->newPhotos = array_values($this->newPhotos);
+        $this->newPhotoCaptions = array_values($this->newPhotoCaptions);
+    }
+
+    public function removeExistingPhoto(int $photoId): void
+    {
+        if (! in_array($photoId, $this->removedPhotoIds, true)) {
+            $this->removedPhotoIds[] = $photoId;
+        }
+    }
+
+    public function undoRemoveExistingPhoto(int $photoId): void
+    {
+        $this->removedPhotoIds = array_values(array_filter(
+            $this->removedPhotoIds,
+            fn ($id) => $id !== $photoId,
+        ));
+    }
+
+    public function markClearSignature(): void
+    {
+        $this->clearSignature = true;
+        $this->signatureUpload = null;
     }
 
     #[Computed]
@@ -299,6 +362,30 @@ class Edit extends Component
             ->get(['id', 'name']);
     }
 
+    #[Computed]
+    public function existingPhotos()
+    {
+        if (! $this->editingId) {
+            return collect();
+        }
+
+        return JobCardPhoto::query()
+            ->where('job_card_id', $this->editingId)
+            ->orderBy('sequence_no')
+            ->get(['id', 'path', 'caption', 'original_name', 'sequence_no']);
+    }
+
+    public function existingSignaturePath(): ?string
+    {
+        if (! $this->editingId) {
+            return null;
+        }
+
+        $jc = JobCard::query()->whereKey($this->editingId)->first(['customer_signature_path']);
+
+        return $jc?->customer_signature_path;
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'job_card.update' : 'job_card.create');
@@ -311,7 +398,7 @@ class Edit extends Component
 
         $data = $this->validate();
         $complaints = $data['complaints'] ?? [];
-        unset($data['complaints']);
+        unset($data['complaints'], $data['newPhotos'], $data['newPhotoCaptions'], $data['signatureUpload']);
 
         $data['opened_at'] = Carbon::parse($data['opened_date'].' '.$data['opened_time'].':00');
         unset($data['opened_date'], $data['opened_time']);
@@ -346,9 +433,19 @@ class Edit extends Component
 
             $this->syncComplaints($row, $complaints);
             $this->syncInventoryItems($row);
+            $this->syncPhotos($row);
+            $this->syncSignature($row);
 
             return $row;
         });
+
+        // Reset transient upload state so a subsequent save on the same component
+        // (e.g. user stays on edit page in future) doesn't try to re-process them.
+        $this->newPhotos = [];
+        $this->newPhotoCaptions = [];
+        $this->removedPhotoIds = [];
+        $this->signatureUpload = null;
+        $this->clearSignature = false;
 
         Flux::toast(
             text: 'Job Card '.$jc->fresh()->job_card_no.($isCreate ? ' created.' : ' updated.'),
@@ -356,6 +453,57 @@ class Edit extends Component
         );
 
         return redirect()->route('job-card.index');
+    }
+
+    protected function syncPhotos(JobCard $jc): void
+    {
+        // 1. Hard-delete photos the user removed.
+        if ($this->removedPhotoIds) {
+            $toDelete = JobCardPhoto::query()
+                ->where('job_card_id', $jc->id)
+                ->whereIn('id', $this->removedPhotoIds)
+                ->get();
+
+            foreach ($toDelete as $photo) {
+                Storage::disk('public')->delete($photo->path);
+                $photo->delete();
+            }
+        }
+
+        // 2. Store newly-uploaded photos.
+        $startSeq = (int) ($jc->photos()->max('sequence_no') ?? 0);
+
+        foreach ($this->newPhotos as $i => $file) {
+            $startSeq++;
+            $path = $file->store("job-cards/{$jc->id}/photos", 'public');
+
+            $jc->photos()->create([
+                'path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'size_bytes' => $file->getSize(),
+                'caption' => filled($this->newPhotoCaptions[$i] ?? null)
+                    ? strtoupper(trim((string) $this->newPhotoCaptions[$i]))
+                    : null,
+                'sequence_no' => $startSeq,
+            ]);
+        }
+    }
+
+    protected function syncSignature(JobCard $jc): void
+    {
+        if ($this->clearSignature && $jc->customer_signature_path) {
+            Storage::disk('public')->delete($jc->customer_signature_path);
+            $jc->forceFill(['customer_signature_path' => null])->save();
+        }
+
+        if ($this->signatureUpload instanceof UploadedFile) {
+            if ($jc->customer_signature_path) {
+                Storage::disk('public')->delete($jc->customer_signature_path);
+            }
+            $path = $this->signatureUpload->store("job-cards/{$jc->id}/signature", 'public');
+            $jc->forceFill(['customer_signature_path' => $path])->save();
+        }
     }
 
     /**

@@ -217,6 +217,62 @@
 
         <flux:separator />
 
+        {{-- PHOTOS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Photos</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Pre-service photos of the vehicle — dents, scratches, panel condition, mileage display.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                @if ($this->existingPhotos->isNotEmpty())
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        @foreach ($this->existingPhotos as $photo)
+                            @php $removed = in_array($photo->id, $removedPhotoIds, true); @endphp
+                            <div wire:key="existing-photo-{{ $photo->id }}" class="relative rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-800 {{ $removed ? 'opacity-40' : '' }}">
+                                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($photo->path) }}" alt="{{ $photo->caption ?? $photo->original_name }}" class="aspect-square w-full object-cover" />
+                                <div class="px-2 py-1 text-xs truncate">{{ $photo->caption ?? $photo->original_name }}</div>
+                                <div class="absolute top-1 right-1">
+                                    @if ($removed)
+                                        <flux:button type="button" size="xs" variant="ghost" icon="arrow-uturn-left" wire:click="undoRemoveExistingPhoto({{ $photo->id }})" />
+                                    @else
+                                        <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeExistingPhoto({{ $photo->id }})" />
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                <flux:file-upload wire:model="newPhotos" multiple accept="image/*">
+                    <flux:file-upload.dropzone>
+                        <flux:icon.photo class="size-8 text-zinc-400" />
+                        <span class="text-sm font-medium">Drop photos here or click to choose</span>
+                        <flux:text size="xs" class="text-zinc-500">JPG / PNG · up to 8 MB each</flux:text>
+                    </flux:file-upload.dropzone>
+                </flux:file-upload>
+
+                @if (count($newPhotos) > 0)
+                    <div class="space-y-2">
+                        @foreach ($newPhotos as $i => $file)
+                            <div wire:key="new-photo-{{ $i }}" class="grid grid-cols-[64px_1fr_40px] gap-3 items-center p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
+                                <img src="{{ $file->temporaryUrl() }}" alt="" class="size-16 object-cover rounded" />
+                                <flux:input
+                                    wire:model="newPhotoCaptions.{{ $i }}"
+                                    size="sm"
+                                    placeholder="Caption (optional)"
+                                />
+                                <flux:button type="button" size="sm" variant="ghost" icon="x-mark" wire:click="removeNewPhoto({{ $i }})" />
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+                <flux:error name="newPhotos" />
+                <flux:error name="newPhotos.*" />
+            </div>
+        </section>
+
+        <flux:separator />
+
         {{-- ADVISOR NOTES --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
@@ -245,7 +301,7 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Terms & Acceptance</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Customer's acceptance of the workshop's standard T&Cs. Signature capture comes later.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Customer's acceptance of the workshop's standard T&Cs, plus their signature on the printed job card.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
                 <flux:switch
@@ -253,6 +309,33 @@
                     label="Customer accepted T&Cs"
                     description="Stamps the acceptance time on save."
                 />
+
+                @php $existingSig = $this->existingSignaturePath(); @endphp
+                @if ($existingSig && ! $clearSignature)
+                    <div class="space-y-2">
+                        <flux:text size="sm" class="text-zinc-500">Signature on file</flux:text>
+                        <div class="flex items-start gap-3">
+                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($existingSig) }}" alt="Customer signature" class="h-20 w-auto rounded border border-zinc-200 dark:border-zinc-800 bg-white p-1" />
+                            <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="markClearSignature">Remove</flux:button>
+                        </div>
+                    </div>
+                @endif
+
+                <flux:file-upload wire:model="signatureUpload" accept="image/*">
+                    <flux:file-upload.dropzone>
+                        <flux:icon.pencil-square class="size-6 text-zinc-400" />
+                        <span class="text-sm font-medium">{{ $existingSig && ! $clearSignature ? 'Replace signature' : 'Upload customer signature' }}</span>
+                        <flux:text size="xs" class="text-zinc-500">PNG / JPG · up to 2 MB</flux:text>
+                    </flux:file-upload.dropzone>
+                </flux:file-upload>
+
+                @if ($signatureUpload)
+                    <div class="flex items-center gap-3">
+                        <img src="{{ $signatureUpload->temporaryUrl() }}" alt="" class="h-16 w-auto rounded border border-zinc-200 dark:border-zinc-800 bg-white p-1" />
+                        <flux:text size="sm" class="text-zinc-500">Preview — will be saved when you submit.</flux:text>
+                    </div>
+                @endif
+                <flux:error name="signatureUpload" />
             </div>
         </section>
 
