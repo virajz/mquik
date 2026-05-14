@@ -10,6 +10,9 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Database\Factories\JobCardFactory;
+use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -46,6 +49,7 @@ class JobCard extends Model
         'opened_at' => 'datetime',
         'promised_at' => 'datetime',
         'closed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'terms_accepted_at' => 'datetime',
         'terms_accepted' => 'boolean',
     ];
@@ -64,6 +68,47 @@ class JobCard extends Model
                 $row->forceFill([
                     'job_card_no' => 'JC-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
+            }
+
+            JobCardHistoryRecorder::record(
+                $row->id,
+                JobCardHistoryEvent::TYPE_CREATED,
+                'Job Card created with status '.($row->status ?? self::STATUS_OPEN),
+                ['status' => $row->status, 'advisor_id' => $row->assigned_advisor_id],
+            );
+        });
+
+        static::updated(function (self $row) {
+            $changed = $row->getChanges();
+
+            if (isset($changed['status']) && $row->getOriginal('status') !== $row->status) {
+                $eventType = $row->status === self::STATUS_CANCELLED
+                    ? JobCardHistoryEvent::TYPE_CANCELLED
+                    : JobCardHistoryEvent::TYPE_STATUS_CHANGED;
+                JobCardHistoryRecorder::record(
+                    $row->id,
+                    $eventType,
+                    'Status: '.$row->getOriginal('status').' → '.$row->status,
+                    ['from' => $row->getOriginal('status'), 'to' => $row->status],
+                );
+            }
+
+            if (isset($changed['assigned_advisor_id']) && $row->getOriginal('assigned_advisor_id') !== $row->assigned_advisor_id) {
+                JobCardHistoryRecorder::record(
+                    $row->id,
+                    JobCardHistoryEvent::TYPE_ADVISOR_CHANGED,
+                    'Advisor reassigned',
+                    ['from' => $row->getOriginal('assigned_advisor_id'), 'to' => $row->assigned_advisor_id],
+                );
+            }
+
+            if (array_key_exists('assigned_technician_id', $changed) && $row->getOriginal('assigned_technician_id') !== $row->assigned_technician_id) {
+                JobCardHistoryRecorder::record(
+                    $row->id,
+                    JobCardHistoryEvent::TYPE_TECHNICIAN_CHANGED,
+                    'Technician reassigned',
+                    ['from' => $row->getOriginal('assigned_technician_id'), 'to' => $row->assigned_technician_id],
+                );
             }
         });
     }
@@ -116,6 +161,11 @@ class JobCard extends Model
     public function technician(): BelongsTo
     {
         return $this->belongsTo(EmployeeMaster::class, 'assigned_technician_id');
+    }
+
+    public function cancelReason(): BelongsTo
+    {
+        return $this->belongsTo(JobCardCancelReasonMaster::class, 'cancel_reason_id');
     }
 
     public function complaints(): HasMany

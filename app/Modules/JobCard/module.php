@@ -12,6 +12,7 @@ return [
         'job_card.create',
         'job_card.update',
         'job_card.delete',
+        'job_card.cancel',
     ],
     'searchable' => [
         'model' => JobCard::class,

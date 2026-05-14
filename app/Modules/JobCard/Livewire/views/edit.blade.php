@@ -14,11 +14,14 @@
                 @endif
             </div>
             @if ($editingId)
-                <flux:badge :color="match ($status) {
-                    'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',
-                    'awaiting_approval' => 'purple', 'completed' => 'lime', 'closed' => 'zinc',
-                    'cancelled' => 'red', default => 'zinc',
-                }" size="lg">{{ \App\Modules\JobCard\Models\JobCard::statuses()[$status] }}</flux:badge>
+                <div class="flex items-center gap-2">
+                    <flux:button :href="route('job-history.show', $editingId)" wire:navigate size="sm" variant="ghost" icon="clock">History</flux:button>
+                    <flux:badge :color="match ($status) {
+                        'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',
+                        'awaiting_approval' => 'purple', 'completed' => 'lime', 'closed' => 'zinc',
+                        'cancelled' => 'red', default => 'zinc',
+                    }" size="lg">{{ \App\Modules\JobCard\Models\JobCard::statuses()[$status] }}</flux:badge>
+                </div>
             @endif
         </div>
 

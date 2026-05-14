@@ -8,17 +8,22 @@ use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Digital Inspection')]
 class Edit extends Component
 {
+    use WithFileUploads;
+
     public ?int $editingId = null;
 
     public ?string $inspection_no = null;
@@ -35,8 +40,14 @@ class Edit extends Component
 
     public ?string $summary_notes = null;
 
-    /** @var list<array{id: ?int, inspection_item_id: int, inspection_item_group_id: ?int, name: string, group_name: ?string, check_type: string, outcome: string, notes: ?string, sequence_no: int}> */
+    /** @var list<array{id: ?int, inspection_item_id: int, inspection_item_group_id: ?int, name: string, group_name: ?string, check_type: string, outcome: string, notes: ?string, sequence_no: int, image_path: ?string}> */
     public array $items = [];
+
+    /** @var array<int, TemporaryUploadedFile>  keyed by inspection_item_id — new image uploads not yet persisted */
+    public array $itemImages = [];
+
+    /** @var array<int, bool>  keyed by inspection_item_id — true means "remove the saved image for this item on save" */
+    public array $itemImageClears = [];
 
     /** ?int — passed via ?from-job-card=ID query string for the JobCard → DI handoff. */
     #[Url(as: 'from-job-card')]
@@ -78,6 +89,7 @@ class Edit extends Component
             'outcome' => $i->outcome,
             'notes' => $i->notes,
             'sequence_no' => (int) $i->sequence_no,
+            'image_path' => $i->image_path,
         ])->all();
     }
 
@@ -114,6 +126,7 @@ class Edit extends Component
                 'outcome' => 'pending',
                 'notes' => null,
                 'sequence_no' => $seq++,
+                'image_path' => null,
             ];
         }
     }
@@ -131,7 +144,27 @@ class Edit extends Component
             'items.*.inspection_item_id' => ['required', 'integer', 'exists:inspection_items,id'],
             'items.*.outcome' => ['required', 'string', Rule::in(array_keys(DigitalInspection::outcomes()))],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
+
+            'itemImages' => ['array'],
+            'itemImages.*' => ['image', 'max:8192'],  // 8 MB per item image
         ];
+    }
+
+    public function removeItemImage(int $inspectionItemId): void
+    {
+        // If they had staged a new upload, just discard it.
+        unset($this->itemImages[$inspectionItemId]);
+
+        // Mark the saved image for deletion on the next save.
+        $this->itemImageClears[$inspectionItemId] = true;
+
+        // Reflect in the local item row so the UI hides the thumbnail immediately.
+        foreach ($this->items as $i => $row) {
+            if ((int) $row['inspection_item_id'] === $inspectionItemId) {
+                $this->items[$i]['image_path'] = null;
+                break;
+            }
+        }
     }
 
     #[Computed]
@@ -163,7 +196,7 @@ class Edit extends Component
 
         $data = $this->validate();
         $items = $data['items'] ?? [];
-        unset($data['items']);
+        unset($data['items'], $data['itemImages']);
 
         // Status transitions: stamp started_at on first move to wip, completed_at on completion.
         if ($data['status'] === DigitalInspection::STATUS_WIP && $this->editingId) {
@@ -197,6 +230,11 @@ class Edit extends Component
             return $row;
         });
 
+        // Reset transient upload state so a subsequent save on the same component
+        // doesn't try to re-process them.
+        $this->itemImages = [];
+        $this->itemImageClears = [];
+
         Flux::toast(
             text: 'Inspection '.$di->fresh()->inspection_no.($isCreate ? ' created.' : ' updated.'),
             variant: 'success',
@@ -215,12 +253,41 @@ class Edit extends Component
         foreach ($rows as $i => $row) {
             // Pull the rest of the state straight from $this->items so we have group_id + sequence.
             $local = $this->items[$i] ?? null;
+            $itemId = (int) $row['inspection_item_id'];
+
+            $imagePath = $local['image_path'] ?? null;
+            $existingPath = null;
+
+            // Resolve the existing image_path from DB (it may differ from local if the user has
+            // edited the row without reloading).
+            if (! empty($local['id'])) {
+                $existingPath = $di->items()->whereKey($local['id'])->value('image_path');
+            }
+
+            // 1. User-requested clear: delete the old file + null the path.
+            if (! empty($this->itemImageClears[$itemId])) {
+                if ($existingPath) {
+                    Storage::disk('public')->delete($existingPath);
+                }
+                $imagePath = null;
+            }
+
+            // 2. New upload: replace any existing file.
+            if (isset($this->itemImages[$itemId]) && $this->itemImages[$itemId] instanceof TemporaryUploadedFile) {
+                if ($existingPath) {
+                    Storage::disk('public')->delete($existingPath);
+                }
+                $imagePath = $this->itemImages[$itemId]
+                    ->store("digital-inspections/{$di->id}/items", 'public');
+            }
+
             $payload = [
-                'inspection_item_id' => (int) $row['inspection_item_id'],
+                'inspection_item_id' => $itemId,
                 'inspection_item_group_id' => $local['inspection_item_group_id'] ?? null,
                 'outcome' => $row['outcome'],
                 'notes' => isset($row['notes']) && is_string($row['notes']) ? strtoupper($row['notes']) : null,
                 'sequence_no' => (int) ($local['sequence_no'] ?? $i + 1),
+                'image_path' => $imagePath,
             ];
 
             if (! empty($local['id'])) {
@@ -228,6 +295,7 @@ class Edit extends Component
                 if ($existing) {
                     $existing->update($payload);
                     $keptIds[] = $existing->id;
+                    $this->items[$i]['image_path'] = $imagePath;
 
                     continue;
                 }
@@ -235,6 +303,8 @@ class Edit extends Component
 
             $created = $di->items()->create($payload);
             $keptIds[] = $created->id;
+            $this->items[$i]['id'] = $created->id;
+            $this->items[$i]['image_path'] = $imagePath;
         }
 
         $di->items()->whereNotIn('id', $keptIds)->delete();

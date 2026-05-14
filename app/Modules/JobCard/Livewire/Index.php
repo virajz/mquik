@@ -4,8 +4,11 @@ namespace App\Modules\JobCard\Livewire;
 
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -47,6 +50,12 @@ class Index extends Component
     public string $sortDirection = 'desc';
 
     protected array $sortable = ['id', 'job_card_no', 'opened_at', 'promised_at', 'status', 'created_at'];
+
+    public ?int $cancellingId = null;
+
+    public ?int $cancel_reason_id = null;
+
+    public ?string $cancellation_notes = null;
 
     public function updatingSearch(): void
     {
@@ -94,6 +103,64 @@ class Index extends Component
         JobCard::findOrFail($id)->delete();
 
         Flux::toast(text: 'Job Card #'.$id.' deleted.', variant: 'success');
+    }
+
+    public function openCancelModal(int $id): void
+    {
+        $this->authorize('job_card.cancel');
+
+        $this->cancellingId = $id;
+        $this->cancel_reason_id = null;
+        $this->cancellation_notes = null;
+        $this->resetErrorBag();
+
+        Flux::modal('job-card-cancel')->show();
+    }
+
+    public function confirmCancel(): void
+    {
+        $this->authorize('job_card.cancel');
+
+        $data = $this->validate([
+            'cancellingId' => ['required', 'integer', 'exists:job_cards,id'],
+            'cancel_reason_id' => ['required', 'integer', Rule::exists('job_card_cancel_reasons', 'id')->where('is_active', true)],
+            'cancellation_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $jc = JobCard::findOrFail($data['cancellingId']);
+
+        if (in_array($jc->status, [JobCard::STATUS_CANCELLED, JobCard::STATUS_CLOSED, JobCard::STATUS_COMPLETED], true)) {
+            Flux::toast(text: 'Cannot cancel a '.$jc->status.' job card.', variant: 'warning');
+            Flux::modal('job-card-cancel')->close();
+
+            return;
+        }
+
+        DB::transaction(function () use ($jc, $data) {
+            $jc->update([
+                'status' => JobCard::STATUS_CANCELLED,
+                'cancel_reason_id' => $data['cancel_reason_id'],
+                'cancelled_at' => now(),
+                'cancellation_notes' => filled($data['cancellation_notes'] ?? null) ? strtoupper($data['cancellation_notes']) : null,
+            ]);
+        });
+
+        Flux::toast(text: 'Job Card '.$jc->job_card_no.' cancelled.', variant: 'success');
+
+        $this->cancellingId = null;
+        $this->cancel_reason_id = null;
+        $this->cancellation_notes = null;
+
+        Flux::modal('job-card-cancel')->close();
+    }
+
+    #[Computed]
+    public function cancelReasons()
+    {
+        return JobCardCancelReasonMaster::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
     }
 
     public function clearFilters(): void

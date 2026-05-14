@@ -95,17 +95,40 @@
                             <div class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mt-2 pt-2">{{ $groupName ?? 'General' }}</div>
                             @foreach ($groupItems as $item)
                                 @php($i = collect($items)->search(fn ($x) => $x['inspection_item_id'] === $item['inspection_item_id']))
-                                <div wire:key="item-row-{{ $item['inspection_item_id'] }}" class="grid grid-cols-1 md:grid-cols-[1fr_180px_2fr] gap-2 items-center p-3 rounded-md border border-zinc-200 dark:border-zinc-800">
-                                    <div class="text-sm">
-                                        <div class="font-medium">{{ $item['name'] }}</div>
-                                        <div class="text-xs text-zinc-500 mt-0.5">{{ ucfirst($item['check_type']) }}</div>
+                                @php($itemId = (int) $item['inspection_item_id'])
+                                <div wire:key="item-row-{{ $itemId }}" class="space-y-2 p-3 rounded-md border border-zinc-200 dark:border-zinc-800">
+                                    <div class="grid grid-cols-1 md:grid-cols-[1fr_180px_2fr] gap-2 items-center">
+                                        <div class="text-sm">
+                                            <div class="font-medium">{{ $item['name'] }}</div>
+                                            <div class="text-xs text-zinc-500 mt-0.5">{{ ucfirst($item['check_type']) }}</div>
+                                        </div>
+                                        <flux:select wire:model="items.{{ $i }}.outcome" variant="listbox" size="sm">
+                                            @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::outcomes() as $key => $label)
+                                                <flux:select.option :value="$key" wire:key="oc-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                        <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes (e.g. measurement, observation)" />
                                     </div>
-                                    <flux:select wire:model="items.{{ $i }}.outcome" variant="listbox" size="sm">
-                                        @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::outcomes() as $key => $label)
-                                            <flux:select.option :value="$key" wire:key="oc-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
-                                        @endforeach
-                                    </flux:select>
-                                    <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes (e.g. measurement, observation)" />
+
+                                    {{-- Image evidence row --}}
+                                    <div class="flex items-center gap-3 pt-1">
+                                        @if (! empty($item['image_path']))
+                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['image_path']) }}" alt="Evidence" class="size-14 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
+                                            <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeItemImage({{ $itemId }})">Remove photo</flux:button>
+                                        @elseif (! empty($itemImages[$itemId]))
+                                            <img src="{{ $itemImages[$itemId]->temporaryUrl() }}" alt="" class="size-14 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
+                                            <flux:text size="xs" class="text-zinc-500">Saved when you submit.</flux:text>
+                                        @endif
+
+                                        <flux:input
+                                            type="file"
+                                            wire:model="itemImages.{{ $itemId }}"
+                                            accept="image/*"
+                                            size="sm"
+                                            class:input="text-xs"
+                                        />
+                                    </div>
+                                    <flux:error name="itemImages.{{ $itemId }}" />
                                 </div>
                             @endforeach
                         </div>

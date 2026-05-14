@@ -12,6 +12,8 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardComplaint;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
+use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
@@ -472,4 +474,81 @@ it('cascades photo rows when a job card is deleted', function () {
     Livewire::test(Index::class)->call('delete', $jc->id);
 
     expect(JobCardPhoto::where('job_card_id', $jc->id)->count())->toBe(0);
+});
+
+it('cancels a job card with a reason via the Index modal flow', function () {
+    $jc = JobCard::factory()->create();
+    $reason = JobCardCancelReasonMaster::factory()->create();
+
+    Livewire::test(Index::class)
+        ->call('openCancelModal', $jc->id)
+        ->assertSet('cancellingId', $jc->id)
+        ->set('cancel_reason_id', $reason->id)
+        ->set('cancellation_notes', 'customer rescheduled to next month')
+        ->call('confirmCancel')
+        ->assertHasNoErrors();
+
+    $fresh = $jc->fresh();
+    expect($fresh->status)->toBe(JobCard::STATUS_CANCELLED)
+        ->and($fresh->cancel_reason_id)->toBe($reason->id)
+        ->and($fresh->cancelled_at)->not->toBeNull()
+        ->and($fresh->cancellation_notes)->toBe('CUSTOMER RESCHEDULED TO NEXT MONTH');
+});
+
+it('records a cancelled history event when cancelled via the modal', function () {
+    $jc = JobCard::factory()->create();
+    $reason = JobCardCancelReasonMaster::factory()->create();
+
+    Livewire::test(Index::class)
+        ->call('openCancelModal', $jc->id)
+        ->set('cancel_reason_id', $reason->id)
+        ->call('confirmCancel');
+
+    expect(JobCardHistoryEvent::where('job_card_id', $jc->id)
+        ->where('event_type', JobCardHistoryEvent::TYPE_CANCELLED)
+        ->exists())->toBeTrue();
+});
+
+it('requires a cancellation reason', function () {
+    $jc = JobCard::factory()->create();
+
+    Livewire::test(Index::class)
+        ->call('openCancelModal', $jc->id)
+        ->set('cancellation_notes', 'just because')
+        ->call('confirmCancel')
+        ->assertHasErrors(['cancel_reason_id']);
+
+    expect($jc->fresh()->status)->toBe(JobCard::STATUS_OPEN);
+});
+
+it('refuses to cancel a job card that is already cancelled / closed / completed', function () {
+    $closed = JobCard::factory()->create(['status' => JobCard::STATUS_CLOSED]);
+    $completed = JobCard::factory()->completed()->create();
+    $cancelled = JobCard::factory()->create(['status' => JobCard::STATUS_CANCELLED]);
+    $reason = JobCardCancelReasonMaster::factory()->create();
+
+    foreach ([$closed, $completed, $cancelled] as $jc) {
+        $beforeStatus = $jc->fresh()->status;
+        Livewire::test(Index::class)
+            ->call('openCancelModal', $jc->id)
+            ->set('cancel_reason_id', $reason->id)
+            ->call('confirmCancel')
+            ->assertHasNoErrors();
+        expect($jc->fresh()->status)->toBe($beforeStatus);
+    }
+});
+
+it('blocks cancel for a user without job_card.cancel permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('job_card.view');
+    $this->actingAs($user);
+
+    $jc = JobCard::factory()->create();
+    $reason = JobCardCancelReasonMaster::factory()->create();
+
+    Livewire::test(Index::class)
+        ->call('openCancelModal', $jc->id)
+        ->assertStatus(403);
+
+    expect($jc->fresh()->status)->toBe(JobCard::STATUS_OPEN);
 });

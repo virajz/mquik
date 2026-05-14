@@ -108,6 +108,11 @@
                             @can('job_card.update')
                                 <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('job-card.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
+                            @can('job_card.cancel')
+                                @if (! in_array($row->status, ['cancelled', 'closed', 'completed'], true))
+                                    <flux:button size="sm" variant="ghost" icon="x-circle" wire:click="openCancelModal({{ $row->id }})">Cancel</flux:button>
+                                @endif
+                            @endcan
                             @can('job_card.delete')
                                 <flux:modal.trigger :name="'job-card-delete-' . $row->id">
                                     <flux:button size="sm" variant="ghost" icon="trash" />
@@ -139,4 +144,41 @@
     </flux:table>
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
+
+    {{-- Shared Cancel Job Card modal — driven by openCancelModal($id) → confirmCancel() --}}
+    <flux:modal name="job-card-cancel" class="md:w-lg">
+        <form wire:submit="confirmCancel" class="space-y-5">
+            <div>
+                <flux:heading size="lg">Cancel Job Card</flux:heading>
+                <flux:subheading>Capture the reason and any context so the audit trail is clean.</flux:subheading>
+            </div>
+
+            <flux:separator variant="subtle" />
+
+            <div class="space-y-4">
+                <flux:select wire:model="cancel_reason_id" variant="listbox" searchable label="Reason" placeholder="Pick a cancellation reason…" required>
+                    @foreach ($this->cancelReasons as $r)
+                        <flux:select.option :value="$r->id" wire:key="cr-{{ $r->id }}">
+                            {{ $r->name }}
+                            @if ($r->code) <span class="text-xs text-zinc-500 font-mono ml-1">({{ $r->code }})</span> @endif
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:textarea
+                    wire:model="cancellation_notes"
+                    label="Notes"
+                    placeholder="Customer requested rescheduling for next week (optional)."
+                    rows="3"
+                />
+            </div>
+
+            <flux:separator variant="subtle" />
+
+            <div class="flex items-center justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">Back</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="danger" icon="check">Confirm Cancel</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </div>

@@ -8,6 +8,8 @@ use App\Modules\DigitalInspection\Models\DigitalInspectionItem;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -159,4 +161,97 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('digital-inspection.index'))->assertRedirect(route('login'));
+});
+
+it('saves a per-item evidence image and stamps image_path on the row', function () {
+    Storage::fake('public');
+
+    $template = InspectionTemplateMaster::factory()->create();
+    $item = InspectionItemMaster::factory()->create(['name' => 'BRAKES']);
+    $template->items()->attach([$item->id]);
+    $jobCard = JobCard::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jobCard->id)
+        ->set('inspection_template_id', $template->id)  // seeds $items
+        ->set("itemImages.{$item->id}", UploadedFile::fake()->image('brakes-worn.jpg', 800, 600))
+        ->set('items.0.outcome', 'rep')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $persistedItem = DigitalInspectionItem::query()->first();
+    expect($persistedItem->image_path)->not->toBeNull();
+    expect($persistedItem->image_path)->toStartWith('digital-inspections/');
+    Storage::disk('public')->assertExists($persistedItem->image_path);
+});
+
+it('removes a saved item image and deletes the file when removeItemImage + save', function () {
+    Storage::fake('public');
+
+    $template = InspectionTemplateMaster::factory()->create();
+    $item = InspectionItemMaster::factory()->create();
+    $template->items()->attach([$item->id]);
+
+    $di = DigitalInspection::factory()->create(['inspection_template_id' => $template->id]);
+    $stored = UploadedFile::fake()->image('old.jpg')->store("digital-inspections/{$di->id}/items", 'public');
+    $diItem = $di->items()->create([
+        'inspection_item_id' => $item->id,
+        'outcome' => 'ok',
+        'sequence_no' => 1,
+        'image_path' => $stored,
+    ]);
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->call('removeItemImage', $item->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($diItem->fresh()->image_path)->toBeNull();
+    Storage::disk('public')->assertMissing($stored);
+});
+
+it('replaces a saved item image and deletes the old file', function () {
+    Storage::fake('public');
+
+    $template = InspectionTemplateMaster::factory()->create();
+    $item = InspectionItemMaster::factory()->create();
+    $template->items()->attach([$item->id]);
+
+    $di = DigitalInspection::factory()->create(['inspection_template_id' => $template->id]);
+    $oldPath = UploadedFile::fake()->image('old.jpg')->store("digital-inspections/{$di->id}/items", 'public');
+    $diItem = $di->items()->create([
+        'inspection_item_id' => $item->id,
+        'outcome' => 'ok',
+        'sequence_no' => 1,
+        'image_path' => $oldPath,
+    ]);
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set("itemImages.{$item->id}", UploadedFile::fake()->image('new.jpg'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $newPath = $diItem->fresh()->image_path;
+    expect($newPath)->not->toBe($oldPath)
+        ->and($newPath)->not->toBeNull();
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists($newPath);
+});
+
+it('rejects an oversized item image', function () {
+    Storage::fake('public');
+
+    $template = InspectionTemplateMaster::factory()->create();
+    $item = InspectionItemMaster::factory()->create();
+    $template->items()->attach([$item->id]);
+    $jobCard = JobCard::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jobCard->id)
+        ->set('inspection_template_id', $template->id)
+        ->set("itemImages.{$item->id}", UploadedFile::fake()->image('huge.jpg')->size(9000))  // 9 MB > 8 MB cap
+        ->call('save')
+        ->assertHasErrors(['itemImages.'.$item->id]);
+
+    expect(DigitalInspection::count())->toBe(0);
 });

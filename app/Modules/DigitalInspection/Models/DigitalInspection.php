@@ -8,6 +8,8 @@ use App\Modules\DigitalInspection\Database\Factories\DigitalInspectionFactory;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,6 +52,42 @@ class DigitalInspection extends Model
                 $row->forceFill([
                     'inspection_no' => 'DI-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
+            }
+
+            if ($row->status === self::STATUS_WIP) {
+                JobCardHistoryRecorder::record(
+                    (int) $row->job_card_id,
+                    JobCardHistoryEvent::TYPE_INSPECTION_STARTED,
+                    'Inspection '.($row->inspection_no ?? 'DI-'.$row->id).' started',
+                    ['inspection_id' => $row->id],
+                );
+            }
+        });
+
+        static::updated(function (self $row) {
+            $changed = $row->getChanges();
+            if (! isset($changed['status'])) {
+                return;
+            }
+            $original = $row->getOriginal('status');
+            if ($original === $row->status) {
+                return;
+            }
+
+            if ($row->status === self::STATUS_WIP) {
+                JobCardHistoryRecorder::record(
+                    (int) $row->job_card_id,
+                    JobCardHistoryEvent::TYPE_INSPECTION_STARTED,
+                    'Inspection '.$row->inspection_no.' started',
+                    ['inspection_id' => $row->id],
+                );
+            } elseif ($row->status === self::STATUS_COMPLETED) {
+                JobCardHistoryRecorder::record(
+                    (int) $row->job_card_id,
+                    JobCardHistoryEvent::TYPE_INSPECTION_COMPLETED,
+                    'Inspection '.$row->inspection_no.' completed',
+                    ['inspection_id' => $row->id],
+                );
             }
         });
     }
