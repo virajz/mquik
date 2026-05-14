@@ -32,12 +32,21 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">When the appointment is for, how it came in, and its current state.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:input
-                        wire:model="appointment_at"
-                        type="datetime-local"
-                        label="Appointment Date & Time"
-                        required
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:date-picker
+                        wire:model="appointment_date"
+                        label="Date"
+                        placeholder="Select date"
+                        with-today
+                        selectable-header
+                        fixed-weeks
+                        type="input"
+                    />
+                    <flux:time-picker
+                        wire:model="appointment_time"
+                        label="Time"
+                        placeholder="Select time"
+                        type="input"
                     />
                     <flux:select wire:model="channel" variant="listbox" label="Channel" required>
                         @foreach (\App\Modules\Appointment\Models\Appointment::channels() as $key => $label)
@@ -165,9 +174,20 @@
                 />
 
                 @if ($requires_pickup)
+                    @if ($this->customerAddresses->isNotEmpty())
+                        <flux:select wire:model.live="pickup_address_choice" variant="listbox" label="Saved address">
+                            @foreach ($this->customerAddresses as $addr)
+                                <flux:select.option :value="(string) $addr['id']" wire:key="addr-{{ $addr['id'] }}">
+                                    {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
+                                </flux:select.option>
+                            @endforeach
+                            <flux:select.option value="custom">Other / type a new address…</flux:select.option>
+                        </flux:select>
+                    @endif
+
                     <flux:textarea
                         wire:model="pickup_address"
-                        label="Pickup Address"
+                        label="{{ $this->customerAddresses->isNotEmpty() && $pickup_address_choice !== 'custom' ? 'Pickup Address (preview — edit if needed)' : 'Pickup Address' }}"
                         placeholder="House / street / area / pincode"
                         rows="2"
                         required

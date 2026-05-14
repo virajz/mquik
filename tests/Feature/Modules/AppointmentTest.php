@@ -136,6 +136,52 @@ it('requires pickup address when requires_pickup is on', function () {
         ->assertHasErrors(['pickup_address']);
 });
 
+it('combines appointment_date + appointment_time into a single datetime on save', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('appointment_date', '2026-08-15')
+        ->set('appointment_time', '14:30')
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Appointment::first()->appointment_at->format('Y-m-d H:i'))->toBe('2026-08-15 14:30');
+});
+
+it('selecting a saved customer address fills the pickup_address textarea', function () {
+    $customer = CustomerMaster::factory()->create();
+    $address = $customer->addresses()->create([
+        'label' => 'Home',
+        'address_line' => '12 Maple Street',
+        'is_primary' => true,
+    ]);
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('requires_pickup', true)
+        ->assertSet('pickup_address_choice', (string) $address->id)
+        ->assertSet('pickup_address', '12 Maple Street');
+});
+
+it('switching to custom address choice keeps whatever text is in the textarea', function () {
+    $customer = CustomerMaster::factory()->create();
+    $customer->addresses()->create(['label' => 'Home', 'address_line' => '12 Maple Street', 'is_primary' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('requires_pickup', true)
+        ->set('pickup_address', 'TYPED OVER ADDRESS')
+        ->set('pickup_address_choice', 'custom')
+        ->assertSet('pickup_address', 'TYPED OVER ADDRESS');
+});
+
 it('clears pickup fields when requires_pickup is toggled off', function () {
     Livewire::test(Edit::class)
         ->set('requires_pickup', true)

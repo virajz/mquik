@@ -4,12 +4,15 @@ namespace App\Modules\Appointment\Livewire;
 
 use App\Concerns\CanQuickAddCustomer;
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -27,7 +30,11 @@ class Edit extends Component
     /** Display-only — generated server-side after first save. */
     public ?string $appointment_no = null;
 
-    public string $appointment_at = '';
+    /** Date portion (Y-m-d) — combined with appointment_time on save. */
+    public string $appointment_date = '';
+
+    /** Time portion (H:i) — combined with appointment_date on save. */
+    public string $appointment_time = '';
 
     public string $channel = Appointment::CHANNEL_PHONE_CALL;
 
@@ -44,6 +51,9 @@ class Edit extends Component
     public ?int $assigned_technician_id = null;
 
     public bool $requires_pickup = false;
+
+    /** Sentinel: customer_address id, or 'custom' to type a fresh one. */
+    public string $pickup_address_choice = 'custom';
 
     public ?string $pickup_address = null;
 
@@ -62,14 +72,17 @@ class Edit extends Component
         }
 
         // New appointment defaults: tomorrow at 10:00.
-        $this->appointment_at = now()->addDay()->setTime(10, 0)->format('Y-m-d\TH:i');
+        $tomorrow = now()->addDay()->setTime(10, 0);
+        $this->appointment_date = $tomorrow->format('Y-m-d');
+        $this->appointment_time = $tomorrow->format('H:i');
     }
 
     protected function load(Appointment $a): void
     {
         $this->editingId = $a->id;
         $this->appointment_no = $a->appointment_no;
-        $this->appointment_at = $a->appointment_at?->format('Y-m-d\TH:i') ?? '';
+        $this->appointment_date = $a->appointment_at?->format('Y-m-d') ?? '';
+        $this->appointment_time = $a->appointment_at?->format('H:i') ?? '';
         $this->channel = $a->channel;
         $this->customer_id = $a->customer_id;
         $this->customer_vehicle_id = $a->customer_vehicle_id;
@@ -82,12 +95,15 @@ class Edit extends Component
         $this->pickup_contact_phone = $a->pickup_contact_phone;
         $this->status = $a->status;
         $this->notes = $a->notes;
+        // After load, default the picker to "custom" — saved address pick is opt-in per session.
+        $this->pickup_address_choice = 'custom';
     }
 
     protected function rules(): array
     {
         return [
-            'appointment_at' => ['required', 'date'],
+            'appointment_date' => ['required', 'date_format:Y-m-d'],
+            'appointment_time' => ['required', 'date_format:H:i'],
             'channel' => ['required', Rule::in(array_keys(Appointment::channels()))],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_vehicle_id' => [
@@ -110,6 +126,8 @@ class Edit extends Component
     {
         // Customer changed → the existing vehicle pick almost certainly belongs to the old customer.
         $this->customer_vehicle_id = null;
+        // Same for any saved-address pick that belonged to the old customer.
+        $this->pickup_address_choice = 'custom';
     }
 
     public function updatedRequiresPickup(bool $value): void
@@ -117,6 +135,7 @@ class Edit extends Component
         if (! $value) {
             $this->pickup_address = null;
             $this->pickup_contact_phone = null;
+            $this->pickup_address_choice = 'custom';
 
             return;
         }
@@ -124,6 +143,26 @@ class Edit extends Component
         // Pre-fill the contact from the customer's phone if they're picked.
         if ($this->customer_id && $this->pickup_contact_phone === null) {
             $this->pickup_contact_phone = CustomerMaster::find($this->customer_id)?->phone;
+        }
+
+        // If the customer has saved addresses, default to the primary one.
+        $primary = $this->customerAddresses->firstWhere('is_primary', true) ?? $this->customerAddresses->first();
+        if ($primary) {
+            $this->pickup_address_choice = (string) $primary['id'];
+            $this->pickup_address = $primary['full'];
+        }
+    }
+
+    public function updatedPickupAddressChoice(string $value): void
+    {
+        if ($value === 'custom') {
+            // Don't wipe what the user already typed — they may still want to edit.
+            return;
+        }
+
+        $picked = $this->customerAddresses->firstWhere('id', (int) $value);
+        if ($picked) {
+            $this->pickup_address = $picked['full'];
         }
     }
 
@@ -180,11 +219,42 @@ class Edit extends Component
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    /**
+     * Saved addresses for the picked customer — used by the pickup address picker.
+     * Returns an empty collection if no customer is selected.
+     *
+     * @return Collection<int, array{id:int, label:?string, full:string, is_primary:bool}>
+     */
+    #[Computed]
+    public function customerAddresses()
+    {
+        if (! $this->customer_id) {
+            return collect();
+        }
+
+        return CustomerAddress::query()
+            ->with('region.parent.parent.parent')
+            ->where('customer_id', $this->customer_id)
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->get()
+            ->map(fn ($addr) => [
+                'id' => $addr->id,
+                'label' => $addr->label,
+                'is_primary' => (bool) $addr->is_primary,
+                'full' => trim(($addr->address_line ?? '').($addr->regionChain() ? ', '.$addr->regionChain() : '')),
+            ]);
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'appointment.update' : 'appointment.create');
 
         $data = $this->validate();
+
+        // Combine the two pickers into the single datetime column the schema persists.
+        $data['appointment_at'] = Carbon::parse($data['appointment_date'].' '.$data['appointment_time'].':00');
+        unset($data['appointment_date'], $data['appointment_time']);
 
         foreach (['pickup_address', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {

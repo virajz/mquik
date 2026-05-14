@@ -1,0 +1,425 @@
+<?php
+
+namespace App\Modules\JobCard\Livewire;
+
+use App\Modules\Appointment\Models\Appointment;
+use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
+use App\Modules\CustomerMaster\Models\CustomerMaster;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
+use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use Flux\Flux;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
+use Livewire\Component;
+
+#[Layout('layouts.app')]
+#[Title('Job Card')]
+class Edit extends Component
+{
+    public ?int $editingId = null;
+
+    public ?string $job_card_no = null;
+
+    public ?int $appointment_id = null;
+
+    public ?int $customer_id = null;
+
+    public ?int $customer_vehicle_id = null;
+
+    public ?int $workshop_department_id = null;
+
+    public ?int $service_type_id = null;
+
+    public ?int $service_package_id = null;
+
+    public ?int $assigned_advisor_id = null;
+
+    public ?int $assigned_technician_id = null;
+
+    public string $opened_date = '';
+
+    public string $opened_time = '';
+
+    public string $promised_date = '';
+
+    public string $promised_time = '';
+
+    public ?int $km_at_service = null;
+
+    public ?string $fuel_level = null;
+
+    public ?string $suggested_services = null;
+
+    public bool $terms_accepted = false;
+
+    public string $status = JobCard::STATUS_OPEN;
+
+    public ?string $notes = null;
+
+    /** @var list<array{id: ?int, complaint_type_id: ?int, description: string, severity: string, sequence_no: int}> */
+    public array $complaints = [];
+
+    /** @var array<int, array{is_present: bool, condition_notes: ?string}>  keyed by vehicle_inventory_item_id */
+    public array $inventoryItems = [];
+
+    #[Url(as: 'from-appointment')]
+    public ?int $fromAppointment = null;
+
+    public function mount(?JobCard $jobCard = null): void
+    {
+        if ($jobCard && $jobCard->exists) {
+            $this->load($jobCard);
+
+            return;
+        }
+
+        $now = now();
+        $this->opened_date = $now->format('Y-m-d');
+        $this->opened_time = $now->format('H:i');
+        $tomorrow = $now->copy()->addDay();
+        $this->promised_date = $tomorrow->format('Y-m-d');
+        $this->promised_time = $tomorrow->format('H:i');
+
+        if ($this->fromAppointment) {
+            $this->prefillFromAppointment($this->fromAppointment);
+        }
+
+        $this->seedInventoryChecklist();
+    }
+
+    protected function load(JobCard $jc): void
+    {
+        $jc->load(['complaints', 'inventoryItems']);
+
+        $this->editingId = $jc->id;
+        $this->job_card_no = $jc->job_card_no;
+        $this->appointment_id = $jc->appointment_id;
+        $this->customer_id = $jc->customer_id;
+        $this->customer_vehicle_id = $jc->customer_vehicle_id;
+        $this->workshop_department_id = $jc->workshop_department_id;
+        $this->service_type_id = $jc->service_type_id;
+        $this->service_package_id = $jc->service_package_id;
+        $this->assigned_advisor_id = $jc->assigned_advisor_id;
+        $this->assigned_technician_id = $jc->assigned_technician_id;
+        $this->opened_date = $jc->opened_at?->format('Y-m-d') ?? '';
+        $this->opened_time = $jc->opened_at?->format('H:i') ?? '';
+        $this->promised_date = $jc->promised_at?->format('Y-m-d') ?? '';
+        $this->promised_time = $jc->promised_at?->format('H:i') ?? '';
+        $this->km_at_service = $jc->km_at_service;
+        $this->fuel_level = $jc->fuel_level;
+        $this->suggested_services = $jc->suggested_services;
+        $this->terms_accepted = (bool) $jc->terms_accepted;
+        $this->status = $jc->status;
+        $this->notes = $jc->notes;
+
+        $this->complaints = $jc->complaints
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'complaint_type_id' => $c->complaint_type_id,
+                'description' => $c->description,
+                'severity' => $c->severity,
+                'sequence_no' => (int) $c->sequence_no,
+            ])->all();
+
+        $this->seedInventoryChecklist();
+        // Overlay saved values onto the seeded checklist.
+        foreach ($jc->inventoryItems as $item) {
+            $this->inventoryItems[$item->vehicle_inventory_item_id] = [
+                'is_present' => (bool) $item->is_present,
+                'condition_notes' => $item->condition_notes,
+            ];
+        }
+    }
+
+    /**
+     * Seed the inventory checklist from active VehicleInventoryItemMaster rows so
+     * the form shows every item from day one. Pre-checking each is_present=false.
+     */
+    protected function seedInventoryChecklist(): void
+    {
+        $items = VehicleInventoryItemMaster::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id']);
+
+        foreach ($items as $item) {
+            if (! isset($this->inventoryItems[$item->id])) {
+                $this->inventoryItems[$item->id] = [
+                    'is_present' => false,
+                    'condition_notes' => null,
+                ];
+            }
+        }
+    }
+
+    protected function prefillFromAppointment(int $appointmentId): void
+    {
+        $appointment = Appointment::find($appointmentId);
+        if (! $appointment) {
+            return;
+        }
+
+        $this->appointment_id = $appointment->id;
+        $this->customer_id = $appointment->customer_id;
+        $this->customer_vehicle_id = $appointment->customer_vehicle_id;
+        $this->workshop_department_id = $appointment->workshop_department_id;
+        $this->service_type_id = $appointment->service_type_id;
+        $this->assigned_advisor_id = $appointment->assigned_advisor_id;
+        $this->assigned_technician_id = $appointment->assigned_technician_id;
+    }
+
+    protected function rules(): array
+    {
+        return [
+            'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
+            'customer_vehicle_id' => [
+                'required', 'integer',
+                Rule::exists('customer_vehicles', 'id')->where(fn ($q) => $q->where('customer_id', $this->customer_id)->where('is_active', true)),
+            ],
+            'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
+            'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
+            'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            'opened_date' => ['required', 'date_format:Y-m-d'],
+            'opened_time' => ['required', 'date_format:H:i'],
+            'promised_date' => ['nullable', 'date_format:Y-m-d'],
+            'promised_time' => ['nullable', 'date_format:H:i'],
+            'km_at_service' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'fuel_level' => ['nullable', Rule::in(array_keys(JobCard::fuelLevels()))],
+            'suggested_services' => ['nullable', 'string', 'max:2000'],
+            'terms_accepted' => ['boolean'],
+            'status' => ['required', Rule::in(array_keys(JobCard::statuses()))],
+            'notes' => ['nullable', 'string', 'max:2000'],
+
+            'complaints' => ['array'],
+            'complaints.*.description' => ['required', 'string', 'max:1000'],
+            'complaints.*.severity' => ['required', 'string', 'in:low,medium,high'],
+            'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
+            'complaints.*.sequence_no' => ['integer', 'min:1', 'max:99'],
+        ];
+    }
+
+    public function updatedCustomerId(): void
+    {
+        $this->customer_vehicle_id = null;
+    }
+
+    public function addComplaint(): void
+    {
+        $this->complaints[] = [
+            'id' => null,
+            'complaint_type_id' => null,
+            'description' => '',
+            'severity' => 'medium',
+            'sequence_no' => count($this->complaints) + 1,
+        ];
+    }
+
+    public function removeComplaint(int $index): void
+    {
+        if (! isset($this->complaints[$index])) {
+            return;
+        }
+        unset($this->complaints[$index]);
+        $this->complaints = array_values($this->complaints);
+    }
+
+    #[Computed]
+    public function customers()
+    {
+        return CustomerMaster::query()->where('is_active', true)->orderBy('first_name')->limit(200)->get(['id', 'first_name', 'last_name', 'phone']);
+    }
+
+    #[Computed]
+    public function customerVehicles()
+    {
+        if (! $this->customer_id) {
+            return collect();
+        }
+
+        return CustomerVehicleMaster::query()
+            ->with(['model.brand'])
+            ->where('customer_id', $this->customer_id)
+            ->where('is_active', true)
+            ->orderBy('registration_no')
+            ->get(['id', 'registration_no', 'model_id'])
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no,
+            ]);
+    }
+
+    #[Computed]
+    public function workshopDepartments()
+    {
+        return WorkshopDepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function serviceTypes()
+    {
+        return ServiceTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function servicePackages()
+    {
+        return ServicePackageMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'is_amc']);
+    }
+
+    #[Computed]
+    public function employees()
+    {
+        return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function complaintTypes()
+    {
+        return ComplaintTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function inventoryChecklist()
+    {
+        return VehicleInventoryItemMaster::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    public function save()
+    {
+        $this->authorize($this->editingId ? 'job_card.update' : 'job_card.create');
+
+        // Strip blank complaint rows before validating.
+        $this->complaints = array_values(array_filter(
+            $this->complaints,
+            fn ($c) => filled($c['description'] ?? null),
+        ));
+
+        $data = $this->validate();
+        $complaints = $data['complaints'] ?? [];
+        unset($data['complaints']);
+
+        $data['opened_at'] = Carbon::parse($data['opened_date'].' '.$data['opened_time'].':00');
+        unset($data['opened_date'], $data['opened_time']);
+        if (! empty($data['promised_date']) && ! empty($data['promised_time'])) {
+            $data['promised_at'] = Carbon::parse($data['promised_date'].' '.$data['promised_time'].':00');
+        } else {
+            $data['promised_at'] = null;
+        }
+        unset($data['promised_date'], $data['promised_time']);
+
+        if ($data['terms_accepted']) {
+            $data['terms_accepted_at'] = $data['terms_accepted_at'] ?? now();
+        }
+
+        foreach (['suggested_services', 'notes'] as $k) {
+            if (isset($data[$k]) && is_string($data[$k])) {
+                $data[$k] = strtoupper($data[$k]);
+            }
+        }
+
+        $isCreate = $this->editingId === null;
+
+        $jc = DB::transaction(function () use ($data, $complaints, $isCreate) {
+            if ($isCreate) {
+                $row = JobCard::create($data);
+                $this->editingId = $row->id;
+                $this->job_card_no = $row->fresh()->job_card_no;
+            } else {
+                $row = JobCard::findOrFail($this->editingId);
+                $row->update($data);
+            }
+
+            $this->syncComplaints($row, $complaints);
+            $this->syncInventoryItems($row);
+
+            return $row;
+        });
+
+        Flux::toast(
+            text: 'Job Card '.$jc->fresh()->job_card_no.($isCreate ? ' created.' : ' updated.'),
+            variant: 'success',
+        );
+
+        return redirect()->route('job-card.index');
+    }
+
+    /**
+     * @param  array<int, array{id?: int|null, complaint_type_id?: int|null, description: string, severity: string, sequence_no?: int}>  $rows
+     */
+    protected function syncComplaints(JobCard $jc, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach ($rows as $i => $row) {
+            $payload = [
+                'complaint_type_id' => $row['complaint_type_id'] ?? null,
+                'description' => strtoupper($row['description']),
+                'severity' => $row['severity'],
+                'sequence_no' => (int) ($row['sequence_no'] ?? $i + 1),
+            ];
+
+            if (! empty($row['id'])) {
+                $existing = $jc->complaints()->whereKey($row['id'])->first();
+                if ($existing) {
+                    $existing->update($payload);
+                    $keptIds[] = $existing->id;
+
+                    continue;
+                }
+            }
+
+            $created = $jc->complaints()->create($payload);
+            $keptIds[] = $created->id;
+        }
+
+        $jc->complaints()->whereNotIn('id', $keptIds)->delete();
+    }
+
+    /**
+     * Persist the inventory checklist as job_card_inventory_items rows. We only
+     * write rows where is_present=true OR condition_notes is set — empty rows
+     * for unchecked items would just bloat the table.
+     */
+    protected function syncInventoryItems(JobCard $jc): void
+    {
+        $keptIds = [];
+
+        foreach ($this->inventoryItems as $vehicleInventoryItemId => $state) {
+            $present = (bool) ($state['is_present'] ?? false);
+            $notes = $state['condition_notes'] ?? null;
+
+            if (! $present && ! filled($notes)) {
+                continue;
+            }
+
+            $row = $jc->inventoryItems()
+                ->updateOrCreate(
+                    ['vehicle_inventory_item_id' => (int) $vehicleInventoryItemId],
+                    ['is_present' => $present, 'condition_notes' => $notes ? strtoupper($notes) : null],
+                );
+            $keptIds[] = $row->id;
+        }
+
+        $jc->inventoryItems()->whereNotIn('id', $keptIds)->delete();
+    }
+
+    public function render()
+    {
+        return view('job-card::edit');
+    }
+}

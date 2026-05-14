@@ -37,8 +37,8 @@
                 <flux:select.option :value="(string) $d->id">{{ $d->name }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:input wire:model.live="dateFrom" type="date" class="max-w-44" />
-        <flux:input wire:model.live="dateTo" type="date" class="max-w-44" />
+        <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
+        <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
         @if ($search || $statusFilter !== 'all' || $channelFilter !== 'all' || $advisorFilter !== 'all' || $deptFilter !== 'all' || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
