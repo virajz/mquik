@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Insurance',
         'label' => 'Insurance Companies',
         'icon' => 'shield-check',

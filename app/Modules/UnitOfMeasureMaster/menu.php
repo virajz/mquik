@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Inventory',
         'label' => 'Units of Measure',
         'icon' => 'scale',

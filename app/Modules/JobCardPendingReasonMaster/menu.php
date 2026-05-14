@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Job Card Pending Reasons',
         'icon' => 'pause-circle',

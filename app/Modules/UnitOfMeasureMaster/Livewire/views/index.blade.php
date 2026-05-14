@@ -7,10 +7,11 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <flux:button variant="primary" icon="plus" wire:click="openCreate">
+            @can('unit_of_measure_master.create')
+                <flux:button variant="primary" icon="plus" wire:click="openCreate">
                 New Unit of Measure
             </flux:button>
-
+            @endcan
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
 
@@ -97,29 +98,31 @@
 
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button size="sm" variant="ghost" icon="pencil-square"
+                            @can('unit_of_measure_master.update')
+                                <flux:button size="sm" variant="ghost" icon="pencil-square"
                                 wire:click="openEdit({{ $row->id }})">Edit</flux:button>
-
-                            <flux:modal.trigger :name="'unit-of-measure-master-delete-' . $row->id">
-                                <flux:button size="sm" variant="ghost" icon="trash" />
-                            </flux:modal.trigger>
-
-                            <flux:modal :name="'unit-of-measure-master-delete-' . $row->id">
-                                <div class="space-y-4">
-                                    <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
-                                    <flux:text>Cannot be undone. If any items reference this unit the delete will fail and you'll see a warning.</flux:text>
-                                    <div class="flex gap-2 justify-end">
-                                        <flux:modal.close>
-                                            <flux:button variant="ghost">Cancel</flux:button>
-                                        </flux:modal.close>
-                                        <flux:button variant="danger"
-                                            wire:click="delete({{ $row->id }})"
-                                            x-on:click="$flux.modal('unit-of-measure-master-delete-{{ $row->id }}').close()">
-                                            Delete
-                                        </flux:button>
+                            @endcan
+                            @can('unit_of_measure_master.delete')
+                                <flux:modal.trigger :name="'unit-of-measure-master-delete-' . $row->id">
+                                    <flux:button size="sm" variant="ghost" icon="trash" />
+                                </flux:modal.trigger>
+                                <flux:modal :name="'unit-of-measure-master-delete-' . $row->id">
+                                    <div class="space-y-4">
+                                        <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
+                                        <flux:text>Cannot be undone. If any items reference this unit the delete will fail and you'll see a warning.</flux:text>
+                                        <div class="flex gap-2 justify-end">
+                                            <flux:modal.close>
+                                                <flux:button variant="ghost">Cancel</flux:button>
+                                            </flux:modal.close>
+                                            <flux:button variant="danger"
+                                                wire:click="delete({{ $row->id }})"
+                                                x-on:click="$flux.modal('unit-of-measure-master-delete-{{ $row->id }}').close()">
+                                                Delete
+                                            </flux:button>
+                                        </div>
                                     </div>
-                                </div>
-                            </flux:modal>
+                                </flux:modal>
+                            @endcan
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

@@ -10,6 +10,23 @@ class SidebarMenu extends Component
 {
     public string $search = '';
 
+    public string $mode = Menu::MODE_OPERATIONS;
+
+    public function mount(): void
+    {
+        // Position the toggle to match the current page's mode on first paint.
+        // Falls back to operations so wire:navigate-keeps-component sessions can override.
+        $this->mode = app(Menu::class)->activeMode() ?? Menu::MODE_OPERATIONS;
+    }
+
+    public function setMode(string $mode): void
+    {
+        if (! in_array($mode, [Menu::MODE_OPERATIONS, Menu::MODE_SETUP], true)) {
+            return;
+        }
+        $this->mode = $mode;
+    }
+
     public function clear(): void
     {
         $this->search = '';
@@ -90,7 +107,23 @@ class SidebarMenu extends Component
     {
         $q = strtolower(trim($this->search));
 
-        $groups = app(Menu::class)->forCurrentUser();
+        $menu = app(Menu::class);
+        $availableModes = $menu->availableModes()->all();
+        $showToggle = count($availableModes) > 1;
+
+        // When the user is searching we render across both modes, so a click on
+        // a result in the *other* mode would otherwise leave the toggle stuck
+        // on the wrong side once they clear the search. Snap to the landed
+        // route's mode while a search is active so the pill catches up.
+        if ($q !== '' && ($routeMode = $menu->activeMode())) {
+            $this->mode = $routeMode;
+        }
+
+        // When searching, ignore the toggle and search across both modes.
+        // When not searching, restrict to the active mode (only if both modes exist).
+        $modeFilter = $showToggle && $q === '' ? $this->mode : null;
+
+        $groups = $menu->forCurrentUser($modeFilter);
 
         $platformItems = collect([
             ['label' => 'Dashboard', 'icon' => 'home', 'route' => 'dashboard'],
@@ -98,7 +131,8 @@ class SidebarMenu extends Component
 
         $allRoutes = collect();
         $platformItems->each(fn ($i) => $allRoutes->put($i['route'], $i));
-        $groups->each(function ($items) use ($allRoutes) {
+        // Pin lookup must consider every menu item across both modes regardless of toggle.
+        $menu->forCurrentUser()->each(function ($items) use ($allRoutes) {
             $items->each(fn ($i) => $allRoutes->put($i['route'], $i));
         });
 
@@ -147,6 +181,8 @@ class SidebarMenu extends Component
             'pinnedItems' => $pinnedItems,
             'pinnedRouteNames' => $pinnedRouteNames,
             'currentRoute' => request()->route()?->getName(),
+            'showToggle' => $showToggle,
+            'isSearching' => $q !== '',
         ]);
     }
 }

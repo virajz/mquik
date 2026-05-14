@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Workshop Departments',
         'icon' => 'building-office',

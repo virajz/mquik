@@ -101,6 +101,28 @@
     @endpersist
 
     @fluxScripts
+
+    {{-- Sidebar: scroll the active menu item into view on first load and after every wire:navigate.
+         Flux marks the active item with `data-current` (set by button-or-link.blade.php's
+         attribute merge); we wait one animation frame so any post-navigation morph completes
+         before measuring positions. --}}
+    <script>
+        (function () {
+            const scrollActiveSidebarItem = () => {
+                requestAnimationFrame(() => {
+                    const el = document.querySelector('[data-flux-sidebar] [data-flux-sidebar-item][data-current]');
+                    if (el) el.scrollIntoView({ block: 'center', behavior: 'auto' });
+                });
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', scrollActiveSidebarItem);
+            } else {
+                scrollActiveSidebarItem();
+            }
+            document.addEventListener('livewire:navigated', scrollActiveSidebarItem);
+        })();
+    </script>
 </body>
 
 </html>

@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Checklist Templates',
         'icon' => 'clipboard-document-check',

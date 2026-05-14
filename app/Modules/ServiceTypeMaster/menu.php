@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Service Types',
         'icon' => 'wrench-screwdriver',

@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Settings',
         'label' => 'Audit Log',
         'icon' => 'clock',

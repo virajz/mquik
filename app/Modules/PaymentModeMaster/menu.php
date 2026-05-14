@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Finance',
         'label' => 'Payment Modes',
         'icon' => 'banknotes',

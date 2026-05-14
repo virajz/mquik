@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'HR',
         'label' => 'Employees',
         'icon' => 'user-group',

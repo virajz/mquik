@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Vehicles',
         'label' => 'Vehicle Brands',
         'icon' => 'building-storefront',

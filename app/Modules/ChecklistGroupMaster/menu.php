@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Checklist Groups',
         'icon' => 'clipboard-document-list',

@@ -5,7 +5,9 @@
             <flux:text class="mt-1">Trim levels within each vehicle model.</flux:text>
         </div>
         <div class="flex items-center gap-2">
-            <flux:button variant="primary" icon="plus" wire:click="openCreate">New Variant</flux:button>
+            @can('vehicle_variant_master.create')
+                <flux:button variant="primary" icon="plus" wire:click="openCreate">New Variant</flux:button>
+            @endcan
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
                 <flux:menu>
@@ -63,20 +65,24 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
-                            <flux:modal.trigger :name="'vehicle-variant-master-delete-' . $row->id">
-                                <flux:button size="sm" variant="ghost" icon="trash" />
-                            </flux:modal.trigger>
-                            <flux:modal :name="'vehicle-variant-master-delete-' . $row->id">
-                                <div class="space-y-4">
-                                    <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
-                                    <flux:text>Cannot be undone.</flux:text>
-                                    <div class="flex gap-2 justify-end">
-                                        <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
-                                        <flux:button variant="danger" wire:click="delete({{ $row->id }})" x-on:click="$flux.modal('vehicle-variant-master-delete-{{ $row->id }}').close()">Delete</flux:button>
+                            @can('vehicle_variant_master.update')
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                            @endcan
+                            @can('vehicle_variant_master.delete')
+                                <flux:modal.trigger :name="'vehicle-variant-master-delete-' . $row->id">
+                                    <flux:button size="sm" variant="ghost" icon="trash" />
+                                </flux:modal.trigger>
+                                <flux:modal :name="'vehicle-variant-master-delete-' . $row->id">
+                                    <div class="space-y-4">
+                                        <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
+                                        <flux:text>Cannot be undone.</flux:text>
+                                        <div class="flex gap-2 justify-end">
+                                            <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                                            <flux:button variant="danger" wire:click="delete({{ $row->id }})" x-on:click="$flux.modal('vehicle-variant-master-delete-{{ $row->id }}').close()">Delete</flux:button>
+                                        </div>
                                     </div>
-                                </div>
-                            </flux:modal>
+                                </flux:modal>
+                            @endcan
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

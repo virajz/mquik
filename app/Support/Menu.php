@@ -6,7 +6,11 @@ use Illuminate\Support\Collection;
 
 class Menu
 {
-    /** @var array<int, array{group:string,label:string,icon:?string,route:?string,permission:?string,order:int,module:string}> */
+    public const MODE_OPERATIONS = 'operations';
+
+    public const MODE_SETUP = 'setup';
+
+    /** @var array<int, array{group:string,label:string,icon:?string,route:?string,permission:?string,order:int,module:string,mode:string}> */
     protected array $items = [];
 
     public function add(array $item): void
@@ -19,19 +23,58 @@ class Menu
             'permission' => null,
             'order' => 100,
             'module' => '',
+            'mode' => self::MODE_SETUP,
         ], $item);
     }
 
     /**
      * @return Collection<string, Collection<int, array>>
      *                                                    Grouped, permission-filtered, sorted menu for the current user.
+     *                                                    Optionally filtered to a single mode (operations|setup).
      */
-    public function forCurrentUser(): Collection
+    public function forCurrentUser(?string $mode = null): Collection
     {
         return collect($this->items)
             ->filter(fn ($item) => $this->userHasAccess($item['permission']))
+            ->when($mode !== null, fn ($items) => $items->filter(fn ($item) => $item['mode'] === $mode))
             ->sortBy('order')
             ->groupBy('group');
+    }
+
+    /**
+     * Distinct modes that have at least one item the current user can access.
+     * Used to hide the sidebar mode toggle when only one mode is populated.
+     *
+     * @return Collection<int, string>
+     */
+    public function availableModes(): Collection
+    {
+        return collect($this->items)
+            ->filter(fn ($item) => $this->userHasAccess($item['permission']))
+            ->pluck('mode')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Resolve the mode of the route the user is currently on, if any.
+     * Used to position the toggle on first paint so the user lands on the
+     * pill matching their current page.
+     */
+    public function activeMode(): ?string
+    {
+        $current = request()->route()?->getName();
+        if (! $current) {
+            return null;
+        }
+
+        foreach ($this->items as $item) {
+            if ($item['route'] === $current) {
+                return $item['mode'];
+            }
+        }
+
+        return null;
     }
 
     public function all(): Collection

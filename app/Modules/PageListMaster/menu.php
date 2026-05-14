@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Settings',
         'label' => 'Page List',
         'icon' => 'document-text',

@@ -231,3 +231,52 @@ it('ImportWizard::maybeStart ignores events for other modules without authorizin
         ->call('maybeStart', 'CustomerMaster')
         ->assertOk();
 });
+
+/*
+ |--------------------------------------------------------------------------
+ | View-side @can gating of action buttons
+ |--------------------------------------------------------------------------
+ | A user with only `view` should see the list page render, but no New /
+ | Edit / Delete / Import / Export buttons. The page-level routes are also
+ | locked by the `can:` middleware, so even if a user pokes around the
+ | rendered HTML the buttons just won't be there.
+ */
+
+it('a view-only user sees the list page but not New / Edit / Delete / Import / Export buttons', function () {
+    $customer = CustomerMaster::factory()->create(['first_name' => 'VISIBLE_ROW']);
+
+    $user = User::factory()->create();
+    $user->givePermissionTo('customer_master.view');
+    $this->actingAs($user);
+
+    Livewire::test(CustomerIndex::class)
+        ->assertSee('VISIBLE_ROW')              // page actually rendered
+        ->assertDontSee('New Customer')         // create button text hidden
+        ->assertDontSee('Edit</button')         // edit button hidden
+        ->assertDontSee("delete($customer->id)") // delete wire:click hidden
+        ->assertDontSee('Import…')              // import menu item hidden
+        ->assertDontSee("dispatch('start-export'"); // export menu item hidden
+});
+
+it('a user with full perms sees every action button on the index', function () {
+    $customer = CustomerMaster::factory()->create(['first_name' => 'VISIBLE_ROW']);
+
+    $user = User::factory()->create();
+    $user->givePermissionTo([
+        'customer_master.view',
+        'customer_master.create',
+        'customer_master.update',
+        'customer_master.delete',
+        'customer_master.import',
+        'customer_master.export',
+    ]);
+    $this->actingAs($user);
+
+    Livewire::test(CustomerIndex::class)
+        ->assertSee('VISIBLE_ROW')
+        ->assertSee('New Customer')
+        ->assertSee('Edit')
+        ->assertSee("delete($customer->id)", false)
+        ->assertSee('Import…')
+        ->assertSee("dispatch('start-export'", false);
+});

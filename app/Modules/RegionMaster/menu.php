@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Locations',
         'label' => 'Regions',
         'icon' => 'map-pin',

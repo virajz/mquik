@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'HR',
         'label' => 'Departments',
         'icon' => 'building-office-2',

@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Vehicles',
         'label' => 'Vehicle Colors',
         'icon' => 'swatch',

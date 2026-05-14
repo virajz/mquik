@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Job Card Cancel Reasons',
         'icon' => 'x-circle',

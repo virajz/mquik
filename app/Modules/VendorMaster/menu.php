@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Vendors',
         'label' => 'Vendors',
         'icon' => 'truck',

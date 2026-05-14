@@ -1,4 +1,33 @@
 <div>
+    @if ($showToggle)
+        <div class="px-3 pt-2">
+            <div class="inline-flex w-full rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5 text-xs font-medium">
+                <button
+                    type="button"
+                    wire:click="setMode('operations')"
+                    @class([
+                        'flex-1 px-2 py-1 rounded transition-colors',
+                        'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' => $mode === 'operations' && ! $isSearching,
+                        'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100' => $mode !== 'operations' || $isSearching,
+                    ])
+                >
+                    {{ __('Operations') }}
+                </button>
+                <button
+                    type="button"
+                    wire:click="setMode('setup')"
+                    @class([
+                        'flex-1 px-2 py-1 rounded transition-colors',
+                        'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' => $mode === 'setup' && ! $isSearching,
+                        'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100' => $mode !== 'setup' || $isSearching,
+                    ])
+                >
+                    {{ __('Setup') }}
+                </button>
+            </div>
+        </div>
+    @endif
+
     <div class="px-3 py-2">
         <flux:input
             wire:model.live.debounce.100ms="search"

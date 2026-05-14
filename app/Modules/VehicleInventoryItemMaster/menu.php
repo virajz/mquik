@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Workshop',
         'label' => 'Vehicle Inventory Items',
         'icon' => 'archive-box',

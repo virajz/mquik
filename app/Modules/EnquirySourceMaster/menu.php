@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'CRM',
         'label' => 'Enquiry Sources',
         'icon' => 'megaphone',

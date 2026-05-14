@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Inspection',
         'label' => 'Inspection Templates',
         'icon' => 'clipboard-document-list',

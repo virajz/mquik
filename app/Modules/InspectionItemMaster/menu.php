@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Inspection',
         'label' => 'Inspection Items',
         'icon' => 'magnifying-glass-circle',

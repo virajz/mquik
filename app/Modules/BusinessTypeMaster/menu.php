@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Customers',
         'label' => 'Business Types',
         'icon' => 'briefcase',

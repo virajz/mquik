@@ -14,9 +14,11 @@
                 </flux:button>
             </div>
 
-            <flux:button variant="primary" icon="plus" wire:click="openCreate">
+            @can('authorization_master.create')
+                <flux:button variant="primary" icon="plus" wire:click="openCreate">
                 New Role
             </flux:button>
+            @endcan
         </div>
     </div>
 
@@ -73,33 +75,35 @@
 
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button size="sm" variant="ghost" icon="pencil-square"
+                            @can('authorization_master.update')
+                                <flux:button size="sm" variant="ghost" icon="pencil-square"
                                 wire:click="openEdit({{ $row->id }})">Edit</flux:button>
-
+                            @endcan
                             @if ($row->name !== 'Super Admin')
-                                <flux:modal.trigger :name="'authorization-master-delete-' . $row->id">
-                                    <flux:button size="sm" variant="ghost" icon="trash" />
-                                </flux:modal.trigger>
-
-                                <flux:modal :name="'authorization-master-delete-' . $row->id">
-                                    <div class="space-y-4">
-                                        <flux:heading size="lg">Delete role "{{ $row->name }}"?</flux:heading>
-                                        <flux:text>
-                                            Cannot be undone. If any users are assigned this role the delete will fail
-                                            and you'll see a warning.
-                                        </flux:text>
-                                        <div class="flex gap-2 justify-end">
-                                            <flux:modal.close>
-                                                <flux:button variant="ghost">Cancel</flux:button>
-                                            </flux:modal.close>
-                                            <flux:button variant="danger"
-                                                wire:click="delete({{ $row->id }})"
-                                                x-on:click="$flux.modal('authorization-master-delete-{{ $row->id }}').close()">
-                                                Delete
-                                            </flux:button>
+                                @can('authorization_master.delete')
+                                    <flux:modal.trigger :name="'authorization-master-delete-' . $row->id">
+                                        <flux:button size="sm" variant="ghost" icon="trash" />
+                                    </flux:modal.trigger>
+                                    <flux:modal :name="'authorization-master-delete-' . $row->id">
+                                        <div class="space-y-4">
+                                            <flux:heading size="lg">Delete role "{{ $row->name }}"?</flux:heading>
+                                            <flux:text>
+                                                Cannot be undone. If any users are assigned this role the delete will fail
+                                                and you'll see a warning.
+                                            </flux:text>
+                                            <div class="flex gap-2 justify-end">
+                                                <flux:modal.close>
+                                                    <flux:button variant="ghost">Cancel</flux:button>
+                                                </flux:modal.close>
+                                                <flux:button variant="danger"
+                                                    wire:click="delete({{ $row->id }})"
+                                                    x-on:click="$flux.modal('authorization-master-delete-{{ $row->id }}').close()">
+                                                    Delete
+                                                </flux:button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </flux:modal>
+                                    </flux:modal>
+                                @endcan
                             @endif
                         </div>
                     </flux:table.cell>

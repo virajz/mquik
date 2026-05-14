@@ -231,6 +231,37 @@ For visual hints in option (color swatch, transmission icon), pass HTML inside `
 </flux:select.option>
 ```
 
+### Quick-add from a picker (the routing rule)
+
+When the user can't find what they want in a FK picker, we let them create it inline. There are exactly **two** patterns — pick by the *shape of the target model*, not by gut.
+
+| Target shape | Pattern | Why |
+|---|---|---|
+| **Single-value picker AND target needs only `name` to create** (e.g. SpareBrand, UoM, VehicleSegment, BusinessType) | **Inline `<flux:select.option.create>` inside a `combobox`** | Zero modals, zero context switch. The user types in the combobox and the create-option uses that same string. |
+| **Multi-value picker** (e.g. `vendor_type_ids`, `spare_brand_ids` — `array` properties, `multiple` select) | **`+ button` next to the picker → opens a modal** | Multi-select doesn't have a single "search string" to inline-create from. |
+| **Single-value picker BUT target needs 2+ required fields** (e.g. Customer, VehicleVariant, VehicleModel — needs name + phone, or brand + name) | **`+ button` next to the picker → opens a wizard modal** | `firstOrCreate(name)` is not enough; we need a real form. Use `App\Concerns\CanQuickAdd*` traits + a shared `_quick_add_*_modal.blade.php` partial. |
+
+Inline create-option boilerplate (Pattern A):
+```blade
+<flux:select wire:model="spare_brand_id" variant="combobox" label="Brand" clearable>
+    <x-slot name="input">
+        <flux:select.input wire:model="spareBrandSearch" placeholder="Pick or type to add…" />
+    </x-slot>
+    @foreach ($this->brands as $b)
+        <flux:select.option :value="$b->id" wire:key="brand-{{ $b->id }}">{{ $b->name }}</flux:select.option>
+    @endforeach
+    @can('spare_brand_master.create')
+        <flux:select.option.create wire:click="createSpareBrand" min-length="2">
+            Create "<span wire:text="spareBrandSearch"></span>"
+        </flux:select.option.create>
+    @endcan
+</flux:select>
+```
+
+The matching component method uses the `HasQuickCreate` trait's `quickCreate()` — search property name is convention (`{model}Search`), the trait reads it.
+
+**The mistake to avoid**: wrapping a single-value-single-field picker in `<flux:field>` with a `+ button` and a separate modal (the "modal" pattern). That's strictly for multi-value or multi-field cases. The audit rule: open the form, look at the target model's required-field count — if it's just `name`, you should be using Pattern A.
+
 ### Cross-FK uniqueness (composite uniques)
 
 When a model is unique within a parent (e.g. a Vehicle Model name is unique per brand — Maruti Swift vs Nissan Swift):

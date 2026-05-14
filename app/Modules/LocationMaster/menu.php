@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Locations',
         'label' => 'Locations',
         'icon' => 'building-office-2',

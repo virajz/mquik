@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'HR',
         'label' => 'Designations',
         'icon' => 'identification',

@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'CRM',
         'label' => 'Complaint Types',
         'icon' => 'exclamation-triangle',

@@ -5,7 +5,9 @@
             <flux:text class="mt-1">Suppliers of parts, labour, services, and insurance.</flux:text>
         </div>
         <div class="flex items-center gap-2">
-            <flux:button variant="primary" icon="plus" :href="route('vendor-master.create')" wire:navigate>New Vendor</flux:button>
+            @can('vendor_master.create')
+                <flux:button variant="primary" icon="plus" :href="route('vendor-master.create')" wire:navigate>New Vendor</flux:button>
+            @endcan
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
                 <flux:menu>
@@ -81,20 +83,24 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('vendor-master.edit', $row)" wire:navigate>Edit</flux:button>
-                            <flux:modal.trigger :name="'vendor-master-delete-' . $row->id">
-                                <flux:button size="sm" variant="ghost" icon="trash" />
-                            </flux:modal.trigger>
-                            <flux:modal :name="'vendor-master-delete-' . $row->id">
-                                <div class="space-y-4">
-                                    <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
-                                    <flux:text>Cannot be undone. If this vendor has related records the delete will fail.</flux:text>
-                                    <div class="flex gap-2 justify-end">
-                                        <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
-                                        <flux:button variant="danger" wire:click="delete({{ $row->id }})" x-on:click="$flux.modal('vendor-master-delete-{{ $row->id }}').close()">Delete</flux:button>
+                            @can('vendor_master.update')
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('vendor-master.edit', $row)" wire:navigate>Edit</flux:button>
+                            @endcan
+                            @can('vendor_master.delete')
+                                <flux:modal.trigger :name="'vendor-master-delete-' . $row->id">
+                                    <flux:button size="sm" variant="ghost" icon="trash" />
+                                </flux:modal.trigger>
+                                <flux:modal :name="'vendor-master-delete-' . $row->id">
+                                    <div class="space-y-4">
+                                        <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
+                                        <flux:text>Cannot be undone. If this vendor has related records the delete will fail.</flux:text>
+                                        <div class="flex gap-2 justify-end">
+                                            <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                                            <flux:button variant="danger" wire:click="delete({{ $row->id }})" x-on:click="$flux.modal('vendor-master-delete-{{ $row->id }}').close()">Delete</flux:button>
+                                        </div>
                                     </div>
-                                </div>
-                            </flux:modal>
+                                </flux:modal>
+                            @endcan
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

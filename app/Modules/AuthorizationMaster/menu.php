@@ -2,6 +2,7 @@
 
 return [
     [
+        'mode' => 'setup',
         'group' => 'Settings',
         'label' => 'Roles & Permissions',
         'icon' => 'shield-check',
@@ -10,6 +11,7 @@ return [
         'order' => 10,
     ],
     [
+        'mode' => 'setup',
         'group' => 'Settings',
         'label' => 'Users',
         'icon' => 'users',
