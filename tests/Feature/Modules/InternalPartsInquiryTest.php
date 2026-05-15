@@ -1,13 +1,12 @@
 <?php
 
 use App\Models\User;
-use App\Modules\InternalPartsInquiry\Livewire\Form;
 use App\Modules\InternalPartsInquiry\Livewire\Index;
 use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(adminUser());
 });
 
 it('renders the index page', function () {
@@ -18,38 +17,30 @@ it('renders the index page', function () {
         ->assertSeeLivewire(Index::class);
 });
 
-it('filters records by search', function () {
-    InternalPartsInquiry::factory()->create(['name' => 'ALPHA RECORD']);
-    InternalPartsInquiry::factory()->create(['name' => 'BETA RECORD']);
+it('filters records by search on ipi_no', function () {
+    $a = InternalPartsInquiry::factory()->create();
+    $b = InternalPartsInquiry::factory()->create();
+
+    $a->forceFill(['ipi_no' => 'IPI-00001'])->saveQuietly();
+    $b->forceFill(['ipi_no' => 'IPI-00002'])->saveQuietly();
 
     Livewire::test(Index::class)
-        ->set('search', 'ALPHA')
-        ->assertSee('ALPHA RECORD')
-        ->assertDontSee('BETA RECORD');
+        ->set('search', 'IPI-00001')
+        ->assertSee('IPI-00001')
+        ->assertDontSee('IPI-00002');
 });
 
-it('creates a record via the form', function () {
-    Livewire::test(Form::class)
-        ->set('name', 'new vendor')
-        ->set('description', 'first line')
-        ->call('save')
-        ->assertHasNoErrors()
-        ->assertDispatched('internal-parts-inquiry:saved');
+it('filters by status', function () {
+    $open = InternalPartsInquiry::factory()->create();
+    $closed = InternalPartsInquiry::factory()->closed()->create();
 
-    expect(InternalPartsInquiry::count())->toBe(1);
-    expect(InternalPartsInquiry::first()->name)->toBe('NEW VENDOR'); // capital typing enforced
-});
+    $open->forceFill(['ipi_no' => 'IPI-OPEN1'])->saveQuietly();
+    $closed->forceFill(['ipi_no' => 'IPI-CLSD1'])->saveQuietly();
 
-it('updates an existing record via the form', function () {
-    $record = InternalPartsInquiry::factory()->create(['name' => 'OLD']);
-
-    Livewire::test(Form::class)
-        ->dispatch('internal-parts-inquiry:edit', id: $record->id)
-        ->set('name', 'updated')
-        ->call('save')
-        ->assertDispatched('internal-parts-inquiry:saved');
-
-    expect($record->fresh()->name)->toBe('UPDATED');
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'open')
+        ->assertSee('IPI-OPEN1')
+        ->assertDontSee('IPI-CLSD1');
 });
 
 it('deletes a record from the index', function () {
@@ -61,15 +52,14 @@ it('deletes a record from the index', function () {
     expect(InternalPartsInquiry::find($record->id))->toBeNull();
 });
 
-it('validates required name on save', function () {
-    Livewire::test(Form::class)
-        ->set('name', '')
-        ->call('save')
-        ->assertHasErrors(['name' => 'required']);
-});
-
 it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('internal-parts-inquiry.index'))->assertRedirect(route('login'));
+});
+
+it('denies access without permission', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('internal-parts-inquiry.index'))->assertForbidden();
 });

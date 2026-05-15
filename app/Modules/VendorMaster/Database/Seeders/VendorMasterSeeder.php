@@ -50,11 +50,10 @@ class VendorMasterSeeder extends Seeder
         ];
 
         foreach ($vendors as $v) {
-            VendorMaster::firstOrCreate(
+            $vendor = VendorMaster::firstOrCreate(
                 ['vendor_code' => $v['vendor_code']],
                 [
                     'name' => $v['name'],
-                    'vendor_type_id' => $resolveType($v['type']),
                     'phone' => $v['phone'],
                     'state' => $v['state'] ?? null,
                     'city' => $v['city'] ?? null,
@@ -63,6 +62,12 @@ class VendorMasterSeeder extends Seeder
                     'is_active' => true,
                 ],
             );
+
+            // Attach the vendor type via the many-to-many pivot
+            $typeId = $resolveType($v['type']);
+            if ($typeId !== null) {
+                $vendor->vendorTypes()->syncWithoutDetaching([$typeId]);
+            }
         }
     }
 }
