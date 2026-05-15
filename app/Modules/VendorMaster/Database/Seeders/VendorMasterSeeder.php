@@ -2,6 +2,7 @@
 
 namespace App\Modules\VendorMaster\Database\Seeders;
 
+use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Illuminate\Database\Seeder;
@@ -14,13 +15,19 @@ class VendorMasterSeeder extends Seeder
             ->whereLike('name', strtoupper($name).'%', caseSensitive: false)
             ->value('id');
 
+        $resolveRegion = fn (?string $city) => $city
+            ? RegionMaster::query()
+                ->where('kind', 'city')
+                ->whereLike('name', strtoupper($city), caseSensitive: false)
+                ->value('id')
+            : null;
+
         $vendors = [
             [
                 'vendor_code' => 'VND-00001',
                 'name' => 'BOSCH AUTHORISED DEALER',
                 'type' => 'Spare Parts',
                 'phone' => '9876543210',
-                'state' => 'GUJARAT',
                 'city' => 'AHMEDABAD',
             ],
             [
@@ -55,15 +62,13 @@ class VendorMasterSeeder extends Seeder
                 [
                     'name' => $v['name'],
                     'phone' => $v['phone'],
-                    'state' => $v['state'] ?? null,
-                    'city' => $v['city'] ?? null,
+                    'region_id' => $resolveRegion($v['city'] ?? null),
                     'credit_days' => 30,
                     'credit_limit' => 50000,
                     'is_active' => true,
                 ],
             );
 
-            // Attach the vendor type via the many-to-many pivot
             $typeId = $resolveType($v['type']);
             if ($typeId !== null) {
                 $vendor->vendorTypes()->syncWithoutDetaching([$typeId]);
