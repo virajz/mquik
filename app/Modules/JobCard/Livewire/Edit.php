@@ -6,9 +6,12 @@ use App\Modules\Appointment\Models\Appointment;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
+use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
@@ -16,6 +19,7 @@ use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -76,14 +80,14 @@ class Edit extends Component
     /** @var list<array{id: ?int, complaint_type_id: ?int, description: string, severity: string, sequence_no: int}> */
     public array $complaints = [];
 
-    /** @var array<int, array{is_present: bool, condition_notes: ?string}>  keyed by vehicle_inventory_item_id */
+    /** @var array<int, array{status: string, damage_type_id: ?int, condition_notes: ?string}>  keyed by vehicle_inventory_item_id */
     public array $inventoryItems = [];
 
-    /** @var array<int, TemporaryUploadedFile>  staged uploads */
-    public array $newPhotos = [];
+    /** @var array<int, TemporaryUploadedFile>  staged slot photo, keyed by photo_type_id (one per slot) */
+    public array $slotFiles = [];
 
-    /** @var array<int, string|null>  parallel array to newPhotos for caption per upload */
-    public array $newPhotoCaptions = [];
+    /** @var array<int, TemporaryUploadedFile>  staged additional / damage photos (flat multi-upload) */
+    public array $extraFiles = [];
 
     /** @var array<int, int>  ids of existing photos the user removed during this edit */
     public array $removedPhotoIds = [];
@@ -155,7 +159,8 @@ class Edit extends Component
         // Overlay saved values onto the seeded checklist.
         foreach ($jc->inventoryItems as $item) {
             $this->inventoryItems[$item->vehicle_inventory_item_id] = [
-                'is_present' => (bool) $item->is_present,
+                'status' => $item->status ?? JobCardInventoryItem::STATUS_PRESENT,
+                'damage_type_id' => $item->damage_type_id,
                 'condition_notes' => $item->condition_notes,
             ];
         }
@@ -163,7 +168,8 @@ class Edit extends Component
 
     /**
      * Seed the inventory checklist from active VehicleInventoryItemMaster rows so
-     * the form shows every item from day one. Pre-checking each is_present=false.
+     * the form shows every item from day one. Each item defaults to "present" —
+     * the advisor only flags the exceptions (missing / damaged).
      */
     protected function seedInventoryChecklist(): void
     {
@@ -175,7 +181,8 @@ class Edit extends Component
         foreach ($items as $item) {
             if (! isset($this->inventoryItems[$item->id])) {
                 $this->inventoryItems[$item->id] = [
-                    'is_present' => false,
+                    'status' => JobCardInventoryItem::STATUS_PRESENT,
+                    'damage_type_id' => null,
                     'condition_notes' => null,
                 ];
             }
@@ -228,10 +235,15 @@ class Edit extends Component
             'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'complaints.*.sequence_no' => ['integer', 'min:1', 'max:99'],
 
-            'newPhotos' => ['array', 'max:20'],
-            'newPhotos.*' => ['image', 'max:8192'],  // 8 MB per photo
-            'newPhotoCaptions' => ['array'],
-            'newPhotoCaptions.*' => ['nullable', 'string', 'max:255'],
+            'inventoryItems' => ['array'],
+            'inventoryItems.*.status' => ['required', Rule::in(array_keys(JobCardInventoryItem::statuses()))],
+            'inventoryItems.*.damage_type_id' => ['nullable', 'integer', Rule::exists('damage_types', 'id')->where('is_active', true)],
+            'inventoryItems.*.condition_notes' => ['nullable', 'string', 'max:500'],
+
+            'slotFiles' => ['array'],
+            'slotFiles.*' => ['image', 'max:8192'],  // 8 MB per photo
+            'extraFiles' => ['array', 'max:30'],
+            'extraFiles.*' => ['image', 'max:8192'],
 
             'signatureUpload' => ['nullable', 'image', 'max:2048'],
         ];
@@ -262,19 +274,24 @@ class Edit extends Component
         $this->complaints = array_values($this->complaints);
     }
 
-    public function updatedNewPhotos(): void
+    /**
+     * Drop a staged (not-yet-saved) slot photo so the slot reverts to empty.
+     */
+    public function clearSlotFile(int $photoTypeId): void
     {
-        // Keep the captions array length aligned with newPhotos.
-        foreach (array_keys($this->newPhotos) as $i) {
-            $this->newPhotoCaptions[$i] = $this->newPhotoCaptions[$i] ?? null;
-        }
+        unset($this->slotFiles[$photoTypeId]);
     }
 
-    public function removeNewPhoto(int $index): void
+    /**
+     * Drop a staged (not-yet-saved) additional / damage photo.
+     */
+    public function removeExtraFile(int $index): void
     {
-        unset($this->newPhotos[$index], $this->newPhotoCaptions[$index]);
-        $this->newPhotos = array_values($this->newPhotos);
-        $this->newPhotoCaptions = array_values($this->newPhotoCaptions);
+        if (! isset($this->extraFiles[$index])) {
+            return;
+        }
+        unset($this->extraFiles[$index]);
+        $this->extraFiles = array_values($this->extraFiles);
     }
 
     public function removeExistingPhoto(int $photoId): void
@@ -363,16 +380,113 @@ class Edit extends Component
     }
 
     #[Computed]
-    public function existingPhotos()
+    public function damageTypes()
+    {
+        return DamageTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Active photo "slots" grouped into capture tabs, ordered by sort_order.
+     *
+     * @return Collection<int, array{key: string, label: string, slots: Collection}>
+     */
+    #[Computed]
+    public function photoGroups()
+    {
+        return PhotoTypeMaster::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name', 'group', 'sort_order'])
+            ->groupBy('group')
+            ->map(fn ($slots, $group) => [
+                'key' => $this->groupKey((string) $group),
+                'label' => (string) $group,
+                'minOrder' => (int) $slots->min('sort_order'),
+                'slots' => $slots->values(),
+            ])
+            ->sortBy('minOrder')
+            ->values();
+    }
+
+    /**
+     * All persisted photos for this job card, eager-loaded for display.
+     */
+    #[Computed]
+    public function jobCardPhotos()
     {
         if (! $this->editingId) {
             return collect();
         }
 
         return JobCardPhoto::query()
+            ->with(['photoType:id,name', 'damageType:id,name'])
             ->where('job_card_id', $this->editingId)
             ->orderBy('sequence_no')
-            ->get(['id', 'path', 'caption', 'original_name', 'sequence_no']);
+            ->get(['id', 'path', 'caption', 'location_note', 'photo_group', 'photo_type_id', 'damage_type_id', 'original_name', 'sequence_no']);
+    }
+
+    /**
+     * The existing (not-removed) photo filling a given slot, or null.
+     */
+    public function slotPhoto(int $photoTypeId): ?JobCardPhoto
+    {
+        return $this->jobCardPhotos->first(
+            fn ($p) => (int) $p->photo_type_id === $photoTypeId && ! in_array($p->id, $this->removedPhotoIds, true),
+        );
+    }
+
+    /**
+     * Is this slot covered — either a staged upload or a saved photo?
+     */
+    public function slotIsCaptured(int $photoTypeId): bool
+    {
+        return isset($this->slotFiles[$photoTypeId]) || $this->slotPhoto($photoTypeId) !== null;
+    }
+
+    /**
+     * Existing (not-removed) additional / damage photos (no fixed slot).
+     */
+    public function extraPhotos(): Collection
+    {
+        return $this->jobCardPhotos
+            ->filter(fn ($p) => $p->photo_type_id === null && ! in_array($p->id, $this->removedPhotoIds, true))
+            ->values();
+    }
+
+    /**
+     * @return array{captured: int, total: int}
+     */
+    public function photoProgress(): array
+    {
+        $total = 0;
+        $captured = 0;
+        foreach ($this->photoGroups as $group) {
+            foreach ($group['slots'] as $slot) {
+                $total++;
+                if ($this->slotIsCaptured((int) $slot->id)) {
+                    $captured++;
+                }
+            }
+        }
+
+        return ['captured' => $captured, 'total' => $total];
+    }
+
+    /**
+     * Captured / total count for one tab's slots.
+     *
+     * @param  Collection  $slots
+     */
+    public function groupProgress($slots): string
+    {
+        $captured = $slots->filter(fn ($s) => $this->slotIsCaptured((int) $s->id))->count();
+
+        return $captured.'/'.$slots->count();
+    }
+
+    protected function groupKey(string $group): string
+    {
+        return trim((string) preg_replace('/[^A-Za-z0-9]+/', '_', $group), '_') ?: 'GROUP';
     }
 
     public function existingSignaturePath(): ?string
@@ -398,7 +512,13 @@ class Edit extends Component
 
         $data = $this->validate();
         $complaints = $data['complaints'] ?? [];
-        unset($data['complaints'], $data['newPhotos'], $data['newPhotoCaptions'], $data['signatureUpload']);
+        unset(
+            $data['complaints'],
+            $data['inventoryItems'],
+            $data['slotFiles'],
+            $data['extraFiles'],
+            $data['signatureUpload'],
+        );
 
         $data['opened_at'] = Carbon::parse($data['opened_date'].' '.$data['opened_time'].':00');
         unset($data['opened_date'], $data['opened_time']);
@@ -441,8 +561,8 @@ class Edit extends Component
 
         // Reset transient upload state so a subsequent save on the same component
         // (e.g. user stays on edit page in future) doesn't try to re-process them.
-        $this->newPhotos = [];
-        $this->newPhotoCaptions = [];
+        $this->slotFiles = [];
+        $this->extraFiles = [];
         $this->removedPhotoIds = [];
         $this->signatureUpload = null;
         $this->clearSignature = false;
@@ -470,24 +590,64 @@ class Edit extends Component
             }
         }
 
-        // 2. Store newly-uploaded photos.
-        $startSeq = (int) ($jc->photos()->max('sequence_no') ?? 0);
+        $seq = (int) ($jc->photos()->max('sequence_no') ?? 0);
 
-        foreach ($this->newPhotos as $i => $file) {
-            $startSeq++;
-            $path = $file->store("job-cards/{$jc->id}/photos", 'public');
+        // 2. Slot photos — one per slot. A new upload replaces the existing slot photo (retake).
+        $slotGroups = PhotoTypeMaster::query()
+            ->whereIn('id', array_keys($this->slotFiles))
+            ->pluck('group', 'id');
 
-            $jc->photos()->create([
-                'path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getMimeType(),
-                'size_bytes' => $file->getSize(),
-                'caption' => filled($this->newPhotoCaptions[$i] ?? null)
-                    ? strtoupper(trim((string) $this->newPhotoCaptions[$i]))
-                    : null,
-                'sequence_no' => $startSeq,
-            ]);
+        foreach ($this->slotFiles as $photoTypeId => $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $existing = JobCardPhoto::query()
+                ->where('job_card_id', $jc->id)
+                ->where('photo_type_id', (int) $photoTypeId)
+                ->get();
+            foreach ($existing as $old) {
+                Storage::disk('public')->delete($old->path);
+                $old->delete();
+            }
+
+            $seq++;
+            $jc->photos()->create($this->photoAttributes($file, $seq, [
+                'photo_type_id' => (int) $photoTypeId,
+                'photo_group' => $slotGroups[$photoTypeId] ?? null,
+            ]));
         }
+
+        // 3. Additional / damage photos (no fixed slot).
+        foreach ($this->extraFiles as $file) {
+            if (! $file) {
+                continue;
+            }
+            $seq++;
+            $jc->photos()->create($this->photoAttributes($file, $seq, [
+                'photo_type_id' => null,
+                'photo_group' => 'ADDITIONAL',
+            ]));
+        }
+    }
+
+    /**
+     * Build a job_card_photos row payload for a stored upload.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    protected function photoAttributes(TemporaryUploadedFile $file, int $seq, array $extra): array
+    {
+        $path = $file->store("job-cards/{$this->editingId}/photos", 'public');
+
+        return array_merge([
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getMimeType(),
+            'size_bytes' => $file->getSize(),
+            'sequence_no' => $seq,
+        ], $extra);
     }
 
     protected function syncSignature(JobCard $jc): void
@@ -539,26 +699,36 @@ class Edit extends Component
     }
 
     /**
-     * Persist the inventory checklist as job_card_inventory_items rows. We only
-     * write rows where is_present=true OR condition_notes is set — empty rows
-     * for unchecked items would just bloat the table.
+     * Persist the inventory checklist as job_card_inventory_items rows. Only
+     * exceptions are stored: an item that is missing, damaged, or carries a
+     * condition note. A plain "present, nothing to note" item writes no row —
+     * a job card with no inventory rows means the vehicle came in complete.
      */
     protected function syncInventoryItems(JobCard $jc): void
     {
         $keptIds = [];
 
         foreach ($this->inventoryItems as $vehicleInventoryItemId => $state) {
-            $present = (bool) ($state['is_present'] ?? false);
+            $status = $state['status'] ?? JobCardInventoryItem::STATUS_PRESENT;
             $notes = $state['condition_notes'] ?? null;
+            $damageTypeId = $status === JobCardInventoryItem::STATUS_DAMAGED
+                ? ($state['damage_type_id'] ?? null)
+                : null;
 
-            if (! $present && ! filled($notes)) {
+            $isException = $status !== JobCardInventoryItem::STATUS_PRESENT || filled($notes);
+            if (! $isException) {
                 continue;
             }
 
             $row = $jc->inventoryItems()
                 ->updateOrCreate(
                     ['vehicle_inventory_item_id' => (int) $vehicleInventoryItemId],
-                    ['is_present' => $present, 'condition_notes' => $notes ? strtoupper($notes) : null],
+                    [
+                        'status' => $status,
+                        'is_present' => $status === JobCardInventoryItem::STATUS_PRESENT,
+                        'damage_type_id' => $damageTypeId,
+                        'condition_notes' => filled($notes) ? strtoupper((string) $notes) : null,
+                    ],
                 );
             $keptIds[] = $row->id;
         }

@@ -188,7 +188,7 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Vehicle Inventory</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Tick off what's IN the car when received. Add notes for damaged or missing items.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Every item defaults to <span class="font-medium">Present</span>. Flag anything <span class="font-medium">Missing</span> or <span class="font-medium">Damaged</span> — tag the damage and add a note.</flux:text>
             </div>
             <div class="space-y-2 min-w-0">
                 @if ($this->inventoryChecklist->isEmpty())
@@ -196,24 +196,34 @@
                         No vehicle inventory items configured. Add them in <span class="font-medium">Workshop → Vehicle Inventory Items</span>.
                     </div>
                 @else
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                        @foreach ($this->inventoryChecklist as $item)
-                            <div wire:key="inv-{{ $item->id }}" class="flex items-start gap-3 py-2">
-                                <flux:checkbox wire:model="inventoryItems.{{ $item->id }}.is_present" class="mt-1" />
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-medium">{{ $item->name }}</div>
-                                    @if (data_get($inventoryItems, $item->id.'.is_present'))
-                                        <flux:input
-                                            wire:model="inventoryItems.{{ $item->id }}.condition_notes"
-                                            size="sm"
-                                            placeholder="Condition notes (optional)"
-                                            class="mt-1"
-                                        />
+                    @foreach ($this->inventoryChecklist as $item)
+                        @php $status = data_get($inventoryItems, $item->id.'.status', 'present'); @endphp
+                        <div wire:key="inv-{{ $item->id }}" class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center py-2 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0">
+                            <div class="text-sm font-medium">{{ $item->name }}</div>
+                            <flux:radio.group wire:model.live="inventoryItems.{{ $item->id }}.status" variant="segmented" size="sm">
+                                <flux:radio value="present" label="Present" />
+                                <flux:radio value="missing" label="Missing" />
+                                <flux:radio value="damaged" label="Damaged" />
+                            </flux:radio.group>
+
+                            @if ($status !== 'present')
+                                <div class="md:col-span-2 grid grid-cols-1 {{ $status === 'damaged' ? 'md:grid-cols-[200px_1fr]' : '' }} gap-2 pl-1">
+                                    @if ($status === 'damaged')
+                                        <flux:select wire:model="inventoryItems.{{ $item->id }}.damage_type_id" variant="listbox" searchable clearable size="sm" placeholder="Damage type…">
+                                            @foreach ($this->damageTypes as $dt)
+                                                <flux:select.option :value="$dt->id" wire:key="inv-dt-{{ $item->id }}-{{ $dt->id }}">{{ $dt->name }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
                                     @endif
+                                    <flux:input
+                                        wire:model="inventoryItems.{{ $item->id }}.condition_notes"
+                                        size="sm"
+                                        placeholder="{{ $status === 'missing' ? 'Note what is missing (optional)' : 'Describe the damage (optional)' }}"
+                                    />
                                 </div>
-                            </div>
-                        @endforeach
-                    </div>
+                            @endif
+                        </div>
+                    @endforeach
                 @endif
             </div>
         </section>
@@ -223,54 +233,131 @@
         {{-- PHOTOS --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
-                <flux:heading size="lg">Photos</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Pre-service photos of the vehicle — dents, scratches, panel condition, mileage display.</flux:text>
+                <flux:heading size="lg">Vehicle Photos</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Walk each tab and capture every defined angle — a full photo record of the car's condition at intake. Tap a slot to take or retake its photo.</flux:text>
+                @php $prog = $this->photoProgress(); @endphp
+                @if ($prog['total'] > 0)
+                    <flux:badge :color="$prog['captured'] === $prog['total'] ? 'lime' : 'amber'" size="sm" class="mt-3">
+                        {{ $prog['captured'] }} / {{ $prog['total'] }} key photos captured
+                    </flux:badge>
+                @endif
             </div>
             <div class="space-y-4 min-w-0">
-                @if ($this->existingPhotos->isNotEmpty())
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        @foreach ($this->existingPhotos as $photo)
-                            @php $removed = in_array($photo->id, $removedPhotoIds, true); @endphp
-                            <div wire:key="existing-photo-{{ $photo->id }}" class="relative rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-800 {{ $removed ? 'opacity-40' : '' }}">
-                                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($photo->path) }}" alt="{{ $photo->caption ?? $photo->original_name }}" class="aspect-square w-full object-cover" />
-                                <div class="px-2 py-1 text-xs truncate">{{ $photo->caption ?? $photo->original_name }}</div>
-                                <div class="absolute top-1 right-1">
-                                    @if ($removed)
-                                        <flux:button type="button" size="xs" variant="ghost" icon="arrow-uturn-left" wire:click="undoRemoveExistingPhoto({{ $photo->id }})" />
-                                    @else
-                                        <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeExistingPhoto({{ $photo->id }})" />
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
+                @if ($this->photoGroups->isEmpty())
+                    <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
+                        No photo slots configured. Define them in <span class="font-medium">Workshop → Photo Types</span> (group them into tabs like Exterior, Interior, Documents).
                     </div>
-                @endif
+                @else
+                    <flux:tab.group>
+                        <flux:tabs scrollable>
+                            @foreach ($this->photoGroups as $group)
+                                <flux:tab name="{{ $group['key'] }}" wire:key="tab-{{ $group['key'] }}">
+                                    {{ $group['label'] }} <span class="ml-1 text-xs text-zinc-400">{{ $this->groupProgress($group['slots']) }}</span>
+                                </flux:tab>
+                            @endforeach
+                        </flux:tabs>
 
-                <flux:file-upload wire:model="newPhotos" multiple accept="image/*">
-                    <flux:file-upload.dropzone>
-                        <flux:icon.photo class="size-8 text-zinc-400" />
-                        <span class="text-sm font-medium">Drop photos here or click to choose</span>
-                        <flux:text size="xs" class="text-zinc-500">JPG / PNG · up to 8 MB each</flux:text>
-                    </flux:file-upload.dropzone>
+                        @foreach ($this->photoGroups as $group)
+                            <flux:tab.panel name="{{ $group['key'] }}" wire:key="panel-{{ $group['key'] }}">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                    @foreach ($group['slots'] as $slot)
+                                        @php
+                                            $existing = $this->slotPhoto($slot->id);
+                                            $staged = $slotFiles[$slot->id] ?? null;
+                                            $url = $staged ? $staged->temporaryUrl() : ($existing ? \Illuminate\Support\Facades\Storage::disk('public')->url($existing->path) : null);
+                                        @endphp
+                                        <div wire:key="slot-{{ $slot->id }}" class="relative rounded-lg border {{ $url ? 'border-zinc-200 dark:border-zinc-700' : 'border-dashed border-zinc-300 dark:border-zinc-700' }} overflow-hidden">
+                                            @if ($url)
+                                                <div class="relative aspect-square">
+                                                    <img src="{{ $url }}" alt="{{ $slot->name }}" class="size-full object-cover" />
+                                                    <flux:badge color="lime" size="sm" icon="check" class="absolute top-1 left-1" />
+
+                                                    {{-- Retake + Remove — always visible so they're discoverable on touch --}}
+                                                    <div class="absolute inset-x-0 bottom-0 flex divide-x divide-white/20">
+                                                        <label class="flex flex-1 cursor-pointer items-center justify-center gap-1 bg-black/55 py-1.5 text-xs font-medium text-white hover:bg-black/70">
+                                                            <input type="file" class="sr-only" wire:model="slotFiles.{{ $slot->id }}" accept="image/*" capture="environment" />
+                                                            <flux:icon.arrow-path variant="micro" class="size-3.5" />
+                                                            Retake
+                                                        </label>
+                                                        <button type="button"
+                                                            wire:click="{{ $staged ? 'clearSlotFile('.$slot->id.')' : 'removeExistingPhoto('.$existing->id.')' }}"
+                                                            class="flex flex-1 items-center justify-center gap-1 bg-black/55 py-1.5 text-xs font-medium text-white hover:bg-red-600/80">
+                                                            <flux:icon.trash variant="micro" class="size-3.5" />
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <label class="block aspect-square cursor-pointer">
+                                                    <input type="file" class="sr-only" wire:model="slotFiles.{{ $slot->id }}" accept="image/*" capture="environment" />
+                                                    <div class="flex size-full flex-col items-center justify-center gap-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                                                        <flux:icon.camera class="size-7" />
+                                                        <span class="text-[11px] font-medium">Tap to capture</span>
+                                                    </div>
+                                                </label>
+                                            @endif
+
+                                            <div class="px-2 py-1.5">
+                                                <span class="truncate text-xs font-medium">{{ $slot->name }}</span>
+                                            </div>
+                                            <flux:error name="slotFiles.{{ $slot->id }}" />
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </flux:tab.panel>
+                        @endforeach
+                    </flux:tab.group>
+                @endif
+            </div>
+        </section>
+
+        <flux:separator />
+
+        {{-- ADDITIONAL / DAMAGE PHOTOS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Additional / Damage Photos</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Any extra shots beyond the standard angles — close-ups of dents, scratches, existing damage or anything worth recording.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <flux:file-upload wire:model="extraFiles" multiple accept="image/*">
+                    <flux:file-upload.dropzone
+                        heading="Drop files here or click to browse"
+                        text="JPG, PNG up to 8MB"
+                    />
                 </flux:file-upload>
 
-                @if (count($newPhotos) > 0)
-                    <div class="space-y-2">
-                        @foreach ($newPhotos as $i => $file)
-                            <div wire:key="new-photo-{{ $i }}" class="grid grid-cols-[64px_1fr_40px] gap-3 items-center p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
-                                <img src="{{ $file->temporaryUrl() }}" alt="" class="size-16 object-cover rounded" />
-                                <flux:input
-                                    wire:model="newPhotoCaptions.{{ $i }}"
-                                    size="sm"
-                                    placeholder="Caption (optional)"
-                                />
-                                <flux:button type="button" size="sm" variant="ghost" icon="x-mark" wire:click="removeNewPhoto({{ $i }})" />
-                            </div>
+                @php $extras = $this->extraPhotos(); @endphp
+                @if ($extras->isNotEmpty() || count($extraFiles) > 0)
+                    <div class="mt-4 flex flex-col gap-2">
+                        @foreach ($extras as $photo)
+                            <flux:file-item
+                                wire:key="extra-{{ $photo->id }}"
+                                :heading="$photo->original_name ?? 'Photo #'.$photo->id"
+                                :image="\Illuminate\Support\Facades\Storage::disk('public')->url($photo->path)"
+                                :size="$photo->size_bytes ?? 0"
+                            >
+                                <x-slot name="actions">
+                                    <flux:file-item.remove wire:click="removeExistingPhoto({{ $photo->id }})" />
+                                </x-slot>
+                            </flux:file-item>
+                        @endforeach
+                        @foreach ($extraFiles as $i => $file)
+                            <flux:file-item
+                                wire:key="extra-staged-{{ $i }}"
+                                :heading="$file->getClientOriginalName()"
+                                :image="$file->temporaryUrl()"
+                                :size="$file->getSize()"
+                            >
+                                <x-slot name="actions">
+                                    <flux:file-item.remove wire:click="removeExtraFile({{ $i }})" />
+                                </x-slot>
+                            </flux:file-item>
                         @endforeach
                     </div>
                 @endif
-                <flux:error name="newPhotos" />
-                <flux:error name="newPhotos.*" />
+                <flux:error name="extraFiles" />
+                <flux:error name="extraFiles.*" />
             </div>
         </section>
 
@@ -325,11 +412,11 @@
                 @endif
 
                 <flux:file-upload wire:model="signatureUpload" accept="image/*">
-                    <flux:file-upload.dropzone>
-                        <flux:icon.pencil-square class="size-6 text-zinc-400" />
-                        <span class="text-sm font-medium">{{ $existingSig && ! $clearSignature ? 'Replace signature' : 'Upload customer signature' }}</span>
-                        <flux:text size="xs" class="text-zinc-500">PNG / JPG · up to 2 MB</flux:text>
-                    </flux:file-upload.dropzone>
+                    <flux:file-upload.dropzone
+                        icon="pencil-square"
+                        :heading="$existingSig && ! $clearSignature ? 'Replace signature' : 'Upload customer signature'"
+                        text="PNG / JPG up to 2 MB"
+                    />
                 </flux:file-upload>
 
                 @if ($signatureUpload)

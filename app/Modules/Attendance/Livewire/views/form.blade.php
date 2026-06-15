@@ -42,11 +42,11 @@
                     @endif
 
                     <flux:file-upload wire:model="selfie" accept="image/*">
-                        <flux:file-upload.dropzone>
-                            <flux:icon.camera class="size-6 text-zinc-400" />
-                            <span class="text-sm font-medium">{{ $existing_selfie_path && ! $clearSelfie ? 'Replace selfie' : 'Upload selfie' }}</span>
-                            <flux:text size="xs" class="text-zinc-500">JPG / PNG · up to 4 MB</flux:text>
-                        </flux:file-upload.dropzone>
+                        <flux:file-upload.dropzone
+                            icon="camera"
+                            :heading="$existing_selfie_path && ! $clearSelfie ? 'Replace selfie' : 'Upload selfie'"
+                            text="JPG / PNG up to 4 MB"
+                        />
                     </flux:file-upload>
 
                     @if ($selfie)

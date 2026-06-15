@@ -5,6 +5,7 @@ use App\Modules\Appointment\Models\Appointment;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Livewire\Edit;
 use App\Modules\JobCard\Livewire\Index;
@@ -14,6 +15,7 @@ use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
@@ -157,10 +159,11 @@ it('strips blank complaint rows before validating', function () {
     expect(JobCard::first()->complaints)->toHaveCount(1);
 });
 
-it('persists only checked inventory items', function () {
+it('persists missing and damaged inventory exceptions, skips plain present items', function () {
     $a = VehicleInventoryItemMaster::factory()->create(['name' => 'SPARE TYRE']);
     $b = VehicleInventoryItemMaster::factory()->create(['name' => 'JACK']);
     $c = VehicleInventoryItemMaster::factory()->create(['name' => 'MUSIC SYSTEM']);
+    $damage = DamageTypeMaster::factory()->create(['name' => 'BROKEN']);
 
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
@@ -172,17 +175,52 @@ it('persists only checked inventory items', function () {
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
-        ->set("inventoryItems.{$a->id}.is_present", true)
-        ->set("inventoryItems.{$b->id}.is_present", true)
-        ->set("inventoryItems.{$b->id}.condition_notes", 'rusty handle')
+        ->set("inventoryItems.{$a->id}.status", 'present')          // stays present → not stored
+        ->set("inventoryItems.{$b->id}.status", 'missing')
+        ->set("inventoryItems.{$b->id}.condition_notes", 'no jack in boot')
+        ->set("inventoryItems.{$c->id}.status", 'damaged')
+        ->set("inventoryItems.{$c->id}.damage_type_id", $damage->id)
         ->call('save')
         ->assertHasNoErrors();
 
     $jc = JobCard::with('inventoryItems')->first();
+    $missing = $jc->inventoryItems->firstWhere('vehicle_inventory_item_id', $b->id);
+    $damaged = $jc->inventoryItems->firstWhere('vehicle_inventory_item_id', $c->id);
+
     expect($jc->inventoryItems)->toHaveCount(2)
-        ->and($jc->inventoryItems->where('vehicle_inventory_item_id', $a->id)->first()->is_present)->toBeTrue()
-        ->and($jc->inventoryItems->where('vehicle_inventory_item_id', $b->id)->first()->condition_notes)->toBe('RUSTY HANDLE')
-        ->and($jc->inventoryItems->where('vehicle_inventory_item_id', $c->id)->count())->toBe(0);
+        ->and($jc->inventoryItems->where('vehicle_inventory_item_id', $a->id)->count())->toBe(0)
+        ->and($missing->status)->toBe('missing')
+        ->and($missing->is_present)->toBeFalse()
+        ->and($missing->condition_notes)->toBe('NO JACK IN BOOT')
+        ->and($damaged->status)->toBe('damaged')
+        ->and($damaged->is_present)->toBeFalse()
+        ->and($damaged->damage_type_id)->toBe($damage->id);
+});
+
+it('clears damage type when a damaged item is switched back to present or missing', function () {
+    $item = VehicleInventoryItemMaster::factory()->create(['name' => 'STEPNEY']);
+    $damage = DamageTypeMaster::factory()->create(['name' => 'DENT']);
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    // Mark damaged with a damage type, then flip to missing before saving.
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set("inventoryItems.{$item->id}.status", 'damaged')
+        ->set("inventoryItems.{$item->id}.damage_type_id", $damage->id)
+        ->set("inventoryItems.{$item->id}.status", 'missing')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $row = JobCardInventoryItem::where('vehicle_inventory_item_id', $item->id)->first();
+    expect($row->status)->toBe('missing')
+        ->and($row->damage_type_id)->toBeNull();
 });
 
 it('prefills from an appointment when from-appointment query param is set', function () {
@@ -215,7 +253,7 @@ it('updates an existing job card and re-syncs complaints + inventory', function 
 
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->call('removeComplaint', 1)                              // drop second complaint
-        ->set("inventoryItems.{$invItem->id}.is_present", true)
+        ->set("inventoryItems.{$invItem->id}.status", 'missing')
         ->call('save')
         ->assertHasNoErrors();
 
@@ -264,7 +302,7 @@ it('requires authentication', function () {
     $this->get(route('job-card.index'))->assertRedirect(route('login'));
 });
 
-it('uploads photos and stores rows + files on the public disk', function () {
+it('captures slot photos and extra photos, tagging type + group', function () {
     Storage::fake('public');
 
     $customer = CustomerMaster::factory()->create();
@@ -272,26 +310,58 @@ it('uploads photos and stores rows + files on the public disk', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
+    $front = PhotoTypeMaster::factory()->inGroup('EXTERIOR', 101)->create(['name' => 'FRONT']);
+    $odo = PhotoTypeMaster::factory()->inGroup('METER', 301)->create(['name' => 'ODOMETER']);
+
     Livewire::test(Edit::class)
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
-        ->set('newPhotos', [
-            UploadedFile::fake()->image('dent-front.jpg', 800, 600),
-            UploadedFile::fake()->image('rear-quarter.jpg', 800, 600),
-        ])
-        ->set('newPhotoCaptions.0', 'dent on bumper')
+        ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('front.jpg', 800, 600))
+        ->set("slotFiles.{$odo->id}", UploadedFile::fake()->image('odo.jpg', 800, 600))
+        ->set('extraFiles', [UploadedFile::fake()->image('scratch.jpg', 800, 600)])
         ->call('save')
         ->assertHasNoErrors();
 
     $jc = JobCard::first();
-    expect($jc->photos)->toHaveCount(2);
-    expect($jc->photos[0]->caption)->toBe('DENT ON BUMPER');  // upper-cased
-    expect($jc->photos[0]->sequence_no)->toBe(1);
-    expect($jc->photos[1]->sequence_no)->toBe(2);
-    Storage::disk('public')->assertExists($jc->photos[0]->path);
-    Storage::disk('public')->assertExists($jc->photos[1]->path);
+    expect($jc->photos)->toHaveCount(3);
+
+    $frontPhoto = $jc->photos->firstWhere('photo_type_id', $front->id);
+    expect($frontPhoto->photo_group)->toBe('EXTERIOR');
+    Storage::disk('public')->assertExists($frontPhoto->path);
+
+    $odoPhoto = $jc->photos->firstWhere('photo_type_id', $odo->id);
+    expect($odoPhoto->photo_group)->toBe('METER');
+
+    $extra = $jc->photos->firstWhere('photo_type_id', null);
+    expect($extra->photo_group)->toBe('ADDITIONAL');
+    Storage::disk('public')->assertExists($extra->path);
+});
+
+it('replaces a slot photo on retake instead of duplicating it', function () {
+    Storage::fake('public');
+
+    $front = PhotoTypeMaster::factory()->inGroup('EXTERIOR', 101)->create(['name' => 'FRONT']);
+    $jc = JobCard::factory()->create();
+    $oldPath = UploadedFile::fake()->image('old-front.jpg')->store("job-cards/{$jc->id}/photos", 'public');
+    JobCardPhoto::create([
+        'job_card_id' => $jc->id,
+        'photo_type_id' => $front->id,
+        'photo_group' => 'EXTERIOR',
+        'path' => $oldPath,
+        'sequence_no' => 1,
+    ]);
+
+    Livewire::test(Edit::class, ['jobCard' => $jc])
+        ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('new-front.jpg', 800, 600))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $slotPhotos = JobCardPhoto::where('job_card_id', $jc->id)->where('photo_type_id', $front->id)->get();
+    expect($slotPhotos)->toHaveCount(1);
+    Storage::disk('public')->assertMissing($oldPath);          // old file gone
+    Storage::disk('public')->assertExists($slotPhotos->first()->path);
 });
 
 it('removes existing photos on edit, deleting the file too', function () {
@@ -338,9 +408,10 @@ it('undoes a pending photo removal before save', function () {
     Storage::disk('public')->assertExists($stored);
 });
 
-it('drops a staged new-photo before submitting', function () {
+it('drops a staged slot photo before submitting', function () {
     Storage::fake('public');
 
+    $front = PhotoTypeMaster::factory()->inGroup('EXTERIOR', 101)->create(['name' => 'FRONT']);
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $dept = WorkshopDepartmentMaster::factory()->create();
@@ -351,20 +422,18 @@ it('drops a staged new-photo before submitting', function () {
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
-        ->set('newPhotos', [
-            UploadedFile::fake()->image('a.jpg'),
-            UploadedFile::fake()->image('b.jpg'),
-        ])
-        ->call('removeNewPhoto', 0)
+        ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('a.jpg'))
+        ->call('clearSlotFile', $front->id)
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(JobCard::first()->photos)->toHaveCount(1);
+    expect(JobCard::first()->photos)->toHaveCount(0);
 });
 
 it('rejects oversized photos', function () {
     Storage::fake('public');
 
+    $front = PhotoTypeMaster::factory()->inGroup('EXTERIOR', 101)->create(['name' => 'FRONT']);
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $dept = WorkshopDepartmentMaster::factory()->create();
@@ -375,12 +444,10 @@ it('rejects oversized photos', function () {
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
-        ->set('newPhotos', [
-            // 9 MB image, photo cap is 8 MB
-            UploadedFile::fake()->image('huge.jpg')->size(9000),
-        ])
+        // 9 MB image, photo cap is 8 MB
+        ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('huge.jpg')->size(9000))
         ->call('save')
-        ->assertHasErrors(['newPhotos.0']);
+        ->assertHasErrors(['slotFiles.'.$front->id]);
 
     expect(JobCard::count())->toBe(0);
 });

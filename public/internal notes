@@ -1,0 +1,86 @@
+Customer:
+
+- we want to manage multiple addresses for a customer, admin should be able to select the limit (limit will be added in phase 2)
+- should be shown while pick up and drop
+- should not reflect in billable
+- add customer referral selection (optional)
+- location is not attached with masters (city, pincode etc)
+- 2 emails
+- aadhar and pan card images / pdf
+- Separate first name, middle name and last name
+
+Vendor
+
+- allow selection of multiple types
+- email ids 2
+- aadhar and pan card images / pdf
+- multiple terms for vendor (name of the term: Delivery Term, Payment Term, etc)
+
+Parts Brand Master
+
+- to be attached with vendors
+
+Vehicle:
+
+- make a single selection for vehicle
+- number plate should match old and new series (GJ05RH4816)
+- add button for vehicle brand, model, color, variant etc
+
+Fuel type in variant
+Year should be in the variant not in the Vehicle Model
+
+vehicle automatic space (use mask)
+number plate type
+
+Remvoe Insurance and PUC from New Vehicle
+
+all masters should have their plus butto in place:
+
+for example: In customer, if I want to add a new city on the fly, it should happen
+
+---
+
+Check roles and permissions
+
+- first name and company name
+- GST name if there is company
+- Employee reference in customer
+- add view of customers, where we have vehicles, Invoice name for billables etc
+
+---
+
+UNREGISTERED, doesn't need any registration number
+common customer complaints dropdown
+
+specific photos
+
+- front x 2
+- back x 2
+
+check the acko app
+
+customer review for new customer, with link or photo proof
+
+show service history option in the job card
+
+fuel level - battery percentage EV, based on vechicle type
+
+need multiple departments, advisors
+
+Walk in inquiries, with expiry of 90 days, inquiry to conversion ratio
+
+Customer Tiers:
+
+- Make customer type Regular after second visit
+- Make customer Loyal if services are continue for 3 years
+
+Tier based discounts
+
+- based on customer's tier, automatically give discount
+
+---
+
+### 1 June
+
+Report:I gave custmer a quote of 100,000
+and approved

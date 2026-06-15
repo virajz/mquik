@@ -12,8 +12,10 @@ use App\Modules\CompanyMaster\Database\Seeders\CompanyMasterSeeder;
 use App\Modules\ComplaintTypeMaster\Database\Seeders\ComplaintTypeMasterSeeder;
 use App\Modules\ConsumableDepartmentMaster\Database\Seeders\ConsumableDepartmentMasterSeeder;
 use App\Modules\CourierCompanyMaster\Database\Seeders\CourierCompanyMasterSeeder;
+use App\Modules\CustomerApprovalTypeMaster\Database\Seeders\CustomerApprovalTypeMasterSeeder;
 use App\Modules\CustomerMaster\Database\Seeders\CustomerMasterSeeder;
 use App\Modules\CustomerVehicleMaster\Database\Seeders\CustomerVehicleMasterSeeder;
+use App\Modules\DamageTypeMaster\Database\Seeders\DamageTypeMasterSeeder;
 use App\Modules\DepartmentMaster\Database\Seeders\DepartmentMasterSeeder;
 use App\Modules\DesignationMaster\Database\Seeders\DesignationMasterSeeder;
 use App\Modules\EmployeeMaster\Database\Seeders\EmployeeMasterSeeder;
@@ -29,6 +31,7 @@ use App\Modules\JobCardPendingReasonMaster\Database\Seeders\JobCardPendingReason
 use App\Modules\JobDescriptionMaster\Database\Seeders\JobDescriptionMasterSeeder;
 use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
 use App\Modules\PaymentModeMaster\Database\Seeders\PaymentModeMasterSeeder;
+use App\Modules\PhotoTypeMaster\Database\Seeders\PhotoTypeMasterSeeder;
 use App\Modules\RegionMaster\Database\Seeders\RegionMasterSeeder;
 use App\Modules\ServiceTypeMaster\Database\Seeders\ServiceTypeMasterSeeder;
 use App\Modules\SpareBrandMaster\Database\Seeders\SpareBrandMasterSeeder;
@@ -66,6 +69,9 @@ class DatabaseSeeder extends Seeder
             TaxMasterSeeder::class,
             EnquirySourceMasterSeeder::class,
             ComplaintTypeMasterSeeder::class,
+            PhotoTypeMasterSeeder::class,
+            DamageTypeMasterSeeder::class,
+            CustomerApprovalTypeMasterSeeder::class,
             PaymentModeMasterSeeder::class,
             UnitOfMeasureMasterSeeder::class,
             JobCardCancelReasonMasterSeeder::class,
