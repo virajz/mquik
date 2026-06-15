@@ -45,7 +45,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model="business_type_id" variant="combobox" label="Type" required>
+                    <flux:select wire:model="business_type_id" variant="combobox" label="Customer Type" required>
                         <x-slot name="input">
                             <flux:select.input wire:model="businessTypeSearch" placeholder="Pick or type to add…" />
                         </x-slot>
@@ -57,6 +57,12 @@
                                 Create "<span wire:text="businessTypeSearch"></span>"
                             </flux:select.option.create>
                         @endcan
+                    </flux:select>
+
+                    <flux:select wire:model="gst_type_id" variant="listbox" label="GST Type" placeholder="Select GST type…" clearable searchable>
+                        @foreach ($gstTypes as $gt)
+                            <flux:select.option :value="$gt->id" wire:key="gst-{{ $gt->id }}">{{ $gt->name }}</flux:select.option>
+                        @endforeach
                     </flux:select>
 
                     <flux:field>

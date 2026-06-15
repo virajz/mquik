@@ -36,21 +36,15 @@
                 <flux:input wire:model="name" label="Variant Name" placeholder="e.g. VXi" required />
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="transmission" label="Transmission" variant="listbox" placeholder="Optional">
-                        <flux:select.option value="">— Skip —</flux:select.option>
-                        <flux:select.option value="manual">Manual</flux:select.option>
-                        <flux:select.option value="automatic">Automatic</flux:select.option>
-                        <flux:select.option value="amt">AMT</flux:select.option>
-                        <flux:select.option value="cvt">CVT</flux:select.option>
-                        <flux:select.option value="dct">DCT</flux:select.option>
+                    <flux:select wire:model="transmission_type_id" label="Transmission" variant="listbox" placeholder="Optional" clearable searchable>
+                        @foreach ($this->transmissionTypes as $tt)
+                            <flux:select.option :value="$tt->id" wire:key="tt-{{ $tt->id }}">{{ $tt->name }}</flux:select.option>
+                        @endforeach
                     </flux:select>
-                    <flux:select wire:model="fuel_type" label="Fuel Type" variant="listbox" placeholder="Optional">
-                        <flux:select.option value="">— Skip —</flux:select.option>
-                        <flux:select.option value="petrol">Petrol</flux:select.option>
-                        <flux:select.option value="diesel">Diesel</flux:select.option>
-                        <flux:select.option value="cng">CNG</flux:select.option>
-                        <flux:select.option value="electric">Electric</flux:select.option>
-                        <flux:select.option value="hybrid">Hybrid</flux:select.option>
+                    <flux:select wire:model="fuel_type_id" label="Fuel Type" variant="listbox" placeholder="Optional" clearable searchable>
+                        @foreach ($this->fuelTypes as $ft)
+                            <flux:select.option :value="$ft->id" wire:key="ft-{{ $ft->id }}">{{ $ft->name }}</flux:select.option>
+                        @endforeach
                     </flux:select>
                 </div>
 

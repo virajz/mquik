@@ -41,7 +41,7 @@
         <flux:select
             wire:model="quickModel.vehicle_segment_id"
             variant="combobox"
-            label="Segment"
+            label="Vehicle Type"
             clearable
         >
             <x-slot name="input">

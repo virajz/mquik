@@ -13,7 +13,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Vehicle Segments')]
+#[Title('Vehicle Types')]
 class Index extends Component
 {
     use WithPagination;

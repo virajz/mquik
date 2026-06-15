@@ -13,7 +13,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Business Types')]
+#[Title('Customer Types')]
 class Index extends Component
 {
     use WithPagination;
@@ -81,11 +81,11 @@ class Index extends Component
 
         try {
             BusinessTypeMaster::findOrFail($id)->delete();
-            Flux::toast(text: 'Business type #'.$id.' deleted.', variant: 'success');
+            Flux::toast(text: 'Customer type #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
             // FK restrict — type is referenced by customers
             Flux::toast(
-                text: 'Cannot delete this business type — it is still assigned to one or more customers.',
+                text: 'Cannot delete this customer type — it is still assigned to one or more customers.',
                 variant: 'danger',
             );
         }

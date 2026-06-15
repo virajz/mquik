@@ -6,6 +6,7 @@ use App\Concerns\CanQuickAddCustomer;
 use App\Concerns\HasQuickCreate;
 use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
+use App\Modules\GstTypeMaster\Models\GstTypeMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,8 @@ class Edit extends Component
     public ?string $last_name = null;
 
     public ?int $business_type_id = null;
+
+    public ?int $gst_type_id = null;
 
     /** Combobox search string for the Type picker — also used as the "Create" name. */
     public string $businessTypeSearch = '';
@@ -97,6 +100,7 @@ class Edit extends Component
         $this->middle_name = $customer->middle_name;
         $this->last_name = $customer->last_name;
         $this->business_type_id = $customer->business_type_id;
+        $this->gst_type_id = $customer->gst_type_id;
         $this->referred_by_customer_id = $customer->referred_by_customer_id;
         $this->phone = $customer->phone;
         $this->alternate_phone = $customer->alternate_phone;
@@ -137,6 +141,7 @@ class Edit extends Component
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['nullable', 'string', 'max:255'],
             'business_type_id' => ['required', 'integer', Rule::exists('business_types', 'id')->where('is_active', true)],
+            'gst_type_id' => ['nullable', 'integer', Rule::exists('gst_types', 'id')->where('is_active', true)],
             'referred_by_customer_id' => [
                 'nullable', 'integer',
                 $this->editingId !== null
@@ -191,7 +196,7 @@ class Edit extends Component
             targetProperty: 'business_type_id',
             searchProperty: 'businessTypeSearch',
             permission: 'business_type_master.create',
-            label: 'Business type',
+            label: 'Customer type',
         );
     }
 
@@ -302,7 +307,7 @@ class Edit extends Component
         $addresses = $this->addresses;
         $data = collect($this->validate())->except(['addresses', 'aadhar_file', 'pan_file'])->all();
 
-        $skip = ['email', 'secondary_email', 'business_type_id', 'referred_by_customer_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
+        $skip = ['email', 'secondary_email', 'business_type_id', 'gst_type_id', 'referred_by_customer_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -464,6 +469,7 @@ class Edit extends Component
     {
         return view('customer-master::edit', [
             'businessTypes' => BusinessTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'gstTypes' => GstTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 }

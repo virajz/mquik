@@ -10,7 +10,7 @@ class BusinessTypeImporter implements Importable
 {
     public function label(): string
     {
-        return 'Business Types';
+        return 'Customer Types';
     }
 
     public function columns(): array

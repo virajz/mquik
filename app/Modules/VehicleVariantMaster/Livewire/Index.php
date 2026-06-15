@@ -35,7 +35,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    protected array $sortable = ['id', 'name', 'transmission', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {
@@ -101,7 +101,7 @@ class Index extends Component
     public function render()
     {
         $rows = VehicleVariantMaster::query()
-            ->with(['model:id,name,brand_id', 'model.brand:id,name'])
+            ->with(['model:id,name,brand_id', 'model.brand:id,name', 'fuelType:id,name', 'transmissionType:id,name'])
             ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->modelFilter !== 'all', fn ($q) => $q->where('model_id', $this->modelFilter))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

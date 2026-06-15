@@ -4,6 +4,7 @@ namespace App\Modules\CustomerVehicleMaster\Database\Factories;
 
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -35,7 +36,7 @@ class CustomerVehicleMasterFactory extends Factory
             'variant_id' => $variant->id,
             'color_id' => VehicleColorMaster::factory(),
             'registration_no' => $regNo,
-            'number_plate_type' => 'private',
+            'registration_type_id' => RegistrationTypeMaster::factory(),
             'year_of_manufacture' => $this->faker->numberBetween(2010, (int) date('Y')),
             'vin' => strtoupper($this->faker->bothify('?????????????????')),
             'engine_no' => strtoupper($this->faker->bothify('???########')),

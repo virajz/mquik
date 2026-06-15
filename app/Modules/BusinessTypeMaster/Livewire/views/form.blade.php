@@ -3,12 +3,12 @@
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
-                    {{ $editingId ? 'Edit Business Type' : 'New Business Type' }}
+                    {{ $editingId ? 'Edit Customer Type' : 'New Customer Type' }}
                 </flux:heading>
                 <flux:subheading>
                     {{ $editingId
-                        ? 'Update the business type details below.'
-                        : 'Customer business types — used for segmentation, pricing, and credit terms.' }}
+                        ? 'Update the customer type details below.'
+                        : 'Customer customer types — used for segmentation, pricing, and credit terms.' }}
                 </flux:subheading>
             </div>
 
@@ -38,7 +38,7 @@
                 <flux:textarea
                     wire:model="notes"
                     label="Notes"
-                    placeholder="Anything the team should know about this business type"
+                    placeholder="Anything the team should know about this customer type"
                     rows="2"
                 />
 

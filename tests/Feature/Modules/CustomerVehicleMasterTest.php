@@ -5,6 +5,8 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Livewire\Edit;
 use App\Modules\CustomerVehicleMaster\Livewire\Index;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\FuelTypeMaster\Models\FuelTypeMaster;
+use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
@@ -58,7 +60,6 @@ it('creates a customer vehicle with all FKs and derives model_id from variant', 
         ->and($r->model_id)->toBe($variant->model_id)
         ->and($r->color_id)->toBe($color->id)
         ->and($r->registration_no)->toBe('GJ05AA1234')
-        ->and($r->number_plate_type)->toBe('private')
         ->and($r->year_of_manufacture)->toBe(2022)
         ->and($r->odometer_km)->toBe(45000);
 });
@@ -85,10 +86,12 @@ it('accepts BH series plates', function () {
     $customer = CustomerMaster::factory()->create();
     $variant = VehicleVariantMaster::factory()->create();
 
+    $bh = RegistrationTypeMaster::factory()->create(['name' => 'BH SERIES']);
+
     Livewire::test(Edit::class)
         ->set('customer_id', $customer->id)
         ->set('variant_id', $variant->id)
-        ->set('number_plate_type', 'bh_series')
+        ->set('registration_type_id', $bh->id)
         ->set('registration_no', '24BH1234AA')
         ->call('save')
         ->assertHasNoErrors();
@@ -96,7 +99,7 @@ it('accepts BH series plates', function () {
     expect(CustomerVehicleMaster::firstOrFail()->registration_no)->toBe('24BH1234AA');
 });
 
-it('rejects an invalid plate type', function () {
+it('rejects an invalid (non-existent) registration type', function () {
     $customer = CustomerMaster::factory()->create();
     $variant = VehicleVariantMaster::factory()->create();
 
@@ -104,9 +107,9 @@ it('rejects an invalid plate type', function () {
         ->set('customer_id', $customer->id)
         ->set('variant_id', $variant->id)
         ->set('registration_no', 'GJ05AA1234')
-        ->set('number_plate_type', 'galaxy')
+        ->set('registration_type_id', 999999)
         ->call('save')
-        ->assertHasErrors(['number_plate_type']);
+        ->assertHasErrors(['registration_type_id']);
 });
 
 it('rejects duplicate registration_no', function () {
@@ -204,18 +207,20 @@ it('quick-add Vehicle wizard creates brand + model + variant chain and assigns v
         ['is_active' => true],
     );
 
+    $fuel = FuelTypeMaster::factory()->create(['name' => 'PETROL']);
+
     Livewire::test(Edit::class)
         ->set('quickVehicle.brand_id', $brand->id)
         ->set('quickVehicle.model_id', $model->id)
         ->set('quickVehicle.name', 'sx 2024')
-        ->set('quickVehicle.fuel_type', 'petrol')
+        ->set('quickVehicle.fuel_type_id', $fuel->id)
         ->set('quickVehicle.year', 2024)
         ->call('createQuickVehicle')
         ->assertHasNoErrors();
 
     $variant = VehicleVariantMaster::where('name', 'SX 2024')->where('model_id', $model->id)->firstOrFail();
 
-    expect($variant->fuel_type)->toBe('petrol')
+    expect($variant->fuel_type_id)->toBe($fuel->id)
         ->and($variant->year)->toBe(2024);
 
     Livewire::test(Edit::class)

@@ -3,6 +3,7 @@
 namespace App\Modules\ServicePackageMaster\Livewire;
 
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
+use App\Modules\ServicePackageTypeMaster\Models\ServicePackageTypeMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,8 @@ class Form extends Component
     public string $name = '';
 
     public ?string $code = null;
+
+    public ?int $service_package_type_id = null;
 
     public ?string $description = null;
 
@@ -39,6 +42,7 @@ class Form extends Component
         return [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:32', Rule::unique('service_packages', 'code')->ignore($this->editingId)],
+            'service_package_type_id' => ['nullable', 'integer', Rule::exists('service_package_types', 'id')->where('is_active', true)],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_amc' => ['boolean'],
             'validity_months' => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -69,6 +73,7 @@ class Form extends Component
         $this->editingId = $r->id;
         $this->name = $r->name;
         $this->code = $r->code;
+        $this->service_package_type_id = $r->service_package_type_id;
         $this->description = $r->description;
         $this->is_amc = (bool) $r->is_amc;
         $this->validity_months = $r->validity_months;
@@ -114,6 +119,12 @@ class Form extends Component
     public function serviceTypes()
     {
         return ServiceTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function packageTypes()
+    {
+        return ServicePackageTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     public function save(): void
@@ -199,6 +210,7 @@ class Form extends Component
         $this->editingId = null;
         $this->name = '';
         $this->code = null;
+        $this->service_package_type_id = null;
         $this->description = null;
         $this->is_amc = false;
         $this->validity_months = null;

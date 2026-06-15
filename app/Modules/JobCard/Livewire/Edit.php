@@ -12,6 +12,7 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
+use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
@@ -83,6 +84,9 @@ class Edit extends Component
     /** @var array<int, array{status: string, damage_type_id: ?int, condition_notes: ?string}>  keyed by vehicle_inventory_item_id */
     public array $inventoryItems = [];
 
+    /** @var list<int> selected RequestedRepairMaster ids */
+    public array $requestedRepairIds = [];
+
     /** @var array<int, TemporaryUploadedFile>  staged slot photo, keyed by photo_type_id (one per slot) */
     public array $slotFiles = [];
 
@@ -123,7 +127,7 @@ class Edit extends Component
 
     protected function load(JobCard $jc): void
     {
-        $jc->load(['complaints', 'inventoryItems']);
+        $jc->load(['complaints', 'inventoryItems', 'requestedRepairs:id']);
 
         $this->editingId = $jc->id;
         $this->job_card_no = $jc->job_card_no;
@@ -164,6 +168,8 @@ class Edit extends Component
                 'condition_notes' => $item->condition_notes,
             ];
         }
+
+        $this->requestedRepairIds = $jc->requestedRepairs->pluck('id')->all();
     }
 
     /**
@@ -239,6 +245,9 @@ class Edit extends Component
             'inventoryItems.*.status' => ['required', Rule::in(array_keys(JobCardInventoryItem::statuses()))],
             'inventoryItems.*.damage_type_id' => ['nullable', 'integer', Rule::exists('damage_types', 'id')->where('is_active', true)],
             'inventoryItems.*.condition_notes' => ['nullable', 'string', 'max:500'],
+
+            'requestedRepairIds' => ['array'],
+            'requestedRepairIds.*' => ['integer', Rule::exists('requested_repairs', 'id')->where('is_active', true)],
 
             'slotFiles' => ['array'],
             'slotFiles.*' => ['image', 'max:8192'],  // 8 MB per photo
@@ -385,6 +394,13 @@ class Edit extends Component
         return DamageTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    #[Computed]
+    public function requestedRepairOptions()
+    {
+        return RequestedRepairMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
     /**
      * Active photo "slots" grouped into capture tabs, ordered by sort_order.
      *
@@ -515,6 +531,7 @@ class Edit extends Component
         unset(
             $data['complaints'],
             $data['inventoryItems'],
+            $data['requestedRepairIds'],
             $data['slotFiles'],
             $data['extraFiles'],
             $data['signatureUpload'],
@@ -553,6 +570,7 @@ class Edit extends Component
 
             $this->syncComplaints($row, $complaints);
             $this->syncInventoryItems($row);
+            $row->requestedRepairs()->sync($this->requestedRepairIds);
             $this->syncPhotos($row);
             $this->syncSignature($row);
 

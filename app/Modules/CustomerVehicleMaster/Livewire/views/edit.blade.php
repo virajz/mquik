@@ -133,9 +133,9 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select wire:model="number_plate_type" label="Plate Type" variant="listbox" required>
-                        @foreach (\App\Modules\CustomerVehicleMaster\Livewire\Edit::plateTypes() as $value => $label)
-                            <flux:select.option :value="$value">{{ $label }}</flux:select.option>
+                    <flux:select wire:model="registration_type_id" label="Plate Type" variant="listbox" placeholder="Select…" clearable searchable>
+                        @foreach ($this->registrationTypes as $rt)
+                            <flux:select.option :value="$rt->id" wire:key="rt-{{ $rt->id }}">{{ $rt->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <div class="md:col-span-2">

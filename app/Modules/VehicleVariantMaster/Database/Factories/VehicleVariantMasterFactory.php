@@ -2,6 +2,8 @@
 
 namespace App\Modules\VehicleVariantMaster\Database\Factories;
 
+use App\Modules\FuelTypeMaster\Models\FuelTypeMaster;
+use App\Modules\TransmissionTypeMaster\Models\TransmissionTypeMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,9 +20,9 @@ class VehicleVariantMasterFactory extends Factory
         return [
             'model_id' => VehicleModelMaster::factory(),
             'name' => $this->faker->randomElement(['LXi', 'VXi', 'ZXi', 'ZXi+']).' '.$this->faker->randomNumber(3),
-            'transmission' => $this->faker->randomElement(['manual', 'automatic', 'amt']),
+            'transmission_type_id' => TransmissionTypeMaster::factory(),
             'engine_cc' => $this->faker->randomElement(['1197', '1462', '1493', '1956']).'cc',
-            'fuel_type' => $this->faker->randomElement(['petrol', 'diesel', 'cng']),
+            'fuel_type_id' => FuelTypeMaster::factory(),
             'year' => $this->faker->numberBetween(2018, (int) date('Y')),
             'is_active' => true,
             'notes' => null,

@@ -2,7 +2,9 @@
 
 namespace App\Modules\VehicleVariantMaster\Importers;
 
+use App\Modules\FuelTypeMaster\Models\FuelTypeMaster;
 use App\Modules\ImportExport\Contracts\Importable;
+use App\Modules\TransmissionTypeMaster\Models\TransmissionTypeMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
@@ -21,9 +23,9 @@ class VehicleVariantImporter implements Importable
             'brand_name' => ['label' => 'Brand', 'required' => true, 'type' => 'string'],
             'model_name' => ['label' => 'Model', 'required' => true, 'type' => 'string'],
             'name' => ['label' => 'Variant', 'required' => true, 'type' => 'string'],
-            'transmission' => ['label' => 'Transmission', 'required' => false, 'type' => 'string'],
+            'transmission' => ['label' => 'Transmission', 'required' => false, 'type' => 'string', 'help' => 'Match by name, e.g. MANUAL / AUTOMATIC / AMT'],
             'engine_cc' => ['label' => 'Engine', 'required' => false, 'type' => 'string'],
-            'fuel_type' => ['label' => 'Fuel Type', 'required' => false, 'type' => 'string', 'help' => 'petrol | diesel | cng | electric | hybrid'],
+            'fuel_type' => ['label' => 'Fuel Type', 'required' => false, 'type' => 'string', 'help' => 'Match by name, e.g. PETROL / DIESEL / CNG'],
             'year' => ['label' => 'Year', 'required' => false, 'type' => 'integer'],
             'is_active' => ['label' => 'Active', 'required' => false, 'type' => 'boolean', 'default' => true],
             'notes' => ['label' => 'Notes', 'required' => false, 'type' => 'string'],
@@ -52,13 +54,20 @@ class VehicleVariantImporter implements Importable
 
         $fieldErrors = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
-            'transmission' => ['nullable', 'in:manual,automatic,amt,cvt,dct'],
+            'transmission' => ['nullable', 'string', 'max:60'],
             'engine_cc' => ['nullable', 'string', 'max:20'],
-            'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
+            'fuel_type' => ['nullable', 'string', 'max:60'],
             'year' => ['nullable', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ])->errors()->all();
+
+        if (filled($data['transmission'] ?? null) && ! TransmissionTypeMaster::where('name', strtoupper((string) $data['transmission']))->exists()) {
+            $errors[] = "Transmission '{$data['transmission']}' not found";
+        }
+        if (filled($data['fuel_type'] ?? null) && ! FuelTypeMaster::where('name', strtoupper((string) $data['fuel_type']))->exists()) {
+            $errors[] = "Fuel type '{$data['fuel_type']}' not found";
+        }
 
         return array_merge($errors, $fieldErrors);
     }
@@ -90,12 +99,13 @@ class VehicleVariantImporter implements Importable
         if (isset($data['notes']) && is_string($data['notes'])) {
             $data['notes'] = strtoupper($data['notes']);
         }
-        if (isset($data['transmission']) && is_string($data['transmission'])) {
-            $data['transmission'] = strtolower($data['transmission']);
-        }
-        if (isset($data['fuel_type']) && is_string($data['fuel_type'])) {
-            $data['fuel_type'] = strtolower($data['fuel_type']);
-        }
+        $data['transmission_type_id'] = filled($data['transmission'] ?? null)
+            ? TransmissionTypeMaster::where('name', strtoupper((string) $data['transmission']))->value('id')
+            : null;
+        $data['fuel_type_id'] = filled($data['fuel_type'] ?? null)
+            ? FuelTypeMaster::where('name', strtoupper((string) $data['fuel_type']))->value('id')
+            : null;
+        unset($data['transmission'], $data['fuel_type']);
 
         if (! array_key_exists('is_active', $data) || $data['is_active'] === null) {
             $data['is_active'] = true;

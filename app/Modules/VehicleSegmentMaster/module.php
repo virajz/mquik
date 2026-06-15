@@ -4,8 +4,8 @@ use App\Modules\VehicleSegmentMaster\Exporters\VehicleSegmentExporter;
 use App\Modules\VehicleSegmentMaster\Importers\VehicleSegmentImporter;
 
 return [
-    'label' => 'Vehicle Segments',
-    'description' => 'Body-type segments used by Vehicle Models, Job Cards, and reporting.',
+    'label' => 'Vehicle Types',
+    'description' => 'Vehicle body types (Hatchback, Sedan, SUV, Luxury and more) used by Vehicle Models, Job Cards, and reporting.',
     'group' => 'Vehicles',
     'icon' => 'squares-plus',
     'permissions' => [

@@ -10,7 +10,7 @@ class BusinessTypeExporter implements Exportable
 {
     public function label(): string
     {
-        return 'Business Types';
+        return 'Customer Types';
     }
 
     public function headers(): array

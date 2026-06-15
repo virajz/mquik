@@ -4,8 +4,8 @@ use App\Modules\BusinessTypeMaster\Exporters\BusinessTypeExporter;
 use App\Modules\BusinessTypeMaster\Importers\BusinessTypeImporter;
 
 return [
-    'label' => 'Business Types',
-    'description' => 'Customer business types — used for segmentation, pricing, and credit terms.',
+    'label' => 'Customer Types',
+    'description' => 'Customer relationship types — used for segmentation, pricing, and credit terms.',
     'group' => 'Customers',
     'icon' => 'briefcase',
     'permissions' => [

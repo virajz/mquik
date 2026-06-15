@@ -20,6 +20,7 @@ use App\Modules\DepartmentMaster\Database\Seeders\DepartmentMasterSeeder;
 use App\Modules\DesignationMaster\Database\Seeders\DesignationMasterSeeder;
 use App\Modules\EmployeeMaster\Database\Seeders\EmployeeMasterSeeder;
 use App\Modules\EnquirySourceMaster\Database\Seeders\EnquirySourceMasterSeeder;
+use App\Modules\FuelTypeMaster\Database\Seeders\FuelTypeMasterSeeder;
 use App\Modules\GstTypeMaster\Database\Seeders\GstTypeMasterSeeder;
 use App\Modules\InspectionItemGroupMaster\Database\Seeders\InspectionItemGroupMasterSeeder;
 use App\Modules\InspectionItemMaster\Database\Seeders\InspectionItemMasterSeeder;
@@ -33,9 +34,13 @@ use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
 use App\Modules\PaymentModeMaster\Database\Seeders\PaymentModeMasterSeeder;
 use App\Modules\PhotoTypeMaster\Database\Seeders\PhotoTypeMasterSeeder;
 use App\Modules\RegionMaster\Database\Seeders\RegionMasterSeeder;
+use App\Modules\RegistrationTypeMaster\Database\Seeders\RegistrationTypeMasterSeeder;
+use App\Modules\RequestedRepairMaster\Database\Seeders\RequestedRepairMasterSeeder;
+use App\Modules\ServicePackageTypeMaster\Database\Seeders\ServicePackageTypeMasterSeeder;
 use App\Modules\ServiceTypeMaster\Database\Seeders\ServiceTypeMasterSeeder;
 use App\Modules\SpareBrandMaster\Database\Seeders\SpareBrandMasterSeeder;
 use App\Modules\TaxMaster\Database\Seeders\TaxMasterSeeder;
+use App\Modules\TransmissionTypeMaster\Database\Seeders\TransmissionTypeMasterSeeder;
 use App\Modules\UnitOfMeasureMaster\Database\Seeders\UnitOfMeasureMasterSeeder;
 use App\Modules\VehicleBrandMaster\Database\Seeders\VehicleBrandMasterSeeder;
 use App\Modules\VehicleColorMaster\Database\Seeders\VehicleColorMasterSeeder;
@@ -72,6 +77,11 @@ class DatabaseSeeder extends Seeder
             PhotoTypeMasterSeeder::class,
             DamageTypeMasterSeeder::class,
             CustomerApprovalTypeMasterSeeder::class,
+            FuelTypeMasterSeeder::class,
+            TransmissionTypeMasterSeeder::class,
+            RegistrationTypeMasterSeeder::class,
+            ServicePackageTypeMasterSeeder::class,
+            RequestedRepairMasterSeeder::class,
             PaymentModeMasterSeeder::class,
             UnitOfMeasureMasterSeeder::class,
             JobCardCancelReasonMasterSeeder::class,

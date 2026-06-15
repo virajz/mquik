@@ -2,7 +2,7 @@
     {{-- Page heading + primary action + actions menu --}}
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-            <flux:heading size="xl" level="1">Vehicle Segments</flux:heading>
+            <flux:heading size="xl" level="1">Vehicle Types</flux:heading>
             <flux:text class="mt-1">Body-type segments used by Vehicle Models, Job Cards, and reporting.</flux:text>
         </div>
 
@@ -109,7 +109,7 @@
                                 <flux:modal :name="'vehicle-segment-master-delete-' . $row->id">
                                     <div class="space-y-4">
                                         <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
-                                        <flux:text>Cannot be undone. If any vehicles or models reference this segment the delete will fail and you'll see a warning.</flux:text>
+                                        <flux:text>Cannot be undone. If any vehicles or models reference this vehicle type the delete will fail and you'll see a warning.</flux:text>
                                         <div class="flex gap-2 justify-end">
                                             <flux:modal.close>
                                                 <flux:button variant="ghost">Cancel</flux:button>
@@ -130,8 +130,8 @@
                 <flux:table.row>
                     <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
                         <flux:icon.squares-plus class="mx-auto mb-3 size-8 text-zinc-400" />
-                        <div class="font-medium">No segments yet</div>
-                        <flux:text class="mt-1">Add segments like Hatchback, Sedan, SUV, MUV, Pickup, Commercial.</flux:text>
+                        <div class="font-medium">No vehicle types yet</div>
+                        <flux:text class="mt-1">Add types like Hatchback, Sedan, SUV, Luxury, Pickup, Commercial.</flux:text>
                     </flux:table.cell>
                 </flux:table.row>
             @endforelse

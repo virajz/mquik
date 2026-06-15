@@ -7,6 +7,7 @@ use App\Concerns\CanQuickAddVehicle;
 use App\Concerns\HasQuickCreate;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Flux\Flux;
@@ -39,8 +40,7 @@ class Edit extends Component
 
     public string $registration_no = '';
 
-    /** private | commercial | government | bh_series | military | other */
-    public string $number_plate_type = 'private';
+    public ?int $registration_type_id = null;
 
     public ?int $year_of_manufacture = null;
 
@@ -53,19 +53,6 @@ class Edit extends Component
     public bool $is_active = true;
 
     public ?string $notes = null;
-
-    /** @return array<string, string> */
-    public static function plateTypes(): array
-    {
-        return [
-            'private' => 'Private',
-            'commercial' => 'Commercial',
-            'government' => 'Government',
-            'bh_series' => 'BH Series',
-            'military' => 'Military',
-            'other' => 'Other',
-        ];
-    }
 
     public function mount(?CustomerVehicleMaster $customer_vehicle = null): void
     {
@@ -81,7 +68,7 @@ class Edit extends Component
         $this->variant_id = $vehicle->variant_id;
         $this->color_id = $vehicle->color_id;
         $this->registration_no = $vehicle->registration_no;
-        $this->number_plate_type = $vehicle->number_plate_type ?? 'private';
+        $this->registration_type_id = $vehicle->registration_type_id;
         $this->year_of_manufacture = $vehicle->year_of_manufacture;
         $this->vin = $vehicle->vin;
         $this->engine_no = $vehicle->engine_no;
@@ -102,7 +89,7 @@ class Edit extends Component
                 'regex:/^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[0-9]{2}BH[0-9]{4}[A-Z]{2})$/',
                 Rule::unique('customer_vehicles', 'registration_no')->ignore($this->editingId),
             ],
-            'number_plate_type' => ['required', 'string', Rule::in(array_keys(self::plateTypes()))],
+            'registration_type_id' => ['nullable', 'integer', Rule::exists('registration_types', 'id')->where('is_active', true)],
             'year_of_manufacture' => ['nullable', 'integer', 'min:1980', 'max:'.((int) date('Y') + 1)],
             'vin' => [
                 'nullable', 'string', 'size:17',
@@ -139,16 +126,16 @@ class Edit extends Component
     public function vehicles()
     {
         return VehicleVariantMaster::query()
-            ->with('model.brand:id,name')
+            ->with(['model.brand:id,name', 'fuelType:id,name', 'transmissionType:id,name'])
             ->where('is_active', true)
             ->whereHas('model', fn ($q) => $q->where('is_active', true))
             ->orderBy('name')
-            ->get(['id', 'model_id', 'name', 'year', 'fuel_type', 'transmission'])
+            ->get(['id', 'model_id', 'name', 'year', 'fuel_type_id', 'transmission_type_id'])
             ->map(function ($v) {
                 $bits = array_filter([
                     $v->year,
-                    $v->fuel_type ? ucfirst($v->fuel_type) : null,
-                    $v->transmission ? strtoupper($v->transmission) : null,
+                    $v->fuelType?->name,
+                    $v->transmissionType?->name,
                 ]);
                 $tail = $bits ? ' • '.implode(' • ', $bits) : '';
 
@@ -166,6 +153,15 @@ class Edit extends Component
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'hex_code']);
+    }
+
+    #[Computed]
+    public function registrationTypes()
+    {
+        return RegistrationTypeMaster::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     /** Customer quick-add (CanQuickAddCustomer trait) writes the new id back to the customer picker. */

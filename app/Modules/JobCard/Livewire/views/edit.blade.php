@@ -184,6 +184,23 @@
 
         <flux:separator />
 
+        {{-- REQUESTED REPAIRS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Requested Repairs</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Specific miscellaneous jobs the customer asked for, beyond the complaints above.</flux:text>
+            </div>
+            <div class="space-y-2 min-w-0">
+                <flux:select wire:model="requestedRepairIds" variant="listbox" multiple searchable placeholder="Pick requested repairs…" clearable>
+                    @foreach ($this->requestedRepairOptions as $rr)
+                        <flux:select.option :value="$rr->id" wire:key="rr-{{ $rr->id }}">{{ $rr->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </div>
+        </section>
+
+        <flux:separator />
+
         {{-- VEHICLE INVENTORY SNAPSHOT --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>

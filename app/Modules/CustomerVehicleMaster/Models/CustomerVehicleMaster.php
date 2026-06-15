@@ -6,6 +6,7 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Database\Factories\CustomerVehicleMasterFactory;
+use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
@@ -56,6 +57,11 @@ class CustomerVehicleMaster extends Model
     public function color(): BelongsTo
     {
         return $this->belongsTo(VehicleColorMaster::class, 'color_id');
+    }
+
+    public function registrationType(): BelongsTo
+    {
+        return $this->belongsTo(RegistrationTypeMaster::class, 'registration_type_id');
     }
 
     protected static function newFactory(): CustomerVehicleMasterFactory

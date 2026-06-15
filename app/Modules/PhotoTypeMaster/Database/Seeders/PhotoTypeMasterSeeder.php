@@ -12,6 +12,10 @@ class PhotoTypeMasterSeeder extends Seeder
         // Insurance-style capture slots, grouped into tabs. The sort_order encodes
         // both the tab order (the hundreds digit) and the slot order within a tab.
         $groups = [
+            'SERVICE STAGE' => [
+                ['name' => 'BEFORE SERVICE', 'code' => 'STG-BEF'],
+                ['name' => 'AFTER SERVICE', 'code' => 'STG-AFT'],
+            ],
             'EXTERIOR' => [
                 ['name' => 'FRONT', 'code' => 'EXT-F'],
                 ['name' => 'FRONT RIGHT CORNER', 'code' => 'EXT-FR'],

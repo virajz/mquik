@@ -72,10 +72,10 @@ class Form extends Component
 
         if ($this->editingId) {
             BusinessTypeMaster::findOrFail($this->editingId)->update($data);
-            Flux::toast(text: 'Business type #'.$this->editingId.' updated.', variant: 'success');
+            Flux::toast(text: 'Customer type #'.$this->editingId.' updated.', variant: 'success');
         } else {
             $record = BusinessTypeMaster::create($data);
-            Flux::toast(text: 'Business type #'.$record->id.' created.', variant: 'success');
+            Flux::toast(text: 'Customer type #'.$record->id.' created.', variant: 'success');
         }
 
         $this->dispatch('business-type-master:saved');

@@ -2,14 +2,14 @@
     {{-- Page heading + primary action + actions menu --}}
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-            <flux:heading size="xl" level="1">Business Types</flux:heading>
-            <flux:text class="mt-1">Customer business types — used for segmentation, pricing, and credit terms.</flux:text>
+            <flux:heading size="xl" level="1">Customer Types</flux:heading>
+            <flux:text class="mt-1">Customer customer types — used for segmentation, pricing, and credit terms.</flux:text>
         </div>
 
         <div class="flex items-center gap-2">
             @can('business_type_master.create')
                 <flux:button variant="primary" icon="plus" wire:click="openCreate">
-                New Business Type
+                New Customer Type
             </flux:button>
             @endcan
             <flux:dropdown align="end">
@@ -130,7 +130,7 @@
                 <flux:table.row>
                     <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
                         <flux:icon.briefcase class="mx-auto mb-3 size-8 text-zinc-400" />
-                        <div class="font-medium">No business types yet</div>
+                        <div class="font-medium">No customer types yet</div>
                         <flux:text class="mt-1">Add types like Walking, Loyal, Corporate, Government.</flux:text>
                     </flux:table.cell>
                 </flux:table.row>

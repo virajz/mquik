@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\TransmissionTypeMaster\Models\TransmissionTypeMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Livewire\Form;
@@ -18,11 +19,12 @@ it('renders the index page', function () {
 
 it('creates a variant with model FK', function () {
     $model = VehicleModelMaster::factory()->create(['name' => 'SWIFT']);
+    $tx = TransmissionTypeMaster::factory()->create(['name' => 'MANUAL']);
 
     Livewire::test(Form::class)
         ->set('model_id', $model->id)
         ->set('name', 'vxi')
-        ->set('transmission', 'manual')
+        ->set('transmission_type_id', $tx->id)
         ->set('engine_cc', '1197cc')
         ->call('save')
         ->assertHasNoErrors()
@@ -31,7 +33,7 @@ it('creates a variant with model FK', function () {
     $r = VehicleVariantMaster::firstOrFail();
     expect($r->name)->toBe('VXI')
         ->and($r->model_id)->toBe($model->id)
-        ->and($r->transmission)->toBe('manual');
+        ->and($r->transmission_type_id)->toBe($tx->id);
 });
 
 it('requires model_id', function () {

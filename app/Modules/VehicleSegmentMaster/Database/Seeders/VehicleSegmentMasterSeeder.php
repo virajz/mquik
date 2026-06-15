@@ -14,6 +14,7 @@ class VehicleSegmentMasterSeeder extends Seeder
             ['name' => 'SEDAN',       'code' => 'SDN'],
             ['name' => 'SUV',         'code' => 'SUV'],
             ['name' => 'MUV',         'code' => 'MUV'],
+            ['name' => 'LUXURY',      'code' => 'LUX'],
             ['name' => 'COUPE',       'code' => 'CPE'],
             ['name' => 'CONVERTIBLE', 'code' => 'CNV'],
             ['name' => 'PICKUP',      'code' => 'PKP'],

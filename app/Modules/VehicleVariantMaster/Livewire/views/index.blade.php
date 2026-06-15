@@ -42,7 +42,8 @@
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">ID</flux:table.column>
             <flux:table.column>Model</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">Variant</flux:table.column>
-            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'transmission'" :direction="$sortDirection" wire:click="sort('transmission')">Transmission</flux:table.column>
+            <flux:table.column class="w-28">Fuel</flux:table.column>
+            <flux:table.column class="w-32">Transmission</flux:table.column>
             <flux:table.column class="w-24">Engine</flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
@@ -54,7 +55,8 @@
                     <flux:table.cell class="font-mono text-xs text-zinc-500">#{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}</flux:table.cell>
                     <flux:table.cell class="text-zinc-500">{{ $row->model?->brand?->name }} {{ $row->model?->name }}</flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $row->name }}</flux:table.cell>
-                    <flux:table.cell class="text-zinc-500 text-sm">{{ $row->transmission ? strtoupper($row->transmission) : '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-zinc-500 text-sm">{{ $row->fuelType?->name ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-zinc-500 text-sm">{{ $row->transmissionType?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-zinc-500 text-sm font-mono">{{ $row->engine_cc ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @if ($row->is_active)
@@ -88,7 +90,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
                         <flux:icon.adjustments-horizontal class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No variants yet</div>
                         <flux:text class="mt-1">Add trim levels like Swift VXi, Creta SX.</flux:text>

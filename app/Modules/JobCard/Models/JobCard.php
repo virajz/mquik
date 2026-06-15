@@ -13,12 +13,14 @@ use App\Modules\JobCard\Database\Factories\JobCardFactory;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class JobCard extends Model
@@ -181,6 +183,16 @@ class JobCard extends Model
     public function photos(): HasMany
     {
         return $this->hasMany(JobCardPhoto::class, 'job_card_id')->orderBy('sequence_no');
+    }
+
+    public function requestedRepairs(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            RequestedRepairMaster::class,
+            'job_card_requested_repair',
+            'job_card_id',
+            'requested_repair_id',
+        )->withTimestamps();
     }
 
     /**

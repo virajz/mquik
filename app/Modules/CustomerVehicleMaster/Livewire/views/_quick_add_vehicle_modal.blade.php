@@ -63,21 +63,15 @@
         <flux:error name="quickVehicle.name" />
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <flux:select wire:model="quickVehicle.fuel_type" label="Fuel" variant="listbox" placeholder="Optional">
-                <flux:select.option value="">— Skip —</flux:select.option>
-                <flux:select.option value="petrol">Petrol</flux:select.option>
-                <flux:select.option value="diesel">Diesel</flux:select.option>
-                <flux:select.option value="cng">CNG</flux:select.option>
-                <flux:select.option value="electric">Electric</flux:select.option>
-                <flux:select.option value="hybrid">Hybrid</flux:select.option>
+            <flux:select wire:model="quickVehicle.fuel_type_id" label="Fuel" variant="listbox" placeholder="Optional" clearable>
+                @foreach ($this->quickVehicleFuelTypes as $ft)
+                    <flux:select.option :value="$ft->id" wire:key="qv-ft-{{ $ft->id }}">{{ $ft->name }}</flux:select.option>
+                @endforeach
             </flux:select>
-            <flux:select wire:model="quickVehicle.transmission" label="Transmission" variant="listbox" placeholder="Optional">
-                <flux:select.option value="">— Skip —</flux:select.option>
-                <flux:select.option value="manual">Manual</flux:select.option>
-                <flux:select.option value="automatic">Automatic</flux:select.option>
-                <flux:select.option value="amt">AMT</flux:select.option>
-                <flux:select.option value="cvt">CVT</flux:select.option>
-                <flux:select.option value="dct">DCT</flux:select.option>
+            <flux:select wire:model="quickVehicle.transmission_type_id" label="Transmission" variant="listbox" placeholder="Optional" clearable>
+                @foreach ($this->quickVehicleTransmissionTypes as $tt)
+                    <flux:select.option :value="$tt->id" wire:key="qv-tt-{{ $tt->id }}">{{ $tt->name }}</flux:select.option>
+                @endforeach
             </flux:select>
             <flux:input wire:model="quickVehicle.year" type="number" label="Year" min="1980" :max="now()->year + 1" placeholder="2024" />
         </div>

@@ -26,7 +26,7 @@
                     <flux:input wire:model="name" label="Model Name" placeholder="e.g. SWIFT" required />
                 </div>
 
-                <flux:select wire:model="vehicle_segment_id" label="Segment" variant="combobox" clearable>
+                <flux:select wire:model="vehicle_segment_id" label="Vehicle Type" variant="combobox" clearable>
                     <x-slot name="input">
                         <flux:select.input wire:model="vehicleSegmentSearch" placeholder="Pick or type to add…" />
                     </x-slot>

@@ -10,14 +10,14 @@ class VehicleSegmentImporter implements Importable
 {
     public function label(): string
     {
-        return 'Vehicle Segments';
+        return 'Vehicle Types';
     }
 
     public function columns(): array
     {
         return [
             'name' => [
-                'label' => 'Segment Name',
+                'label' => 'Vehicle Type Name',
                 'required' => true,
                 'type' => 'string',
                 'help' => 'Will be uppercased.',

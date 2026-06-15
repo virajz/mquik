@@ -42,7 +42,7 @@
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">ID</flux:table.column>
             <flux:table.column>Brand</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">Model</flux:table.column>
-            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'vehicle_segment_id'" :direction="$sortDirection" wire:click="sort('vehicle_segment_id')">Segment</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'vehicle_segment_id'" :direction="$sortDirection" wire:click="sort('vehicle_segment_id')">Vehicle Type</flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>

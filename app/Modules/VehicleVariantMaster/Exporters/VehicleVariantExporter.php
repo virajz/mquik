@@ -20,7 +20,7 @@ class VehicleVariantExporter implements Exportable
 
     public function query(): Builder
     {
-        return VehicleVariantMaster::query()->with('model.brand')->orderBy('name');
+        return VehicleVariantMaster::query()->with(['model.brand', 'fuelType:id,name', 'transmissionType:id,name'])->orderBy('name');
     }
 
     public function row(object $model): array
@@ -30,9 +30,9 @@ class VehicleVariantExporter implements Exportable
             $model->model?->brand?->name,
             $model->model?->name,
             $model->name,
-            $model->transmission,
+            $model->transmissionType?->name,
             $model->engine_cc,
-            $model->fuel_type,
+            $model->fuelType?->name,
             $model->year,
             $model->is_active ? 'YES' : 'NO',
             $model->notes,

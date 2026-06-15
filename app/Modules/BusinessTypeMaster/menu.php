@@ -4,7 +4,7 @@ return [
     [
         'mode' => 'setup',
         'group' => 'Customers',
-        'label' => 'Business Types',
+        'label' => 'Customer Types',
         'icon' => 'briefcase',
         'route' => 'business-type-master.index',
         'permission' => 'business_type_master.view',

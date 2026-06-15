@@ -25,6 +25,12 @@
                     />
                 </div>
 
+                <flux:select wire:model="service_package_type_id" label="Category" variant="listbox" placeholder="Periodic Service / Accident Repair / Combo / AMC" clearable searchable>
+                    @foreach ($this->packageTypes as $pt)
+                        <flux:select.option :value="$pt->id" wire:key="pkgtype-{{ $pt->id }}">{{ $pt->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
                 <flux:textarea
                     wire:model="description"
                     label="Description"

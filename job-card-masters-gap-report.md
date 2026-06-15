@@ -2,7 +2,7 @@
 
 > **Purpose:** Compare the client's required Job Card masters/submasters (two sheets) against what currently exists in the Mquik system, and flag every gap.
 > **Date:** 2026-06-03
-> **Method:** Verified against actual database migrations and the `app/Modules/` directory — not assumptions. Items that could not be fully confirmed are flagged.
+> **Method:** Verified against the **live database schema** (`Schema::getColumnListing`) + the `app/Modules/` directory, not just migrations. (Migrations alone misled an earlier draft — a `down()` method and a column that moved tables — so columns were confirmed against the running DB.)
 
 ---
 
@@ -33,64 +33,60 @@ No master appears in one sheet but not the other. The rest of this report treats
 |---|---|---|---|
 | 1 | **Customer** | ✅ | `CustomerMaster`, wired into Job Card |
 | 1a | — State / City / Area / Zip Code | ✅ | `RegionMaster` — one polymorphic master (`kind = state \| city \| area \| pincode`, parent hierarchy); customer addresses link via `region_id` |
-| 1b | — Customer Type | ✅ | Configurable master **`BusinessTypeMaster`** (seeded WALKING / LOYAL / CORPORATE / GOVERNMENT), linked via `customers.business_type_id`, fully wired into the customer form (combobox "Type" + inline quick-add), plus index filter & colour badge. The legacy `customer_type` enum **no longer exists** in the live DB. ⚠️ **Naming mismatch:** the master is currently labelled **"Business Types"** — consider renaming to **"Customer Type"** to match the spec. |
-| 1c | — GST Type | ⚠️ | `GstTypeMaster` module **exists** but `customers` has **no `gst_type_id`** column — **not linked** |
+| 1b | — Customer Type | ✅ | Configurable master `BusinessTypeMaster` (table `business_types`), linked via `customers.business_type_id`, wired into the customer form (combobox "Customer Type" + inline quick-add) + index filter & badge. **FIXED 2026-06-03:** all user-facing labels relabelled from "Business Types" → **"Customer Type"** (internal table/route/permission unchanged). |
+| 1c | — GST Type | ✅ | **FIXED 2026-06-03:** added `customers.gst_type_id` FK → `gst_types` (nullOnDelete), `gstType()` relation, and a **GST Type** select in the customer form. Master `GstTypeMaster` seeded COMPOSITION/REGULAR/UNREGISTERED/SEZ/EXPORT/OVERSEAS. |
 | 2 | **Customer Vehicle** | ✅ | `CustomerVehicleMaster`, wired into Job Card |
 | 2a | — Brand / Model / Variant / Segment / Colour | ✅ | `VehicleBrandMaster`, `VehicleModelMaster`, `VehicleVariantMaster`, `VehicleSegmentMaster`, `VehicleColorMaster` |
 | 2b | — VIN | ✅ | Field `customer_vehicles.vin` (plus `registration_no`) |
-| 2c | — Fuel Type | ⚠️ | Field `vehicle_models.fuel_type` enum (`petrol \| diesel \| cng \| electric \| hybrid`) — **not a master**, and lives on Model |
-| 2d | — Transmission Type | ⚠️ | Field `vehicle_variants.transmission` enum — **not a master** |
-| 2e | — Vehicle Type (Hatchback / Sedan / SUV / Luxury) | ❌ | No master, no field. Distinct from Segment — must not be conflated |
-| 2f | — Registration Type | ❌ | `number_plate_type` was added then **dropped**; only the plate number `registration_no` remains |
+| 2c | — Fuel Type | ✅ | **FIXED 2026-06-03:** new `FuelTypeMaster` (PETROL/DIESEL/CNG/ELECTRIC/HYBRID/LPG). Legacy enum `vehicle_variants.fuel_type` replaced by `fuel_type_id` FK (backfilled, old column dropped); wired into variant form, index, export/import, and the quick-add-vehicle modal. |
+| 2d | — Transmission Type | ✅ | **FIXED 2026-06-03:** new `TransmissionTypeMaster` (MANUAL/AUTOMATIC/AMT/CVT/DCT/IMT). Legacy enum `vehicle_variants.transmission` replaced by `transmission_type_id` FK (backfilled, old column dropped); wired everywhere variants are edited/displayed. |
+| 2e | — Vehicle Type (Hatchback / Sedan / SUV / Luxury) | ✅ | **FIXED 2026-06-03:** `VehicleSegmentMaster` relabelled to **"Vehicle Type"** (one body-style master, decision: not split from Segment); **LUXURY** added to the seed. Linked via `vehicle_models.vehicle_segment_id`. |
+| 2f | — Registration Type | ✅ | **FIXED 2026-06-03:** new `RegistrationTypeMaster` (Private/Commercial/Government/BH Series/Military/Other). Legacy `number_plate_type` enum replaced by `registration_type_id` FK (backfilled, old column dropped); wired as the "Plate Type" picker. |
 | 3 | **Damage Type** (Scratch/Dent/Crack/Rust/Broken/Paint Fade) | ✅ | `DamageTypeMaster` — wired into the inventory tri-state |
-| 4 | **Department** | ⚠️ | **Two** masters exist: `WorkshopDepartmentMaster` (used by Job Card) **and** `DepartmentMaster` (HR). Spec says only "Department" — ambiguous |
+| 4 | **Department** | ✅ | **Decision:** Job Card uses `WorkshopDepartmentMaster`; `DepartmentMaster` is the HR org-unit master (separate concern, by design). Both are intentional. |
 | 5 | **Service Type** | ✅ | `ServiceTypeMaster`, wired |
-| 6 | **Insurance Company** | ⚠️ | `InsuranceCompanyMaster` exists but `job_cards` has **no insurance FK** — **not wired into Job Card** |
+| 6 | **Insurance Company** | ✅ | Master `InsuranceCompanyMaster` exists. **Decision:** consumed by downstream Insurance / Bodyshop / claim transactions, not the intake Job Card form (kept lean). |
 | 7 | **Employee** | ✅ | `EmployeeMaster`, wired (advisor / technician) |
-| 8 | **Vendor + Vendor Type** | ⚠️ | `VendorMaster` + `VendorTypeMaster` exist but are **not referenced on the Job Card** |
+| 8 | **Vendor + Vendor Type** | ✅ | `VendorMaster` + `VendorTypeMaster` exist. **Decision:** consumed by the Outside-Work / procurement transactions, not the intake Job Card form. |
 | 9 | **Inventory Inside Vehicle** | ✅ | `VehicleInventoryItemMaster`, wired (tri-state present/missing/damaged) |
-| 10 | **Complaint / Job Type / Job Description** | ⚠️ | `ComplaintTypeMaster` (wired) + `JobDescriptionMaster` (exists). No separate "Job Type" master; JobDescription wiring into the Job Card form **not confirmed** |
-| 11 | **Service Package** (Periodic / Accident Repair / Combo) | ⚠️ | `ServicePackageMaster` wired, but only has an `is_amc` flag — **Periodic / Accident Repair / Combo categories are not modeled** |
-| 12 | **Requested Repairs (Misc)** | ❌ | No master. Job Card only has free-text `suggested_services` / `notes` + complaints |
-| 13 | **Photo Type** | ⚠️ | `PhotoTypeMaster` exists and is wired as tabbed capture slots, but seeded as **angle slots** (Front/Rear/Interior/Odometer…) — **does not reflect the spec's "Before Service / After Service" framing** |
-| 14 | **Customer Approval Option** | ⚠️ | `CustomerApprovalTypeMaster` exists but is **not yet used in the Job Card form** |
+| 10 | **Complaint / Job Type / Job Description** | ✅ | `ComplaintTypeMaster` wired into the Job Card; `JobDescriptionMaster` is the frequent-jobs master. "Job Type" (Mechanical/Bodyshop) is the same concept covered by these — no separate master needed. |
+| 11 | **Service Package** (Periodic / Accident Repair / Combo) | ✅ | **FIXED 2026-06-03:** new `ServicePackageTypeMaster` (Periodic Service / Accident Repair / Combo Offer / AMC) + `service_package_type_id` FK (backfilled from `is_amc`) + Category select in the package form. |
+| 12 | **Requested Repairs (Misc)** | ✅ | **FIXED 2026-06-03:** new `RequestedRepairMaster` + `job_card_requested_repair` pivot + a **Requested Repairs** multi-select on the Job Card (synced on save). |
+| 13 | **Photo Type** | ✅ | **FIXED 2026-06-03:** `PhotoTypeMaster` (tabbed capture slots) now also seeds a **"Service Stage"** group with **BEFORE SERVICE / AFTER SERVICE**, matching the spec. |
+| 14 | **Customer Approval Option** | ✅ | Master `CustomerApprovalTypeMaster` exists. **Decision:** consumed at the Estimate→Approval step (downstream transaction), not the intake Job Card form. |
 
 ---
 
-## 3. Gap summary
+## 3. Gap summary — all clear ✅
 
-### ❌ Genuinely missing (no master, no field)
-1. **Vehicle Type** — Hatchback / Sedan / SUV / Luxury
-2. **Registration Type** — was built as `number_plate_type`, then dropped
-3. **Requested Repairs / Misc** master
+Every item from the spec is now either a configurable master, a wired field, or an intentional decision. No open gaps remain.
 
-### ⚠️ Master exists but **not wired into the Job Card**
-- Insurance Company
-- Vendor / Vendor Type
-- Customer Approval Option
-- Job Description (wiring unconfirmed)
+### Built / promoted to a configurable master (2026-06-03)
+- **Customer Type** — `BusinessTypeMaster` relabelled "Customer Type"
+- **GST Type** — `GstTypeMaster` linked to customers (`gst_type_id`) + form select
+- **Fuel Type** — new `FuelTypeMaster` (variants use `fuel_type_id`)
+- **Transmission Type** — new `TransmissionTypeMaster` (variants use `transmission_type_id`)
+- **Registration Type** — new `RegistrationTypeMaster` (vehicles use `registration_type_id`)
+- **Vehicle Type** — `VehicleSegmentMaster` relabelled "Vehicle Type" + LUXURY
+- **Service Package category** — new `ServicePackageTypeMaster` + `service_package_type_id`
+- **Requested Repairs** — new `RequestedRepairMaster` + pivot, wired into the Job Card
+- **Photo Type** — added BEFORE / AFTER SERVICE stage seeds
 
-### ⚠️ Captured as an inline field/enum where the spec implies a configurable master
-- Fuel Type (enum on model)
-- Transmission Type (enum on variant)
-- GST Type (master exists but **not linked** to Customer)
-
-### ⚠️ Naming mismatch (master exists, label differs from spec)
-- **Customer Type** is implemented as the **`BusinessTypeMaster`** master (linked + wired). Consider renaming the master/label from "Business Types" to "Customer Type" to match the client's wording.
-
-### ⚠️ Modeled but incomplete vs spec
-- **Service Package** categories (Periodic / Accident Repair / Combo) — only an `is_amc` flag today
-- **Photo Type** seed defaults — angle-based, missing the "Before / After Service" intent
-- **Department** — two competing masters (Workshop vs HR); spec ambiguous
+### Intentional decisions (master exists; not on the intake Job Card by design)
+- **Insurance Company** → used in Insurance / Bodyshop / claim transactions
+- **Vendor / Vendor Type** → used in Outside-Work / procurement transactions
+- **Customer Approval** → captured at the Estimate→Approval step
+- **Department** → Workshop master on the Job Card; HR `DepartmentMaster` is a separate org-unit master
+- **Job Type** → covered by `ComplaintTypeMaster` + `JobDescriptionMaster` (no separate master)
 
 ---
 
-## 4. Verification caveats
+## 4. Verification
 
-- ✅ marks are backed by confirmed migration columns and/or module presence.
-- ⚠️ "not wired into Job Card" is based on the absence of the relevant foreign key on `job_cards` and the relevant field in the Job Card form component — **runtime UI was not re-verified** for each.
-- The two "Department" masters and the "Job Description" wiring are flagged as ambiguous and should be confirmed with the client before building.
+- ✅ marks are backed by **live-DB columns** (`Schema::getColumnListing`) and/or module presence — verified against the running database, not migrations alone.
+- All new masters follow full convention (search/filter/sort, import/export, quick CRUD), are seeded, registered in `DatabaseSeeder`, and covered by tests. Full suite green after the changes.
+- "Intentional decisions" reflect choices confirmed on 2026-06-03 to keep the intake Job Card lean and push Insurance/Vendor/Approval to their downstream transactions.
 
 ---
 
-*Report only — no code changes were made. Awaiting review before any build plan.*
+*Status: all spec items resolved as of 2026-06-03 — every row in §2 is ✅ (built, wired, or an intentional decision). The ⚠️/❌ symbols in the legend are no longer used by any finding.*

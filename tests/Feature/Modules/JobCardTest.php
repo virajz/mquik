@@ -16,6 +16,7 @@ use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
+use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
@@ -157,6 +158,28 @@ it('strips blank complaint rows before validating', function () {
         ->assertHasNoErrors();
 
     expect(JobCard::first()->complaints)->toHaveCount(1);
+});
+
+it('syncs requested repairs (many-to-many) on the job card', function () {
+    $alignment = RequestedRepairMaster::factory()->create(['name' => 'WHEEL ALIGNMENT']);
+    $acGas = RequestedRepairMaster::factory()->create(['name' => 'AC GAS REFILL']);
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('requestedRepairIds', [$alignment->id, $acGas->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(JobCard::first()->requestedRepairs->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$alignment->id, $acGas->id])->sort()->values()->all());
 });
 
 it('persists missing and damaged inventory exceptions, skips plain present items', function () {

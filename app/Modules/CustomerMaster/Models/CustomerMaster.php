@@ -6,6 +6,7 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Database\Factories\CustomerMasterFactory;
+use App\Modules\GstTypeMaster\Models\GstTypeMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,11 @@ class CustomerMaster extends Model
     public function businessType(): BelongsTo
     {
         return $this->belongsTo(BusinessTypeMaster::class, 'business_type_id');
+    }
+
+    public function gstType(): BelongsTo
+    {
+        return $this->belongsTo(GstTypeMaster::class, 'gst_type_id');
     }
 
     public function referredBy(): BelongsTo

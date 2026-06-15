@@ -3,6 +3,8 @@
 namespace App\Modules\VehicleVariantMaster\Livewire;
 
 use App\Concerns\CanQuickAddModel;
+use App\Modules\FuelTypeMaster\Models\FuelTypeMaster;
+use App\Modules\TransmissionTypeMaster\Models\TransmissionTypeMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Flux\Flux;
@@ -21,11 +23,11 @@ class Form extends Component
 
     public string $name = '';
 
-    public ?string $transmission = null;
+    public ?int $transmission_type_id = null;
 
     public ?string $engine_cc = null;
 
-    public ?string $fuel_type = null;
+    public ?int $fuel_type_id = null;
 
     public ?int $year = null;
 
@@ -43,9 +45,9 @@ class Form extends Component
                     ->where(fn ($q) => $q->where('model_id', $this->model_id))
                     ->ignore($this->editingId),
             ],
-            'transmission' => ['nullable', 'in:manual,automatic,amt,cvt,dct'],
+            'transmission_type_id' => ['nullable', 'integer', Rule::exists('transmission_types', 'id')->where('is_active', true)],
             'engine_cc' => ['nullable', 'string', 'max:20'],
-            'fuel_type' => ['nullable', 'in:petrol,diesel,cng,electric,hybrid'],
+            'fuel_type_id' => ['nullable', 'integer', Rule::exists('fuel_types', 'id')->where('is_active', true)],
             'year' => ['nullable', 'integer', 'min:1980', 'max:'.(date('Y') + 1)],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -56,6 +58,18 @@ class Form extends Component
     public function models()
     {
         return VehicleModelMaster::query()->with('brand:id,name')->where('is_active', true)->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function fuelTypes()
+    {
+        return FuelTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function transmissionTypes()
+    {
+        return TransmissionTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[On('vehicle-variant-master:edit')]
@@ -70,9 +84,9 @@ class Form extends Component
         $this->editingId = $r->id;
         $this->model_id = $r->model_id;
         $this->name = $r->name;
-        $this->transmission = $r->transmission;
+        $this->transmission_type_id = $r->transmission_type_id;
         $this->engine_cc = $r->engine_cc;
-        $this->fuel_type = $r->fuel_type;
+        $this->fuel_type_id = $r->fuel_type_id;
         $this->year = $r->year;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
@@ -114,9 +128,9 @@ class Form extends Component
         $this->editingId = null;
         $this->model_id = null;
         $this->name = '';
-        $this->transmission = null;
+        $this->transmission_type_id = null;
         $this->engine_cc = null;
-        $this->fuel_type = null;
+        $this->fuel_type_id = null;
         $this->year = null;
         $this->is_active = true;
         $this->notes = null;

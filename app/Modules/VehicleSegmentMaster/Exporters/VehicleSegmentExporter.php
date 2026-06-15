@@ -10,7 +10,7 @@ class VehicleSegmentExporter implements Exportable
 {
     public function label(): string
     {
-        return 'Vehicle Segments';
+        return 'Vehicle Types';
     }
 
     public function headers(): array

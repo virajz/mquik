@@ -17,7 +17,7 @@
                     <div class="md:col-span-2">
                         <flux:input
                             wire:model="name"
-                            label="Segment Name"
+                            label="Vehicle Type Name"
                             placeholder="e.g. HATCHBACK"
                             required
                             autofocus
@@ -36,7 +36,7 @@
                 <flux:textarea
                     wire:model="notes"
                     label="Notes"
-                    placeholder="Anything the team should know about this segment"
+                    placeholder="Anything the team should know about this vehicle type"
                     rows="2"
                 />
 
@@ -45,7 +45,7 @@
                 <flux:switch
                     wire:model="is_active"
                     label="Active"
-                    description="Inactive segments won't appear in vehicle and model dropdowns."
+                    description="Inactive types won't appear in vehicle and model dropdowns."
                 />
             </div>
 
