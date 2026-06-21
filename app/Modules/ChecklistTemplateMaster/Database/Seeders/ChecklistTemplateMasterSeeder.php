@@ -64,6 +64,36 @@ class ChecklistTemplateMasterSeeder extends Seeder
                     ['label' => 'FEEDBACK COLLECTED', 'is_required' => false],
                 ],
             ],
+            [
+                'name' => 'INSURANCE CLAIM DOCUMENTS',
+                'code' => 'INS-DOC',
+                'group_name' => 'INSURANCE CLAIM',
+                'applies_to' => 'claim',
+                'items' => [
+                    ['label' => 'RC BOOK', 'is_required' => true],
+                    ['label' => 'INSURANCE POLICY', 'is_required' => true],
+                    ['label' => 'DRIVING LICENSE', 'is_required' => true],
+                    ['label' => 'AADHAR / ID PROOF', 'is_required' => true],
+                    ['label' => 'PAN', 'is_required' => false],
+                    ['label' => 'CLAIM INTIMATION COPY', 'is_required' => true],
+                    ['label' => 'FIR COPY', 'is_required' => false],
+                    ['label' => 'CLAIM FORM SIGNED COPY', 'is_required' => true],
+                    ['label' => 'PHOTOS OF DAMAGE', 'is_required' => true],
+                    ['label' => 'PUC', 'is_required' => false],
+                ],
+            ],
+            [
+                'name' => 'CLAIM VERIFICATION',
+                'code' => 'INS-VERIFY',
+                'group_name' => 'INSURANCE CLAIM',
+                'applies_to' => 'claim',
+                'items' => [
+                    ['label' => 'NAME MATCH', 'is_required' => true],
+                    ['label' => 'VEHICLE NUMBER MATCH', 'is_required' => true],
+                    ['label' => 'POLICY VALIDITY', 'is_required' => true],
+                    ['label' => 'SIGNATURE MATCH', 'is_required' => true],
+                ],
+            ],
         ];
 
         foreach ($templates as $tpl) {

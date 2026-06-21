@@ -9,12 +9,18 @@ use App\Modules\BusinessTypeMaster\Database\Seeders\BusinessTypeMasterSeeder;
 use App\Modules\ChecklistGroupMaster\Database\Seeders\ChecklistGroupMasterSeeder;
 use App\Modules\ChecklistTemplateMaster\Database\Seeders\ChecklistTemplateMasterSeeder;
 use App\Modules\CompanyMaster\Database\Seeders\CompanyMasterSeeder;
+use App\Modules\ClaimTypeMaster\Database\Seeders\ClaimTypeMasterSeeder;
 use App\Modules\ComplaintTypeMaster\Database\Seeders\ComplaintTypeMasterSeeder;
+use App\Modules\DocumentRejectionReasonMaster\Database\Seeders\DocumentRejectionReasonMasterSeeder;
+use App\Modules\FollowUpModeMaster\Database\Seeders\FollowUpModeMasterSeeder;
+use App\Modules\InsurancePolicyTypeMaster\Database\Seeders\InsurancePolicyTypeMasterSeeder;
+use App\Modules\MissingDocumentReasonMaster\Database\Seeders\MissingDocumentReasonMasterSeeder;
 use App\Modules\ConsumableDepartmentMaster\Database\Seeders\ConsumableDepartmentMasterSeeder;
 use App\Modules\CourierCompanyMaster\Database\Seeders\CourierCompanyMasterSeeder;
 use App\Modules\CustomerApprovalTypeMaster\Database\Seeders\CustomerApprovalTypeMasterSeeder;
 use App\Modules\CustomerMaster\Database\Seeders\CustomerMasterSeeder;
 use App\Modules\CustomerVehicleMaster\Database\Seeders\CustomerVehicleMasterSeeder;
+use App\Modules\DocumentCollection\Database\Seeders\DocumentCollectionSeeder;
 use App\Modules\DamageTypeMaster\Database\Seeders\DamageTypeMasterSeeder;
 use App\Modules\DepartmentMaster\Database\Seeders\DepartmentMasterSeeder;
 use App\Modules\DesignationMaster\Database\Seeders\DesignationMasterSeeder;
@@ -75,6 +81,11 @@ class DatabaseSeeder extends Seeder
             TaxMasterSeeder::class,
             EnquirySourceMasterSeeder::class,
             ComplaintTypeMasterSeeder::class,
+            ClaimTypeMasterSeeder::class,
+            InsurancePolicyTypeMasterSeeder::class,
+            MissingDocumentReasonMasterSeeder::class,
+            DocumentRejectionReasonMasterSeeder::class,
+            FollowUpModeMasterSeeder::class,
             PhotoTypeMasterSeeder::class,
             DamageTypeMasterSeeder::class,
             CustomerApprovalTypeMasterSeeder::class,
@@ -131,6 +142,11 @@ class DatabaseSeeder extends Seeder
         // 6) Fourth-level FK deps.
         $this->call([
             CustomerVehicleMasterSeeder::class,
+        ]);
+
+        // 6b) Transactions that depend on customers + vehicles.
+        $this->call([
+            DocumentCollectionSeeder::class,
         ]);
 
         // 7) Singleton.
