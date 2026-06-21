@@ -17,6 +17,10 @@ class JobCardHistoryEvent extends Model
 
     public const TYPE_TECHNICIAN_CHANGED = 'technician_changed';
 
+    public const TYPE_STAGE_CHANGED = 'stage_changed';
+
+    public const TYPE_PENDING_REASON_CHANGED = 'pending_reason_changed';
+
     public const TYPE_COMPLAINT_ADDED = 'complaint_added';
 
     public const TYPE_COMPLAINT_RESOLVED = 'complaint_resolved';
@@ -56,6 +60,8 @@ class JobCardHistoryEvent extends Model
             self::TYPE_STATUS_CHANGED => 'Status Changed',
             self::TYPE_ADVISOR_CHANGED => 'Advisor Changed',
             self::TYPE_TECHNICIAN_CHANGED => 'Technician Changed',
+            self::TYPE_STAGE_CHANGED => 'Stage Changed',
+            self::TYPE_PENDING_REASON_CHANGED => 'Pending Reason Changed',
             self::TYPE_COMPLAINT_ADDED => 'Complaint Added',
             self::TYPE_COMPLAINT_RESOLVED => 'Complaint Resolved',
             self::TYPE_INSPECTION_STARTED => 'Inspection Started',

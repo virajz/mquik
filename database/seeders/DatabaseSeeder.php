@@ -30,6 +30,7 @@ use App\Modules\InventoryGroupMaster\Database\Seeders\InventoryGroupMasterSeeder
 use App\Modules\JobCardCancelReasonMaster\Database\Seeders\JobCardCancelReasonMasterSeeder;
 use App\Modules\JobCardPendingReasonMaster\Database\Seeders\JobCardPendingReasonMasterSeeder;
 use App\Modules\JobDescriptionMaster\Database\Seeders\JobDescriptionMasterSeeder;
+use App\Modules\JobStageMaster\Database\Seeders\JobStageMasterSeeder;
 use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
 use App\Modules\PaymentModeMaster\Database\Seeders\PaymentModeMasterSeeder;
 use App\Modules\PhotoTypeMaster\Database\Seeders\PhotoTypeMasterSeeder;
@@ -86,6 +87,7 @@ class DatabaseSeeder extends Seeder
             UnitOfMeasureMasterSeeder::class,
             JobCardCancelReasonMasterSeeder::class,
             JobCardPendingReasonMasterSeeder::class,
+            JobStageMasterSeeder::class,
             ConsumableDepartmentMasterSeeder::class,
             VehicleSegmentMasterSeeder::class,
             VehicleColorMasterSeeder::class,

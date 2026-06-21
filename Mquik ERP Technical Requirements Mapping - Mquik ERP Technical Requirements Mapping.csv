@@ -1,0 +1,813 @@
+Module Name,Associated Masters,Purpose,Associated Reports
+1. Dashboard,"Employee Master, Role/Permissions Master","Role-based homepage with stats, charts, alerts, widgets for quick overview based on permissions.","Dashboard Report, KPI/Business Intelligence Report"
+2. Attendance & payroll,"Employee Master, Designation Master, Shift Master","Manage employee attendance, leave management, payroll calculations, and send alerts.","Attendance Report, Late coming Report, Early Exit Report, Absenteeism Report, In-Out/Punch Report, Salary Slip, Leave Report, PF & ESI, Tax Report, Advance & Loan, Bonus, Salary Register, CTC, Target/Overtime"
+3. Master Search (Multi-Module Search),All Masters,"Universal multi-module search across job cards, history, references, master data, and reverse warranty tracking.",Master Search Results
+4. Appointment,"Customer
+Customer Vehicle - Brand, Model, Variant
+Employee - Advisor/CRM In Charge
+Department
+Service Type - General Service, PMS, Express Service (Quick Repair), Repeat Job, Ins. Job,  Non Ins. Job
+Holiday / Non-Working Days - Date, Holiday Name, Type (Full Day / Half Day)
+Time Slot Master - Slot Start Time, Slot End Time, Max Vehicles per Slot, Buffer Time (Optional) eg. 09:00–10:00, 10:00–11:00, 12:00–01:00, 02:00–03:00
+Priority Order - Normal, High, Urgent
+Booking Channel - Walk-in, Phone Call, Website, Mobile App, WhatsApp, Email, CRM, Referral
+Pickup/Drop option - Customer Self Drop, Workshop Pickup Only, Workshop Drop Only, Workshop Pickup & Drop Both, Customer Self Towing, Workshop Towing, Doorstep Inspection
+Job Description/Customer Complaints - Suspension Noise, AC Not Working, Brake not working properly
+Cancel Reason - Customer Not Available, Wrong Address, Vehicle Not Ready, Driver Unavailable
+Pending Reason - Customer Request, Traffic Issue
+Appointment Status - Pending, Rescheduled, Driver Assigned, Driver on the Way, Vehicle Collected, Vehicle Delivered, Completed, Cancelled
+Reminder Settings/Notification Setting - SMS / WhatsApp / Email triggers - Pickup Scheduled, Drop Scheduled, Driver Assigned, Vehicle Collected, Vehicle Delivered
+Appointment Series
+","Book appointments via app/web/phone, assign technician, pickup details, and time slots.",Appointment Report
+5. Pickup/Drop,"Pickup/Drop Type - Vehicle Pickup Only, Vehicle Drop Only, Vehicle Pickup & Drop Both, Self Towing, Vendor Towing, Doorstep Inspection
+Customer
+Customer Vehicle
+Pickup Address -  State, City, Area
+Drop Address - State, City, Area
+Distance Slab - 0–5 KM @ 200, 6–15 KM @ Rs.300, 16–25 KM @ Rs.400
+Employee - Advisor, Driver
+Vendor
+Department
+Service Type
+Job Description/Customer Complaints
+Time Slot - 09:00–10:00, 10:00–11:00, 12:00–01:00, 02:00–03:00
+Vehicle Condition/Vehicle Photo Type(Camera Image Capture) - Odometer, Interior View, Fr View, Lh View, Rh View, Rr View, Top View, Bottom View,
+Document Checklist
+Pickup/Drop Status - Pending, Driver Assigned, Driver on the Way, Vehicle Collected, Vehicle Delivered, Cancelled, Completed
+Pending Reason
+Reschedule Reason - Customer Request, Traffic Issue,
+Cancel Reason - Customer Not Available, Wrong Address, Vehicle Not Ready, Driver Unavailable
+Notification Setting - Pickup Scheduled, Drop Scheduled, Driver Assigned, Vehicle Collected, Vehicle Delivered
+OTP Verification (Optional/Mandatory) - Vehicle Pickup OTP, Vehicle Delivery OTP
+Dashboard - Today's Pickups, Today's Deliveries, Pending Pickups, Pending Drops, Delayed Deliveries
+Pickup/Drop Series
+","Schedule pickup/drop, tracking status, driver assignment, and time slots.","Gate Pass Report, Pickup/Drop History"
+6. Inward/Outward,"Customer Vehicle - Model
+Parking Slot - Slot No. 1, Slot No. 2, Slot No. 3, Outside of gate
+Job Card Reference
+Job Status - Pending, Completed, Cancelled, All
+","Record vehicle entry/exit, capture images via camera, trial/final outward types.","Inward/Outward Register, Vehicle Inward Analysis"
+7. Job Card,"Customer (State/City/Area/Zip Code/Customer Type/GST Type)
+Customer Vehicle (Brand/Model/Variant/Fuel Type/Transmission Type/Vehicle Type (Hatchback/Sedan/SUV/Luxury)/VI/Segment/Colour/Registration Type
+Damage Type - Scratch, Dent, Crack, Rust, Broken, Paint Fade
+Department
+Service Type
+Insurance Company
+Employee
+Vendor (Vendor Type -Service Provider/Parts Supplier…)
+Inventory Inside Vehicle (Customer Belonging)
+Complaint Master/Job Type/Job Description - Mechanical/Bodyshop… (Frequent/Custom)
+Service Package - Periodic Service Package, Accident Repair Package, Combo Offers
+Requested Repairs(Other than above) - Misc
+Photo Type (Damage Close-up, Odometer, Engine Bay), Customer Approval Option","Record complaints, suggested service, T&Cs, inventory, photo capture, service status.","Job Card Report, WIP Report"
+7. Job History,"Pending Reason
+Job Stage/Current Status (Tree) - regular/ins. - Document collection, Claim Intimation, Surveyor Inspection, Estimate Approval, Repair, Billing, Claim Settlement & Delivery","Service Status Tracking, Status Tree, date/time wise status, promised date.",WIP Report
+8. Document Collection,"Document Collection Request Type (Source) - Insurance Claim, Customer
+Document Collection Purpose - Insurance Process Flow, Vehicle Ownership Confirmation, Payment Limit Exceed, Repair Authorization
+Department
+Service Type - Ins. Job, Non. Ins. Job, PMS, General Service, Express Service (Quick Repair), Repeat Job
+Employee - Advisor (created by)/Driver (doc collected by)
+Job Card Reference
+Customer
+Customer Vehicle
+Document Checklist - RC Book, Insurance Policy, Driving License, Aadhar, PAN, Claim Intimation Copy, FIR Copy, Claim Form Signed Copy, Photos of Damage, PUC,
+Verification Checklist - Name Match, Vehicle Number Match, Policy Validity, Signature Match
+Insurance Company - State, City, Area
+Insurance Policy Type - Comprehensive, Third Party, Zero Dep, Corporate
+Claim Type - Cashless, Reimbursement, Accident, Theft, Total Loss
+Document Collection Status - Pending, Requested, Received, Rejected, Cancelled
+Missing Document Reason - Document Lost, Customer Not Submitted,
+Rejection Reason - Expired Document, Unreadable Copy, Invalid Document,
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email, Physical Visit
+Auto Reminder Frequency - Daily, Every 2 Days, Custom
+File Attachment Type - PDF, JPG, PNG, DOCX
+Document Retention - Active, Archive, Delete (auto delete after specific days of billed)
+","Collect customer ID/Insurance docs, digital signature, and maintain checklist.",Document Collection Report
+9. VIO (Vehicle Inspection Order),"Job Card Reference
+Department
+Service Type
+Employee - Advisor, Technician
+Bay
+Csutomer Complaint/Job Description/Service Package/Combo Package/AMC Package/ - PMS, Fr side Noise, Rear Side Noise
+Work Priority - Normal, High, Urgent
+Inspection Template - PMS, Tyre, Bodyshop…
+Time Tracking - Assigned Time, Accepted Time, Start Time, End Time (Pause Time, Resume Time)
+Inspection Photo / Phot Evidence - Before Work, After Work (Item wise)
+Inspection Result - IA (Immediate Action), FA (Future Action), OK
+Additional Work Perform
+Technician Findings -  Spares/Labour
+Pause / Hold Reason - Waiting for Parts, Waiting for Advisor, Waiting for Customer Approval, Technician Not Available, External Work Pending, Lunch Break, Tea Break, System Hold
+Rework Reason - Parts Poor Quality, Labour Poor Quality, Incomplete Work, Missed Task, Customer Complaint, Supervisor Instruction/Feedback
+Delay Reason - Tool Not Available, Electric Power Not Available, Additional Diagnosis Required
+Work Completion Type - Fully Completed, Partially Completed, Deferred
+Additional Inspection Photo / Phot Evidence - Front View, Rear View, Left Side, Right Side, Damage Photo, Fault Evidence
+Inspection Order Status - Assignment pending, Assigned, Work In Progress, Work On Hold, Completed, Cancelled…
+Dashboard - Pending Inspections, Active Inspections, Completed Inspections, Cancelled Inspections
+","Assign technician, mark official job start time, bay allocation.",VIO History
+10. VIR (Vehicle Inspection Response),included in sr. no. 9,"Capture technician work start/end, findings, part/labour additions.",Vehicle Inspection Report
+11. Vehicle Inspection (Check List),"Inspection Group
+Inspection Checkpoint
+Category Template
+Inspection Result - OK/Good/Excellent/Average/Poor/Critical/Not OK/Faulty/Repair/Replace/Not Checked, NA (Not Applicable)
+Inspection Status - Pending, In Progress, Completed, Approved, Rejected
+Observation - Standard comments for faster entry - Brake pads worn out/Oil leakage/Minor scratch
+Recommendation - No Action Required, Repair, Replace, Monitor, Urgent Attention
+Inspection Frequency - Every Service, Every 5,000 km, Every 10,000 km","Digital checklists (PMS, Tyre, Bodyshop, etc.), image capture and tech findings.",Digital Inspection Report
+12. OLI (Outside Labour Inquiry) Entry,"Inquiry Type - Denting, Painting, Upholstery, Repowring, Alloy/Rim Refurbish, Electrical Repair, Accessories Installation, Lathe Work
+Department
+Employee
+Job Card Reference
+Customer
+Customer Vehicle
+Vendor/Service Contractor
+Labour Service/Job Description/Customer Complaints
+Phot Evidence - Before Work, After Work (Item wise)
+Additional Phot Evidence - Front View, Rear View, Left Side, Right Side, Damage Photo, Fault Evidence
+HSN & Tax Rate
+Priority - Normal, High, Urgent
+Communication Mode - WhatsApp, Email, Phone Call
+Turnaround Time (TAT) - 1 Day, 2 Days, 3 Days, Custom TAT
+Promised Date - From Date/Time, To Date/Time
+Revision Reason - Price Revision, Scope Change, Additional Damage,
+Rejection Reason - High Cost/Delay in Delivery/Poor Quality History/Service Provider Not Available…
+Inquiry Status - Response Pending, Partially Responded, Fully Responded, Work Order Issued, Rejected by contractor/vendor, Cancelled
+Auto Reminder Frequency - Daily, Every 2 Days, Custom
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email, Physical Visit
+Attachment Type - PDF/Image
+Notification Template - Inquiry Sent, Response Received, Approved
+Dashboard - Open Inquiries, Pending Responses, Completed Inquiries, Cancelled Inquiries
+","Inquire contractor/vendor for charge, available date/time for outside work.",Outside Labour Status Report
+13. OLR (Outside Labour  Response),included in sr. no. 12,Track vendor response for outside work inquiry including charges and ETA.,Outside Labour Status Report
+14. IPI (Internal Parts Inquiry) Entry,"Job Card Reference
+Department
+Employee
+Customer
+Customer Vehicle - Brand, Model, Variant, Transmission Type, Fuel Type,
+Supplier / Vendor
+Spares
+Inventory Type - Genuine, Aftermarket
+Vehicle - Brand, Model, Variant, Transmission Type, Fuel Type,
+Spare Brand
+Unit of Measure (UOM)
+HSN & Tax Rate
+Phot Evidence - Before Work, After Work (Item wise)
+Priority Order - Normal, High, Urgent
+Stock Status - Available, Not Available, Reserved, Issued, Ordered, In Transit, Backorder
+Inquiry Type - Against Job Card, Stock Replenishment, Special Order, Emergency Requirement
+Inquiry Status - Pending, In Progress, Partially Available, Fully Available, Not Available, Alternative Suggested, Completed, Ordered, Cancelled
+Alternative Option - Primary Part, Alternate Part, Alternate brand
+Approval Authority - Service Advisor, Store Manager, Workshop Manager, Owner/Admin,
+Rejection Reason - Not in Stock, Obsolete Part, Wrong Part Requested, Budget Issue
+Turnaround Time (TAT) - Immediate, Same Day, Next Day, 2–3 Days, Custom
+Additional Phot Evidence - Damage Photo, Fault Evidence
+","Advisor asks store for part rate, availability, brand.",IPI Report
+15. IPR (Internal Parts Response),same as above,"Store replies to advisor with part rate/availability, reserves stock.",IPI Report
+16. Inventory search,"Vehicle Brand
+Vehicle Model
+Vehicle Variant
+Part Type - Genuine, After Market
+Inventory Group
+Inventory Sub Group
+parts Brand
+UOM
+Rack
+Vendor
+","Check part availability, compatibility, TecDoc integration, alternatives.",Stock Statement
+17. VPI (Vendor Purchase Inquiry) Entry,"Inquiry Type - Against Card Requirement, Stock Replenishment, Special Order, Emergency Requirement
+Supplier / Vendor
+Priority Order - Normal, High, Urgent
+Inventory Type - Genuine, Aftermarket
+Spares
+Vehicle - Brand, Model, Variant, Transmission Type, Fuel Type,
+Spare Brand
+Unit of Measure (UOM)
+HSN & Tax Rate
+Phot Evidence - Before Work, After Work (Item wise)
+Additional Phot Evidence - Damage Photo, Fault Evidence
+Stock Status - Partially Available, Fully Available, Not Available
+Alternative Option - Primary Part, Alternate Part, Alternate brand
+Turnaround Time (TAT) - Immediate, Same Day, Next Day, 2–3 Days, Custom
+Payment Terms - Advance, Cash on Delivery, 7 Days Credit, 15 Days Credit, 30 Days Credit
+Comparison Parameter - Price, Discount, Lead Time, Delivery on time
+Approval Authority - Advisor, Store Manager, Workshop Manager, Owner/Admin
+Attachment Type - RFQ Document, Vendor Quotation, Approval Note
+Revision Reason - Price list update, Quantity Change, Specification Change, Discount Update
+Discount Types - Line Discount, Scheme Discount (Package/Combo Offers), Cash Discount
+Additional Charges - Freight/P&F, Transport Charges, Packing Charges, Handling Charges etc
+Vendor Category - Preferred Vendor, Approved Vendor, Backup Vendor etc
+SLA (Service Level Agreement) - Delivery commitments, Penalty rules
+Inquiry Status - Pending, In Progress, Completed, Cancelled
+","Store asks vendor for part rate, brand, delivery time, Request for Quotation (RFQ). Request vendor quotes with tracking and notifications.",Purchase Report
+18. VPR (Vendor Parts Response),same as above,"Vendor replies with price, availability, ETA, brand.",Purchase Report
+19. Sales Estimate (Regular/Insurance),"Estimate Type - Before/After/Additonal/Warranty
+Damage Type - Accident Damage/Wear & Tear/Electrical Failure/Mechanical Failure
+Parts Category - Genuine/After Market/Any
+Department
+Service Type
+Employee - Advisor/Techncian
+Job Card Reference
+Insurance Company
+Customer
+Customer Vehicle
+Inventory & Price List - Spares/Labours
+Estiamte Template Reference
+Old Estimate Reference
+Inventory Group
+HSN & Tax Rate
+Estimate Status - Pending, Prepared, Sent to Customer, Sent to Insurance, Under Approval, Approved, Partially Approved, Rejected, Revised, Converted to Job / Invoice
+Discount Type - Percentage /Flat/on MRP/On RCP(dealer price)
+Estimate Revision Reason - Additional Damage Found, Customer Request, Insurance Query, Parts Price Change
+Labour Price List - Retail Price, Insurance Approved Rate, Special Customer Price, Bulk Price
+Service Package - Periodic Service Package, Accident Repair Package, Combo Offers
+","Create estimate, calculate insurance pass %, use group-wise templates.","Sales Estimate Report, Estimate Analysis"
+20. Claim Intimation,"Job Card Reference
+Customer
+Customer Vehicle
+Department
+Employee
+Insurance Policy
+Insurance Company
+Insurance Claim Type - Cashless, Reimbursement,
+Damage Type - Accident Claim, Fire Damage
+Claim Intimation Mode - Email, Insurance Portal, API Integration, Phone Call, Mobile App
+Claim Intimation Status - Pending, Intimated, Cancelled
+Intimation Pending Reason - Policy Expired, Delay in Intimation
+TAT (Turnaround Time) - Survey within 24 hrs, Survey within 48 hrs, Survey within 72 hrs
+","Register accidental claim, policy details, notify surveyor.",Survey Report
+21. Surveyor Inspection,"Job Card Reference
+Estimate Reference
+Customer
+Customer Vehicle
+Surveyor / Assessor
+Insurance Company
+Survey Type - Preliminary Survey, Re-inspection, Final Survey, Spot Survey, Supplementary Survey
+Inventory Spares/Labour
+Surveyor Approval - Repair Approved, Replace Approved, Not Approved, Partially Approved, Total Loss Approved
+Not Covered Reason - Old Damage, Damage Mismatch, Not Covered in Policy,
+No Claim Reason / Rejection Reason - Document Missing, Policy Expired, Policy Not Valid, Fraud Suspected, Insufficient Evidence
+Surveyor Inspection Status - Pending, In Progress, Completed, Cancelled
+Attachment Type - Approval Note
+","Record surveyor findings, reinspection, link with insurance estimate.",Surveyor Inspection Report
+22. Document Delivery,"Job Card Reference
+Insurance Company - State, City, Area
+Customer
+Customer Vehicle
+Employee - Advisor (created by)/Driver (doc delivered by)
+Recipient - Owner Selft, On the Behalf of Owner
+Transport/Courier Company
+Document Checklist - RC Book, Insurance Policy, Driving License, Aadhar, PAN, PUC
+Delivery Mode - Hand to Hand, Porter, Courier
+Acknowledgement Type - Physical Signature, Digital Signature, OTP Verification, Email Confirmation
+Delivery Status - Pending, Delivered, In Transit, Returned, Re-sent
+Delivery Failure Reason - Wrong Address, Door locked,
+Missing Document Reason - Document Lost, Document Damaged
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email, Physical Visit
+Auto Reminder Frequency - Daily, Every 2 Days, Custom
+","Track document movement (customer/insurer/workshop), signature confirmation.",Document Collection Report
+23. Sales Estimate Approval,"Job Card Reference
+Estimate Reference
+Surveyor / Assessor
+Insurance Company
+Customer
+Customer Vehicle
+Department
+Service Type
+Employee - Advisor
+Estimate Approval Type - Regular, Supplementary, Additional, Revised
+Approval Authorisation - Insurance Approval, Customer Approval, Ins. & Customer both Approval, Internal Approval, Management Approval
+Approval Mode - WhatsApp Approval, Email Approval, Physical Signature
+Parts Brand - Genuine/After Market/Any
+Inventory - Spares/Labours/Service Package
+Inventory Group - PMS, Suspension, Brake
+HSN & Tax Rate
+Line Item Approval - Spares/Labour - Repair, Replace, Remove & Refit, Approved, Rejected, Approval Pending
+Rejection Reason - Customer/Surveyor - (a) High Cost, Customer Budget Issue, Insurance Not Covered, No Claim (b) Additional Damage, Non-Accident Damage, Policy Limitation
+Depreciation Type - Part Category & Vehicle Age Slab - Plastic, Metal, Rubber, Glass
+Auto Reminder Frequency - Daily, Every 2 Days, Custom
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email
+Approval Status - Sent for Approval, Partially Approved, Fully Approved, Query Raised, Revised & Resent, No Response, Rejected, Cancelled
+Dashboard KPI - Pending Customer Approvals, Pending Insurance Approvals, Today Approved, Custom Date Approved
+",Customer/Advisor digital approval of estimate.,Estimate Analysis Report
+24. Jobcard Cancel Approval,"Job Card Reference
+Department
+Job Type
+Employee
+Job Card Cancellation Type - Wrong Entry, Customer Rejection, Insurance Rejection, Duplicate Job Card, Internal Error, Operational Issue,
+Job Card Cancellation Reason - High Estimate Cost, Delay in Service, Customer Not Interested, Insurance Not Approved, Duplicate Entry, Wrong Vehicle Entry
+Approval Hierarchy - Level 1 – Service Advisor, Level 2 – Store Manager, Level 3 –  Accounts Manager, Level 4 – Workshop Manager or Owner/Admin
+Cancellation Status - Pending, Requested, Under Review, Approved, Rejected, Cancelled, Reversed (If reopened)
+Cancellation Impact - Return Part to Vendor, Reverse Parts in stock, Issue Part in Consumption, Return Labour & Claim Warranty, Refund Payment, Payment Adjustment Against Next Job
+Approval Rejection Reason - Insufficient Reason, Financial Impact Too High, Work Already Completed, Management Decision
+Refund Status - Pending, Processed, Completed
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email
+",Admin approval workflow for job card cancellation.,Job Card Cancel Report
+25. Customer Advance Receipt Request/Response,"Job Card Reference
+Estimate Reference
+Customer
+Customer Vehicle
+Department
+Service Type
+Employee - Advisor/Cashier
+Advance Purpose - Odd Item Purchase Order, Urgent Purchase Order, Regular Parts Purchase, Outside Labour Booking
+Advance Amount Type - Specific Percentage of Estimate, Minimum Amt, Max Amt, Custom Amount
+Payment Status - Requested, Partially Paid, Fully Paid, Cancelled, Failed, Rejected, Refunded
+Auto Reminder Scheduling - daily at 10:00 AM, Afternoon @ at 02:00 PM, Evening @ 04:00 PM, Custom
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email
+Rejection Reason - Customer Not Interested, Budget Issue, Delay in service estimate, Insurance Coverage Limitation
+Document Attachment - PDF, Image
+",Request advance payment from customer via link.,Advance Receipt Report
+26. Advance Receipt Entry,"Receipt No. Series - MQ/RR/26-27/0708
+Job Card Reference
+Estimate Amt Reference
+Insurance Company
+Customer
+Customer Vehicle
+Department
+Service Type
+Employee - Advisor/Cashier
+Payment Mode - Cash, Cheque, NEFT, RTGS, IMPS, UPI (PayU, PhonePe, Paytm, GPay, Bhim), Credit Card, Debit Card, Razorpay,
+Bank
+Payment Status - Partially Received, Fully Received, Cancelled, Failed, Refunded
+Cheque Status - Received, Deposited, Cleared, Returned, Cancelled
+Cheque Bounce Reason - Insufficient Funds, Signature Mismatch, Stale Cheque, Account Closed
+Receipt Cancellation Reason - Cheque Return, Duplicate Entry, Wrong Customer, Wrong Amount, Payment Failed
+Receipt Difference Reason - Short Payment, Bank Charges Deducted, Settlement Difference, Excess Payment
+Attachment Type - Cheque Copy, UTR Screenshot, Deposit Slip, Payment Advice
+",Cashier manually records advance payment.,Receipt Report
+27. FWO (Final Work Order) Entry,"Job Card Reference
+Department
+Service Type
+Employee - Advisor, Technician
+Bay
+Csutomer Complaint/Job Description/Service Package/Combo Package/AMC Package - PMS, Fr side Noise, Rear Side Noise
+Work Priority - Normal, High, Urgent
+Inspection Template Reference - PMS, Tyre, Bodyshop…
+Time Tracking - Assigned Time, Accepted Time, Start Time, End Time (Pause Time, Resume Time)
+Inspection Photo / Phot Evidence - Before Work, After Work (Item wise)
+Inspection Result - IA (Immediate Action), FA (Future Action), OK
+Additional Findings - Spares/Labour
+Pause / Hold Reason - Waiting for Parts, Waiting for Advisor, Waiting for Customer Approval, Technician Not Available, External Work Pending, Lunch Break, Tea Break, System Hold
+Rework Reason - Parts Poor Quality, Labour Poor Quality, Incomplete Work, Missed Task, Customer Complaint, Supervisor Instruction/Feedback
+Delay Reason - Tool Not Available, Electric Power Not Available, Additional Diagnosis Required
+Work Completion Type - Fully Completed, Partially Completed, Deferred
+Additional Findings Photo / Phot Evidence - Front View, Rear View, Left Side, Right Side, Damage Photo, Fault Evidence
+Final Work Order Status - Assignment pending, Assigned, Work In Progress, Work On Hold, Completed, Cancelled…
+Dashboard - Pending Inspections, Active Inspections, Completed Inspections, Cancelled Inspections
+","Official job start time after estimate approval, tech assignment.",Work Order Analysis
+28. FWR (Final Work Response),same as above,"Capture tech working time, item-wise hours, pause time, net TAT.",Technician Report
+29. OWO (Outside Work order) Entry,"Job Card Reference (no customer details)
+Outside Labour Inquiry Reference
+Customer Vehicle (only reg. no. & vehicle)
+Order Type - Denting, Painting, Upholstery, Repowring, Alloy/Rim Refurbish, Electrical Repair, Accessories Installation (PPF), Lathe Work
+Vendor/Service Contractor
+Department
+Service Type
+Employee
+Bay (requried for service contractor like denting/painting/washing & not applicable for outside vendor)
+Work Instruction/Job Description/Customer Complaints/Service Package/Combo Package/AMC Package - Spares/Labour
+Sequence Ordering
+Priority - Normal, High, Urgent
+Work Completion Type - Fully Completed, Partially Completed, Deferred
+Inspection Template Reference - VA, Bodyshop etc
+Time Tracking - Assigned Time, Accepted Time, Start Time, End Time (Pause Time, Resume Time)
+Pause / Hold Reason - Waiting for Parts, Waiting for Advisor confirmation, Waiting for Customer Approval, Technician Not Available, Lunch Break, Tea Break, System Hold - Applicable for PPF vendor etc
+Rework Reason - Parts Poor Quality, Labour Poor Quality, Incomplete Work, Missed Task, Customer Complaint, Supervisor Instruction/Feedback
+Delay Reason - Tool Not Available, Electric Power Not Available, Additional Diagnosis Required
+Additional Findings - Spares/Labour
+Phot Evidence - Before Work, After Work (Item wise)
+Additional Phot Evidence - Front View, Rear View, Left Side, Right Side, Damage Photo, Fault Evidence, Other
+Outside Work Order Status - Assignment Pending, Assigned, Work In Progress, On Hold, Completed, Cancelled
+Communication Mode - WhatsApp, Email, Phone Call
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email, Physical Visit
+Dashboard - Pending, Work in Progress, Work on Hold, Completed, Cancelled
+",Finalize vendor order for outside work and track service start.,Outside Labour Status Report
+30. OWR ((Outside Work Response),same as above,"Track outside work progress, completion, and total hours consumed.",Outside Labour Status Report
+31. IPO (Internal Part Order) Entry,"Job Card / Estimate Reference
+Department
+Service Type
+Customer
+Customer Vehicle
+Employee - Advisor/Technician/Store in charge
+IPO Type - Job Card Requirement, Reserved Parts Order, Testing & Observation, Workshop General Use
+Order Priority - Normal, Urgent, Breakdown, Critical
+IPO Status - Draft, Requested, Approved, Processing, Partially Issued, Fully Issued, Cancelled, Closed
+Cancellation Reason - Parts Not Available/Wrong Fitment/No resolution
+Approval Authority - Store Manager, Service Advisor, Workshop Manager/Owner/Admin
+Approval Status - Pending, Approved, Rejected
+Rejection Reason - Wrong Part, Approval Denied, Duplicate Request
+Issue Status - Pending, Issued, Partially Issued, Returned, Backorder
+Inventory/Spares Master
+Spares Brand - Genuine/Aftermarket/…
+Stock Status - Available, Reserved, Issued, Out of Stock, In Transit
+Alternative Parts - Primary Part, Alternate Part,
+UOM (Unit of Measure)
+Return Type - Damaged Return, Wrong Issue Return, Excess Return
+Return Status - Pending, Accepted, Rejected
+Inventory Photo / Phot Evidence - Before, After (Item wise), Additional
+File Attachment - PDF/Image
+",Advisor/FI requests parts from store for a specific job or without job card,IPO Report
+32. IPR (Internal Part Response),same as above,"Store picks, issues, and hands over parts to technician.",IPO Report
+33. IPO cancel request/Response,"Job Card Reference
+IPO Reference
+Customer
+Customer Vehicle
+Department
+Service Type
+Employee - Advisor/Store in charge/Technician
+Cancellation Reason - Excess Qty, Wrong Part Number Order, Wrong Part Number Supplied, Duplicate Order, Customer Budget Issue, Part No Longer Required, Customer Refused, Alternative Part Used
+Cancellation Impact - Return Part to Vendor, Reverse Parts in stock, Issue Part in Consumption & adjust stock, Cancel Purchase Order, Refund Payment, Payment Adjustment Against Next Job
+Inventory/Spares Master
+UOM (Unit of Measure)
+Issue Status - Pending, Issued, Partially Issued, Returned, Backorder
+Inventory Photo / Phot Evidence - Before, After (Item wise), Additional
+Cancellation Category - Operational Error, Customer Driven
+Return Status - Pending, Returned, Rejected
+Return Type - Used in Vehicle, Not used in Vehicle, Full Return, Partial Return, Damaged Return
+Rejection Reason - Invalid Reason, Used Part, Damaged Part, Wrong Part No., Job In Progress, Financial Impact Too High, In Transit
+IPO Cancel Status - Under Review @ Vendor, Approved, Rejected, Cancelled, Reversed, Needs Verbal Clarification
+Approval Hierarchy - Service Advisor, Store Manager, Workshop Manager / Admin / Owner
+Document Attachment - PDF/Image -
+",Advisor requests to cancel specific un-issued parts.,IPO Report
+35. VPO (Vendor Purchase Order) Approval/Response,"PO Approval Type - Stock Bulk Purchase, Odd Item Purchase, High Value Purchase, Rate Contract Purchase, Note: Job Card Purchase, Emergency Purchase
+Job Card Reference (required for Odd item/high value purchase)
+Customer (required for Odd item/high value purchase)
+Customer Vehicle (required for Odd item/high value purchase)
+Employee - Store In Charge
+VPI(Vendor Purchase Inquiry)/RFQ (Request for Quotation) Reference
+Vendor / Supplier
+Inventory Type - Genuine, Aftermarket
+Approval Priority - Normal, High, Urgent
+Spares
+Vehicle - Brand, Model, Variant, Transmission Type, Fuel Type,
+Spare Brand
+Unit of Measure (UOM)
+HSN & Tax Rate
+VPI Photo Reference
+Line Item Approval - Part Approved (Yes/No), Quantity Approved, Discount Approved, Rate Approved (Last Purchase Price, Last Purchase Vendor, Last Purchase Date), TAT Approval
+Approval Hierarchy - Level 1 – Store Manager, Level 2 – Accounts Manager, Level 3 – Owner / Admin. Level 3 optional
+Approval Mode - System Approval, Email Approval, WhatsApp Approval, Verbal Approval, Phone Call Approval
+Payment Terms - Advance, Cash on Delivery, 7 Days, 15 Days, 30 Days
+Additional Charges - Freight/P&F, Transport Charges, Packing Charges, Handling Charges etc
+Vendor Category - Preferred Vendor, Approved Vendor, Backup Vendor etc
+PO Approval Status - Sent for Approval, Partially Approved, Fully Approved, Under Review, Rejected, Re-approved (after revision)
+Rejection Reason - High Price, Wrong Vendor, Budget Exceeded, Duplicate PO, Quantity Exceeded
+Attachment Type - Vendor Quotation, Quote Comparison Sheet, Approval Notes
+","Admin approval for Vendor Purchase Order - Stock Bulk Purchase (Amt > 25,000), Odd Item Purchase, High Value Purchase,",Purchase Report
+36. Vendor Advance Payment Request/Response,"Job Card Reference
+Customer
+Customer Vehicle
+Department
+Service Type
+Employee - Advisor, Store In Charge
+Vendor
+Parts Category - Genuine/After Market
+VPI(Vendor Purchase Inquiry)/RFQ (Request for Quotation) Reference
+VPO (Vendor Purchase Order) Approval Reference
+Advance Payment Reason - Vendor Requires Advance, Imported Material, Custom Manufacturing, Emergency Requirement, First-Time Vendor, Odd Item Purchase Order
+Priority - Normal, High, Urgent
+Payment Mode - Cash, Bank Transfer, NEFT, RTGS, IMPS, UPI, Cheque
+Bank
+Document Checklist - Quote / Proforma Invoice, Approval Note (Admin/Owner), Vendor Bank Details
+Vendor Category - Preferred Vendor, Approved Vendor, Backup Vendor etc
+Advance Request Status - Requested, In Progress,  Partially Paid, Fully Paid, Failed, On Hold, Rejected, Canceclled
+Hold Reason - Insufficient Documents, Budget Exceeded, Vendor Verification Pending
+Rejection Reason - High Price, Wrong Vendor, Budget Issue, Duplicate Advance Request, Quantity Exceeded, Vendor Not Supportive
+Auto Reminder Frequency - Daily, Every 2 Days, Custom
+Follow-up Mode - Telephonic Call, SMS, WhatsApp, Email, Physical Visit
+Attachment Type - Cheque Copy, UTR Screenshot, Deposit Slip, Payment Advice
+Dashboard - Pending, Paid, Rejected
+",Request advances to vendors for special orders (Admin approval).,Payment Report
+37. Advance Payment Entry,"Vendor Master, Payment Mode Master",Admin/Accountant records the advance payment made to vendor.,Payment Report
+38. VPO (Vendor Purchase Order),"Vendor Master, Spares Master",Store creates purchase order for required spare parts.,Purchase Order (MSQ) Report
+39. VPO (Vendor Purchase Order) Cancel Request,Vendor Master,Cancel vendor order to avoid excess stock.,Purchase Report
+40. VPR (Vendor Purchase Response),Vendor Master,Vendor confirms order and provides dispatch/courier details.,Purchase Report
+41. Outside Labour Bill Receive & Verification,"Vendor Master, Labour Master",Receive physical invoice for outside work and verify via SMS link.,Outside Labour Status Report
+42. Outside Labour Entry (Labour +Parts),"Vendor Master - State, City, Area, Zip Code, Bank, GST Type, Service Specialist - Denting/Painting/AC/Electrical & Wiring/Engine/Transmission/Upholstery/Washing/Detailing/Car Spa/Gear Box
+Vendor Type - Service Provider, Contractor
+Job card reference
+Department, Employee (advisor/technician)
+Inventory & Price List (vendor)- Spares/Labours -
+HSN & Tax Rate
+Loss Reason - Damaged/Defective
+Transport & Shipping - Courier /Porter/Liftor
+Outside Work Order Reference
+Attachment Type - Invoice/Quote/Work Order/Report/Before Photos/After Photos
+",Enter outside labor details in system (parts + labor) against physical invoice.,Outside Labour Regtister
+43. Outside Labour Return (Request/Response),Vendor Master,Record return/rework for outside labor (repeat job/warranty).,Outside Labour Return Regtister
+44. Outside Labour Credit Note/Debit Note,Vendor Master,Credit/Debit note entry for outside labor returns/adjustments.,Outside Labour Return Regtister
+45. Parts Receive & Verfication,"Vendor Master, Spares Master","Receive vendor parts, verify against PO, mark QC done.",Purchase Report
+46. Parts Hand over,Employee (Tech) Master,Handover received parts to technician and capture timestamp.,Purchase Report
+47. Challan Entry,"Purchase Type - Stock Purchase, Direct Job Card Purchase, Outside Labour Purchase, Emergency Purchase
+Vendor
+Transport Mode - Self, Workshop Driver, Courier, Porter, Liftor…
+Transport Company
+Challan Reason - Warranty, Damage & Adjustment
+PO Reference
+Job Card Reference
+Department
+Employee (Advisor/Technician/Store In Charge/Driver)
+Inventory/Spares
+HSN & Tax Rate
+UOM (Unit of Measure)
+Discount Scheme - Line Discount, Bill Discount, Cash Discount, Scheme Discount
+Material Condition - New, Used, Damaged, Repairable, Scrap
+Raise Issue/Rejection Reason - Damaged, Wrong Part, Excess Quantity, Quality Issue, Expired, Rate difference
+Additional Charges - Freight, P&F, Courier, Loading, Insurance, Deposit (Cylinder), Other…
+Notification Master - Material Received (Store In Charge/Advisor/Floor In Charge)
+Inventory Status - Spares Received, Spares Dispatched, Spares In Transit, Spares Not Received, Partially Received, Fully Received, Escalated, Closed, Cancelled, Other…
+Invoice Status - Invoice Received/Invoice Pending (Item wise)
+Attachment Type - PDF/Image
+","Part entry via challan (barcode scanning), warranty/guarantee mapping.",Challan Report
+48. Purchase Entry,"Vendor
+Invoice Type - Tax Invoice/E-Invoice/Retail Invoice/Bill Of Supply
+Purchase Type - Stock Purchase, Direct Job Card Purchase, Outside Labour Purchase, Emergency Purchase,
+Challan Reference
+Transport Mode - Self, Workshop Driver, Courier, Porter, Liftor…
+Transport Company
+Challan Reason - Warranty, Damage & Adjustment
+PO Reference
+Job Card Reference
+Department
+Employee (Advisor/Technician/Store In Charge/Driver)
+Inventory/Spares
+HSN & Tax Rate
+UOM (Unit of Measure)
+Discount Type - Line Discount, Bill Discount, Cash Discount, Scheme Discount
+Material Condition - New, Used, Damaged, Repairable, Scrap
+Raise Dispute/Rejection Reason - Damaged, Wrong Part, Excess Quantity, Quality Issue, Expired, Rate difference
+Additional Charges - Freight, P&F, Courier, Loading, Insurance, Deposit (Cylinder), Other…
+Notification Master - Material Received (Store In Charge/Advisor/Floor In Charge)
+Inventory Status - Spares Received, Spares Dispatched, Spares In Transit, Spares Not Received, Partially Received, Fully Received, Escalated, Closed, Cancelled, Other…
+Invoice Status - Invoice Received/Invoice Pending (Item wise)
+Attachment Type - PDF/Image
+","Full purchase invoice entry, updates stock, maps HSN/tax rate.","Purchase Report, Stock Ledger"
+49. Proforma,"Proforma Number Series
+Department
+Service Type
+Insurance Company
+Customer
+Customer Vehicle
+Job Card Reference
+Estimate Reference
+Issue type - Standard/Loss
+Loss Reason - Damaged/Defective/Date expired/Leakage/Other…
+Inventory - Spares/Labour Master
+Service Package
+UOM
+HSN & Tax Rate
+Raise Issue/Rejection Reason - Damaged, Wrong Part, Excess Quantity, Quality Issue, Expired, Rate difference
+Discount Types - Line Discount, Scheme Discount (Package/Combo Offers), Cash Discount
+Employee (Advisor/Technician/Store In Charge)
+Vendor (Service Contractor/Outsource Vendor)
+Approval Authority - Store Executive (Prepared By), Store In Charge, Service Advisor, Workshop Manager/Admin/Owner, Customer, Insurance company
+Approval Status - Pending, Approved, Partially Approved, Rejected, On Hold, Under Review
+Communication Mode - WhatsApp, Email, Physical Signature
+Recommended Service
+Revision Reason (After Proforma ready & final Post) - Additional Damage, Price Revision, Billing Name Revision, Insurance Query
+Attachment Type - PDF/Image (Inspection Report)
+Proforma Status - Draft, WIP, Ready, Sent to Customer, Sent to Insurance Company, Under Review, Approved, Rejected, Converted to Invoice, Cancelled
+","Generate proforma, parts issue via barcode, track profitability.","Proforma Report, P&L Report"
+49. Proforma History,"Spares Master, Employee Master",Authorized secure viewing of past proforma purchase details and P&L.,Proforma Report
+50. Consumable,"Consumable Category - Paint Shop Consumables (Primer/Hardener…), Workshop Consumables (Grease/Brake Cleaner/WD-40...), Washing Consumables,  Detailing Consumables (Ceramic Coating, Interior Cleaning, Dashboard Polish…), General Consumables (Cotton Waste/Cleaning Cloth/Gloves…)
+Job Card Reference
+Purchase Reference (Challan/Direct Purchase)
+Issue type - Standard/Loss
+Loss Reason - Damaged/Defective/Date expired/Leakage/Other…
+Inventory - Spares/Labour (to maintain labour loss)
+HSN & Tax Rate
+UOM (Unit of Measure)
+Approval Authority - Store Manager/Service Advisor/Workshop Manager/Admin/Owner
+Approval Status - Requested/Approved/Rejected/On Hold
+Communication Mode - WhatsApp, Email, Physical Signature
+Department
+Employee (Advisor/Technician/Store In Charge)
+Vendor (Service Contractor/outsource vendor)
+","Track consumables usage (paint ML to GM, VA) and auto-deduct.",Consumable Report
+51. Goods Return Note (Request/Response),"Vendor Master, Spares Master","Return excess, incorrect, defective, or warranty parts to vendor.",Purchase Return Report
+52. Goods Return - Credit Note,"Vendor
+Logistics / Transport
+Credit Note Type - E-Credit Note, Tax Credit Note, Bill of Supply
+Credit Note Reason - Excess Qty, Wrong Material Order, Wrong Material Supplied, Poor Quality, Damage, Defective, wrong rate, Wrong Discount, Credit Adjustment, Technical Failure,
+Goods Return Note (Request/Response) Reference
+Purchase Reference
+Inventory - Spares
+HSN & Tax Rate
+UOM
+Material Condition - New, Used, Unused, Open Box
+Attachment Type - PDF/Image
+",Vendor credit note entry for returned parts (RTS settlement).,Purchase Return Report
+53. Goods Return - Debit Note,Vendor Master,Debit note entry for returned parts (issued by customer/workshop).,Purchase Return Report
+54. Final Inspection,"Inspection Group
+Inspection Checkpoint
+Category Template
+Inspection (Checklist prepared by technician) Reference - specially needed if any check points missed by technician
+Work Completion Type - Fully Completed, Partially Completed, Deferred
+Final Inspection Status - pending, In Progress, On Hold, Completed, Rework, Cancelled, Not Applicable
+Rework Reason - Parts Poor Quality, Labour Poor Quality, Incomplete Work, Missed Task, Customer Complaint, Supervisor Instruction/Feedback
+Additional Work Recommendation - New Issue Found, Additional Parts Required, Additional Labour Required
+Time Tracking - Start Time, End Time, (Pause/Break Time)
+Photo / Evidence - Before Work, After Work, Damage Proof
+Observation - Standard comments for faster entry - Brake pads worn out/Oil leakage/Minor scratch
+Inspection Result - OK/Good/Excellent/Average/Poor/Critical/Not OK/Faulty/Repair/Replace/Not Checked, NA (Not Applicable)
+Recommendation - No Action Required, Repair, Replace, Monitor, Urgent Attention
+","Quality check, test drive, photo comparison before vehicle delivery.",Final Inspection Report
+55. Proforma Approval,Employee (Admin) Master,"Digital approval by Admin for proforma amounts > 25,000.",Proforma Report
+56. Delivery Order (Do),Insurance Master,Record DO from insurance company before delivery (file attachment).,Delivery Order Report
+57. Regular Sales Invoice,"Invoice Series - MQ/27-27/….
+Customer
+Customer Vehicle
+Inventory - Spares/Labour
+UOM
+Service Package
+AMC Package
+HSN & Tax Rate
+Payment Status - Unpaid/Partially Paid/Fully Paid/Refunded
+Department
+Employee - Advisor/Technician
+Vendor
+Invoice Status - Cancelled, CN
+Invoice Cancellation Reason - Duplicate Invoice, Wrong Tax
+Service Recommendation
+","Generate final invoice (regular/insurance), calculate tax, gross margin.","Sales Report, E-Invoice Report"
+58. Counter Sales Invoice,"Invoice Series - MQ/CS/27-27/….
+Customer
+Courier / Transport Company
+Delivery Type - Counter Pickup, Home Delivery, Courier, Porter, Liftor
+Inventory - Spares/Labour
+UOM
+HSN & Tax Rate
+Payment Status - Unpaid/Partially Paid/Fully Paid/Refunded
+Department
+Employee - Advisor/Technician
+Vendor
+Invoice Status - Cancelled, CN
+Invoice Cancellation Reason - Duplicate Invoice, Wrong Tax
+Recommendation
+",Generate invoice for counter sales (parts only) and track gross margin.,Sales Report
+59. Invoice Correction Approval (Request/Response),Job Card Cancel Reason Master,Admin approval workflow for editing/correcting invoice or receipt.,Invoice Correction Report
+60. Excess stock Approval,"Spares Master, Employee Master",Admin approval for returning or adjusting excess stock.,Excess Stock Report
+61. Sales Return Approval (Reuest/Response) - Regular/Ins./Counter,,,
+61. Sales Return - Regular/Ins./Counter,"Sales Return Reason - Manufacturing Defect, Damaged Material, Wrong Billing Name, Wrong Rate, Wrong Quantity, Wrong GST, Product Failure, Poor Quality, Warranty Claim, Duplicate Billing
+Sales Return Series - MQ/SR/25-26/0026, MQ/IR/25-26/0026, MQ/CR/25-26/0026
+Sales Invoice Reference - Whole bill/Item wise
+Customer
+Customer Vehicle
+Insurance Company
+Inventory - Spares/Labour
+UOM
+HSN & Tax Rate
+Service Package
+AMC Package
+Department
+Employee - Advisor/Technician
+Vendor
+Refund Status - Unpaid, Fully Refunded, Partially Refunded
+Return Cancellation Reason - Wrong Billing Name, Wrong Rate, Wrong Quantity
+",Handle sales return across all sales types and update stock.,Sales Return Report
+62. Regular Receipt,"Receipt Series - MQ/RR/26-27/0708
+Customer
+Insurance Company
+Payment Mode - Cash, Cheque, Demand Draft, NEFT, RTGS, IMPS, UPI (PayU, PhonePe, Paytm, GPay, Bhim), Credit Card, Debit Card, Razorpay,
+Bank
+Employee - Received By
+Advance Receipt Reference
+Cheque Status - Received, Deposited, Cleared, Returned, Cancelled
+Cheque Bounce Reason - Insufficient Funds, Signature Mismatch, Stale Cheque, Account Closed
+Receipt Cancellation Reason - Cheque Return, Duplicate Entry, Wrong Customer, Wrong Amount, Payment Failed
+Receipt Difference Reason - Short Payment, Bank Charges Deducted, Settlement Difference, Excess Payment
+Attachment Type - Cheque Copy, UTR Screenshot, Deposit Slip, Payment Advice
+",Record customer payment and auto-redirect to gate pass.,Receipt Report
+63. Receipt Refund,Customer Master,Refund customer overpayment or against sales return.,Payment Report
+64. Regular Payment,"Employee - Paid By
+Vendor
+Advance Payment Reference
+Invoice Reference
+Payment Mode - Cash, Cheque, NEFT, RTGS, IMPS, UPI (PayU, PhonePe, Paytm, GPay, Bhim), Credit Card, Debit Card, Razorpay,
+Bank
+Cheque Status - Issued, Cleared, Returned/Bounced, Cancelled
+Cheque Bounce Reason - Insufficient Funds, Signature Mismatch, Stale Cheque
+Payment Cancellation Reason - Cheque Return, Duplicate Entry, Wrong Vendor, Wrong Amount, Payment Failed
+Payment Hold Reason - Invoice Dispute, Quality Issue, Management Hold
+Attachment Type - Cheque Copy, UTR Screenshot, Payment Advice
+",Record payment to vendor (month-wise bulk processing).,"Payment Report, Vendor Account Statement"
+65. Payment Refund,Vendor Master,"Vendor refunds money (excess payment, incorrect invoice, VPO cancelled).",Payment Report
+66. Gate Pass Approval,Employee (Admin) Master,Admin approval for gate pass generation without payment/bill.,Gate Pass Report
+67. Gate Pass,"Gate Pass Type - Final Delivery, Trial Outward, Vendor Repair Outward, Branch Transfer. Note: Spare Parts Return (GRN), External Repair,
+Job Card Reference/Sales Invoice Reference
+Customer Vehicle
+Employee (Prepared By)
+Driver Type/Delivery By - Customer, Workshop Driver, Service Advisor, Technician,
+Payment Clearance - Fully Paid, Partially Paid, Credit Approved
+",Generate gate pass for Work Pending or Final Delivery.,Gate Pass Report
+68. Vehicle Outward,Vehicle Master,"Record actual vehicle exit via number plate reading, capture image.",Inward/Outward Register
+69. Customer Warranty Claim Processing,"Customer Master, Spares Master","Handle customer warranty claim, tracking and admin approvals.",Repeat job Analysis Report
+70. Vendor warranty claims Processing,"Vendor Master, Spares Master",Track vendor settlements and approvals for warranty claims.,Vendor analysis report
+71. Customer complaints,"Job Card, Employee Master",Register and track resolution of customer or internal complaints.,Customer complaint Report
+72. Customer Feedback/Service Rating,Customer Master,Capture post-service rating (1-5) and feedback from customers.,Customer Feedback
+73. Advisor Feedback/Advisor Rating,"Employee Master, Customer Master",Capture advisor specific rating and feedback.,Advisor Feedback
+74. Service Due Follow-Ups,"Vehicle Master, Customer Master",Follow-ups and tracking for upcoming scheduled services.,Service Due Follow-Up Report
+75. Sales Inquiry (Parts/Service),Customer Master,Capture customer inquiry for service/parts via web/phone/app.,Sales Inquiry Report
+76. Sales Inquiry Follow-Ups,Employee Master,Tracking follow-ups for sales inquiries.,Sales Inquiry Follow-Up Report
+77. Ins. Policy Renewal Follow-Ups,Insurance Master,Tracking follow-ups for upcoming insurance policy renewals.,Ins. Policy Renewal Due Follow-Up Report
+78. Insurance Renewal (or Policy entry without renewal),Insurance Master,Record new or renewed insurance policy details and attachments.,Insurance Renewal Report
+79. Service Recommended Follow-Ups,Job Card,Follow-ups based on technician recommended future services.,Service Recommended Follow-Up Report
+80. Combo Service Package / Vehicle Amc,Service Master,"Manage AMC packages, included services, and expiry dates.",Combo Service / AMC Service Due Follow Up Report
+81. AMC Service Due Follow-Ups,"Vehicle Master, Customer Master",Reminders and tracking for AMC due services.,AMC Service Due Follow Up Report
+82. Service Refer,Customer Master,Track customer referrals and combo offers.,N/A
+83. Stock Counting (Physical & System Stock Verification),"Inventory Master, Spares Master","Verify physical vs system stock, track mismatch, loss, and excess via barcode.",Stock counting report
+84. System Control,"Employee
+Role - Administrator, HR, Workshop Manager, Service Advisor, Service Manager/Floor In Charge, Technician, Store Manager, Parts Manager, Store Executive, Accounts Executive, Accounts Manager, Bodyshop Executive, Bodyshop Manager, Security Guard (Gate),
+Permission - View, Add, Edit, Delete, Print, Export, Cancel
+Module Reference - Appointment, Pickup/Drop, Inward/Outward, Job Card etc.
+Sub-Module Reference - Job History, Vehicle history, Invoice History, Invoice Detail History etc.
+Menu Order (Sequence)
+Approval Matrix - Proforma Amt > 25K, Stock Purchase Order Amt > 25K, Advance Receipt @....%, Stock Excess @....%
+Notification Type - Text SMS, WhatsApp, Email, Push Notification
+Dashboard Widget - Today's Appointments, Pending Job Cards, Outstanding Receivables…
+Report Access - Financial Reports, Workshop Reports, Inventory Reports
+Export Permission - Excel, CSV, PDF,
+Financial Year - Active Financial Year, Year Closing, Period Locking
+Transaction Lock - Backdated Entry Lock, Closed Period Lock, Future Date Restriction
+Password Policy - Minimum Length, Complexity Rules, Password Expiry,
+Login Security - Failed Login Limit, Account Lock Duration, Session Timeout, IP Restriction
+IP Whitelist - Allowed IP Range, Blocked IP Range
+Backup Policy/Schedule - Daily, Weekly/Specific time
+Mobile App Permission - Dashboard, Attendance, Job Card, Estimate Approval etc
+","Assign user roles, permissions, hide modules for unauthorized users.",Log Report
+85. Security,None,"Module locks, IP whitelisting, session enforcement, out-of-hours alerts.",Log Report
+86. User Logs,"Log Type - Login Log, Logout Log, Session Log, Transaction Log, Approval Logs, Output Logs (Print/Export/Download), System Log
+Employee
+Module & Sub-Module Reference
+Action Type - Create, Modify, Delete, Restore, Approve, Reject, Print, Export, Download, View
+Record Change Reason - Customer Request, Correction, Management Approval
+Approval Action - Approved, Rejected
+Login Failure Reason - Wrong Password, User Disabled, Account Locked, IP Restricted
+Device Type - Desktop, Laptop, Mobile, Tablet
+Browser - Chrome, Edge, Firefox, Safari
+Operating System - Windows, Android, iOS, Linux
+Audit Trail - Old Value, New Value, User, Date Time, Reference No., IP Address
+","Track user activity (add/edit/delete), login sessions, and IP addresses.",Log Report
+87. SMS Integration,"SMS Template
+SMS Category - Transactional, Service Due Reminder, Outstanding Reminder, Campaign/Marketing,
+SMS Recipient Group - Customers, Vendors, Employees (Advisors/Technicians etc), Insurance Companies, Management,
+SMS Preference - Receive, DND, Promotional SMS Allowed, Service/Transactional SMS Only
+SMS Queue - Queued, Processing, Sent, Failed
+SMS Delivery Status - Sent, Delivered, Failed,
+SMS Failure Reason - Invalid Mobile Number, Network Error, Gateway Error, Template Rejected, DLT Rejection
+SMS Scheduling - Immediate, Custom, Recurring
+SMS Campaign Types - Festival Greeting, Monsoon Awareness, Winter Awareness
+SMS Credit - Package Credits, Used Credits, Credit Balance
+SMS Dashboard - SMS Sent Today, Delivery Rate, Failure Rate, Pending SMS, Credit Balance
+","Automated and manual SMS, WhatsApp, Email triggers across the ERP workflow.",Log Report
+88. Accounting,Accounts Master,"Manage financials, GST (GSTR-1, 2B, 3B), bank, expenses, assets, trial balance.","GST Reports, Expense Report, Cash/Credit report"
+90. Smart Salary,"Employee
+Department
+Designation - Service Advisor, Technician, Helper, Floor In Charge, Parts Manager, Accounts Executive
+Employee Category  - Permanent, Probation, Apprentice
+Service Contractor
+Salary Structure - Basic Salary, HRA, Conveyance, Medical Allowance, Special Allowance
+Salary Deductions - PF, ESI, Professional Tax, TDS, Loan Recovery
+Attendance Policy - Late Coming Rules, Early Leaving Rules, Grace Time, Half Day Rules
+Holiday - Sunday, National Holiday, Festival Holiday, Company Holiday
+Leave Type - Casual Leave, Sick Leave, Earned Leave, Maternity Leave, Leave Without Pay
+Leave Policy - Annual Entitlement, Carry Forward, Encashment Rules
+Positive Point Achievement - Job Card data fillup, Customer T&C Approval, Digital Inspection, Estimate Approval, Billing Ratio - 70/30, Ontime Delivery, TAT, Customer Feedback/Rating (Dissatisfied/Happy), Attendance & Puntuation, Uniform, Cross Sales/Upsale, Proforma Approval, Advance Payment, Service Due Followups, Recommended Servicce Followups, Final Inspection, Discipline/Dedication/Commitment, Loyal, Feedback, Back Order,
+Negative Point Achievement - Repeat Job/Warranty Claim, Loss/Damage, Job Cancel, Sales Return (RS/CS/IS), Invoice Correction, Excess Stock, Unnecessary Leave,
+Performance/Productivity Slab - Eg Slab1 (80%) @ Rs 100, Slab2 (90%) @ RS 200, Slab3 (100%) @ Rs 300
+Employee Grade - Grade A, Grade B, Grade C.
+Incentive Policy - Labour Sales, Parts Sales, Customer Satisfaction, Efficiency
+Loan Type - Advance Salary, Emergency Loan etc
+Bank
+Payment Mode
+Dashboard
+","Performance-based salary, KPI tracking, upsell points, and deductions.",Attendance& Payroll Report
+91. Customer Mobile App (Android/IOS),"Customer Master, Vehicle Master","Mobile interface for customers to book appointments, track service, and view bills.",App Usage/All Reports
+92. Complaint Register - Internal Work Order/Request/Resonse,"Employee
+Department
+Designation - Service Advisor, Technician, Floor In Charge, Parts Manager
+Employee Category  - Permanent, Probation, Apprentice
+Service Contractor
+Salary Structure - Basic Salary, HRA, Conveyance, Medical Allowance, Special Allowance
+Salary Deductions - PF, ESI, Professional Tax, TDS, Loan Recovery
+Attendance Policy - Late Coming Rules, Early Leaving Rules, Grace Time, Half Day Rules
+Holiday - Sunday, National Holiday, Festival Holiday, Company Holiday
+Leave Type - Casual Leave, Sick Leave, Earned Leave, Maternity Leave, Leave Without Pay
+Loan Type - Advance Salary, Emergency Loan etc
+Bank
+Payment Mode
+Technician KPIs - Labour Hours Achieved, Labour Sales,
+Service Advisor KPIs - Labour Sales, Estimate Approval, Customer Satisfaction, Vehicle Delivery Ontime
+Store Team KPIs - Parts Profit, Inventory Accuracy, Parts Availability Rate, Dead Stock Reduction
+Point Allocation - Labour Target Achieved Slab A @ 50 Points, Labour Target Achieved Slab B @ 100 Points, Labour Target Achieved Slab C @ 200 Points, Customer Satisfaction 95%+ @ 100 points, Customer Satisfaction 90%-94% @ 75 points, Customer Satisfaction 80%-89% @ 50 points. Note: Value Added Services Productivity, Labour Productivity, Parts Productivity, Job Card data fillup, Customer T&C Approval, Digital Inspection, Estimate Approval, Billing Ratio - 70/30, Ontime Delivery, TAT, Customer Feedback/Rating (Dissatisfied/Happy), Attendance & Puntuation, Uniform, Cross Sales/Upsale, Proforma Approval, Advance Payment, Service Due Followups, Recommended Servicce Followups, Final Inspection, Discipline/Dedication/Commitment, Loyal, Feedback, Back Order,
+Point Deduction - Late Coming @ -5, Half Day Leave @ -10, Unauthorized Leave @ -25, Repeat Job @ -30, Customer Complaint @ -20, Vehicle Damage @ -100. Note: Misconduct, Policy Violation, Misbehaviour, Minor Damage, Major Damage, Total Negligence, Repeat Job/Warranty Claim, Job Cancel, Sales Return (RS/CS/IS), Invoice Correction, Excess Stock, Unnecessary Leave,
+Performance Grade : 95 to 100 @ A, 85 to 94 @ B, 75 to 84 @ C, 60 to 74 @ D, Below 60 @ E
+Incentive Conversion - 100 Points @ Rs.1000, 200 Points @ Rs.2500, 200 Points @ Rs.4000, 500 Points @ Rs.8000,
+Performance Salary - Fixed Salary, Performance Points, Incentive Conversion, Bonus, Penalties/Deductions
+Approval Authority - Service Advisor, Floor In Charge, HR, Owner
+Dashboard - Employee of the Month, Best Technician, Best Service Advisor, Best Parts Manager
+",Centralized register for customer and internal complaints and TAT tracking.,Complaint Register Report
+93. Payment Gateway Integration,None,RazorPay integration for online payments via app/web.,Payment Report
+94. Camera API Integration - Session Access to customer,None,Bay-wise live camera session for customers to monitor their vehicle.,N/A
+95. AI Integration,None,"Predictive analytics, automated insights, smart search, AI reminders (future phase).",N/A
+96. Workshop Master & configuration setting,None,"Company Info, GST Info, Location, config settings, lunch breaks.",N/A
+97. Service due/Alignment due reminder sms,Communication Templates Master,Send reminders 3 times automatically for due services.,Service Due Follow-Up Report

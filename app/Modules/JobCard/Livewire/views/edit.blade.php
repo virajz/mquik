@@ -65,6 +65,8 @@
                     <flux:time-picker wire:model="opened_time" label="Opened Time" placeholder="Now" type="input" />
                     <flux:date-picker wire:model="promised_date" label="Promised Date" placeholder="Tomorrow" with-today selectable-header fixed-weeks type="input" />
                     <flux:time-picker wire:model="promised_time" label="Promised Time" type="input" />
+                    <flux:date-picker wire:model="expected_completion_date" label="Expected Completion Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:time-picker wire:model="expected_completion_time" label="Expected Completion Time" type="input" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -98,11 +100,23 @@
                     </flux:select>
                 </div>
 
-                <flux:select wire:model="status" variant="listbox" label="Status" class="md:max-w-xs" required>
-                    @foreach (\App\Modules\JobCard\Models\JobCard::statuses() as $key => $label)
-                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:select wire:model="status" variant="listbox" label="Status" required>
+                        @foreach (\App\Modules\JobCard\Models\JobCard::statuses() as $key => $label)
+                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:select wire:model="current_stage_id" variant="listbox" searchable clearable label="Stage" placeholder="Lifecycle stage…">
+                        @foreach ($this->jobStages as $stage)
+                            <flux:select.option :value="$stage->id" wire:key="stg-{{ $stage->id }}">{{ $stage->name }} ({{ ucfirst($stage->track) }})</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:select wire:model="pending_reason_id" variant="listbox" searchable clearable label="Pending Reason" placeholder="If on hold…">
+                        @foreach ($this->pendingReasons as $pr)
+                            <flux:select.option :value="$pr->id" wire:key="pr-{{ $pr->id }}">{{ $pr->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
             </div>
         </section>
 

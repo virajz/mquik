@@ -19,6 +19,45 @@
 
     <flux:separator class="mb-6" />
 
+    {{-- STAGE TREE --}}
+    @if ($stages->isNotEmpty())
+        <div class="mb-8">
+            <flux:text size="sm" class="mb-3 font-medium text-zinc-600 dark:text-zinc-300">Status Tree</flux:text>
+            <ol class="flex flex-wrap items-stretch gap-2">
+                @foreach ($stages as $i => $stage)
+                    @php
+                        $isCurrent = $currentStageId === $stage->id;
+                        $isDone = $currentStageId !== null && $stage->sort_order < $currentStageOrder;
+                        $enteredAt = $stageEnteredAt[$stage->id] ?? null;
+                    @endphp
+                    <li wire:key="stage-{{ $stage->id }}" class="flex items-center gap-2">
+                        <div class="rounded-lg border px-3 py-2 min-w-32
+                            {{ $isCurrent ? 'border-mq-orange-500 bg-mq-orange-500/10' : ($isDone ? 'border-lime-500/40 bg-lime-500/5' : 'border-dashed border-zinc-300 dark:border-zinc-700') }}">
+                            <div class="flex items-center gap-1.5">
+                                @if ($isCurrent)
+                                    <flux:icon.arrow-right-circle class="size-4 text-mq-orange-500" />
+                                @elseif ($isDone)
+                                    <flux:icon.check-circle class="size-4 text-lime-600" />
+                                @else
+                                    <flux:icon.clock class="size-4 text-zinc-400" />
+                                @endif
+                                <span class="text-xs font-medium {{ $isCurrent || $isDone ? '' : 'text-zinc-500' }}">{{ $stage->name }}</span>
+                            </div>
+                            <div class="mt-0.5 text-[11px] text-zinc-400">
+                                {{ $enteredAt?->format('d M, H:i') ?? '—' }}
+                            </div>
+                        </div>
+                        @if (! $loop->last)
+                            <flux:icon.chevron-right class="size-4 text-zinc-300 dark:text-zinc-600" />
+                        @endif
+                    </li>
+                @endforeach
+            </ol>
+        </div>
+
+        <flux:separator class="mb-6" />
+    @endif
+
     @if ($events->isEmpty())
         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-10 text-center text-sm text-zinc-500">
             No history events recorded yet.

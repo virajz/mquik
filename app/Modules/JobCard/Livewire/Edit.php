@@ -11,6 +11,8 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
+use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
+use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
@@ -66,6 +68,10 @@ class Edit extends Component
 
     public string $promised_time = '';
 
+    public string $expected_completion_date = '';
+
+    public string $expected_completion_time = '';
+
     public ?int $km_at_service = null;
 
     public ?string $fuel_level = null;
@@ -75,6 +81,10 @@ class Edit extends Component
     public bool $terms_accepted = false;
 
     public string $status = JobCard::STATUS_OPEN;
+
+    public ?int $current_stage_id = null;
+
+    public ?int $pending_reason_id = null;
 
     public ?string $notes = null;
 
@@ -143,11 +153,15 @@ class Edit extends Component
         $this->opened_time = $jc->opened_at?->format('H:i') ?? '';
         $this->promised_date = $jc->promised_at?->format('Y-m-d') ?? '';
         $this->promised_time = $jc->promised_at?->format('H:i') ?? '';
+        $this->expected_completion_date = $jc->expected_completion_at?->format('Y-m-d') ?? '';
+        $this->expected_completion_time = $jc->expected_completion_at?->format('H:i') ?? '';
         $this->km_at_service = $jc->km_at_service;
         $this->fuel_level = $jc->fuel_level;
         $this->suggested_services = $jc->suggested_services;
         $this->terms_accepted = (bool) $jc->terms_accepted;
         $this->status = $jc->status;
+        $this->current_stage_id = $jc->current_stage_id;
+        $this->pending_reason_id = $jc->pending_reason_id;
         $this->notes = $jc->notes;
 
         $this->complaints = $jc->complaints
@@ -228,11 +242,15 @@ class Edit extends Component
             'opened_time' => ['required', 'date_format:H:i'],
             'promised_date' => ['nullable', 'date_format:Y-m-d'],
             'promised_time' => ['nullable', 'date_format:H:i'],
+            'expected_completion_date' => ['nullable', 'date_format:Y-m-d'],
+            'expected_completion_time' => ['nullable', 'date_format:H:i'],
             'km_at_service' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'fuel_level' => ['nullable', Rule::in(array_keys(JobCard::fuelLevels()))],
             'suggested_services' => ['nullable', 'string', 'max:2000'],
             'terms_accepted' => ['boolean'],
             'status' => ['required', Rule::in(array_keys(JobCard::statuses()))],
+            'current_stage_id' => ['nullable', 'integer', Rule::exists('job_stages', 'id')->where('is_active', true)],
+            'pending_reason_id' => ['nullable', 'integer', Rule::exists('job_card_pending_reasons', 'id')->where('is_active', true)],
             'notes' => ['nullable', 'string', 'max:2000'],
 
             'complaints' => ['array'],
@@ -353,6 +371,22 @@ class Edit extends Component
     public function workshopDepartments()
     {
         return WorkshopDepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function jobStages()
+    {
+        return JobStageMaster::query()
+            ->where('is_active', true)
+            ->orderBy('track')->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name', 'track']);
+    }
+
+    #[Computed]
+    public function pendingReasons()
+    {
+        return JobCardPendingReasonMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]
@@ -545,6 +579,12 @@ class Edit extends Component
             $data['promised_at'] = null;
         }
         unset($data['promised_date'], $data['promised_time']);
+        if (! empty($data['expected_completion_date']) && ! empty($data['expected_completion_time'])) {
+            $data['expected_completion_at'] = Carbon::parse($data['expected_completion_date'].' '.$data['expected_completion_time'].':00');
+        } else {
+            $data['expected_completion_at'] = null;
+        }
+        unset($data['expected_completion_date'], $data['expected_completion_time']);
 
         if ($data['terms_accepted']) {
             $data['terms_accepted_at'] = $data['terms_accepted_at'] ?? now();

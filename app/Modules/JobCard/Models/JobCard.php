@@ -11,8 +11,10 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Database\Factories\JobCardFactory;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
+use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
@@ -50,6 +52,7 @@ class JobCard extends Model
     protected $casts = [
         'opened_at' => 'datetime',
         'promised_at' => 'datetime',
+        'expected_completion_at' => 'datetime',
         'closed_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'terms_accepted_at' => 'datetime',
@@ -112,6 +115,30 @@ class JobCard extends Model
                     ['from' => $row->getOriginal('assigned_technician_id'), 'to' => $row->assigned_technician_id],
                 );
             }
+
+            if (array_key_exists('current_stage_id', $changed) && $row->getOriginal('current_stage_id') !== $row->current_stage_id) {
+                $stageName = $row->current_stage_id
+                    ? JobStageMaster::whereKey($row->current_stage_id)->value('name')
+                    : null;
+                JobCardHistoryRecorder::record(
+                    $row->id,
+                    JobCardHistoryEvent::TYPE_STAGE_CHANGED,
+                    'Stage: '.($stageName ?? '—'),
+                    ['from' => $row->getOriginal('current_stage_id'), 'to' => $row->current_stage_id],
+                );
+            }
+
+            if (array_key_exists('pending_reason_id', $changed) && $row->getOriginal('pending_reason_id') !== $row->pending_reason_id) {
+                $reasonName = $row->pending_reason_id
+                    ? JobCardPendingReasonMaster::whereKey($row->pending_reason_id)->value('name')
+                    : null;
+                JobCardHistoryRecorder::record(
+                    $row->id,
+                    JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED,
+                    $reasonName ? 'Pending reason: '.$reasonName : 'Pending reason cleared',
+                    ['from' => $row->getOriginal('pending_reason_id'), 'to' => $row->pending_reason_id],
+                );
+            }
         });
     }
 
@@ -168,6 +195,16 @@ class JobCard extends Model
     public function cancelReason(): BelongsTo
     {
         return $this->belongsTo(JobCardCancelReasonMaster::class, 'cancel_reason_id');
+    }
+
+    public function currentStage(): BelongsTo
+    {
+        return $this->belongsTo(JobStageMaster::class, 'current_stage_id');
+    }
+
+    public function pendingReason(): BelongsTo
+    {
+        return $this->belongsTo(JobCardPendingReasonMaster::class, 'pending_reason_id');
     }
 
     public function complaints(): HasMany

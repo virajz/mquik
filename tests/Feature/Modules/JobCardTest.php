@@ -14,7 +14,9 @@ use App\Modules\JobCard\Models\JobCardComplaint;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
+use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
@@ -641,4 +643,26 @@ it('blocks cancel for a user without job_card.cancel permission', function () {
         ->assertStatus(403);
 
     expect($jc->fresh()->status)->toBe(JobCard::STATUS_OPEN);
+});
+
+it('logs a stage change to history and persists current_stage_id', function () {
+    $jc = JobCard::factory()->create();
+    $stage = JobStageMaster::factory()->inTrack('insurance', 201)->create(['name' => 'DOCUMENT COLLECTION']);
+
+    $jc->update(['current_stage_id' => $stage->id]);
+
+    expect($jc->fresh()->current_stage_id)->toBe($stage->id)
+        ->and(JobCardHistoryEvent::where('job_card_id', $jc->id)
+            ->where('event_type', JobCardHistoryEvent::TYPE_STAGE_CHANGED)->exists())->toBeTrue();
+});
+
+it('logs a pending reason change and persists pending_reason_id', function () {
+    $jc = JobCard::factory()->create();
+    $reason = JobCardPendingReasonMaster::factory()->create(['name' => 'SPARE AWAITED']);
+
+    $jc->update(['pending_reason_id' => $reason->id]);
+
+    expect($jc->fresh()->pending_reason_id)->toBe($reason->id)
+        ->and(JobCardHistoryEvent::where('job_card_id', $jc->id)
+            ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)->exists())->toBeTrue();
 });
