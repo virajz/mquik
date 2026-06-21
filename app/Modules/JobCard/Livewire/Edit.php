@@ -88,6 +88,10 @@ class Edit extends Component
 
     public ?string $notes = null;
 
+    /** Active tab in the rich (edit) layout. */
+    #[Url(as: 'tab')]
+    public string $activeTab = 'details';
+
     /** @var list<array{id: ?int, complaint_type_id: ?int, description: string, severity: string, sequence_no: int}> */
     public array $complaints = [];
 
@@ -389,6 +393,25 @@ class Edit extends Component
             ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    /**
+     * Other job cards for the same vehicle — the "Vehicle History" drawer.
+     */
+    #[Computed]
+    public function vehicleJobCards()
+    {
+        if (! $this->customer_vehicle_id) {
+            return collect();
+        }
+
+        return JobCard::query()
+            ->where('customer_vehicle_id', $this->customer_vehicle_id)
+            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
+            ->with(['advisor:id,name', 'currentStage:id,name', 'workshopDepartment:id,name'])
+            ->orderByDesc('opened_at')
+            ->limit(50)
+            ->get(['id', 'job_card_no', 'status', 'current_stage_id', 'assigned_advisor_id', 'workshop_department_id', 'opened_at', 'promised_at', 'closed_at', 'km_at_service']);
+    }
+
     #[Computed]
     public function serviceTypes()
     {
@@ -629,6 +652,12 @@ class Edit extends Component
             text: 'Job Card '.$jc->fresh()->job_card_no.($isCreate ? ' created.' : ' updated.'),
             variant: 'success',
         );
+
+        // On create, drop into the rich edit view so the full tabs (inventory,
+        // photos, inspection, sign-off) unlock for the just-opened card.
+        if ($isCreate) {
+            return redirect()->route('job-card.edit', $jc->id);
+        }
 
         return redirect()->route('job-card.index');
     }

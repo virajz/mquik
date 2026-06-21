@@ -666,3 +666,21 @@ it('logs a pending reason change and persists pending_reason_id', function () {
         ->and(JobCardHistoryEvent::where('job_card_id', $jc->id)
             ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)->exists())->toBeTrue();
 });
+
+it('lists other job cards for the same vehicle in the history drawer', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $past = JobCard::factory()->create(['customer_id' => $customer->id, 'customer_vehicle_id' => $vehicle->id]);
+    $current = JobCard::factory()->create(['customer_id' => $customer->id, 'customer_vehicle_id' => $vehicle->id]);
+    $otherVehicleCard = JobCard::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['jobCard' => $current]);
+
+    $ids = $component->instance()->vehicleJobCards->pluck('id');
+    expect($ids)->toContain($past->id)
+        ->and($ids)->not->toContain($current->id)
+        ->and($ids)->not->toContain($otherVehicleCard->id);
+
+    // The other vehicle's card never appears in the drawer markup.
+    $component->assertSee($past->job_card_no)->assertDontSee($otherVehicleCard->job_card_no);
+});
