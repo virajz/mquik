@@ -4,7 +4,9 @@ namespace App\Modules\VendorMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
 use App\Modules\BankMaster\Models\BankMaster;
+use App\Modules\GstTypeMaster\Models\GstTypeMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\ServiceSpecialistMaster\Models\ServiceSpecialistMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
@@ -53,6 +55,11 @@ class Edit extends Component
     public ?string $secondary_email = null;
 
     public ?string $address = null;
+
+    public ?int $gst_type_id = null;
+
+    /** @var array<int, int> */
+    public array $service_specialist_ids = [];
 
     public ?int $region_id = null;
 
@@ -118,8 +125,10 @@ class Edit extends Component
         }
         $this->region_id = $vendor->region_id;
         $this->bank_id = $vendor->bank_id;
+        $this->gst_type_id = $vendor->gst_type_id;
         $this->vendor_type_ids = $vendor->vendorTypes->pluck('id')->all();
         $this->spare_brand_ids = $vendor->spareBrands->pluck('id')->all();
+        $this->service_specialist_ids = $vendor->serviceSpecialists->pluck('id')->all();
         $this->credit_days = (int) $vendor->credit_days;
         $this->credit_limit = (float) $vendor->credit_limit;
         $this->is_active = $vendor->is_active;
@@ -147,6 +156,9 @@ class Edit extends Component
             'email' => ['nullable', 'email', 'max:255'],
             'secondary_email' => ['nullable', 'email', 'max:255', 'different:email'],
             'address' => ['nullable', 'string', 'max:1000'],
+            'gst_type_id' => ['nullable', 'integer', Rule::exists('gst_types', 'id')->where('is_active', true)],
+            'service_specialist_ids' => ['array'],
+            'service_specialist_ids.*' => ['integer', Rule::exists('service_specialists', 'id')->where('is_active', true)],
             'region_id' => ['nullable', 'integer', Rule::exists('regions', 'id')->where('is_active', true)],
             'aadhar' => ['nullable', 'string', 'size:12', Rule::unique('vendors', 'aadhar')->ignore($this->editingId)],
             'pan' => ['nullable', 'string', 'size:10', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/', Rule::unique('vendors', 'pan')->ignore($this->editingId)],
@@ -239,6 +251,18 @@ class Edit extends Component
             text: ucfirst($kind).' "'.$region->name.'" added.',
             variant: 'success',
         );
+    }
+
+    #[Computed]
+    public function gstTypes()
+    {
+        return GstTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function serviceSpecialistOptions()
+    {
+        return ServiceSpecialistMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]
@@ -335,16 +359,17 @@ class Edit extends Component
         $terms = $this->terms;
         $typeIds = array_map('intval', $this->vendor_type_ids);
         $brandIds = array_map('intval', $this->spare_brand_ids);
+        $specialistIds = array_map('intval', $this->service_specialist_ids);
         $aadharFile = $this->aadhar_file;
         $panFile = $this->pan_file;
         $aadharCleared = $this->aadhar_file_path === null;
         $panCleared = $this->pan_file_path === null;
 
         $data = collect($this->validate())->except([
-            'vendor_type_ids', 'spare_brand_ids', 'terms', 'aadhar_file', 'pan_file',
+            'vendor_type_ids', 'spare_brand_ids', 'service_specialist_ids', 'terms', 'aadhar_file', 'pan_file',
         ])->all();
 
-        $skip = ['email', 'secondary_email', 'phone', 'alternate_phone', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'region_id', 'bank_id'];
+        $skip = ['email', 'secondary_email', 'phone', 'alternate_phone', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'region_id', 'bank_id', 'gst_type_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -353,7 +378,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
+        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $specialistIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
             if ($this->editingId) {
                 $v = VendorMaster::findOrFail($this->editingId);
                 $v->update($data);
@@ -364,6 +389,7 @@ class Edit extends Component
 
             $v->vendorTypes()->sync($typeIds);
             $v->spareBrands()->sync($brandIds);
+            $v->serviceSpecialists()->sync($specialistIds);
             $this->syncTerms($v, $terms);
             $this->syncKycFile($v, 'aadhar', $aadharFile, $aadharCleared);
             $this->syncKycFile($v, 'pan', $panFile, $panCleared);

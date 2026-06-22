@@ -7,6 +7,9 @@ use App\Modules\AccountGroupMaster\Database\Seeders\AccountGroupMasterSeeder;
 use App\Modules\BankMaster\Database\Seeders\BankMasterSeeder;
 use App\Modules\BayMaster\Database\Seeders\BayMasterSeeder;
 use App\Modules\BusinessTypeMaster\Database\Seeders\BusinessTypeMasterSeeder;
+use App\Modules\ChallanReasonMaster\Database\Seeders\ChallanReasonMasterSeeder;
+use App\Modules\ChallanRejectionReasonMaster\Database\Seeders\ChallanRejectionReasonMasterSeeder;
+use App\Modules\ChargeTypeMaster\Database\Seeders\ChargeTypeMasterSeeder;
 use App\Modules\ChecklistGroupMaster\Database\Seeders\ChecklistGroupMasterSeeder;
 use App\Modules\ChecklistTemplateMaster\Database\Seeders\ChecklistTemplateMasterSeeder;
 use App\Modules\ClaimTypeMaster\Database\Seeders\ClaimTypeMasterSeeder;
@@ -18,8 +21,6 @@ use App\Modules\CustomerApprovalTypeMaster\Database\Seeders\CustomerApprovalType
 use App\Modules\CustomerMaster\Database\Seeders\CustomerMasterSeeder;
 use App\Modules\CustomerVehicleMaster\Database\Seeders\CustomerVehicleMasterSeeder;
 use App\Modules\DamageCauseMaster\Database\Seeders\DamageCauseMasterSeeder;
-use App\Modules\EstimateRevisionReasonMaster\Database\Seeders\EstimateRevisionReasonMasterSeeder;
-use App\Modules\EstimateTemplateMaster\Database\Seeders\EstimateTemplateMasterSeeder;
 use App\Modules\DamageTypeMaster\Database\Seeders\DamageTypeMasterSeeder;
 use App\Modules\DelayReasonMaster\Database\Seeders\DelayReasonMasterSeeder;
 use App\Modules\DepartmentMaster\Database\Seeders\DepartmentMasterSeeder;
@@ -28,6 +29,8 @@ use App\Modules\DocumentCollection\Database\Seeders\DocumentCollectionSeeder;
 use App\Modules\DocumentRejectionReasonMaster\Database\Seeders\DocumentRejectionReasonMasterSeeder;
 use App\Modules\EmployeeMaster\Database\Seeders\EmployeeMasterSeeder;
 use App\Modules\EnquirySourceMaster\Database\Seeders\EnquirySourceMasterSeeder;
+use App\Modules\EstimateRevisionReasonMaster\Database\Seeders\EstimateRevisionReasonMasterSeeder;
+use App\Modules\EstimateTemplateMaster\Database\Seeders\EstimateTemplateMasterSeeder;
 use App\Modules\FollowUpModeMaster\Database\Seeders\FollowUpModeMasterSeeder;
 use App\Modules\FuelTypeMaster\Database\Seeders\FuelTypeMasterSeeder;
 use App\Modules\GstTypeMaster\Database\Seeders\GstTypeMasterSeeder;
@@ -37,27 +40,33 @@ use App\Modules\InspectionTemplateMaster\Database\Seeders\InspectionTemplateMast
 use App\Modules\InsuranceCompanyMaster\Database\Seeders\InsuranceCompanyMasterSeeder;
 use App\Modules\InsurancePolicyTypeMaster\Database\Seeders\InsurancePolicyTypeMasterSeeder;
 use App\Modules\InventoryGroupMaster\Database\Seeders\InventoryGroupMasterSeeder;
+use App\Modules\IpoCancellationReasonMaster\Database\Seeders\IpoCancellationReasonMasterSeeder;
+use App\Modules\IpoRejectionReasonMaster\Database\Seeders\IpoRejectionReasonMasterSeeder;
 use App\Modules\JobCardCancelReasonMaster\Database\Seeders\JobCardCancelReasonMasterSeeder;
 use App\Modules\JobCardPendingReasonMaster\Database\Seeders\JobCardPendingReasonMasterSeeder;
 use App\Modules\JobDescriptionMaster\Database\Seeders\JobDescriptionMasterSeeder;
 use App\Modules\JobStageMaster\Database\Seeders\JobStageMasterSeeder;
 use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
+use App\Modules\LossReasonMaster\Database\Seeders\LossReasonMasterSeeder;
 use App\Modules\MissingDocumentReasonMaster\Database\Seeders\MissingDocumentReasonMasterSeeder;
 use App\Modules\PartTypeMaster\Database\Seeders\PartTypeMasterSeeder;
 use App\Modules\PaymentModeMaster\Database\Seeders\PaymentModeMasterSeeder;
-use App\Modules\RackMaster\Database\Seeders\RackMasterSeeder;
 use App\Modules\PhotoTypeMaster\Database\Seeders\PhotoTypeMasterSeeder;
+use App\Modules\RackMaster\Database\Seeders\RackMasterSeeder;
 use App\Modules\RegionMaster\Database\Seeders\RegionMasterSeeder;
 use App\Modules\RegistrationTypeMaster\Database\Seeders\RegistrationTypeMasterSeeder;
 use App\Modules\RequestedRepairMaster\Database\Seeders\RequestedRepairMasterSeeder;
+use App\Modules\ReturnTypeMaster\Database\Seeders\ReturnTypeMasterSeeder;
 use App\Modules\ReworkReasonMaster\Database\Seeders\ReworkReasonMasterSeeder;
 use App\Modules\ServicePackageTypeMaster\Database\Seeders\ServicePackageTypeMasterSeeder;
+use App\Modules\ServiceSpecialistMaster\Database\Seeders\ServiceSpecialistMasterSeeder;
 use App\Modules\ServiceTypeMaster\Database\Seeders\ServiceTypeMasterSeeder;
 use App\Modules\SpareBrandMaster\Database\Seeders\SpareBrandMasterSeeder;
 use App\Modules\StandardObservationMaster\Database\Seeders\StandardObservationMasterSeeder;
 use App\Modules\TaxMaster\Database\Seeders\TaxMasterSeeder;
 use App\Modules\TechnicianFinding\Database\Seeders\TechnicianFindingSeeder;
 use App\Modules\TransmissionTypeMaster\Database\Seeders\TransmissionTypeMasterSeeder;
+use App\Modules\TransportModeMaster\Database\Seeders\TransportModeMasterSeeder;
 use App\Modules\UnitOfMeasureMaster\Database\Seeders\UnitOfMeasureMasterSeeder;
 use App\Modules\VehicleBrandMaster\Database\Seeders\VehicleBrandMasterSeeder;
 use App\Modules\VehicleColorMaster\Database\Seeders\VehicleColorMasterSeeder;
@@ -121,6 +130,15 @@ class DatabaseSeeder extends Seeder
             DamageCauseMasterSeeder::class,
             EstimateRevisionReasonMasterSeeder::class,
             EstimateTemplateMasterSeeder::class,
+            IpoCancellationReasonMasterSeeder::class,
+            IpoRejectionReasonMasterSeeder::class,
+            ReturnTypeMasterSeeder::class,
+            ServiceSpecialistMasterSeeder::class,
+            LossReasonMasterSeeder::class,
+            TransportModeMasterSeeder::class,
+            ChallanReasonMasterSeeder::class,
+            ChallanRejectionReasonMasterSeeder::class,
+            ChargeTypeMasterSeeder::class,
             ConsumableDepartmentMasterSeeder::class,
             VehicleSegmentMasterSeeder::class,
             VehicleColorMasterSeeder::class,

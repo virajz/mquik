@@ -5,7 +5,9 @@ namespace App\Modules\VendorMaster\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\BankMaster\Models\BankMaster;
+use App\Modules\GstTypeMaster\Models\GstTypeMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\ServiceSpecialistMaster\Models\ServiceSpecialistMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Database\Factories\VendorMasterFactory;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
@@ -61,6 +63,21 @@ class VendorMaster extends Model
             'vendor_id',
             'spare_brand_id',
         );
+    }
+
+    public function serviceSpecialists(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ServiceSpecialistMaster::class,
+            'vendor_service_specialist',
+            'vendor_id',
+            'service_specialist_id',
+        )->withTimestamps();
+    }
+
+    public function gstType(): BelongsTo
+    {
+        return $this->belongsTo(GstTypeMaster::class, 'gst_type_id');
     }
 
     public function region(): BelongsTo

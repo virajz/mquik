@@ -218,13 +218,27 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Tax identifiers and scanned ID proofs.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:input
-                    wire:model="gstin"
-                    label="GSTIN"
-                    placeholder="22ABCDE1234F1Z5"
-                    maxlength="15"
-                    class:input="font-mono uppercase tracking-wide"
-                />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input
+                        wire:model="gstin"
+                        label="GSTIN"
+                        placeholder="22ABCDE1234F1Z5"
+                        maxlength="15"
+                        class:input="font-mono uppercase tracking-wide"
+                    />
+                    <flux:select wire:model="gst_type_id" variant="listbox" searchable clearable label="GST Type" placeholder="Regular / Composition…">
+                        @foreach ($this->gstTypes as $gt)
+                            <flux:select.option :value="$gt->id" wire:key="gt-{{ $gt->id }}">{{ $gt->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+
+                <flux:select wire:model="service_specialist_ids" variant="listbox" multiple searchable clearable label="Service Specialities" placeholder="Denting, Painting, AC…">
+                    @foreach ($this->serviceSpecialistOptions as $sp)
+                        <flux:select.option :value="$sp->id" wire:key="ssp-{{ $sp->id }}">{{ $sp->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="service_specialist_ids" />
 
                 {{-- Aadhar number + scan --}}
                 <div class="space-y-2">
