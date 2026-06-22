@@ -3,6 +3,7 @@
 namespace App\Modules\RegionMaster\Livewire;
 
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Computed;
@@ -37,7 +38,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'kind', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -98,18 +99,22 @@ class Index extends Component
         $this->authorize('region_master.delete');
 
         try {
-            RegionMaster::findOrFail($id)->delete();
+            $record = RegionMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Region #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this region — it is still in use.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }
     }
 
     /**
-     * Parent options for the parent filter — depends on the kind filter's parent kind.
+     * Parent options for the parent filter â depends on the kind filter's parent kind.
      */
     #[Computed]
     public function parentFilterOptions()

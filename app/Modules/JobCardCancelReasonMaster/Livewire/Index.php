@@ -3,6 +3,7 @@
 namespace App\Modules\JobCardCancelReasonMaster\Livewire;
 
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('job_card_cancel_reason_master.delete');
 
         try {
-            JobCardCancelReasonMaster::findOrFail($id)->delete();
+            $record = JobCardCancelReasonMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Cancel Reason #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — reason is in use by job cards
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this reason — it is still in use by one or more job cards.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

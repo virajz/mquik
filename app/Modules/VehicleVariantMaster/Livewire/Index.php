@@ -4,6 +4,7 @@ namespace App\Modules\VehicleVariantMaster\Livewire;
 
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Computed;
@@ -85,10 +86,17 @@ class Index extends Component
         $this->authorize('vehicle_variant_master.delete');
 
         try {
-            VehicleVariantMaster::findOrFail($id)->delete();
+            $record = VehicleVariantMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Variant #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            Flux::toast(text: 'Cannot delete this variant — it is still in use.', variant: 'danger');
+            $refs = RecordReferences::summary($record);
+            Flux::toast(
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
+                variant: 'danger',
+            );
         }
     }
 

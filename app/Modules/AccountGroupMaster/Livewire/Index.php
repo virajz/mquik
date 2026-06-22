@@ -3,6 +3,7 @@
 namespace App\Modules\AccountGroupMaster\Livewire;
 
 use App\Modules\AccountGroupMaster\Models\AccountGroupMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('account_group_master.delete');
 
         try {
-            AccountGroupMaster::findOrFail($id)->delete();
+            $record = AccountGroupMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Account group #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — group is referenced by ledger accounts
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this group — it is still in use by one or more ledger accounts.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

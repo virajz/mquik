@@ -3,6 +3,7 @@
 namespace App\Modules\RegistrationTypeMaster\Livewire;
 
 use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('registration_type_master.delete');
 
         try {
-            RegistrationTypeMaster::findOrFail($id)->delete();
+            $record = RegistrationTypeMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Registration Type #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — type is in use by customer vehicles
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this type — it is still in use by one or more records.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

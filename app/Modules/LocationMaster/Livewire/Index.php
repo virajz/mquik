@@ -3,6 +3,7 @@
 namespace App\Modules\LocationMaster\Livewire;
 
 use App\Modules\LocationMaster\Models\LocationMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -33,7 +34,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -88,11 +89,15 @@ class Index extends Component
         $this->authorize('location_master.delete');
 
         try {
-            LocationMaster::findOrFail($id)->delete();
+            $record = LocationMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Location #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this location — it is still in use by job cards, inventory, or invoices.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

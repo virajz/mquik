@@ -3,6 +3,7 @@
 namespace App\Modules\ConsumableDepartmentMaster\Livewire;
 
 use App\Modules\ConsumableDepartmentMaster\Models\ConsumableDepartmentMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,11 +81,15 @@ class Index extends Component
         $this->authorize('consumable_department_master.delete');
 
         try {
-            ConsumableDepartmentMaster::findOrFail($id)->delete();
+            $record = ConsumableDepartmentMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Department #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this department — it is still in use.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

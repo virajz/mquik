@@ -3,6 +3,7 @@
 namespace App\Modules\RequestedRepairMaster\Livewire;
 
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('requested_repair_master.delete');
 
         try {
-            RequestedRepairMaster::findOrFail($id)->delete();
+            $record = RequestedRepairMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Requested Repair #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — item is in use by job cards
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this type — it is still in use by one or more records.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

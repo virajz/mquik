@@ -3,6 +3,7 @@
 namespace App\Modules\DesignationMaster\Livewire;
 
 use App\Modules\DesignationMaster\Models\DesignationMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('designation_master.delete');
 
         try {
-            DesignationMaster::findOrFail($id)->delete();
+            $record = DesignationMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Designation #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — designation is in use by employees
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this designation — it is still in use by one or more employees.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

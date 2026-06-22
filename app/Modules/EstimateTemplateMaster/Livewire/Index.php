@@ -3,6 +3,7 @@
 namespace App\Modules\EstimateTemplateMaster\Livewire;
 
 use App\Modules\EstimateTemplateMaster\Models\EstimateTemplateMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -60,10 +61,17 @@ class Index extends Component
         $this->authorize('estimate_template_master.delete');
 
         try {
-            EstimateTemplateMaster::findOrFail($id)->delete();
+            $record = EstimateTemplateMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Template #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            Flux::toast(text: 'Cannot delete this template — it is still in use.', variant: 'danger');
+            $refs = RecordReferences::summary($record);
+            Flux::toast(
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
+                variant: 'danger',
+            );
         }
     }
 

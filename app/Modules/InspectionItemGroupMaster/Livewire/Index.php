@@ -3,6 +3,7 @@
 namespace App\Modules\InspectionItemGroupMaster\Livewire;
 
 use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('inspection_item_group_master.delete');
 
         try {
-            InspectionItemGroupMaster::findOrFail($id)->delete();
+            $record = InspectionItemGroupMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Inspection item group #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — group is in use by InspectionItem
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this group — it is still in use by one or more inspection items.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

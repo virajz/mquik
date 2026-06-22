@@ -3,6 +3,7 @@
 namespace App\Modules\VehicleColorMaster\Livewire;
 
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -75,10 +76,17 @@ class Index extends Component
         $this->authorize('vehicle_color_master.delete');
 
         try {
-            VehicleColorMaster::findOrFail($id)->delete();
+            $record = VehicleColorMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Color #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            Flux::toast(text: 'Cannot delete this color — it is still in use.', variant: 'danger');
+            $refs = RecordReferences::summary($record);
+            Flux::toast(
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
+                variant: 'danger',
+            );
         }
     }
 

@@ -3,6 +3,7 @@
 namespace App\Modules\WorkshopDepartmentMaster\Livewire;
 
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('workshop_department_master.delete');
 
         try {
-            WorkshopDepartmentMaster::findOrFail($id)->delete();
+            $record = WorkshopDepartmentMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Workshop department #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — workshop department is in use by jobs/employees
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this workshop department — it is still in use by one or more records.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

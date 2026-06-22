@@ -3,6 +3,7 @@
 namespace App\Modules\VehicleBrandMaster\Livewire;
 
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -75,11 +76,15 @@ class Index extends Component
         $this->authorize('vehicle_brand_master.delete');
 
         try {
-            VehicleBrandMaster::findOrFail($id)->delete();
+            $record = VehicleBrandMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Vehicle brand #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this brand — it is still in use by one or more models.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

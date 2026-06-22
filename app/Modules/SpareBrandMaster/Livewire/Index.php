@@ -3,6 +3,7 @@
 namespace App\Modules\SpareBrandMaster\Livewire;
 
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('spare_brand_master.delete');
 
         try {
-            SpareBrandMaster::findOrFail($id)->delete();
+            $record = SpareBrandMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Spare brand #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — brand is in use by SpareMaster
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this brand — it is still in use by one or more spares.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

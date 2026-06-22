@@ -4,6 +4,7 @@ namespace App\Modules\VehicleModelMaster\Livewire;
 
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Computed;
@@ -85,10 +86,17 @@ class Index extends Component
         $this->authorize('vehicle_model_master.delete');
 
         try {
-            VehicleModelMaster::findOrFail($id)->delete();
+            $record = VehicleModelMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Model #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            Flux::toast(text: 'Cannot delete this model — it is still in use.', variant: 'danger');
+            $refs = RecordReferences::summary($record);
+            Flux::toast(
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
+                variant: 'danger',
+            );
         }
     }
 

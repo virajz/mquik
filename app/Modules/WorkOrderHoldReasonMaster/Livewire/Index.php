@@ -3,6 +3,7 @@
 namespace App\Modules\WorkOrderHoldReasonMaster\Livewire;
 
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,12 +81,15 @@ class Index extends Component
         $this->authorize('work_order_hold_reason_master.delete');
 
         try {
-            WorkOrderHoldReasonMaster::findOrFail($id)->delete();
+            $record = WorkOrderHoldReasonMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Work Order Hold Reason #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
-            // FK restrict — record is in use elsewhere
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this type — it is still in use elsewhere.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }

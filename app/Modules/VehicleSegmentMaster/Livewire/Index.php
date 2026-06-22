@@ -3,6 +3,7 @@
 namespace App\Modules\VehicleSegmentMaster\Livewire;
 
 use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
+use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    /** Whitelist sortable columns — never trust the URL */
+    /** Whitelist sortable columns â never trust the URL */
     protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
@@ -80,11 +81,15 @@ class Index extends Component
         $this->authorize('vehicle_segment_master.delete');
 
         try {
-            VehicleSegmentMaster::findOrFail($id)->delete();
+            $record = VehicleSegmentMaster::findOrFail($id);
+            $record->delete();
             Flux::toast(text: 'Vehicle segment #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
+            $refs = RecordReferences::summary($record);
             Flux::toast(
-                text: 'Cannot delete this segment — it is still in use by one or more vehicles.',
+                text: $refs
+                    ? 'Cannot delete — in use by '.$refs.'. Remove those first.'
+                    : 'Cannot delete — it is still in use.',
                 variant: 'danger',
             );
         }
