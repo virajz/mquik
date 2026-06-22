@@ -5,11 +5,14 @@ namespace App\Modules\SpareMaster\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
+use App\Modules\PartTypeMaster\Models\PartTypeMaster;
+use App\Modules\RackMaster\Models\RackMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Database\Factories\SpareMasterFactory;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -69,6 +72,26 @@ class SpareMaster extends Model
     public function uom(): BelongsTo
     {
         return $this->belongsTo(UnitOfMeasureMaster::class, 'uom_id');
+    }
+
+    public function partType(): BelongsTo
+    {
+        return $this->belongsTo(PartTypeMaster::class, 'part_type_id');
+    }
+
+    public function rack(): BelongsTo
+    {
+        return $this->belongsTo(RackMaster::class, 'rack_id');
+    }
+
+    public function vendors(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            VendorMaster::class,
+            'spare_vendor',
+            'spare_id',
+            'vendor_id'
+        )->withTimestamps();
     }
 
     public function vehicleVariants(): BelongsToMany

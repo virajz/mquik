@@ -72,17 +72,17 @@
             <div>
                 <flux:heading size="lg">Checklist</flux:heading>
                 <flux:text size="sm" class="mt-1 text-zinc-500">
-                    Walk down each item. Outcomes:
+                    Walk each item: set a <span class="font-medium text-zinc-700 dark:text-zinc-300">result</span>, then add a recommendation, severity, observation and photo as needed.
                 </flux:text>
-                <ul class="mt-2 text-xs text-zinc-500 space-y-1">
-                    <li><span class="font-medium text-zinc-700 dark:text-zinc-300">OK</span> — fine, no action</li>
-                    <li><span class="font-medium text-zinc-700 dark:text-zinc-300">Adj</span> — adjustment only</li>
-                    <li><span class="font-medium text-zinc-700 dark:text-zinc-300">Rep</span> — replace / repair</li>
-                    <li><span class="font-medium text-zinc-700 dark:text-zinc-300">IA</span> — immediate action needed</li>
-                    <li><span class="font-medium text-zinc-700 dark:text-zinc-300">FA</span> — note for future</li>
-                </ul>
             </div>
-            <div class="space-y-3 min-w-0">
+            <div class="space-y-6 min-w-0">
+                {{-- Quick-pick standard observations (faster entry) --}}
+                <datalist id="di-standard-observations">
+                    @foreach ($this->standardObservations as $obs)
+                        <option value="{{ $obs }}"></option>
+                    @endforeach
+                </datalist>
+
                 @if (count($items) === 0)
                     <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
                         Pick a template above and the checklist will load here.
@@ -92,27 +92,30 @@
                         $grouped = collect($items)->groupBy('group_name');
                     @endphp
                     @foreach ($grouped as $groupName => $groupItems)
-                        <div class="space-y-2">
-                            <div class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mt-2 pt-2">{{ $groupName ?? 'General' }}</div>
+                        <div class="space-y-3">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-zinc-400">{{ $groupName ?? 'General' }}</div>
                             @foreach ($groupItems as $item)
                                 @php($i = collect($items)->search(fn ($x) => $x['inspection_item_id'] === $item['inspection_item_id']))
                                 @php($itemId = (int) $item['inspection_item_id'])
-                                <div wire:key="item-row-{{ $itemId }}" class="space-y-2 p-3 rounded-md border border-zinc-200 dark:border-zinc-800">
-                                    <div class="grid grid-cols-1 md:grid-cols-[1fr_180px_2fr] gap-2 items-center">
-                                        <div class="text-sm">
-                                            <div class="font-medium">{{ $item['name'] }}</div>
-                                            <div class="text-xs text-zinc-500 mt-0.5">{{ ucfirst($item['check_type']) }}</div>
+                                @php($imgUrl = ! empty($itemImages[$itemId]) ? $itemImages[$itemId]->temporaryUrl() : (! empty($item['image_path']) ? \Illuminate\Support\Facades\Storage::disk('public')->url($item['image_path']) : null))
+                                <div wire:key="item-row-{{ $itemId }}" class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+                                    {{-- Title + result --}}
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="font-medium text-sm truncate">{{ $item['name'] }}</div>
+                                            <flux:text size="xs" class="text-zinc-400">{{ \Illuminate\Support\Str::headline($item['check_type']) }}</flux:text>
                                         </div>
-                                        <flux:select wire:model="items.{{ $i }}.outcome" variant="listbox" size="sm">
-                                            @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::outcomes() as $key => $label)
-                                                <flux:select.option :value="$key" wire:key="oc-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
-                                            @endforeach
-                                        </flux:select>
-                                        <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes (e.g. measurement, observation)" />
+                                        <div class="w-44 shrink-0">
+                                            <flux:select wire:model="items.{{ $i }}.outcome" variant="listbox" size="sm">
+                                                @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::outcomes() as $key => $label)
+                                                    <flux:select.option :value="$key" wire:key="oc-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                        </div>
                                     </div>
 
-                                    {{-- Recommendation / severity / observation --}}
-                                    <div class="grid grid-cols-1 md:grid-cols-[180px_160px_1fr] gap-2 items-center">
+                                    {{-- Recommendation + severity --}}
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <flux:select wire:model="items.{{ $i }}.recommendation" variant="listbox" size="sm" clearable placeholder="Recommendation…">
                                             @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::recommendations() as $key => $label)
                                                 <flux:select.option :value="$key" wire:key="rec-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
@@ -123,26 +126,27 @@
                                                 <flux:select.option :value="$key" wire:key="sev-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
-                                        <flux:input wire:model="items.{{ $i }}.observation" size="sm" placeholder="Observation (standard comment)" />
                                     </div>
 
-                                    {{-- Image evidence row --}}
-                                    <div class="flex items-center gap-3 pt-1">
-                                        @if (! empty($item['image_path']))
-                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['image_path']) }}" alt="Evidence" class="size-14 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
-                                            <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeItemImage({{ $itemId }})">Remove photo</flux:button>
-                                        @elseif (! empty($itemImages[$itemId]))
-                                            <img src="{{ $itemImages[$itemId]->temporaryUrl() }}" alt="" class="size-14 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
-                                            <flux:text size="xs" class="text-zinc-500">Saved when you submit.</flux:text>
-                                        @endif
+                                    {{-- Observation (quick-pick) + notes --}}
+                                    <flux:input wire:model="items.{{ $i }}.observation" size="sm" list="di-standard-observations" placeholder="Observation — pick a standard comment or type…" />
+                                    <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes / measurement (optional)" />
 
-                                        <flux:input
-                                            type="file"
-                                            wire:model="itemImages.{{ $itemId }}"
-                                            accept="image/*"
-                                            size="sm"
-                                            class:input="text-xs"
-                                        />
+                                    {{-- Photo evidence --}}
+                                    <div class="flex items-center gap-3 pt-1">
+                                        @if ($imgUrl)
+                                            <img src="{{ $imgUrl }}" alt="Evidence" class="size-12 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
+                                        @endif
+                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                                            <input type="file" class="sr-only" wire:model="itemImages.{{ $itemId }}" accept="image/*" />
+                                            <flux:icon.camera variant="micro" class="size-3.5" />
+                                            {{ $imgUrl ? 'Retake photo' : 'Add photo' }}
+                                        </label>
+                                        @if (! empty($item['image_path']))
+                                            <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeItemImage({{ $itemId }})">Remove</flux:button>
+                                        @elseif (! empty($itemImages[$itemId]))
+                                            <flux:text size="xs" class="text-zinc-400">Saved on submit</flux:text>
+                                        @endif
                                     </div>
                                     <flux:error name="itemImages.{{ $itemId }}" />
                                 </div>

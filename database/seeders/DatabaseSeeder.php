@@ -40,7 +40,9 @@ use App\Modules\JobDescriptionMaster\Database\Seeders\JobDescriptionMasterSeeder
 use App\Modules\JobStageMaster\Database\Seeders\JobStageMasterSeeder;
 use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
 use App\Modules\MissingDocumentReasonMaster\Database\Seeders\MissingDocumentReasonMasterSeeder;
+use App\Modules\PartTypeMaster\Database\Seeders\PartTypeMasterSeeder;
 use App\Modules\PaymentModeMaster\Database\Seeders\PaymentModeMasterSeeder;
+use App\Modules\RackMaster\Database\Seeders\RackMasterSeeder;
 use App\Modules\PhotoTypeMaster\Database\Seeders\PhotoTypeMasterSeeder;
 use App\Modules\RegionMaster\Database\Seeders\RegionMasterSeeder;
 use App\Modules\RegistrationTypeMaster\Database\Seeders\RegistrationTypeMasterSeeder;
@@ -49,6 +51,7 @@ use App\Modules\ReworkReasonMaster\Database\Seeders\ReworkReasonMasterSeeder;
 use App\Modules\ServicePackageTypeMaster\Database\Seeders\ServicePackageTypeMasterSeeder;
 use App\Modules\ServiceTypeMaster\Database\Seeders\ServiceTypeMasterSeeder;
 use App\Modules\SpareBrandMaster\Database\Seeders\SpareBrandMasterSeeder;
+use App\Modules\StandardObservationMaster\Database\Seeders\StandardObservationMasterSeeder;
 use App\Modules\TaxMaster\Database\Seeders\TaxMasterSeeder;
 use App\Modules\TechnicianFinding\Database\Seeders\TechnicianFindingSeeder;
 use App\Modules\TransmissionTypeMaster\Database\Seeders\TransmissionTypeMasterSeeder;
@@ -109,6 +112,9 @@ class DatabaseSeeder extends Seeder
             WorkOrderHoldReasonMasterSeeder::class,
             ReworkReasonMasterSeeder::class,
             DelayReasonMasterSeeder::class,
+            StandardObservationMasterSeeder::class,
+            PartTypeMasterSeeder::class,
+            RackMasterSeeder::class,
             ConsumableDepartmentMasterSeeder::class,
             VehicleSegmentMasterSeeder::class,
             VehicleColorMasterSeeder::class,

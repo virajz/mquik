@@ -6,6 +6,7 @@ use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -197,6 +198,15 @@ class Edit extends Component
     public function technicians()
     {
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Reusable standard observations for the quick-pick datalist on each checklist item.
+     */
+    #[Computed]
+    public function standardObservations()
+    {
+        return StandardObservationMaster::query()->where('is_active', true)->orderBy('name')->pluck('name');
     }
 
     public function save()

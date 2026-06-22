@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-5xl">
+    <form wire:submit="save" class="max-w-7xl">
         {{-- HEADER --}}
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>

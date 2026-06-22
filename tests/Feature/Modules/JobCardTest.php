@@ -3,10 +3,13 @@
 use App\Models\User;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
+use App\Modules\CustomerApprovalTypeMaster\Models\CustomerApprovalTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
+use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\JobCard\Livewire\Edit;
 use App\Modules\JobCard\Livewire\Index;
 use App\Modules\JobCard\Models\JobCard;
@@ -15,11 +18,13 @@ use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
+use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -94,20 +99,53 @@ it('creates a job card with capital typing and timestamps', function () {
         ->and($jc->terms_accepted_at)->not->toBeNull();
 });
 
-it('rejects vehicle that does not belong to the chosen customer', function () {
-    $customerA = CustomerMaster::factory()->create();
-    $customerB = CustomerMaster::factory()->create();
-    $vehicleOfB = CustomerVehicleMaster::factory()->create(['customer_id' => $customerB->id]);
+it('links insurance company, policy, vendor, job description and customer approval', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
+    $insurer = InsuranceCompanyMaster::factory()->create();
+    $vendor = VendorMaster::factory()->create();
+    $jobDescription = JobDescriptionMaster::factory()->create();
+    $approval = CustomerApprovalTypeMaster::factory()->create();
 
     Livewire::test(Edit::class)
-        ->set('customer_id', $customerA->id)
-        ->set('customer_vehicle_id', $vehicleOfB->id)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
+        ->set('insurance_company_id', $insurer->id)
+        ->set('policy_no', 'pol-12345')
+        ->set('vendor_id', $vendor->id)
+        ->set('job_description_id', $jobDescription->id)
+        ->set('customer_approval_type_id', $approval->id)
         ->call('save')
-        ->assertHasErrors(['customer_vehicle_id']);
+        ->assertHasNoErrors();
+
+    $jc = JobCard::first();
+    expect($jc->insurance_company_id)->toBe($insurer->id)
+        ->and($jc->policy_no)->toBe('POL-12345')
+        ->and($jc->vendor_id)->toBe($vendor->id)
+        ->and($jc->job_description_id)->toBe($jobDescription->id)
+        ->and($jc->customer_approval_type_id)->toBe($approval->id);
+});
+
+it('links digital inspections from the job card header', function () {
+    $jc = JobCard::factory()->create();
+    $di = DigitalInspection::factory()->create(['job_card_id' => $jc->id]);
+
+    Livewire::test(Edit::class, ['jobCard' => $jc])
+        ->assertSee('New inspection')
+        ->assertSee($di->fresh()->inspection_no);
+});
+
+it('auto-sets the customer from the chosen vehicle (combined picker)', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    Livewire::test(Edit::class)
+        ->set('customer_vehicle_id', $vehicle->id)   // pick vehicle only…
+        ->assertSet('customer_id', $customer->id);    // …customer is derived
 });
 
 it('persists complaints with capital typing and severity', function () {
@@ -362,6 +400,44 @@ it('captures slot photos and extra photos, tagging type + group', function () {
     $extra = $jc->photos->firstWhere('photo_type_id', null);
     expect($extra->photo_group)->toBe('ADDITIONAL');
     Storage::disk('public')->assertExists($extra->path);
+});
+
+it('tags an additional photo with damage type and location', function () {
+    Storage::fake('public');
+
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+    $scratch = DamageTypeMaster::factory()->create(['name' => 'SCRATCH']);
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->set('extraFiles', [UploadedFile::fake()->image('scratch.jpg', 800, 600)])
+        ->set('extraDamageTypes.0', $scratch->id)
+        ->set('extraLocations.0', 'front-left bumper')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $extra = JobCard::first()->photos->firstWhere('photo_type_id', null);
+    expect($extra->damage_type_id)->toBe($scratch->id)
+        ->and($extra->location_note)->toBe('FRONT-LEFT BUMPER');
+});
+
+it('shows the read-only customer & vehicle summary once both are picked', function () {
+    $customer = CustomerMaster::factory()->create(); // factory always sets a business type
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->assertSee('Customer Type')
+        ->assertSee($customer->businessType->name)
+        ->assertSee('Vehicle')               // vehicle details block renders…
+        ->assertSee($vehicle->model->name);  // …with the vehicle's make/model
 });
 
 it('replaces a slot photo on retake instead of duplicating it', function () {

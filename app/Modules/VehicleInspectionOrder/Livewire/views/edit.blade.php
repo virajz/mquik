@@ -1,6 +1,6 @@
 @use(App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder)
 <div>
-    <form wire:submit="save" class="max-w-5xl">
+    <form wire:submit="save" class="max-w-7xl">
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('vehicle-inspection-order.index')" variant="ghost" class="text-xs">

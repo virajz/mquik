@@ -1,6 +1,5 @@
-<div>
-    <form wire:submit="save" class="max-w-5xl">
-        {{-- HEADER --}}
+<div class="max-w-7xl">
+    {{-- HEADER --}}
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('job-card.index')" variant="ghost" class="text-xs">
@@ -23,6 +22,24 @@
                             </flux:button>
                         </flux:modal.trigger>
                     @endif
+                    <flux:dropdown>
+                        <flux:button size="sm" variant="ghost" icon="magnifying-glass-circle" icon:trailing="chevron-down">
+                            Inspection @if ($this->digitalInspections->isNotEmpty())({{ $this->digitalInspections->count() }})@endif
+                        </flux:button>
+                        <flux:menu>
+                            <flux:menu.item icon="plus" :href="route('digital-inspection.create', ['from-job-card' => $editingId])" wire:navigate>
+                                New inspection
+                            </flux:menu.item>
+                            @if ($this->digitalInspections->isNotEmpty())
+                                <flux:menu.separator />
+                                @foreach ($this->digitalInspections as $di)
+                                    <flux:menu.item :href="route('digital-inspection.edit', $di->id)" wire:navigate>
+                                        {{ $di->inspection_no }} · {{ \App\Modules\DigitalInspection\Models\DigitalInspection::statuses()[$di->status] ?? $di->status }}
+                                    </flux:menu.item>
+                                @endforeach
+                            @endif
+                        </flux:menu>
+                    </flux:dropdown>
                     <flux:button :href="route('job-history.show', $editingId)" wire:navigate size="sm" variant="ghost" icon="clock">History</flux:button>
                     <flux:badge :color="match ($status) {
                         'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',
@@ -35,6 +52,8 @@
 
         <flux:separator />
 
+        <div class="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-8 mt-6">
+        <form wire:submit="save" class="min-w-0">
         @if (! $editingId)
             {{-- ============ LEAN CREATE ============ --}}
             @include('job-card::partials.section-customer-vehicle')
@@ -63,6 +82,35 @@
                     @include('job-card::partials.section-customer-vehicle')
                     <flux:separator />
                     @include('job-card::partials.section-timing', ['lean' => false])
+                    <flux:separator />
+
+                    <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-6">
+                        <div>
+                            <flux:heading size="lg">Insurance &amp; Authorisation</flux:heading>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">For insurance jobs, outside-vendor work, and how the customer authorised the repair.</flux:text>
+                        </div>
+                        <div class="space-y-4 min-w-0">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable label="Insurance Company" placeholder="For insurance jobs…">
+                                    @foreach ($this->insuranceCompanies as $ic)
+                                        <flux:select.option :value="$ic->id" wire:key="ic-{{ $ic->id }}">{{ $ic->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:input wire:model="policy_no" label="Policy No." placeholder="Insurance policy number" class:input="font-mono uppercase" />
+                                <flux:select wire:model="vendor_id" variant="listbox" searchable clearable label="Vendor" placeholder="Outside / parts vendor…">
+                                    @foreach ($this->vendors as $v)
+                                        <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:select wire:model="customer_approval_type_id" variant="listbox" searchable clearable label="Customer Approval Option" placeholder="How approval was taken…">
+                                    @foreach ($this->customerApprovalTypes as $ca)
+                                        <flux:select.option :value="$ca->id" wire:key="ca-{{ $ca->id }}">{{ $ca->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                        </div>
+                    </section>
+
                     <flux:separator />
 
                     <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-6">
@@ -250,30 +298,48 @@
 
                             @php $extras = $this->extraPhotos(); @endphp
                             @if ($extras->isNotEmpty() || count($extraFiles) > 0)
-                                <div class="mt-4 flex flex-col gap-2">
+                                <div class="mt-4 flex flex-col gap-3">
                                     @foreach ($extras as $photo)
-                                        <flux:file-item
-                                            wire:key="extra-{{ $photo->id }}"
-                                            :heading="$photo->original_name ?? 'Photo #'.$photo->id"
-                                            :image="\Illuminate\Support\Facades\Storage::disk('public')->url($photo->path)"
-                                            :size="$photo->size_bytes ?? 0"
-                                        >
-                                            <x-slot name="actions">
-                                                <flux:file-item.remove wire:click="removeExistingPhoto({{ $photo->id }})" />
-                                            </x-slot>
-                                        </flux:file-item>
+                                        <div wire:key="extra-{{ $photo->id }}" class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 space-y-3">
+                                            <flux:file-item
+                                                :heading="$photo->original_name ?? 'Photo #'.$photo->id"
+                                                :image="\Illuminate\Support\Facades\Storage::disk('public')->url($photo->path)"
+                                                :size="$photo->size_bytes ?? 0"
+                                            >
+                                                <x-slot name="actions">
+                                                    <flux:file-item.remove wire:click="removeExistingPhoto({{ $photo->id }})" />
+                                                </x-slot>
+                                            </flux:file-item>
+                                            <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2">
+                                                <flux:select wire:model="existingPhotoMeta.{{ $photo->id }}.damage_type_id" variant="listbox" searchable clearable size="sm" placeholder="Damage type…">
+                                                    @foreach ($this->damageTypes as $dt)
+                                                        <flux:select.option :value="$dt->id" wire:key="ex-dt-{{ $photo->id }}-{{ $dt->id }}">{{ $dt->name }}</flux:select.option>
+                                                    @endforeach
+                                                </flux:select>
+                                                <flux:input wire:model="existingPhotoMeta.{{ $photo->id }}.location_note" size="sm" placeholder="Location on vehicle (e.g. front-left bumper)" />
+                                            </div>
+                                        </div>
                                     @endforeach
                                     @foreach ($extraFiles as $i => $file)
-                                        <flux:file-item
-                                            wire:key="extra-staged-{{ $i }}"
-                                            :heading="$file->getClientOriginalName()"
-                                            :image="$file->temporaryUrl()"
-                                            :size="$file->getSize()"
-                                        >
-                                            <x-slot name="actions">
-                                                <flux:file-item.remove wire:click="removeExtraFile({{ $i }})" />
-                                            </x-slot>
-                                        </flux:file-item>
+                                        <div wire:key="extra-staged-{{ $i }}" class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 space-y-3">
+                                            <flux:file-item
+                                                :heading="$file->getClientOriginalName()"
+                                                :image="$file->temporaryUrl()"
+                                                :size="$file->getSize()"
+                                            >
+                                                <x-slot name="actions">
+                                                    <flux:file-item.remove wire:click="removeExtraFile({{ $i }})" />
+                                                </x-slot>
+                                            </flux:file-item>
+                                            <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2">
+                                                <flux:select wire:model="extraDamageTypes.{{ $i }}" variant="listbox" searchable clearable size="sm" placeholder="Damage type…">
+                                                    @foreach ($this->damageTypes as $dt)
+                                                        <flux:select.option :value="$dt->id" wire:key="st-dt-{{ $i }}-{{ $dt->id }}">{{ $dt->name }}</flux:select.option>
+                                                    @endforeach
+                                                </flux:select>
+                                                <flux:input wire:model="extraLocations.{{ $i }}" size="sm" placeholder="Location on vehicle (e.g. front-left bumper)" />
+                                            </div>
+                                        </div>
                                     @endforeach
                                 </div>
                             @endif
@@ -352,12 +418,21 @@
             </flux:tab.group>
         @endif
 
-        {{-- STICKY ACTION BAR --}}
-        <div class="sticky bottom-0 z-10 mt-8 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 py-4 backdrop-blur">
-            <flux:button :href="route('job-card.index')" variant="ghost" wire:navigate>Cancel</flux:button>
-            <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save Changes' : 'Create Job Card' }}</flux:button>
+            {{-- STICKY ACTION BAR --}}
+            <div class="sticky bottom-0 z-10 mt-8 flex items-center justify-end gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 py-4 backdrop-blur">
+                <flux:button :href="route('job-card.index')" variant="ghost" wire:navigate>Cancel</flux:button>
+                <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save Changes' : 'Create Job Card' }}</flux:button>
+            </div>
+        </form>
+
+        {{-- STICKY DETAILS PANEL --}}
+        <aside class="hidden lg:block">
+            <div class="sticky top-6 space-y-3">
+                <flux:heading size="sm">Details</flux:heading>
+                @include('job-card::partials.details-panel')
+            </div>
+        </aside>
         </div>
-    </form>
 
     {{-- VEHICLE HISTORY DRAWER --}}
     @if ($editingId)

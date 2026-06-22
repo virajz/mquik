@@ -8,6 +8,7 @@ use App\Modules\DigitalInspection\Models\DigitalInspectionItem;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -288,4 +289,13 @@ it('rejects an oversized item image', function () {
         ->assertHasErrors(['itemImages.'.$item->id]);
 
     expect(DigitalInspection::count())->toBe(0);
+});
+
+it('offers standard observations as a quick-pick datalist', function () {
+    StandardObservationMaster::factory()->create(['name' => 'OIL LEAKAGE']);
+    $di = DigitalInspection::factory()->create();
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->assertSee('di-standard-observations', false)
+        ->assertSee('OIL LEAKAGE');
 });

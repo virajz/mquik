@@ -5,19 +5,23 @@ namespace App\Modules\JobCard\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\CustomerApprovalTypeMaster\Models\CustomerApprovalTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
+use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\JobCard\Database\Factories\JobCardFactory;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -180,6 +184,26 @@ class JobCard extends Model
     public function servicePackage(): BelongsTo
     {
         return $this->belongsTo(ServicePackageMaster::class, 'service_package_id');
+    }
+
+    public function jobDescription(): BelongsTo
+    {
+        return $this->belongsTo(JobDescriptionMaster::class, 'job_description_id');
+    }
+
+    public function insuranceCompany(): BelongsTo
+    {
+        return $this->belongsTo(InsuranceCompanyMaster::class, 'insurance_company_id');
+    }
+
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(VendorMaster::class, 'vendor_id');
+    }
+
+    public function customerApprovalType(): BelongsTo
+    {
+        return $this->belongsTo(CustomerApprovalTypeMaster::class, 'customer_approval_type_id');
     }
 
     public function advisor(): BelongsTo

@@ -5,7 +5,7 @@
         <flux:text size="sm" class="mt-1 text-zinc-500">When the vehicle arrived, when it's promised back, and who owns it.</flux:text>
     </div>
     <div class="space-y-4 min-w-0">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <flux:date-picker wire:model="opened_date" label="Opened Date" placeholder="Today" with-today selectable-header fixed-weeks type="input" />
             <flux:time-picker wire:model="opened_time" label="Opened Time" placeholder="Now" type="input" />
             <flux:date-picker wire:model="promised_date" label="Promised Date" placeholder="Tomorrow" with-today selectable-header fixed-weeks type="input" />
@@ -34,7 +34,7 @@
             </flux:select>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <flux:select wire:model="service_type_id" variant="listbox" searchable clearable label="Service Type" placeholder="Pick a service type…">
                 @foreach ($this->serviceTypes as $st)
                     <flux:select.option :value="$st->id" wire:key="st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
@@ -43,6 +43,11 @@
             <flux:select wire:model="service_package_id" variant="listbox" searchable clearable label="Service Package" placeholder="None / Combo / AMC">
                 @foreach ($this->servicePackages as $sp)
                     <flux:select.option :value="$sp->id" wire:key="sp-{{ $sp->id }}">{{ $sp->name }}{{ $sp->is_amc ? ' (AMC)' : '' }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:select wire:model="job_description_id" variant="listbox" searchable clearable label="Job Type / Description" placeholder="Standard job description…">
+                @foreach ($this->jobDescriptions as $jd)
+                    <flux:select.option :value="$jd->id" wire:key="jd-{{ $jd->id }}">{{ $jd->name }}</flux:select.option>
                 @endforeach
             </flux:select>
         </div>

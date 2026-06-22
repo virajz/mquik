@@ -4,20 +4,25 @@ namespace App\Modules\JobCard\Livewire;
 
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
+use App\Modules\CustomerApprovalTypeMaster\Models\CustomerApprovalTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
+use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
+use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Http\UploadedFile;
@@ -55,6 +60,16 @@ class Edit extends Component
     public ?int $service_type_id = null;
 
     public ?int $service_package_id = null;
+
+    public ?int $job_description_id = null;
+
+    public ?int $insurance_company_id = null;
+
+    public ?string $policy_no = null;
+
+    public ?int $vendor_id = null;
+
+    public ?int $customer_approval_type_id = null;
 
     public ?int $assigned_advisor_id = null;
 
@@ -107,6 +122,15 @@ class Edit extends Component
     /** @var array<int, TemporaryUploadedFile>  staged additional / damage photos (flat multi-upload) */
     public array $extraFiles = [];
 
+    /** @var array<int, ?int>  damage type per staged extra photo, keyed by extraFiles index */
+    public array $extraDamageTypes = [];
+
+    /** @var array<int, ?string>  location note per staged extra photo, keyed by extraFiles index */
+    public array $extraLocations = [];
+
+    /** @var array<int, array{damage_type_id: ?int, location_note: ?string}>  editable meta for saved extra photos, keyed by photo id */
+    public array $existingPhotoMeta = [];
+
     /** @var array<int, int>  ids of existing photos the user removed during this edit */
     public array $removedPhotoIds = [];
 
@@ -151,6 +175,11 @@ class Edit extends Component
         $this->workshop_department_id = $jc->workshop_department_id;
         $this->service_type_id = $jc->service_type_id;
         $this->service_package_id = $jc->service_package_id;
+        $this->job_description_id = $jc->job_description_id;
+        $this->insurance_company_id = $jc->insurance_company_id;
+        $this->policy_no = $jc->policy_no;
+        $this->vendor_id = $jc->vendor_id;
+        $this->customer_approval_type_id = $jc->customer_approval_type_id;
         $this->assigned_advisor_id = $jc->assigned_advisor_id;
         $this->assigned_technician_id = $jc->assigned_technician_id;
         $this->opened_date = $jc->opened_at?->format('Y-m-d') ?? '';
@@ -188,6 +217,14 @@ class Edit extends Component
         }
 
         $this->requestedRepairIds = $jc->requestedRepairs->pluck('id')->all();
+
+        // Editable damage-type / location meta for saved additional-damage photos.
+        foreach (JobCardPhoto::query()->where('job_card_id', $jc->id)->whereNull('photo_type_id')->get(['id', 'damage_type_id', 'location_note']) as $photo) {
+            $this->existingPhotoMeta[$photo->id] = [
+                'damage_type_id' => $photo->damage_type_id,
+                'location_note' => $photo->location_note,
+            ];
+        }
     }
 
     /**
@@ -240,6 +277,11 @@ class Edit extends Component
             'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
             'service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
+            'job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
+            'insurance_company_id' => ['nullable', 'integer', Rule::exists('insurance_companies', 'id')->where('is_active', true)],
+            'policy_no' => ['nullable', 'string', 'max:60'],
+            'vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')->where('is_active', true)],
+            'customer_approval_type_id' => ['nullable', 'integer', Rule::exists('customer_approval_types', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'opened_date' => ['required', 'date_format:Y-m-d'],
@@ -275,14 +317,26 @@ class Edit extends Component
             'slotFiles.*' => ['image', 'max:8192'],  // 8 MB per photo
             'extraFiles' => ['array', 'max:30'],
             'extraFiles.*' => ['image', 'max:8192'],
+            'extraDamageTypes' => ['array'],
+            'extraDamageTypes.*' => ['nullable', 'integer', Rule::exists('damage_types', 'id')->where('is_active', true)],
+            'extraLocations' => ['array'],
+            'extraLocations.*' => ['nullable', 'string', 'max:255'],
+            'existingPhotoMeta' => ['array'],
+            'existingPhotoMeta.*.damage_type_id' => ['nullable', 'integer', Rule::exists('damage_types', 'id')->where('is_active', true)],
+            'existingPhotoMeta.*.location_note' => ['nullable', 'string', 'max:255'],
 
             'signatureUpload' => ['nullable', 'image', 'max:2048'],
         ];
     }
 
-    public function updatedCustomerId(): void
+    /**
+     * Combined picker: choosing a vehicle sets its owning customer automatically.
+     */
+    public function updatedCustomerVehicleId(): void
     {
-        $this->customer_vehicle_id = null;
+        $this->customer_id = $this->customer_vehicle_id
+            ? CustomerVehicleMaster::whereKey($this->customer_vehicle_id)->value('customer_id')
+            : null;
     }
 
     public function addComplaint(): void
@@ -321,8 +375,10 @@ class Edit extends Component
         if (! isset($this->extraFiles[$index])) {
             return;
         }
-        unset($this->extraFiles[$index]);
+        unset($this->extraFiles[$index], $this->extraDamageTypes[$index], $this->extraLocations[$index]);
         $this->extraFiles = array_values($this->extraFiles);
+        $this->extraDamageTypes = array_values($this->extraDamageTypes);
+        $this->extraLocations = array_values($this->extraLocations);
     }
 
     public function removeExistingPhoto(int $photoId): void
@@ -352,23 +408,94 @@ class Edit extends Component
         return CustomerMaster::query()->where('is_active', true)->orderBy('first_name')->limit(200)->get(['id', 'first_name', 'last_name', 'phone']);
     }
 
+    /**
+     * Combined customer + vehicle search: every active vehicle, labelled with its
+     * make/model, registration and owner so it's searchable by reg no or customer.
+     * The currently-selected vehicle is always included even if outside the cap.
+     */
     #[Computed]
-    public function customerVehicles()
+    public function vehiclePickerOptions()
+    {
+        $rows = CustomerVehicleMaster::query()
+            ->with(['model.brand:id,name', 'customer:id,first_name,last_name'])
+            ->where('is_active', true)
+            ->orderByDesc('id')
+            ->limit(300)
+            ->get(['id', 'registration_no', 'model_id', 'customer_id']);
+
+        if ($this->customer_vehicle_id && ! $rows->contains('id', $this->customer_vehicle_id)) {
+            $selected = CustomerVehicleMaster::query()
+                ->with(['model.brand:id,name', 'customer:id,first_name,last_name'])
+                ->find($this->customer_vehicle_id);
+            if ($selected) {
+                $rows->prepend($selected);
+            }
+        }
+
+        return $rows->map(fn ($v) => [
+            'id' => $v->id,
+            'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no
+                .' · '.trim($v->customer?->first_name.' '.($v->customer?->last_name ?? '')),
+        ]);
+    }
+
+    /**
+     * The picked customer with the attributes shown in the read-only summary.
+     */
+    #[Computed]
+    public function selectedCustomer()
     {
         if (! $this->customer_id) {
-            return collect();
+            return null;
+        }
+
+        return CustomerMaster::query()
+            ->with(['businessType:id,name', 'gstType:id,name', 'primaryAddress.region.parent.parent.parent'])
+            ->find($this->customer_id);
+    }
+
+    /**
+     * The picked vehicle with brand/model/variant/fuel/etc. for the summary.
+     */
+    #[Computed]
+    public function selectedVehicle()
+    {
+        if (! $this->customer_vehicle_id) {
+            return null;
         }
 
         return CustomerVehicleMaster::query()
-            ->with(['model.brand'])
-            ->where('customer_id', $this->customer_id)
-            ->where('is_active', true)
-            ->orderBy('registration_no')
-            ->get(['id', 'registration_no', 'model_id'])
-            ->map(fn ($v) => [
-                'id' => $v->id,
-                'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no,
-            ]);
+            ->with([
+                'model.brand:id,name',
+                'model.vehicleSegment:id,name',
+                'variant.fuelType:id,name',
+                'variant.transmissionType:id,name',
+                'color:id,name',
+                'registrationType:id,name',
+            ])
+            ->find($this->customer_vehicle_id);
+    }
+
+    /**
+     * Walk the selected customer's primary-address region chain into
+     * state / city / area / pincode parts for display.
+     *
+     * @return array<string, ?string>
+     */
+    #[Computed]
+    public function customerLocation(): array
+    {
+        $parts = ['state' => null, 'city' => null, 'area' => null, 'pincode' => null];
+
+        $region = $this->selectedCustomer?->primaryAddress?->region;
+        while ($region) {
+            if (array_key_exists($region->kind, $parts)) {
+                $parts[$region->kind] = $region->name;
+            }
+            $region = $region->parent;
+        }
+
+        return $parts;
     }
 
     #[Computed]
@@ -428,6 +555,46 @@ class Edit extends Component
     public function employees()
     {
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Digital inspections already raised for this job card (for the in-context link).
+     */
+    #[Computed]
+    public function digitalInspections()
+    {
+        if (! $this->editingId) {
+            return collect();
+        }
+
+        return DigitalInspection::query()
+            ->where('job_card_id', $this->editingId)
+            ->orderByDesc('id')
+            ->get(['id', 'inspection_no', 'status']);
+    }
+
+    #[Computed]
+    public function jobDescriptions()
+    {
+        return JobDescriptionMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function insuranceCompanies()
+    {
+        return InsuranceCompanyMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function vendors()
+    {
+        return VendorMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function customerApprovalTypes()
+    {
+        return CustomerApprovalTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]
@@ -591,6 +758,9 @@ class Edit extends Component
             $data['requestedRepairIds'],
             $data['slotFiles'],
             $data['extraFiles'],
+            $data['extraDamageTypes'],
+            $data['extraLocations'],
+            $data['existingPhotoMeta'],
             $data['signatureUpload'],
         );
 
@@ -613,7 +783,7 @@ class Edit extends Component
             $data['terms_accepted_at'] = $data['terms_accepted_at'] ?? now();
         }
 
-        foreach (['suggested_services', 'notes'] as $k) {
+        foreach (['suggested_services', 'notes', 'policy_no'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
             }
@@ -644,6 +814,8 @@ class Edit extends Component
         // (e.g. user stays on edit page in future) doesn't try to re-process them.
         $this->slotFiles = [];
         $this->extraFiles = [];
+        $this->extraDamageTypes = [];
+        $this->extraLocations = [];
         $this->removedPhotoIds = [];
         $this->signatureUpload = null;
         $this->clearSignature = false;
@@ -705,16 +877,31 @@ class Edit extends Component
             ]));
         }
 
-        // 3. Additional / damage photos (no fixed slot).
-        foreach ($this->extraFiles as $file) {
+        // 3. Additional / damage photos (no fixed slot) — each can carry a damage type + location.
+        foreach ($this->extraFiles as $i => $file) {
             if (! $file) {
                 continue;
             }
+            $location = $this->extraLocations[$i] ?? null;
             $seq++;
             $jc->photos()->create($this->photoAttributes($file, $seq, [
                 'photo_type_id' => null,
                 'photo_group' => 'ADDITIONAL',
+                'damage_type_id' => $this->extraDamageTypes[$i] ?? null,
+                'location_note' => filled($location) ? strtoupper((string) $location) : null,
             ]));
+        }
+
+        // 4. Update damage-type / location on already-saved additional photos.
+        foreach ($this->existingPhotoMeta as $photoId => $meta) {
+            $location = $meta['location_note'] ?? null;
+            $jc->photos()
+                ->whereKey($photoId)
+                ->whereNull('photo_type_id')
+                ->update([
+                    'damage_type_id' => $meta['damage_type_id'] ?? null,
+                    'location_note' => filled($location) ? strtoupper((string) $location) : null,
+                ]);
         }
     }
 
