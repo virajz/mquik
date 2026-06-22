@@ -71,7 +71,8 @@
                     <flux:table.cell class="text-center font-mono text-sm">{{ $row->items_count }}</flux:table.cell>
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) {
-                            'pending' => 'amber', 'wip' => 'blue', 'completed' => 'lime', 'cancelled' => 'zinc',
+                            'pending' => 'amber', 'wip' => 'blue', 'completed' => 'lime',
+                            'approved' => 'green', 'rejected' => 'red', 'cancelled' => 'zinc',
                             default => 'zinc',
                         })
                         <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>

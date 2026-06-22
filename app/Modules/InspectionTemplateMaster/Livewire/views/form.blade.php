@@ -20,11 +20,19 @@
                     <flux:input wire:model="code" label="Code" placeholder="PMS-STD" maxlength="30" class:input="font-mono uppercase tracking-wide" />
                 </div>
 
-                <flux:select wire:model="applies_to" label="Applies To" variant="listbox" required>
-                    @foreach ($appliesToOptions as $opt)
-                        <flux:select.option :value="$opt">{{ ucfirst($opt) }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <flux:select wire:model="applies_to" label="Applies To" variant="listbox" required>
+                        @foreach ($appliesToOptions as $opt)
+                            <flux:select.option :value="$opt">{{ ucfirst($opt) }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:select wire:model="frequency" label="Inspection Frequency" variant="listbox" clearable placeholder="Optional…">
+                        @foreach (\App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster::frequencies() as $key => $label)
+                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
 
                 <flux:field>
                     <flux:label>Items</flux:label>

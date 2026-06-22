@@ -40,7 +40,7 @@ class Edit extends Component
 
     public ?string $summary_notes = null;
 
-    /** @var list<array{id: ?int, inspection_item_id: int, inspection_item_group_id: ?int, name: string, group_name: ?string, check_type: string, outcome: string, notes: ?string, sequence_no: int, image_path: ?string}> */
+    /** @var list<array{id: ?int, inspection_item_id: int, inspection_item_group_id: ?int, name: string, group_name: ?string, check_type: string, outcome: string, recommendation: ?string, severity: ?string, observation: ?string, notes: ?string, sequence_no: int, image_path: ?string}> */
     public array $items = [];
 
     /** @var array<int, TemporaryUploadedFile>  keyed by inspection_item_id — new image uploads not yet persisted */
@@ -87,6 +87,9 @@ class Edit extends Component
             'group_name' => $i->inspectionItem?->group?->name,
             'check_type' => $i->inspectionItem?->check_type ?? 'visual',
             'outcome' => $i->outcome,
+            'recommendation' => $i->recommendation,
+            'severity' => $i->severity,
+            'observation' => $i->observation,
             'notes' => $i->notes,
             'sequence_no' => (int) $i->sequence_no,
             'image_path' => $i->image_path,
@@ -124,6 +127,9 @@ class Edit extends Component
                 'group_name' => $tplItem->group?->name,
                 'check_type' => $tplItem->check_type,
                 'outcome' => 'pending',
+                'recommendation' => null,
+                'severity' => null,
+                'observation' => null,
                 'notes' => null,
                 'sequence_no' => $seq++,
                 'image_path' => null,
@@ -143,6 +149,9 @@ class Edit extends Component
             'items' => ['array'],
             'items.*.inspection_item_id' => ['required', 'integer', 'exists:inspection_items,id'],
             'items.*.outcome' => ['required', 'string', Rule::in(array_keys(DigitalInspection::outcomes()))],
+            'items.*.recommendation' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::recommendations()))],
+            'items.*.severity' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::severities()))],
+            'items.*.observation' => ['nullable', 'string', 'max:1000'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
 
             'itemImages' => ['array'],
@@ -285,6 +294,9 @@ class Edit extends Component
                 'inspection_item_id' => $itemId,
                 'inspection_item_group_id' => $local['inspection_item_group_id'] ?? null,
                 'outcome' => $row['outcome'],
+                'recommendation' => $local['recommendation'] ?? null,
+                'severity' => $local['severity'] ?? null,
+                'observation' => isset($local['observation']) && is_string($local['observation']) ? strtoupper($local['observation']) : null,
                 'notes' => isset($row['notes']) && is_string($row['notes']) ? strtoupper($row['notes']) : null,
                 'sequence_no' => (int) ($local['sequence_no'] ?? $i + 1),
                 'image_path' => $imagePath,

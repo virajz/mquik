@@ -29,6 +29,16 @@ class JobCardHistoryEvent extends Model
 
     public const TYPE_INSPECTION_COMPLETED = 'inspection_completed';
 
+    public const TYPE_WORK_ORDER_ASSIGNED = 'work_order_assigned';
+
+    public const TYPE_WORK_ORDER_STARTED = 'work_order_started';
+
+    public const TYPE_WORK_ORDER_HELD = 'work_order_held';
+
+    public const TYPE_WORK_ORDER_COMPLETED = 'work_order_completed';
+
+    public const TYPE_FINDING_RECORDED = 'finding_recorded';
+
     public const TYPE_CANCELLED = 'cancelled';
 
     protected $table = 'job_card_history_events';
@@ -66,6 +76,11 @@ class JobCardHistoryEvent extends Model
             self::TYPE_COMPLAINT_RESOLVED => 'Complaint Resolved',
             self::TYPE_INSPECTION_STARTED => 'Inspection Started',
             self::TYPE_INSPECTION_COMPLETED => 'Inspection Completed',
+            self::TYPE_WORK_ORDER_ASSIGNED => 'Work Order Assigned',
+            self::TYPE_WORK_ORDER_STARTED => 'Work Order Started',
+            self::TYPE_WORK_ORDER_HELD => 'Work Order On Hold',
+            self::TYPE_WORK_ORDER_COMPLETED => 'Work Order Completed',
+            self::TYPE_FINDING_RECORDED => 'Technician Finding Recorded',
             self::TYPE_CANCELLED => 'Job Card Cancelled',
         ];
     }

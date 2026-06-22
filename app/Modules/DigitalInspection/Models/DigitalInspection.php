@@ -27,6 +27,10 @@ class DigitalInspection extends Model
 
     public const STATUS_COMPLETED = 'completed';
 
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_REJECTED = 'rejected';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     protected $table = 'digital_inspections';
@@ -124,14 +128,16 @@ class DigitalInspection extends Model
     {
         return [
             self::STATUS_PENDING => 'Pending',
-            self::STATUS_WIP => 'WIP',
+            self::STATUS_WIP => 'In Progress',
             self::STATUS_COMPLETED => 'Completed',
+            self::STATUS_APPROVED => 'Approved',
+            self::STATUS_REJECTED => 'Rejected',
             self::STATUS_CANCELLED => 'Cancelled',
         ];
     }
 
     /**
-     * Per-item outcome enumeration (Rep / Adj / OK / IA / FA + Pending sentinel).
+     * Per-item inspection result (CSV row 11 condition set; legacy rep/adj keys kept).
      *
      * @return array<string, string>
      */
@@ -139,11 +145,51 @@ class DigitalInspection extends Model
     {
         return [
             'pending' => 'Pending',
-            'rep' => 'Replace / Repair',
-            'adj' => 'Adjust',
             'ok' => 'OK',
+            'good' => 'Good',
+            'excellent' => 'Excellent',
+            'average' => 'Average',
+            'poor' => 'Poor',
+            'critical' => 'Critical',
+            'not_ok' => 'Not OK',
+            'faulty' => 'Faulty',
+            'adj' => 'Adjust',
+            'rep' => 'Repair / Replace',
             'ia' => 'Immediate Action',
             'fa' => 'Future Action',
+            'not_checked' => 'Not Checked',
+            'na' => 'Not Applicable',
+        ];
+    }
+
+    /**
+     * Per-item recommendation (CSV: No Action / Repair / Replace / Monitor / Urgent Attention).
+     *
+     * @return array<string, string>
+     */
+    public static function recommendations(): array
+    {
+        return [
+            'none' => 'No Action Required',
+            'repair' => 'Repair',
+            'replace' => 'Replace',
+            'monitor' => 'Monitor',
+            'urgent' => 'Urgent Attention',
+        ];
+    }
+
+    /**
+     * Per-item severity / condition rating (CSV: Low / Medium / High / Critical).
+     *
+     * @return array<string, string>
+     */
+    public static function severities(): array
+    {
+        return [
+            'low' => 'Low',
+            'medium' => 'Medium',
+            'high' => 'High',
+            'critical' => 'Critical',
         ];
     }
 }

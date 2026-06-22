@@ -80,6 +80,40 @@ it('persists item outcomes and notes on save', function () {
         ->and($di->inspection_no)->toStartWith('DI-');
 });
 
+it('persists row-11 recommendation, severity and observation per item', function () {
+    $jc = JobCard::factory()->create();
+    $template = InspectionTemplateMaster::factory()->create();
+    $a = InspectionItemMaster::factory()->create(['name' => 'BRAKES']);
+    $template->items()->attach([$a->id]);
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jc->id)
+        ->set('inspection_template_id', $template->id)
+        ->set('items.0.outcome', 'poor')
+        ->set('items.0.recommendation', 'urgent')
+        ->set('items.0.severity', 'critical')
+        ->set('items.0.observation', 'brake pads worn out')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $di = DigitalInspection::with('items')->first();
+    expect($di->items[0]->outcome)->toBe('poor')
+        ->and($di->items[0]->recommendation)->toBe('urgent')
+        ->and($di->items[0]->severity)->toBe('critical')
+        ->and($di->items[0]->observation)->toBe('BRAKE PADS WORN OUT');
+});
+
+it('allows approved and rejected inspection statuses', function () {
+    $di = DigitalInspection::factory()->create(['status' => DigitalInspection::STATUS_PENDING]);
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set('status', DigitalInspection::STATUS_APPROVED)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($di->fresh()->status)->toBe(DigitalInspection::STATUS_APPROVED);
+});
+
 it('stamps started_at when status moves to wip on update', function () {
     $jc = JobCard::factory()->create();
     $template = InspectionTemplateMaster::factory()->create();

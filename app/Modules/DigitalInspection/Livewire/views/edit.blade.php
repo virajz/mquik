@@ -12,7 +12,8 @@
             </div>
             @if ($editingId)
                 <flux:badge :color="match ($status) {
-                    'pending' => 'amber', 'wip' => 'blue', 'completed' => 'lime', 'cancelled' => 'zinc',
+                    'pending' => 'amber', 'wip' => 'blue', 'completed' => 'lime',
+                    'approved' => 'green', 'rejected' => 'red', 'cancelled' => 'zinc',
                     default => 'zinc',
                 }" size="lg">{{ \App\Modules\DigitalInspection\Models\DigitalInspection::statuses()[$status] }}</flux:badge>
             @endif
@@ -108,6 +109,21 @@
                                             @endforeach
                                         </flux:select>
                                         <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes (e.g. measurement, observation)" />
+                                    </div>
+
+                                    {{-- Recommendation / severity / observation --}}
+                                    <div class="grid grid-cols-1 md:grid-cols-[180px_160px_1fr] gap-2 items-center">
+                                        <flux:select wire:model="items.{{ $i }}.recommendation" variant="listbox" size="sm" clearable placeholder="Recommendation…">
+                                            @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::recommendations() as $key => $label)
+                                                <flux:select.option :value="$key" wire:key="rec-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                        <flux:select wire:model="items.{{ $i }}.severity" variant="listbox" size="sm" clearable placeholder="Severity…">
+                                            @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::severities() as $key => $label)
+                                                <flux:select.option :value="$key" wire:key="sev-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                        <flux:input wire:model="items.{{ $i }}.observation" size="sm" placeholder="Observation (standard comment)" />
                                     </div>
 
                                     {{-- Image evidence row --}}

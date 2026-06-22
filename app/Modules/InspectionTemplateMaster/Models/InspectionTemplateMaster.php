@@ -31,6 +31,20 @@ class InspectionTemplateMaster extends Model
         return ['pms', 'tyre', 'bodyshop', 'basic', 'custom'];
     }
 
+    /**
+     * Inspection frequency (CSV row 11: Every Service / Every 5,000 km / Every 10,000 km).
+     *
+     * @return array<string, string>
+     */
+    public static function frequencies(): array
+    {
+        return [
+            'every_service' => 'Every Service',
+            '5000' => 'Every 5,000 km',
+            '10000' => 'Every 10,000 km',
+        ];
+    }
+
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(

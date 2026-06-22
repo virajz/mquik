@@ -19,6 +19,8 @@ class Form extends Component
 
     public string $applies_to = 'custom';
 
+    public ?string $frequency = null;
+
     /** @var array<int, int> Item IDs selected for this template, in display order. */
     public array $selected_item_ids = [];
 
@@ -38,6 +40,7 @@ class Form extends Component
                 Rule::unique('inspection_templates', 'code')->ignore($this->editingId),
             ],
             'applies_to' => ['required', Rule::in(InspectionTemplateMaster::appliesToOptions())],
+            'frequency' => ['nullable', Rule::in(array_keys(InspectionTemplateMaster::frequencies()))],
             'selected_item_ids' => ['nullable', 'array'],
             'selected_item_ids.*' => ['integer', Rule::exists('inspection_items', 'id')],
             'is_active' => ['boolean'],
@@ -60,6 +63,7 @@ class Form extends Component
         $this->name = $r->name;
         $this->code = $r->code;
         $this->applies_to = $r->applies_to;
+        $this->frequency = $r->frequency;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
         $this->selected_item_ids = $r->items()
@@ -75,7 +79,7 @@ class Form extends Component
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields except enums/ids/booleans/numbers.
-        $skip = ['applies_to', 'selected_item_ids', 'is_active'];
+        $skip = ['applies_to', 'frequency', 'selected_item_ids', 'is_active'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -112,6 +116,7 @@ class Form extends Component
         $this->name = '';
         $this->code = null;
         $this->applies_to = 'custom';
+        $this->frequency = null;
         $this->selected_item_ids = [];
         $this->is_active = true;
         $this->notes = null;
