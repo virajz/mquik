@@ -1,8 +1,8 @@
 <?php
 
-use App\Modules\RackMaster rack-master\Livewire\Form;
-use App\Modules\RackMaster rack-master\Livewire\Index;
-use App\Modules\RackMaster rack-master\Models\RackMaster rack-master;
+use App\Modules\EstimateRevisionReasonMaster\Livewire\Form;
+use App\Modules\EstimateRevisionReasonMaster\Livewire\Index;
+use App\Modules\EstimateRevisionReasonMaster\Models\EstimateRevisionReasonMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -10,16 +10,16 @@ beforeEach(function () {
 });
 
 it('renders the index page', function () {
-    RackMaster rack-master::factory()->count(3)->create();
+    EstimateRevisionReasonMaster::factory()->count(3)->create();
 
-    $this->get(route('.index'))
+    $this->get(route('estimate-revision-reason-master.index'))
         ->assertOk()
         ->assertSeeLivewire(Index::class);
 });
 
 it('searches by name or code', function () {
-    RackMaster rack-master::factory()->create(['name' => 'ENGINEEE NOISE', 'code' => 'ENG']);
-    RackMaster rack-master::factory()->create(['name' => 'BRAKEEE PROBLEM', 'code' => 'BRK']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'ENGINEEE NOISE', 'code' => 'ENG']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'BRAKEEE PROBLEM', 'code' => 'BRK']);
 
     Livewire::test(Index::class)->set('search', 'ENGINEEE')
         ->assertSee('ENGINEEE NOISE')
@@ -31,8 +31,8 @@ it('searches by name or code', function () {
 });
 
 it('filters by active status', function () {
-    RackMaster rack-master::factory()->create(['name' => 'ENGINE ENABLED']);
-    RackMaster rack-master::factory()->inactive()->create(['name' => 'BRAKE DISABLED']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'ENGINE ENABLED']);
+    EstimateRevisionReasonMaster::factory()->inactive()->create(['name' => 'BRAKE DISABLED']);
 
     Livewire::test(Index::class)->set('statusFilter', 'active')
         ->assertSee('ENGINE ENABLED')
@@ -44,9 +44,9 @@ it('filters by active status', function () {
 });
 
 it('sorts by name alphabetically by default', function () {
-    RackMaster rack-master::factory()->create(['name' => 'ZEBRA TYPE']);
-    RackMaster rack-master::factory()->create(['name' => 'ALPHA TYPE']);
-    RackMaster rack-master::factory()->create(['name' => 'MIDDLE TYPE']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'ZEBRA TYPE']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'ALPHA TYPE']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'MIDDLE TYPE']);
 
     $html = Livewire::test(Index::class)->html();
 
@@ -64,19 +64,19 @@ it('creates a type with code', function () {
         ->set('code', 'eng')
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched(':saved');
+        ->assertDispatched('estimate-revision-reason-master:saved');
 
-    $record = RackMaster rack-master::firstOrFail();
+    $record = EstimateRevisionReasonMaster::firstOrFail();
     expect($record->name)->toBe('ENGINE NOISE')
         ->and($record->code)->toBe('ENG')
         ->and($record->is_active)->toBeTrue();
 });
 
 it('updates an existing type', function () {
-    $record = RackMaster rack-master::factory()->create(['name' => 'OLD NAME']);
+    $record = EstimateRevisionReasonMaster::factory()->create(['name' => 'OLD NAME']);
 
     Livewire::test(Form::class)
-        ->dispatch(':edit', id: $record->id)
+        ->dispatch('estimate-revision-reason-master:edit', id: $record->id)
         ->set('name', 'updated name')
         ->call('save')
         ->assertHasNoErrors();
@@ -85,15 +85,15 @@ it('updates an existing type', function () {
 });
 
 it('deletes a type from the index', function () {
-    $record = RackMaster rack-master::factory()->create();
+    $record = EstimateRevisionReasonMaster::factory()->create();
 
     Livewire::test(Index::class)->call('delete', $record->id);
 
-    expect(RackMaster rack-master::find($record->id))->toBeNull();
+    expect(EstimateRevisionReasonMaster::find($record->id))->toBeNull();
 });
 
 it('validates name is required and unique', function () {
-    RackMaster rack-master::factory()->create(['name' => 'EXISTING']);
+    EstimateRevisionReasonMaster::factory()->create(['name' => 'EXISTING']);
 
     Livewire::test(Form::class)
         ->set('name', '')
@@ -107,10 +107,10 @@ it('validates name is required and unique', function () {
 });
 
 it('allows updating a type without triggering self-uniqueness conflict', function () {
-    $record = RackMaster rack-master::factory()->create(['name' => 'ENGINE NOISE']);
+    $record = EstimateRevisionReasonMaster::factory()->create(['name' => 'ENGINE NOISE']);
 
     Livewire::test(Form::class)
-        ->dispatch(':edit', id: $record->id)
+        ->dispatch('estimate-revision-reason-master:edit', id: $record->id)
         ->set('name', 'ENGINE NOISE') // same name as the record being edited
         ->call('save')
         ->assertHasNoErrors();
@@ -119,5 +119,5 @@ it('allows updating a type without triggering self-uniqueness conflict', functio
 it('requires authentication', function () {
     auth()->logout();
 
-    $this->get(route('.index'))->assertRedirect(route('login'));
+    $this->get(route('estimate-revision-reason-master.index'))->assertRedirect(route('login'));
 });

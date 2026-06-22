@@ -1,8 +1,8 @@
 <?php
 
-use App\Modules\PartTypeMaster part-type-master\Livewire\Form;
-use App\Modules\PartTypeMaster part-type-master\Livewire\Index;
-use App\Modules\PartTypeMaster part-type-master\Models\PartTypeMaster part-type-master;
+use App\Modules\PartTypeMaster\Livewire\Form;
+use App\Modules\PartTypeMaster\Livewire\Index;
+use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -10,16 +10,16 @@ beforeEach(function () {
 });
 
 it('renders the index page', function () {
-    PartTypeMaster part-type-master::factory()->count(3)->create();
+    PartTypeMaster::factory()->count(3)->create();
 
-    $this->get(route('.index'))
+    $this->get(route('part-type-master.index'))
         ->assertOk()
         ->assertSeeLivewire(Index::class);
 });
 
 it('searches by name or code', function () {
-    PartTypeMaster part-type-master::factory()->create(['name' => 'ENGINEEE NOISE', 'code' => 'ENG']);
-    PartTypeMaster part-type-master::factory()->create(['name' => 'BRAKEEE PROBLEM', 'code' => 'BRK']);
+    PartTypeMaster::factory()->create(['name' => 'ENGINEEE NOISE', 'code' => 'ENG']);
+    PartTypeMaster::factory()->create(['name' => 'BRAKEEE PROBLEM', 'code' => 'BRK']);
 
     Livewire::test(Index::class)->set('search', 'ENGINEEE')
         ->assertSee('ENGINEEE NOISE')
@@ -31,8 +31,8 @@ it('searches by name or code', function () {
 });
 
 it('filters by active status', function () {
-    PartTypeMaster part-type-master::factory()->create(['name' => 'ENGINE ENABLED']);
-    PartTypeMaster part-type-master::factory()->inactive()->create(['name' => 'BRAKE DISABLED']);
+    PartTypeMaster::factory()->create(['name' => 'ENGINE ENABLED']);
+    PartTypeMaster::factory()->inactive()->create(['name' => 'BRAKE DISABLED']);
 
     Livewire::test(Index::class)->set('statusFilter', 'active')
         ->assertSee('ENGINE ENABLED')
@@ -44,9 +44,9 @@ it('filters by active status', function () {
 });
 
 it('sorts by name alphabetically by default', function () {
-    PartTypeMaster part-type-master::factory()->create(['name' => 'ZEBRA TYPE']);
-    PartTypeMaster part-type-master::factory()->create(['name' => 'ALPHA TYPE']);
-    PartTypeMaster part-type-master::factory()->create(['name' => 'MIDDLE TYPE']);
+    PartTypeMaster::factory()->create(['name' => 'ZEBRA TYPE']);
+    PartTypeMaster::factory()->create(['name' => 'ALPHA TYPE']);
+    PartTypeMaster::factory()->create(['name' => 'MIDDLE TYPE']);
 
     $html = Livewire::test(Index::class)->html();
 
@@ -64,19 +64,19 @@ it('creates a type with code', function () {
         ->set('code', 'eng')
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched(':saved');
+        ->assertDispatched('part-type-master:saved');
 
-    $record = PartTypeMaster part-type-master::firstOrFail();
+    $record = PartTypeMaster::firstOrFail();
     expect($record->name)->toBe('ENGINE NOISE')
         ->and($record->code)->toBe('ENG')
         ->and($record->is_active)->toBeTrue();
 });
 
 it('updates an existing type', function () {
-    $record = PartTypeMaster part-type-master::factory()->create(['name' => 'OLD NAME']);
+    $record = PartTypeMaster::factory()->create(['name' => 'OLD NAME']);
 
     Livewire::test(Form::class)
-        ->dispatch(':edit', id: $record->id)
+        ->dispatch('part-type-master:edit', id: $record->id)
         ->set('name', 'updated name')
         ->call('save')
         ->assertHasNoErrors();
@@ -85,15 +85,15 @@ it('updates an existing type', function () {
 });
 
 it('deletes a type from the index', function () {
-    $record = PartTypeMaster part-type-master::factory()->create();
+    $record = PartTypeMaster::factory()->create();
 
     Livewire::test(Index::class)->call('delete', $record->id);
 
-    expect(PartTypeMaster part-type-master::find($record->id))->toBeNull();
+    expect(PartTypeMaster::find($record->id))->toBeNull();
 });
 
 it('validates name is required and unique', function () {
-    PartTypeMaster part-type-master::factory()->create(['name' => 'EXISTING']);
+    PartTypeMaster::factory()->create(['name' => 'EXISTING']);
 
     Livewire::test(Form::class)
         ->set('name', '')
@@ -107,10 +107,10 @@ it('validates name is required and unique', function () {
 });
 
 it('allows updating a type without triggering self-uniqueness conflict', function () {
-    $record = PartTypeMaster part-type-master::factory()->create(['name' => 'ENGINE NOISE']);
+    $record = PartTypeMaster::factory()->create(['name' => 'ENGINE NOISE']);
 
     Livewire::test(Form::class)
-        ->dispatch(':edit', id: $record->id)
+        ->dispatch('part-type-master:edit', id: $record->id)
         ->set('name', 'ENGINE NOISE') // same name as the record being edited
         ->call('save')
         ->assertHasNoErrors();
@@ -119,5 +119,5 @@ it('allows updating a type without triggering self-uniqueness conflict', functio
 it('requires authentication', function () {
     auth()->logout();
 
-    $this->get(route('.index'))->assertRedirect(route('login'));
+    $this->get(route('part-type-master.index'))->assertRedirect(route('login'));
 });

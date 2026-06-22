@@ -4,11 +4,14 @@ namespace App\Modules\SpareMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
+use App\Modules\PartTypeMaster\Models\PartTypeMaster;
+use App\Modules\RackMaster\Models\RackMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +40,13 @@ class Edit extends Component
     public ?int $spare_brand_id = null;
 
     public string $spareBrandSearch = '';
+
+    public ?int $part_type_id = null;
+
+    public ?int $rack_id = null;
+
+    /** @var list<int> */
+    public array $vendor_ids = [];
 
     public ?int $tax_id = null;
 
@@ -86,9 +96,12 @@ class Edit extends Component
 
     protected function load(SpareMaster $spare): void
     {
-        $spare->load('vehicleVariants:id');
+        $spare->load(['vehicleVariants:id', 'vendors:id']);
 
         $this->editingId = $spare->id;
+        $this->part_type_id = $spare->part_type_id;
+        $this->rack_id = $spare->rack_id;
+        $this->vendor_ids = $spare->vendors->pluck('id')->all();
         foreach (['name', 'spare_code', 'description', 'hsn_code', 'barcode_type', 'location', 'tyre_dimension', 'rim_size', 'load_speed_index', 'tread_pattern', 'remark'] as $k) {
             $this->{$k} = $spare->{$k};
         }
@@ -114,6 +127,10 @@ class Edit extends Component
             'description' => ['nullable', 'string', 'max:1000'],
             'hsn_code' => ['nullable', 'string', 'max:16'],
             'spare_brand_id' => ['nullable', 'integer', Rule::exists('spare_brands', 'id')->where('is_active', true)],
+            'part_type_id' => ['nullable', 'integer', Rule::exists('part_types', 'id')->where('is_active', true)],
+            'rack_id' => ['nullable', 'integer', Rule::exists('racks', 'id')->where('is_active', true)],
+            'vendor_ids' => ['array'],
+            'vendor_ids.*' => ['integer', Rule::exists('vendors', 'id')->where('is_active', true)],
             'tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)],
             'inventory_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)->whereNull('parent_id')],
             'inventory_sub_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)],
@@ -218,6 +235,24 @@ class Edit extends Component
     }
 
     #[Computed]
+    public function partTypes()
+    {
+        return PartTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function racks()
+    {
+        return RackMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function vendorOptions()
+    {
+        return VendorMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
     public function uoms()
     {
         return UnitOfMeasureMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']);
@@ -255,9 +290,10 @@ class Edit extends Component
 
         $data = $this->validate();
         $variants = $data['variant_ids'] ?? [];
-        unset($data['variant_ids']);
+        $vendors = $data['vendor_ids'] ?? [];
+        unset($data['variant_ids'], $data['vendor_ids']);
 
-        $skip = ['rate_before_tax', 'min_qty', 'max_qty', 'is_active', 'is_tyre', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id'];
+        $skip = ['rate_before_tax', 'min_qty', 'max_qty', 'is_active', 'is_tyre', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -266,7 +302,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $spare = DB::transaction(function () use ($data, $variants) {
+        $spare = DB::transaction(function () use ($data, $variants, $vendors) {
             if ($this->editingId) {
                 $s = SpareMaster::findOrFail($this->editingId);
                 $s->update($data);
@@ -276,6 +312,7 @@ class Edit extends Component
             }
 
             $s->vehicleVariants()->sync(array_map('intval', $variants));
+            $s->vendors()->sync(array_map('intval', $vendors));
 
             return $s;
         });

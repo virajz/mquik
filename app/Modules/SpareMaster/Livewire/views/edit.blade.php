@@ -205,6 +205,49 @@
                         @endforeach
                     </flux:select>
                 </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:select
+                        wire:model="part_type_id"
+                        variant="listbox"
+                        searchable
+                        clearable
+                        label="Part Type"
+                        placeholder="Genuine / After Market…"
+                    >
+                        @foreach ($this->partTypes as $pt)
+                            <flux:select.option :value="$pt->id" wire:key="pt-{{ $pt->id }}">{{ $pt->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:select
+                        wire:model="rack_id"
+                        variant="listbox"
+                        searchable
+                        clearable
+                        label="Rack"
+                        placeholder="Pick a rack…"
+                    >
+                        @foreach ($this->racks as $r)
+                            <flux:select.option :value="$r->id" wire:key="rk-{{ $r->id }}">{{ $r->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+
+                <flux:select
+                    wire:model="vendor_ids"
+                    variant="listbox"
+                    multiple
+                    searchable
+                    clearable
+                    label="Suppliers / Vendors"
+                    placeholder="Vendors that supply this part…"
+                >
+                    @foreach ($this->vendorOptions as $v)
+                        <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="vendor_ids" />
             </div>
         </section>
 

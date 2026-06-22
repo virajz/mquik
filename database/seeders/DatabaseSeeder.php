@@ -17,6 +17,9 @@ use App\Modules\CourierCompanyMaster\Database\Seeders\CourierCompanyMasterSeeder
 use App\Modules\CustomerApprovalTypeMaster\Database\Seeders\CustomerApprovalTypeMasterSeeder;
 use App\Modules\CustomerMaster\Database\Seeders\CustomerMasterSeeder;
 use App\Modules\CustomerVehicleMaster\Database\Seeders\CustomerVehicleMasterSeeder;
+use App\Modules\DamageCauseMaster\Database\Seeders\DamageCauseMasterSeeder;
+use App\Modules\EstimateRevisionReasonMaster\Database\Seeders\EstimateRevisionReasonMasterSeeder;
+use App\Modules\EstimateTemplateMaster\Database\Seeders\EstimateTemplateMasterSeeder;
 use App\Modules\DamageTypeMaster\Database\Seeders\DamageTypeMasterSeeder;
 use App\Modules\DelayReasonMaster\Database\Seeders\DelayReasonMasterSeeder;
 use App\Modules\DepartmentMaster\Database\Seeders\DepartmentMasterSeeder;
@@ -115,6 +118,9 @@ class DatabaseSeeder extends Seeder
             StandardObservationMasterSeeder::class,
             PartTypeMasterSeeder::class,
             RackMasterSeeder::class,
+            DamageCauseMasterSeeder::class,
+            EstimateRevisionReasonMasterSeeder::class,
+            EstimateTemplateMasterSeeder::class,
             ConsumableDepartmentMasterSeeder::class,
             VehicleSegmentMasterSeeder::class,
             VehicleColorMasterSeeder::class,
