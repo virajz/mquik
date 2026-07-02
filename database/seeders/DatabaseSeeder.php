@@ -15,8 +15,10 @@ use App\Modules\ChecklistTemplateMaster\Database\Seeders\ChecklistTemplateMaster
 use App\Modules\ClaimTypeMaster\Database\Seeders\ClaimTypeMasterSeeder;
 use App\Modules\CompanyMaster\Database\Seeders\CompanyMasterSeeder;
 use App\Modules\ComplaintTypeMaster\Database\Seeders\ComplaintTypeMasterSeeder;
+use App\Modules\ConsumableCategoryMaster\Database\Seeders\ConsumableCategoryMasterSeeder;
 use App\Modules\ConsumableDepartmentMaster\Database\Seeders\ConsumableDepartmentMasterSeeder;
 use App\Modules\CourierCompanyMaster\Database\Seeders\CourierCompanyMasterSeeder;
+use App\Modules\CreditNoteReasonMaster\Database\Seeders\CreditNoteReasonMasterSeeder;
 use App\Modules\CustomerApprovalTypeMaster\Database\Seeders\CustomerApprovalTypeMasterSeeder;
 use App\Modules\CustomerMaster\Database\Seeders\CustomerMasterSeeder;
 use App\Modules\CustomerVehicleMaster\Database\Seeders\CustomerVehicleMasterSeeder;
@@ -38,8 +40,10 @@ use App\Modules\InspectionItemGroupMaster\Database\Seeders\InspectionItemGroupMa
 use App\Modules\InspectionItemMaster\Database\Seeders\InspectionItemMasterSeeder;
 use App\Modules\InspectionTemplateMaster\Database\Seeders\InspectionTemplateMasterSeeder;
 use App\Modules\InsuranceCompanyMaster\Database\Seeders\InsuranceCompanyMasterSeeder;
+use App\Modules\InsuranceDeductionTypeMaster\Database\Seeders\InsuranceDeductionTypeMasterSeeder;
 use App\Modules\InsurancePolicyTypeMaster\Database\Seeders\InsurancePolicyTypeMasterSeeder;
 use App\Modules\InventoryGroupMaster\Database\Seeders\InventoryGroupMasterSeeder;
+use App\Modules\InvoiceCancellationReasonMaster\Database\Seeders\InvoiceCancellationReasonMasterSeeder;
 use App\Modules\IpoCancellationReasonMaster\Database\Seeders\IpoCancellationReasonMasterSeeder;
 use App\Modules\IpoRejectionReasonMaster\Database\Seeders\IpoRejectionReasonMasterSeeder;
 use App\Modules\JobCardCancelReasonMaster\Database\Seeders\JobCardCancelReasonMasterSeeder;
@@ -48,6 +52,7 @@ use App\Modules\JobDescriptionMaster\Database\Seeders\JobDescriptionMasterSeeder
 use App\Modules\JobStageMaster\Database\Seeders\JobStageMasterSeeder;
 use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
 use App\Modules\LossReasonMaster\Database\Seeders\LossReasonMasterSeeder;
+use App\Modules\LossTypeMaster\Database\Seeders\LossTypeMasterSeeder;
 use App\Modules\MissingDocumentReasonMaster\Database\Seeders\MissingDocumentReasonMasterSeeder;
 use App\Modules\PartTypeMaster\Database\Seeders\PartTypeMasterSeeder;
 use App\Modules\PaymentModeMaster\Database\Seeders\PaymentModeMasterSeeder;
@@ -139,6 +144,11 @@ class DatabaseSeeder extends Seeder
             ChallanReasonMasterSeeder::class,
             ChallanRejectionReasonMasterSeeder::class,
             ChargeTypeMasterSeeder::class,
+            LossTypeMasterSeeder::class,
+            InvoiceCancellationReasonMasterSeeder::class,
+            InsuranceDeductionTypeMasterSeeder::class,
+            ConsumableCategoryMasterSeeder::class,
+            CreditNoteReasonMasterSeeder::class,
             ConsumableDepartmentMasterSeeder::class,
             VehicleSegmentMasterSeeder::class,
             VehicleColorMasterSeeder::class,
