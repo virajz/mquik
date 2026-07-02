@@ -18,6 +18,9 @@ class InvoiceCancellationReasonMasterSeeder extends Seeder
             ['name' => 'CUSTOMER REQUEST',    'code' => 'REQ'],
             ['name' => 'ORDER CANCELLED',     'code' => 'CANC'],
             ['name' => 'GOODS RETURNED',      'code' => 'RET'],
+            ['name' => 'WRONG BILLING NAME',  'code' => 'WBN'],
+            ['name' => 'WRONG RATE',          'code' => 'WRT'],
+            ['name' => 'WRONG QUANTITY',      'code' => 'WQT'],
         ];
 
         foreach ($real as $reason) {

@@ -63,6 +63,7 @@ use App\Modules\RegistrationTypeMaster\Database\Seeders\RegistrationTypeMasterSe
 use App\Modules\RequestedRepairMaster\Database\Seeders\RequestedRepairMasterSeeder;
 use App\Modules\ReturnTypeMaster\Database\Seeders\ReturnTypeMasterSeeder;
 use App\Modules\ReworkReasonMaster\Database\Seeders\ReworkReasonMasterSeeder;
+use App\Modules\SalesReturnReasonMaster\Database\Seeders\SalesReturnReasonMasterSeeder;
 use App\Modules\ServicePackageTypeMaster\Database\Seeders\ServicePackageTypeMasterSeeder;
 use App\Modules\ServiceSpecialistMaster\Database\Seeders\ServiceSpecialistMasterSeeder;
 use App\Modules\ServiceTypeMaster\Database\Seeders\ServiceTypeMasterSeeder;
@@ -146,6 +147,7 @@ class DatabaseSeeder extends Seeder
             ChargeTypeMasterSeeder::class,
             LossTypeMasterSeeder::class,
             InvoiceCancellationReasonMasterSeeder::class,
+            SalesReturnReasonMasterSeeder::class,
             InsuranceDeductionTypeMasterSeeder::class,
             ConsumableCategoryMasterSeeder::class,
             CreditNoteReasonMasterSeeder::class,
