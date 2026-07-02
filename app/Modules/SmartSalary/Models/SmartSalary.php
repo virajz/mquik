@@ -16,6 +16,10 @@ class SmartSalary extends Model
 
     public const DIRECTION_LOWER = 'lower_is_better';
 
+    public const POLARITY_POSITIVE = 'positive';
+
+    public const POLARITY_NEGATIVE = 'negative';
+
     protected $table = 'smart_salary_kpis';
 
     protected $guarded = [];
@@ -39,6 +43,19 @@ class SmartSalary extends Model
         return [
             self::DIRECTION_HIGHER => 'Higher is better',
             self::DIRECTION_LOWER => 'Lower is better',
+        ];
+    }
+
+    /**
+     * Reward (adds points) vs penalty (deducts points) — drives the performance score.
+     *
+     * @return array<string, string>
+     */
+    public static function polarities(): array
+    {
+        return [
+            self::POLARITY_POSITIVE => 'Positive (reward)',
+            self::POLARITY_NEGATIVE => 'Negative (penalty)',
         ];
     }
 

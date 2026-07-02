@@ -33,6 +33,7 @@
                     <flux:input wire:model.live="hra_amount" type="number" step="0.01" min="0" label="HRA" class:input="text-right font-mono" required />
                     <flux:input wire:model.live="da_amount" type="number" step="0.01" min="0" label="DA" class:input="text-right font-mono" required />
                     <flux:input wire:model.live="allowances_amount" type="number" step="0.01" min="0" label="Allowances (OT + Bonus)" class:input="text-right font-mono" required />
+                    <flux:input wire:model.live="incentive_amount" type="number" step="0.01" min="0" label="Incentive (Smart Salary)" class:input="text-right font-mono" required />
                     <flux:input wire:model.live="deductions_amount" type="number" step="0.01" min="0" label="Deductions (PF/ESI/Adv)" class:input="text-right font-mono" required />
                 </div>
 

@@ -42,8 +42,13 @@
                     <flux:input wire:model="unit" label="Unit" placeholder="%, count, ₹, days" clearable />
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:input wire:model="weight" type="number" step="0.01" min="0" label="Weight" description="Max contribution to total score" class:input="text-right font-mono" required />
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:select wire:model="polarity" variant="listbox" label="Polarity">
+                        @foreach (\App\Modules\SmartSalary\Models\SmartSalary::polarities() as $k => $v)
+                            <flux:select.option :value="$k">{{ $v }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:input wire:model="weight" type="number" step="0.01" min="0" label="Points (weight)" description="Max points for this KPI" class:input="text-right font-mono" required />
                     <flux:input wire:model="sort_order" type="number" min="0" label="Sort order" class:input="text-right font-mono" />
                 </div>
 

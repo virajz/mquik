@@ -5,6 +5,8 @@ namespace App\Modules\EmployeeMaster\Livewire;
 use App\Concerns\HasQuickCreate;
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
+use App\Modules\EmployeeCategoryMaster\Models\EmployeeCategoryMaster;
+use App\Modules\EmployeeGradeMaster\Models\EmployeeGradeMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
@@ -49,6 +51,12 @@ class Form extends Component
 
     public ?int $department_id = null;
 
+    public ?int $employee_category_id = null;
+
+    public ?int $employee_grade_id = null;
+
+    public ?float $ctc = null;
+
     public ?string $joining_date = null;
 
     public ?string $exit_date = null;
@@ -82,6 +90,9 @@ class Form extends Component
             'pan' => ['nullable', 'string', 'size:10', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/', Rule::unique('employees', 'pan')->ignore($this->editingId)],
             'designation_id' => ['required', 'integer', Rule::exists('designations', 'id')->where('is_active', true)],
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where('is_active', true)],
+            'employee_category_id' => ['nullable', 'integer', Rule::exists('employee_categories', 'id')],
+            'employee_grade_id' => ['nullable', 'integer', Rule::exists('employee_grades', 'id')],
+            'ctc' => ['nullable', 'numeric', 'min:0'],
             'joining_date' => ['required', 'date'],
             'exit_date' => ['nullable', 'date', 'after_or_equal:joining_date'],
             'bank_name' => ['nullable', 'string', 'max:255'],
@@ -109,6 +120,9 @@ class Form extends Component
         $this->editingId = $r->id;
         $this->designation_id = $r->designation_id;
         $this->department_id = $r->department_id;
+        $this->employee_category_id = $r->employee_category_id;
+        $this->employee_grade_id = $r->employee_grade_id;
+        $this->ctc = $r->ctc === null ? null : (float) $r->ctc;
         $this->date_of_birth = $r->date_of_birth?->format('Y-m-d');
         $this->joining_date = $r->joining_date?->format('Y-m-d');
         $this->exit_date = $r->exit_date?->format('Y-m-d');
@@ -180,6 +194,9 @@ class Form extends Component
         $this->pan = null;
         $this->designation_id = null;
         $this->department_id = null;
+        $this->employee_category_id = null;
+        $this->employee_grade_id = null;
+        $this->ctc = null;
         $this->joining_date = null;
         $this->exit_date = null;
         $this->bank_name = null;
@@ -195,6 +212,8 @@ class Form extends Component
         return view('employee-master::form', [
             'designations' => DesignationMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'departments' => DepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'categories' => EmployeeCategoryMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'grades' => EmployeeGradeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 }

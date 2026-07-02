@@ -28,6 +28,8 @@ class Form extends Component
 
     public float $allowances_amount = 0;
 
+    public float $incentive_amount = 0;
+
     public float $deductions_amount = 0;
 
     public ?string $payment_date = null;
@@ -59,6 +61,7 @@ class Form extends Component
         $this->hra_amount = (float) $record->hra_amount;
         $this->da_amount = (float) $record->da_amount;
         $this->allowances_amount = (float) $record->allowances_amount;
+        $this->incentive_amount = (float) $record->incentive_amount;
         $this->deductions_amount = (float) $record->deductions_amount;
         $this->payment_date = $record->payment_date?->format('Y-m-d');
         $this->status = $record->status;
@@ -81,6 +84,7 @@ class Form extends Component
             'hra_amount' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
             'da_amount' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
             'allowances_amount' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
+            'incentive_amount' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
             'deductions_amount' => ['required', 'numeric', 'min:0', 'max:9999999.99'],
             'payment_date' => ['nullable', 'date_format:Y-m-d'],
             'status' => ['required', Rule::in(array_keys(Payroll::statuses()))],
@@ -97,7 +101,7 @@ class Form extends Component
     #[Computed]
     public function grossPreview(): float
     {
-        return $this->basic_amount + $this->hra_amount + $this->da_amount + $this->allowances_amount;
+        return $this->basic_amount + $this->hra_amount + $this->da_amount + $this->allowances_amount + $this->incentive_amount;
     }
 
     #[Computed]
@@ -110,7 +114,7 @@ class Form extends Component
     {
         $data = $this->validate();
 
-        $data['gross_amount'] = $data['basic_amount'] + $data['hra_amount'] + $data['da_amount'] + $data['allowances_amount'];
+        $data['gross_amount'] = $data['basic_amount'] + $data['hra_amount'] + $data['da_amount'] + $data['allowances_amount'] + $data['incentive_amount'];
         $data['net_amount'] = $data['gross_amount'] - $data['deductions_amount'];
 
         if (filled($data['notes'] ?? null)) {
@@ -140,6 +144,7 @@ class Form extends Component
         $this->hra_amount = 0;
         $this->da_amount = 0;
         $this->allowances_amount = 0;
+        $this->incentive_amount = 0;
         $this->deductions_amount = 0;
         $this->payment_date = null;
         $this->status = Payroll::STATUS_DRAFT;

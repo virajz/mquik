@@ -86,6 +86,20 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <flux:select wire:model="employee_category_id" label="Category" variant="listbox" clearable placeholder="Permanent / Probation…">
+                        @foreach ($categories as $c)
+                            <flux:select.option :value="$c->id" wire:key="cat-{{ $c->id }}">{{ $c->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:select wire:model="employee_grade_id" label="Grade" variant="listbox" clearable placeholder="Grade A / B / C…">
+                        @foreach ($grades as $g)
+                            <flux:select.option :value="$g->id" wire:key="grd-{{ $g->id }}">{{ $g->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:input wire:model="ctc" type="number" step="0.01" min="0" label="Annual CTC" placeholder="Cost to company" class:input="text-right font-mono" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:date-picker wire:model="joining_date" label="Joining Date" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
                     <flux:date-picker wire:model="exit_date" label="Exit Date" placeholder="Still employed" with-today selectable-header fixed-weeks type="input" />
                 </div>

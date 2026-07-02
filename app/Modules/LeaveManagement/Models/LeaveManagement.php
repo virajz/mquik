@@ -5,6 +5,7 @@ namespace App\Modules\LeaveManagement\Models;
 use App\Concerns\Auditable;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\LeaveManagement\Database\Factories\LeaveManagementFactory;
+use App\Modules\LeaveTypeMaster\Models\LeaveTypeMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,17 +50,18 @@ class LeaveManagement extends Model
     }
 
     /**
+     * Leave types are now sourced from the editable LeaveTypeMaster (keyed by code).
+     *
      * @return array<string, string>
      */
     public static function leaveTypes(): array
     {
-        return [
-            'CL' => 'Casual Leave',
-            'SL' => 'Sick Leave',
-            'PL' => 'Privilege Leave',
-            'COMP_OFF' => 'Comp Off',
-            'UNPAID' => 'Unpaid',
-        ];
+        return LeaveTypeMaster::query()
+            ->where('is_active', true)
+            ->whereNotNull('code')
+            ->orderBy('name')
+            ->pluck('name', 'code')
+            ->all();
     }
 
     /**

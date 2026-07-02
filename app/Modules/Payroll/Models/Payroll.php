@@ -31,6 +31,7 @@ class Payroll extends Model
         'hra_amount' => 'decimal:2',
         'da_amount' => 'decimal:2',
         'allowances_amount' => 'decimal:2',
+        'incentive_amount' => 'decimal:2',
         'deductions_amount' => 'decimal:2',
         'gross_amount' => 'decimal:2',
         'net_amount' => 'decimal:2',

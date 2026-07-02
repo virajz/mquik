@@ -6,6 +6,8 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
+use App\Modules\EmployeeCategoryMaster\Models\EmployeeCategoryMaster;
+use App\Modules\EmployeeGradeMaster\Models\EmployeeGradeMaster;
 use App\Modules\EmployeeMaster\Database\Factories\EmployeeMasterFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +49,16 @@ class EmployeeMaster extends Model
     public function designation(): BelongsTo
     {
         return $this->belongsTo(DesignationMaster::class, 'designation_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeCategoryMaster::class, 'employee_category_id');
+    }
+
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeGradeMaster::class, 'employee_grade_id');
     }
 
     protected static function newFactory(): EmployeeMasterFactory

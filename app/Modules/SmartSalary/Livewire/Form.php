@@ -20,6 +20,8 @@ class Form extends Component
 
     public string $direction = SmartSalary::DIRECTION_HIGHER;
 
+    public string $polarity = SmartSalary::POLARITY_POSITIVE;
+
     public ?string $unit = null;
 
     public float $weight = 0;
@@ -48,6 +50,7 @@ class Form extends Component
         $this->name = $record->name;
         $this->category = $record->category;
         $this->direction = $record->direction;
+        $this->polarity = $record->polarity;
         $this->unit = $record->unit;
         $this->weight = (float) $record->weight;
         $this->formula = $record->formula;
@@ -66,6 +69,7 @@ class Form extends Component
             'name' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:40'],
             'direction' => ['required', Rule::in(array_keys(SmartSalary::directions()))],
+            'polarity' => ['required', Rule::in(array_keys(SmartSalary::polarities()))],
             'unit' => ['nullable', 'string', 'max:20'],
             'weight' => ['required', 'numeric', 'min:0', 'max:9999.99'],
             'formula' => ['nullable', 'string', 'max:2000'],
@@ -106,6 +110,7 @@ class Form extends Component
         $this->name = '';
         $this->category = 'Performance';
         $this->direction = SmartSalary::DIRECTION_HIGHER;
+        $this->polarity = SmartSalary::POLARITY_POSITIVE;
         $this->unit = null;
         $this->weight = 0;
         $this->formula = null;

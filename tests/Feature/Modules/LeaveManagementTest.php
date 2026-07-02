@@ -5,6 +5,7 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\LeaveManagement\Livewire\Form;
 use App\Modules\LeaveManagement\Livewire\Index;
 use App\Modules\LeaveManagement\Models\LeaveManagement;
+use App\Modules\LeaveTypeMaster\Models\LeaveTypeMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -21,6 +22,7 @@ it('renders the index page', function () {
 
 it('creates a leave request via the form', function () {
     $employee = EmployeeMaster::factory()->create();
+    LeaveTypeMaster::factory()->create(['name' => 'SICK LEAVE', 'code' => 'SL']);
 
     Livewire::test(Form::class)
         ->dispatch('leave-management:edit', id: null)

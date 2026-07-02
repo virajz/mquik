@@ -4,7 +4,7 @@
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
             <flux:heading size="xl" level="1">Leave Management</flux:heading>
-            <flux:text class="mt-1">Leave requests with approval status — CL / SL / PL / Comp-Off / Unpaid.</flux:text>
+            <flux:text class="mt-1">Leave requests with approval status — types from the Leave Type master.</flux:text>
         </div>
         <div class="flex items-center gap-2">
             @can('leave_management.create')
