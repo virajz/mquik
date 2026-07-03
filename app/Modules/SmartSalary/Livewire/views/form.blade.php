@@ -5,7 +5,7 @@
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit KPI Definition' : 'New KPI Definition' }}</flux:heading>
-                <flux:subheading>Define a key the Smart Salary engine will score in Week 7. No formulas yet — just the registry.</flux:subheading>
+                <flux:subheading>Register a KPI the Performance Score engine measures. Positive KPIs earn points, negative ones deduct — the net drives each employee's incentive.</flux:subheading>
             </div>
 
             <flux:separator variant="subtle" />
@@ -28,12 +28,25 @@
                     />
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select wire:model="category" variant="listbox" label="Category" required>
                         @foreach (\App\Modules\SmartSalary\Models\SmartSalary::categories() as $c)
                             <flux:select.option :value="$c">{{ $c }}</flux:select.option>
                         @endforeach
                     </flux:select>
+                    <flux:select wire:model="polarity" variant="listbox" label="Polarity" required>
+                        @foreach (\App\Modules\SmartSalary\Models\SmartSalary::polarities() as $k => $v)
+                            <flux:select.option :value="$k">{{ $v }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input wire:model="weight" type="number" step="0.01" min="0" label="Points (weight)" description="Max points this KPI contributes" class:input="text-right font-mono" required />
+                    <flux:input wire:model="sort_order" type="number" min="0" label="Sort order" description="Lower shows first" class:input="text-right font-mono" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select wire:model="direction" variant="listbox" label="Direction" required>
                         @foreach (\App\Modules\SmartSalary\Models\SmartSalary::directions() as $k => $v)
                             <flux:select.option :value="$k">{{ $v }}</flux:select.option>
@@ -42,21 +55,12 @@
                     <flux:input wire:model="unit" label="Unit" placeholder="%, count, ₹, days" clearable />
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select wire:model="polarity" variant="listbox" label="Polarity">
-                        @foreach (\App\Modules\SmartSalary\Models\SmartSalary::polarities() as $k => $v)
-                            <flux:select.option :value="$k">{{ $v }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    <flux:input wire:model="weight" type="number" step="0.01" min="0" label="Points (weight)" description="Max points for this KPI" class:input="text-right font-mono" required />
-                    <flux:input wire:model="sort_order" type="number" min="0" label="Sort order" class:input="text-right font-mono" />
-                </div>
-
                 <flux:textarea
                     wire:model="formula"
-                    label="Formula"
-                    placeholder="e.g. (days_present / total_working_days) * 100  — Week 7 wires this up"
-                    rows="3"
+                    label="How it's measured"
+                    placeholder="e.g. (days_present / total_working_days) × 100"
+                    description="Reference note only — points are entered manually per employee on the Performance Score."
+                    rows="2"
                 />
 
                 <flux:textarea
