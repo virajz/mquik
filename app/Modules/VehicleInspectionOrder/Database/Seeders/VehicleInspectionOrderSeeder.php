@@ -7,12 +7,19 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class VehicleInspectionOrderSeeder extends Seeder
 {
     public function run(): void
     {
+        // Demo inspection orders need Faker (dev-only) and are skipped on a
+        // --no-dev server deploy where Faker is absent.
+        if (! class_exists(Factory::class)) {
+            return;
+        }
+
         $jobCards = JobCard::query()->orderByDesc('id')->limit(4)->get();
         if ($jobCards->isEmpty()) {
             return;

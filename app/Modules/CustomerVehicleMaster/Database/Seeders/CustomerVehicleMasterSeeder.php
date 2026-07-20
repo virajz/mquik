@@ -6,12 +6,19 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class CustomerVehicleMasterSeeder extends Seeder
 {
     public function run(): void
     {
+        // Sample vehicles need Faker (dev-only). On a --no-dev server deploy Faker
+        // is absent, so skip — real vehicles come from MasterDataSeeder.
+        if (! class_exists(Factory::class)) {
+            return;
+        }
+
         $customers = CustomerMaster::query()->limit(5)->get();
         $models = VehicleModelMaster::query()->limit(5)->get();
         $colors = VehicleColorMaster::query()->limit(5)->get();

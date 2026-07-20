@@ -7,12 +7,19 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class TechnicianFindingSeeder extends Seeder
 {
     public function run(): void
     {
+        // Demo findings need Faker (dev-only) and are skipped on a --no-dev
+        // server deploy where Faker is absent.
+        if (! class_exists(Factory::class)) {
+            return;
+        }
+
         $jobCards = JobCard::query()->orderByDesc('id')->limit(3)->get();
         if ($jobCards->isEmpty()) {
             return;

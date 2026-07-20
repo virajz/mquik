@@ -3,6 +3,7 @@
 namespace App\Modules\SpareBrandMaster\Database\Seeders;
 
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class SpareBrandMasterSeeder extends Seeder
@@ -26,6 +27,10 @@ class SpareBrandMasterSeeder extends Seeder
         }
 
         // Plus a handful of fake ones for testing pagination, search, etc.
-        SpareBrandMaster::factory()->count(10)->create();
+        // Faker is a dev-only dependency — absent on a `composer install --no-dev`
+        // server, where real brands come from MasterDataSeeder instead.
+        if (class_exists(Factory::class)) {
+            SpareBrandMaster::factory()->count(10)->create();
+        }
     }
 }
