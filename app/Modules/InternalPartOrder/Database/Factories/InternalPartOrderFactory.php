@@ -3,6 +3,7 @@
 namespace App\Modules\InternalPartOrder\Database\Factories;
 
 use App\Modules\InternalPartOrder\Models\InternalPartOrder;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -16,7 +17,10 @@ class InternalPartOrderFactory extends Factory
     {
         return [
             'ipo_type' => 'job_card_requirement',
-            'order_priority' => 'normal',
+            'priority_id' => PriorityMaster::firstOrCreate(
+                ['name' => 'NORMAL'],
+                ['code' => 'NRM', 'sort_order' => 10, 'applies_to' => 'both', 'is_active' => true],
+            )->id,
             'status' => 'draft',
             'approval_status' => 'pending',
         ];

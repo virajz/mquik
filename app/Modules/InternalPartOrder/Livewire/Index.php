@@ -3,6 +3,7 @@
 namespace App\Modules\InternalPartOrder\Livewire;
 
 use App\Modules\InternalPartOrder\Models\InternalPartOrder;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -34,7 +35,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'desc';
 
-    protected array $sortable = ['id', 'order_no', 'status', 'order_priority', 'created_at'];
+    protected array $sortable = ['id', 'order_no', 'status', 'priority_id', 'created_at'];
 
     public function updatingSearch(): void
     {
@@ -91,6 +92,7 @@ class Index extends Component
 
         $rows = InternalPartOrder::query()
             ->with([
+                'priority:id,name',
                 'jobCard:id,job_card_no',
                 'customer:id,first_name,last_name',
                 'requestedBy:id,name',
@@ -101,7 +103,7 @@ class Index extends Component
                     ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
             }))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
-            ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('order_priority', $this->priorityFilter))
+            ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('priority_id', (int) $this->priorityFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('ipo_type', $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
@@ -109,7 +111,7 @@ class Index extends Component
         return view('internal-part-order::index', [
             'rows' => $rows,
             'statuses' => InternalPartOrder::statuses(),
-            'priorities' => InternalPartOrder::priorities(),
+            'priorities' => PriorityMaster::forScope(PriorityMaster::APPLIES_PARTS)->pluck('name', 'id'),
             'types' => InternalPartOrder::ipoTypes(),
         ]);
     }

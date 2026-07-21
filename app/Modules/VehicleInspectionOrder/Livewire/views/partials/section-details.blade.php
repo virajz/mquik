@@ -51,9 +51,9 @@
                     <flux:select.option :value="$t->id" wire:key="tpl-{{ $t->id }}">{{ $t->name }} ({{ strtoupper($t->applies_to) }})</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="work_priority" variant="listbox" label="Priority" required>
-                @foreach (VehicleInspectionOrder::priorities() as $key => $label)
-                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+            <flux:select wire:model="priority_id" variant="listbox" label="Priority" placeholder="Normal">
+                @foreach ($this->priorities as $p)
+                    <flux:select.option :value="$p->id" wire:key="prio-{{ $p->id }}">{{ $p->name }}</flux:select.option>
                 @endforeach
             </flux:select>
         </div>

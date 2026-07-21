@@ -15,8 +15,8 @@ class GateInOutFactory extends Factory
     public function definition(): array
     {
         return [
-            'direction' => GateInOut::DIRECTION_IN,
-            'gated_at' => $this->faker->dateTimeBetween('-2 days', 'now'),
+            'entered_at' => $this->faker->dateTimeBetween('-2 days', '-1 hour'),
+            'status' => GateInOut::STATUS_PENDING,
             'registration_no' => 'GJ '.$this->faker->numerify('##').' '.$this->faker->lexify('??').' '.$this->faker->numerify('####'),
             'source' => GateInOut::SOURCE_MANUAL,
         ];
@@ -24,7 +24,11 @@ class GateInOutFactory extends Factory
 
     public function out(): static
     {
-        return $this->state(fn () => ['direction' => GateInOut::DIRECTION_OUT]);
+        return $this->state(fn () => [
+            'exited_at' => now(),
+            'outward_type' => 'final_delivery',
+            'status' => GateInOut::STATUS_COMPLETED,
+        ]);
     }
 
     public function anpr(): static

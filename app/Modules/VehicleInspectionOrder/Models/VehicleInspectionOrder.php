@@ -11,6 +11,7 @@ use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ReworkReasonMaster\Models\ReworkReasonMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInspectionOrder\Database\Factories\VehicleInspectionOrderFactory;
@@ -168,15 +169,6 @@ class VehicleInspectionOrder extends Model
     /**
      * @return array<string, string>
      */
-    public static function priorities(): array
-    {
-        return [
-            'normal' => 'Normal',
-            'high' => 'High',
-            'urgent' => 'Urgent',
-        ];
-    }
-
     /**
      * @return array<string, string>
      */
@@ -202,5 +194,10 @@ class VehicleInspectionOrder extends Model
             'ia' => 'Immediate Action',
             'fa' => 'Future Action',
         ];
+    }
+
+    public function priority(): BelongsTo
+    {
+        return $this->belongsTo(PriorityMaster::class, 'priority_id');
     }
 }

@@ -116,3 +116,22 @@ Documents - offer letter, appointment letter, experience letter, forms
 Attendance - in time, out time. lunch time, half day leave.
 Leave - paid leave + sick leave + casual leave + full day + half day + holiday leaves calendar
 Full and Final settlement + Gratuity
+
+### 21 July
+
+Vendors:
+HSN Master - 8 digit and 6 digit
+Inventory Group Selection while creating a vendor
+
+Vehicles:
+Add vehicle takes a lot of time to load, I think it loads all customers, same problem while saving and validation trigger
+We need to trigger validation while we enter the car number
+
+HR > Holidays:
+Check Datepicker
+
+Standard Observation:
+Need items from this checklist: MQUIK 360° VEHICLE INSPECTION CHECKLIST
+
+Tyre Checklist:
+Shared on WhatsApp

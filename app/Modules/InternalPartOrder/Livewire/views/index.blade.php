@@ -40,7 +40,7 @@
             <flux:table.column>Job Card / Requested By</flux:table.column>
             <flux:table.column class="w-44">Type</flux:table.column>
             <flux:table.column class="w-24 text-center">Lines</flux:table.column>
-            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'order_priority'" :direction="$sortDirection" wire:click="sort('order_priority')">Priority</flux:table.column>
+            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'priority_id'" :direction="$sortDirection" wire:click="sort('priority_id')">Priority</flux:table.column>
             <flux:table.column class="w-36" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
@@ -56,8 +56,8 @@
                     <flux:table.cell class="text-sm">{{ $types[$row->ipo_type] ?? $row->ipo_type }}</flux:table.cell>
                     <flux:table.cell class="text-center font-mono text-sm">{{ $row->items_count }}</flux:table.cell>
                     <flux:table.cell>
-                        @php($pc = match ($row->order_priority) { 'critical','breakdown' => 'red', 'urgent' => 'amber', default => 'zinc' })
-                        <flux:badge :color="$pc" size="sm">{{ $priorities[$row->order_priority] ?? $row->order_priority }}</flux:badge>
+                        @php($pc = match (strtoupper($row->priority?->name ?? '')) { 'CRITICAL', 'BREAKDOWN' => 'red', 'URGENT' => 'amber', 'HIGH' => 'amber', default => 'zinc' })
+                        <flux:badge :color="$pc" size="sm">{{ $row->priority?->name ?? '—' }}</flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {

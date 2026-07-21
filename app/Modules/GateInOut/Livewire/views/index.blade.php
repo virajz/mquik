@@ -1,23 +1,45 @@
 <div>
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-            <flux:heading size="xl" level="1">Gate In / Out</flux:heading>
-            <flux:text class="mt-1">Vehicle entry and exit log — manual or ANPR-captured.</flux:text>
+            <flux:heading size="xl" level="1">Inward / Outward</flux:heading>
+            <flux:text class="mt-1">One record per visit — inward opens it, outward closes it, TAT is the gap.</flux:text>
         </div>
         <div class="flex items-center gap-2">
             @can('gate_in_out.create')
-                <flux:button variant="primary" icon="plus" wire:click="openCreate">Record Gate Event</flux:button>
+                <flux:button variant="primary" icon="plus" wire:click="openCreate">Record Inward</flux:button>
             @endcan
         </div>
     </div>
 
+    {{-- Today's counters --}}
+    <div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+        @foreach ([
+            ['label' => 'Inward Today', 'value' => $kpis['inward'], 'icon' => 'arrow-right-end-on-rectangle'],
+            ['label' => 'Outward Today', 'value' => $kpis['outward'], 'icon' => 'arrow-left-end-on-rectangle'],
+            ['label' => 'Trial Runs Today', 'value' => $kpis['trialRun'], 'icon' => 'bolt'],
+            ['label' => 'Still Inside', 'value' => $kpis['inside'], 'icon' => 'building-office'],
+        ] as $kpi)
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                <div class="flex items-center gap-2 text-zinc-500">
+                    <flux:icon :name="$kpi['icon']" class="size-4" />
+                    <flux:text size="sm">{{ $kpi['label'] }}</flux:text>
+                </div>
+                <div class="mt-1 text-2xl font-semibold tabular-nums">{{ $kpi['value'] }}</div>
+            </div>
+        @endforeach
+    </div>
+
     <div class="mb-4 flex items-center gap-3 flex-wrap">
-        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by reg no, event no, customer..." icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:select wire:model.live="directionFilter" variant="listbox" class="max-w-32">
-            <flux:select.option value="all">In + Out</flux:select.option>
-            @foreach ($directions as $key => $label)
+        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by reg no, visit no, customer..." icon="magnifying-glass" clearable class="max-w-md" />
+        <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-36">
+            <flux:select.option value="all">All status</flux:select.option>
+            @foreach ($statuses as $key => $label)
                 <flux:select.option :value="$key">{{ $label }}</flux:select.option>
             @endforeach
+        </flux:select>
+        <flux:select wire:model.live="presenceFilter" variant="listbox" class="max-w-40">
+            <flux:select.option value="all">On site + left</flux:select.option>
+            <flux:select.option value="inside">Still inside</flux:select.option>
         </flux:select>
         <flux:select wire:model.live="sourceFilter" variant="listbox" class="max-w-40">
             <flux:select.option value="all">All sources</flux:select.option>
@@ -26,7 +48,7 @@
         </flux:select>
         <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
         <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        @if ($search || $directionFilter !== 'all' || $sourceFilter !== 'all' || $dateFrom || $dateTo)
+        @if ($search || $statusFilter !== 'all' || $presenceFilter !== 'all' || $sourceFilter !== 'all' || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
     </div>
@@ -34,10 +56,11 @@
     <flux:table>
         <flux:table.columns>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'gate_event_no'" :direction="$sortDirection" wire:click="sort('gate_event_no')">No.</flux:table.column>
-            <flux:table.column class="w-44" sortable :sorted="$sortBy === 'gated_at'" :direction="$sortDirection" wire:click="sort('gated_at')">When</flux:table.column>
-            <flux:table.column class="w-20" sortable :sorted="$sortBy === 'direction'" :direction="$sortDirection" wire:click="sort('direction')">Dir</flux:table.column>
+            <flux:table.column class="w-40" sortable :sorted="$sortBy === 'entered_at'" :direction="$sortDirection" wire:click="sort('entered_at')">In</flux:table.column>
+            <flux:table.column class="w-40" sortable :sorted="$sortBy === 'exited_at'" :direction="$sortDirection" wire:click="sort('exited_at')">Out</flux:table.column>
+            <flux:table.column class="w-24">TAT</flux:table.column>
             <flux:table.column>Reg. No / Customer</flux:table.column>
-            <flux:table.column class="w-24">Source</flux:table.column>
+            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
@@ -46,15 +69,25 @@
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs">{{ $row->gate_event_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->gated_at?->format('d M Y') }}</div>
-                        <div class="text-xs text-zinc-500 mt-0.5">{{ $row->gated_at?->format('h:i A') }}</div>
+                        <div class="font-medium">{{ $row->entered_at?->format('d M Y') }}</div>
+                        <div class="text-xs text-zinc-500 mt-0.5">
+                            {{ $row->entered_at?->format('h:i A') }}{{ $row->entryGate ? ' · '.$row->entryGate->name : '' }}
+                        </div>
                     </flux:table.cell>
-                    <flux:table.cell>
-                        <flux:badge :color="$row->direction === 'in' ? 'lime' : 'sky'" size="sm">
-                            <flux:icon :name="$row->direction === 'in' ? 'arrow-right-end-on-rectangle' : 'arrow-left-end-on-rectangle'" class="size-3 mr-0.5 inline" />
-                            {{ $directions[$row->direction] ?? $row->direction }}
-                        </flux:badge>
+                    <flux:table.cell class="text-sm">
+                        @if ($row->exited_at)
+                            <div class="font-medium">{{ $row->exited_at->format('d M Y') }}</div>
+                            <div class="text-xs text-zinc-500 mt-0.5">
+                                {{ $row->exited_at->format('h:i A') }}{{ $row->exitGate ? ' · '.$row->exitGate->name : '' }}
+                            </div>
+                        @else
+                            <flux:badge color="amber" size="sm">Still inside</flux:badge>
+                            @if ($row->parkingSlot)
+                                <div class="text-xs text-zinc-500 mt-0.5">{{ $row->parkingSlot->name }}</div>
+                            @endif
+                        @endif
                     </flux:table.cell>
+                    <flux:table.cell class="font-mono text-sm text-zinc-500">{{ $row->tatForHumans() }}</flux:table.cell>
                     <flux:table.cell>
                         <div class="font-mono font-medium">{{ $row->registration_no }}</div>
                         @if ($row->customer)
@@ -66,11 +99,15 @@
                             <div class="text-xs text-zinc-500 mt-0.5"><span class="text-amber-600 dark:text-amber-400">Walk-in (unmatched)</span></div>
                         @endif
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">
-                        @if ($row->source === 'anpr')
-                            <flux:badge color="blue" size="sm">ANPR</flux:badge>
-                        @else
-                            <span>Manual</span>
+                    <flux:table.cell>
+                        @php($sc = match ($row->status) {
+                            'completed' => 'lime', 'cancelled' => 'zinc', default => 'amber',
+                        })
+                        <flux:badge :color="$sc" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
+                        @if ($row->outward_type)
+                            <div class="text-xs text-zinc-500 mt-0.5">
+                                {{ \App\Modules\GateInOut\Models\GateInOut::outwardTypes()[$row->outward_type] ?? $row->outward_type }}
+                            </div>
                         @endif
                     </flux:table.cell>
                     <flux:table.cell>

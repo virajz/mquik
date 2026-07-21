@@ -9,6 +9,7 @@ use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\IpoCancellationReasonMaster\Models\IpoCancellationReasonMaster;
 use App\Modules\IpoRejectionReasonMaster\Models\IpoRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ReturnTypeMaster\Models\ReturnTypeMaster;
 use App\Modules\SalesEstimate\Models\SalesEstimate;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
@@ -39,7 +40,7 @@ class Edit extends Component
 
     public string $ipo_type = 'job_card_requirement';
 
-    public string $order_priority = 'normal';
+    public ?int $priority_id = null;
 
     public string $status = 'draft';
 
@@ -118,7 +119,7 @@ class Edit extends Component
 
         $this->editingId = $o->id;
         foreach ([
-            'order_no', 'ipo_type', 'order_priority', 'status', 'job_card_id', 'sales_estimate_id', 'customer_id',
+            'order_no', 'ipo_type', 'priority_id', 'status', 'job_card_id', 'sales_estimate_id', 'customer_id',
             'customer_vehicle_id', 'department_id', 'service_type_id', 'requested_by_id', 'technician_id',
             'store_incharge_id', 'approval_authority', 'approval_status', 'approved_by_id', 'rejection_reason_id',
             'cancellation_reason_id', 'notes',
@@ -220,7 +221,7 @@ class Edit extends Component
     {
         return [
             'ipo_type' => ['required', Rule::in(array_keys(InternalPartOrder::ipoTypes()))],
-            'order_priority' => ['required', Rule::in(array_keys(InternalPartOrder::priorities()))],
+            'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'status' => ['required', Rule::in(array_keys(InternalPartOrder::statuses()))],
             'job_card_id' => ['nullable', 'integer', 'exists:job_cards,id'],
             'sales_estimate_id' => ['nullable', 'integer', 'exists:sales_estimates,id'],
@@ -251,6 +252,13 @@ class Edit extends Component
             'itemAfterFiles.*' => ['image', 'max:8192'],
             'attachmentFiles.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:8192'],
         ];
+    }
+
+    /** Parts-scoped urgency levels from the shared priority master. */
+    #[Computed]
+    public function priorities()
+    {
+        return PriorityMaster::forScope(PriorityMaster::APPLIES_PARTS)->get(['id', 'name']);
     }
 
     #[Computed]

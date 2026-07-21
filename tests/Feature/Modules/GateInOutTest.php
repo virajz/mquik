@@ -6,6 +6,8 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\GateInOut\Livewire\Form;
 use App\Modules\GateInOut\Livewire\Index;
 use App\Modules\GateInOut\Models\GateInOut;
+use App\Modules\GateMaster\Models\GateMaster;
+use App\Modules\ParkingSlotMaster\Models\ParkingSlotMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -32,17 +34,90 @@ it('normalises registration_no on save (whitespace + uppercase)', function () {
     expect($row->fresh()->registration_no)->toBe('GJ 05 AA 1234');
 });
 
-it('filters by direction and source', function () {
-    GateInOut::factory()->count(2)->create();
-    GateInOut::factory()->out()->create();
+it('filters by status, presence and source', function () {
+    GateInOut::factory()->count(2)->create();     // still inside, pending
+    GateInOut::factory()->out()->create();        // left, completed
     GateInOut::factory()->anpr()->create();
 
     Livewire::test(Index::class)
-        ->set('directionFilter', 'out')
+        ->set('statusFilter', GateInOut::STATUS_COMPLETED)
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1)
-        ->set('directionFilter', 'all')
+        ->set('statusFilter', 'all')
+        ->set('presenceFilter', 'inside')
+        ->assertViewHas('rows', fn ($rows) => $rows->count() === 3)
+        ->set('presenceFilter', 'all')
         ->set('sourceFilter', 'anpr')
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1);
+});
+
+it('computes TAT from the entry and exit stamps', function () {
+    $visit = GateInOut::factory()->create([
+        'entered_at' => '2026-09-01 09:00:00',
+        'exited_at' => '2026-09-01 12:30:00',
+    ]);
+
+    expect($visit->tatMinutes())->toBe(210)
+        ->and($visit->tatForHumans())->toBe('3h 30m');
+});
+
+it('reports no TAT while the vehicle is still inside', function () {
+    $visit = GateInOut::factory()->create(['exited_at' => null]);
+
+    expect($visit->tatMinutes())->toBeNull()
+        ->and($visit->tatForHumans())->toBe('—')
+        ->and(GateInOut::stillInside()->count())->toBe(1);
+});
+
+it('rejects an exit that predates the entry', function () {
+    Livewire::test(Form::class)
+        ->dispatch('gate-in-out:edit', id: null)
+        ->set('registration_no', 'GJ 05 AA 1234')
+        ->set('entered_date', '2026-09-02')
+        ->set('entered_time', '10:00')
+        ->set('exited_date', '2026-09-01')
+        ->set('exited_time', '10:00')
+        ->call('save')
+        ->assertHasErrors(['exited_date']);
+
+    expect(GateInOut::count())->toBe(0);
+});
+
+it('records the outward leg with gate, type and driver type', function () {
+    $gate = GateMaster::factory()->create(['name' => 'GATE NO. 2']);
+    $slot = ParkingSlotMaster::factory()->create(['name' => 'SLOT NO. 1']);
+
+    Livewire::test(Form::class)
+        ->dispatch('gate-in-out:edit', id: null)
+        ->set('registration_no', 'GJ 05 AA 1234')
+        ->set('parking_slot_id', $slot->id)
+        ->set('entered_date', '2026-09-01')
+        ->set('entered_time', '09:00')
+        ->set('exited_date', '2026-09-01')
+        ->set('exited_time', '11:00')
+        ->set('exit_gate_id', $gate->id)
+        ->set('outward_type', 'trial_run')
+        ->set('driver_type', 'workshop_staff')
+        ->set('status', GateInOut::STATUS_COMPLETED)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $visit = GateInOut::firstOrFail();
+    expect($visit->exit_gate_id)->toBe($gate->id)
+        ->and($visit->parking_slot_id)->toBe($slot->id)
+        ->and($visit->outward_type)->toBe('trial_run')
+        ->and($visit->driver_type)->toBe('workshop_staff')
+        ->and($visit->tatMinutes())->toBe(120);
+});
+
+it('counts today\'s inward, outward and trial runs on the index', function () {
+    GateInOut::factory()->create(['entered_at' => now(), 'exited_at' => null]);
+    GateInOut::factory()->create(['entered_at' => now(), 'exited_at' => now(), 'outward_type' => 'trial_run']);
+    GateInOut::factory()->create(['entered_at' => now()->subDays(3), 'exited_at' => now()->subDays(3)]);
+
+    Livewire::test(Index::class)->assertViewHas('kpis', fn ($k) => $k['inward'] === 2
+        && $k['outward'] === 1
+        && $k['trialRun'] === 1
+        && $k['inside'] === 1);
 });
 
 it('records a gate event with capital typing on notes', function () {

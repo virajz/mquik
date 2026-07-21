@@ -4,15 +4,25 @@ namespace App\Modules\Appointment\Livewire;
 
 use App\Concerns\CanQuickAddCustomer;
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
+use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
+use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\HolidayMaster\Models\HolidayMaster;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
+use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
+use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -36,7 +46,11 @@ class Edit extends Component
     /** Time portion (H:i) — combined with appointment_date on save. */
     public string $appointment_time = '';
 
-    public string $channel = Appointment::CHANNEL_PHONE_CALL;
+    public ?int $time_slot_id = null;
+
+    public ?int $booking_channel_id = null;
+
+    public ?int $priority_id = null;
 
     public ?int $customer_id = null;
 
@@ -50,7 +64,7 @@ class Edit extends Component
 
     public ?int $assigned_technician_id = null;
 
-    public bool $requires_pickup = false;
+    public ?int $pickup_drop_option_id = null;
 
     /** Sentinel: customer_address id, or 'custom' to type a fresh one. */
     public string $pickup_address_choice = 'custom';
@@ -60,6 +74,17 @@ class Edit extends Component
     public ?string $pickup_contact_phone = null;
 
     public string $status = Appointment::STATUS_PENDING;
+
+    public ?int $cancel_reason_id = null;
+
+    public ?int $pending_reason_id = null;
+
+    /**
+     * Customer complaints captured at booking time.
+     *
+     * @var array<int, array{id:?int, complaint_type_id:?int, job_description_id:?int, description:string}>
+     */
+    public array $complaints = [];
 
     public ?string $notes = null;
 
@@ -83,18 +108,29 @@ class Edit extends Component
         $this->appointment_no = $a->appointment_no;
         $this->appointment_date = $a->appointment_at?->format('Y-m-d') ?? '';
         $this->appointment_time = $a->appointment_at?->format('H:i') ?? '';
-        $this->channel = $a->channel;
+        $this->time_slot_id = $a->time_slot_id;
+        $this->booking_channel_id = $a->booking_channel_id;
+        $this->priority_id = $a->priority_id;
         $this->customer_id = $a->customer_id;
         $this->customer_vehicle_id = $a->customer_vehicle_id;
         $this->service_type_id = $a->service_type_id;
         $this->workshop_department_id = $a->workshop_department_id;
         $this->assigned_advisor_id = $a->assigned_advisor_id;
         $this->assigned_technician_id = $a->assigned_technician_id;
-        $this->requires_pickup = (bool) $a->requires_pickup;
+        $this->pickup_drop_option_id = $a->pickup_drop_option_id;
         $this->pickup_address = $a->pickup_address;
         $this->pickup_contact_phone = $a->pickup_contact_phone;
         $this->status = $a->status;
+        $this->cancel_reason_id = $a->cancel_reason_id;
+        $this->pending_reason_id = $a->pending_reason_id;
         $this->notes = $a->notes;
+
+        $this->complaints = $a->complaints()->get()->map(fn ($c) => [
+            'id' => $c->id,
+            'complaint_type_id' => $c->complaint_type_id,
+            'job_description_id' => $c->job_description_id,
+            'description' => $c->description,
+        ])->all();
         // After load, default the picker to "custom" — saved address pick is opt-in per session.
         $this->pickup_address_choice = 'custom';
     }
@@ -104,7 +140,9 @@ class Edit extends Component
         return [
             'appointment_date' => ['required', 'date_format:Y-m-d'],
             'appointment_time' => ['required', 'date_format:H:i'],
-            'channel' => ['required', Rule::in(array_keys(Appointment::channels()))],
+            'time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
+            'booking_channel_id' => ['required', 'integer', Rule::exists('booking_channels', 'id')->where('is_active', true)],
+            'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_vehicle_id' => [
                 'required', 'integer',
@@ -114,11 +152,33 @@ class Edit extends Component
             'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
-            'requires_pickup' => ['boolean'],
-            'pickup_address' => ['nullable', 'string', 'max:1000', 'required_if:requires_pickup,true'],
+            'pickup_drop_option_id' => ['required', 'integer', Rule::exists('pickup_drop_options', 'id')->where('is_active', true)],
+            // Address only matters when the workshop is the one moving the vehicle.
+            'pickup_address' => [Rule::requiredIf(fn () => $this->optionInvolvesPickup()), 'nullable', 'string', 'max:1000'],
             'pickup_contact_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'status' => ['required', Rule::in(array_keys(Appointment::statuses()))],
+            'cancel_reason_id' => [
+                Rule::requiredIf(fn () => $this->status === Appointment::STATUS_CANCELLED),
+                'nullable', 'integer',
+                Rule::exists('cancel_reasons', 'id')->where('is_active', true),
+            ],
+            'pending_reason_id' => ['nullable', 'integer', Rule::exists('pending_reasons', 'id')->where('is_active', true)],
+            'complaints' => ['array'],
+            'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
+            'complaints.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
+            'complaints.*.description' => ['required', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    protected function validationAttributes(): array
+    {
+        return [
+            'booking_channel_id' => 'booking channel',
+            'pickup_drop_option_id' => 'pickup/drop option',
+            'cancel_reason_id' => 'cancel reason',
+            'time_slot_id' => 'time slot',
         ];
     }
 
@@ -130,9 +190,19 @@ class Edit extends Component
         $this->pickup_address_choice = 'custom';
     }
 
-    public function updatedRequiresPickup(bool $value): void
+    /** True when the picked option means the workshop collects the vehicle. */
+    public function optionInvolvesPickup(): bool
     {
-        if (! $value) {
+        if (! $this->pickup_drop_option_id) {
+            return false;
+        }
+
+        return (bool) PickupDropOptionMaster::find($this->pickup_drop_option_id)?->involves_pickup;
+    }
+
+    public function updatedPickupDropOptionId(): void
+    {
+        if (! $this->optionInvolvesPickup()) {
             $this->pickup_address = null;
             $this->pickup_contact_phone = null;
             $this->pickup_address_choice = 'custom';
@@ -208,6 +278,142 @@ class Edit extends Component
     }
 
     #[Computed]
+    public function bookingChannels()
+    {
+        return BookingChannelMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function priorities()
+    {
+        return PriorityMaster::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function pickupDropOptions()
+    {
+        return PickupDropOptionMaster::query()->where('is_active', true)->orderBy('name')
+            ->get(['id', 'name', 'involves_pickup', 'involves_drop']);
+    }
+
+    #[Computed]
+    public function cancelReasons()
+    {
+        return CancelReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function pendingReasons()
+    {
+        return PendingReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function complaintTypes()
+    {
+        return ComplaintTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function jobDescriptions()
+    {
+        return JobDescriptionMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Active slots with how many vehicles are already booked on the chosen date.
+     * Capacity is advisory — the form warns but still lets the advisor book.
+     *
+     * @return Collection<int, array{id:int, label:string, booked:int, capacity:int, isFull:bool}>
+     */
+    #[Computed]
+    public function timeSlots()
+    {
+        $slots = TimeSlotMaster::query()->where('is_active', true)->orderBy('slot_start_time')->get();
+
+        if ($slots->isEmpty()) {
+            return collect();
+        }
+
+        $counts = Appointment::query()
+            ->whereDate('appointment_at', $this->appointment_date ?: now()->toDateString())
+            ->whereNotIn('status', [Appointment::STATUS_CANCELLED, Appointment::STATUS_NO_SHOW])
+            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
+            ->selectRaw('time_slot_id, count(*) as aggregate')
+            ->groupBy('time_slot_id')
+            ->pluck('aggregate', 'time_slot_id');
+
+        return $slots->map(function (TimeSlotMaster $slot) use ($counts) {
+            $booked = (int) ($counts[$slot->id] ?? 0);
+            $capacity = (int) $slot->max_vehicles_per_slot;
+
+            return [
+                'id' => $slot->id,
+                'label' => $slot->window(),
+                'booked' => $booked,
+                'capacity' => $capacity,
+                'isFull' => $booked >= $capacity,
+            ];
+        });
+    }
+
+    /**
+     * Advisory warnings shown above the form — a full slot or a non-working day
+     * never blocks the booking, it just makes the advisor aware.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function schedulingWarnings(): array
+    {
+        $warnings = [];
+
+        if ($this->appointment_date !== '') {
+            $date = Carbon::parse($this->appointment_date);
+
+            $holiday = HolidayMaster::query()
+                ->where('is_active', true)
+                ->where(fn ($q) => $q
+                    ->whereDate('holiday_date', $date)
+                    // Recurring holidays repeat on the same day each year.
+                    ->orWhere(fn ($r) => $r->where('is_recurring', true)
+                        ->whereMonth('holiday_date', $date->month)
+                        ->whereDay('holiday_date', $date->day)))
+                ->first();
+
+            if ($holiday) {
+                $warnings[] = $date->format('d M Y').' is a non-working day ('.$holiday->name.').';
+            }
+        }
+
+        if ($this->time_slot_id) {
+            $slot = $this->timeSlots->firstWhere('id', $this->time_slot_id);
+
+            if ($slot && $slot['isFull']) {
+                $warnings[] = 'Slot '.$slot['label'].' is already at capacity ('.$slot['booked'].'/'.$slot['capacity'].' vehicles).';
+            }
+        }
+
+        return $warnings;
+    }
+
+    public function addComplaint(): void
+    {
+        $this->complaints[] = [
+            'id' => null,
+            'complaint_type_id' => null,
+            'job_description_id' => null,
+            'description' => '',
+        ];
+    }
+
+    public function removeComplaint(int $index): void
+    {
+        unset($this->complaints[$index]);
+        $this->complaints = array_values($this->complaints);
+    }
+
+    #[Computed]
     public function workshopDepartments()
     {
         return WorkshopDepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
@@ -256,21 +462,48 @@ class Edit extends Component
         $data['appointment_at'] = Carbon::parse($data['appointment_date'].' '.$data['appointment_time'].':00');
         unset($data['appointment_date'], $data['appointment_time']);
 
+        // Line items are written to their own table, never onto the parent row.
+        $complaints = $data['complaints'] ?? [];
+        unset($data['complaints']);
+
         foreach (['pickup_address', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
             }
         }
 
+        // Reasons only belong to the state that asks for them.
+        if ($this->status !== Appointment::STATUS_CANCELLED) {
+            $data['cancel_reason_id'] = null;
+        }
+        if ($this->status !== Appointment::STATUS_PENDING) {
+            $data['pending_reason_id'] = null;
+        }
+
         $isCreate = $this->editingId === null;
 
+        $appointment = DB::transaction(function () use ($data, $complaints, $isCreate) {
+            if ($isCreate) {
+                $appointment = Appointment::create($data);
+            } else {
+                $appointment = Appointment::findOrFail($this->editingId);
+
+                // Moving a booked appointment keeps the slot it came from.
+                if ($appointment->appointment_at?->ne($data['appointment_at'])) {
+                    $data['rescheduled_from_at'] = $appointment->appointment_at;
+                }
+
+                $appointment->update($data);
+            }
+
+            $this->syncComplaints($appointment, $complaints);
+
+            return $appointment;
+        });
+
         if ($isCreate) {
-            $appointment = Appointment::create($data);
             $this->editingId = $appointment->id;
             $this->appointment_no = $appointment->fresh()->appointment_no;
-        } else {
-            $appointment = Appointment::findOrFail($this->editingId);
-            $appointment->update($data);
         }
 
         Flux::toast(
@@ -279,6 +512,34 @@ class Edit extends Component
         );
 
         return redirect()->route('appointment.index');
+    }
+
+    /**
+     * Upsert the complaint lines and drop any the advisor removed.
+     *
+     * @param  array<int, array{id:?int, complaint_type_id:?int, job_description_id:?int, description:string}>  $complaints
+     */
+    protected function syncComplaints(Appointment $appointment, array $complaints): void
+    {
+        $keptIds = [];
+
+        foreach (array_values($complaints) as $i => $line) {
+            $payload = [
+                'complaint_type_id' => $line['complaint_type_id'] ?: null,
+                'job_description_id' => $line['job_description_id'] ?: null,
+                'description' => strtoupper(trim($line['description'])),
+                'sequence_no' => $i + 1,
+            ];
+
+            $row = $appointment->complaints()->updateOrCreate(
+                ['id' => $line['id'] ?? null],
+                $payload,
+            );
+
+            $keptIds[] = $row->id;
+        }
+
+        $appointment->complaints()->whereKeyNot($keptIds)->delete();
     }
 
     public function render()

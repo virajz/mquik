@@ -3,8 +3,8 @@
 use App\Modules\GateInOut\Models\GateInOut;
 
 return [
-    'label' => 'Gate In / Out',
-    'description' => 'Inward and outward vehicle event log — ANPR camera or manual entry, reg-no standardised.',
+    'label' => 'Inward / Outward',
+    'description' => 'Vehicle entry and exit as one visit record — gate, parking slot, outward type and TAT.',
     'group' => 'Workshop',
     'icon' => 'arrow-right-end-on-rectangle',
     'permissions' => [

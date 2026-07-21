@@ -3,6 +3,7 @@
 namespace App\Modules\VehicleInspectionOrder\Database\Factories;
 
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -17,7 +18,10 @@ class VehicleInspectionOrderFactory extends Factory
     {
         return [
             'job_card_id' => JobCard::factory(),
-            'work_priority' => 'normal',
+            'priority_id' => PriorityMaster::firstOrCreate(
+                ['name' => 'NORMAL'],
+                ['code' => 'NRM', 'sort_order' => 10, 'applies_to' => 'both', 'is_active' => true],
+            )->id,
             'status' => VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING,
         ];
     }

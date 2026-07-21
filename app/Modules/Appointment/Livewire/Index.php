@@ -3,6 +3,7 @@
 namespace App\Modules\Appointment\Livewire;
 
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
@@ -138,6 +139,12 @@ class Index extends Component
                 'workshopDepartment:id,name',
                 'advisor:id,name',
                 'serviceType:id,name',
+                'bookingChannel:id,name',
+                'timeSlot:id,name,slot_start_time,slot_end_time',
+                'priority:id,name',
+                'pickupDropOption:id,name',
+                // Driver stages are derived from the linked Pickup/Drop job.
+                'pickupDrops:id,appointment_id,status,driver_employee_id',
             ])
             ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
                 $q->whereLike('appointment_no', '%'.$search.'%', caseSensitive: false)
@@ -147,7 +154,7 @@ class Index extends Component
                     ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
             }))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
-            ->when($this->channelFilter !== 'all', fn ($q) => $q->where('channel', $this->channelFilter))
+            ->when($this->channelFilter !== 'all', fn ($q) => $q->where('booking_channel_id', (int) $this->channelFilter))
             ->when($this->advisorFilter !== 'all', fn ($q) => $q->where('assigned_advisor_id', (int) $this->advisorFilter))
             ->when($this->deptFilter !== 'all', fn ($q) => $q->where('workshop_department_id', (int) $this->deptFilter))
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('appointment_at', '>=', $this->dateFrom))
@@ -158,7 +165,8 @@ class Index extends Component
         return view('appointment::index', [
             'rows' => $rows,
             'statuses' => Appointment::statuses(),
-            'channels' => Appointment::channels(),
+            'channels' => BookingChannelMaster::query()->where('is_active', true)
+                ->orderBy('name')->pluck('name', 'id'),
         ]);
     }
 }

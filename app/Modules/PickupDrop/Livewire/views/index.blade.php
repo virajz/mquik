@@ -85,8 +85,9 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) {
-                            'scheduled' => 'amber', 'picked' => 'blue', 'in_transit' => 'sky',
-                            'delivered' => 'lime', 'cancelled' => 'zinc', default => 'zinc',
+                            'pending' => 'amber', 'driver_assigned' => 'blue', 'driver_on_the_way' => 'sky',
+                            'vehicle_collected' => 'indigo', 'vehicle_delivered' => 'lime',
+                            'completed' => 'green', 'cancelled' => 'zinc', default => 'zinc',
                         })
                         <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
                     </flux:table.cell>

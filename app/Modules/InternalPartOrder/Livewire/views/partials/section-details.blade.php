@@ -11,9 +11,9 @@
                     <flux:select.option :value="$k">{{ $l }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="order_priority" variant="listbox" label="Order Priority" required>
-                @foreach (InternalPartOrder::priorities() as $k => $l)
-                    <flux:select.option :value="$k">{{ $l }}</flux:select.option>
+            <flux:select wire:model="priority_id" variant="listbox" label="Order Priority" placeholder="Normal">
+                @foreach ($this->priorities as $p)
+                    <flux:select.option :value="$p->id" wire:key="prio-{{ $p->id }}">{{ $p->name }}</flux:select.option>
                 @endforeach
             </flux:select>
         </div>

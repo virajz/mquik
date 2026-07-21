@@ -6,6 +6,7 @@ use App\Modules\BayMaster\Models\BayMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use Faker\Factory;
 use Illuminate\Database\Seeder;
@@ -28,6 +29,7 @@ class VehicleInspectionOrderSeeder extends Seeder
         $template = InspectionTemplateMaster::with(['items.group'])->where('is_active', true)->first();
         $bay = BayMaster::where('is_active', true)->first();
         $technician = EmployeeMaster::where('is_active', true)->first();
+        $priorities = PriorityMaster::forScope('workshop')->pluck('id')->values();
 
         foreach ($jobCards as $i => $jobCard) {
             $state = match ($i % 3) {
@@ -46,7 +48,7 @@ class VehicleInspectionOrderSeeder extends Seeder
                 'inspection_template_id' => $template?->id,
                 'bay_id' => $bay?->id,
                 'technician_id' => $technician?->id,
-                'work_priority' => ['normal', 'high', 'urgent'][$i % 3],
+                'priority_id' => $priorities->isNotEmpty() ? $priorities[$i % $priorities->count()] : null,
             ]);
 
             if ($template) {

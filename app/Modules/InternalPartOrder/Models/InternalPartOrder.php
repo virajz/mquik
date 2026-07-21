@@ -11,6 +11,7 @@ use App\Modules\InternalPartOrder\Database\Factories\InternalPartOrderFactory;
 use App\Modules\IpoCancellationReasonMaster\Models\IpoCancellationReasonMaster;
 use App\Modules\IpoRejectionReasonMaster\Models\IpoRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\SalesEstimate\Models\SalesEstimate;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -135,17 +136,6 @@ class InternalPartOrder extends Model
     }
 
     /** @return array<string, string> */
-    public static function priorities(): array
-    {
-        return [
-            'normal' => 'Normal',
-            'urgent' => 'Urgent',
-            'breakdown' => 'Breakdown',
-            'critical' => 'Critical',
-        ];
-    }
-
-    /** @return array<string, string> */
     public static function statuses(): array
     {
         return [
@@ -214,5 +204,10 @@ class InternalPartOrder extends Model
             'accepted' => 'Accepted',
             'rejected' => 'Rejected',
         ];
+    }
+
+    public function priority(): BelongsTo
+    {
+        return $this->belongsTo(PriorityMaster::class, 'priority_id');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Modules\VehicleInspectionOrder\Livewire;
 
 use App\Modules\BayMaster\Models\BayMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
@@ -40,7 +41,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'desc';
 
-    protected array $sortable = ['id', 'order_no', 'status', 'work_priority', 'created_at', 'started_at', 'ended_at'];
+    protected array $sortable = ['id', 'order_no', 'status', 'priority_id', 'created_at', 'started_at', 'ended_at'];
 
     public function updatingSearch(): void
     {
@@ -118,6 +119,7 @@ class Index extends Component
                 'jobCard.customer:id,first_name,last_name',
                 'jobCard.customerVehicle:id,registration_no',
                 'technician:id,name',
+                'priority:id,name',
                 'bay:id,name',
                 'template:id,name',
             ])
@@ -128,7 +130,7 @@ class Index extends Component
                     ->orWhereHas('jobCard.customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
             }))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
-            ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('work_priority', $this->priorityFilter))
+            ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('priority_id', (int) $this->priorityFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('technician_id', (int) $this->technicianFilter))
             ->when($this->bayFilter !== 'all', fn ($q) => $q->where('bay_id', (int) $this->bayFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
@@ -137,7 +139,7 @@ class Index extends Component
         return view('vehicle-inspection-order::index', [
             'rows' => $rows,
             'statuses' => VehicleInspectionOrder::statuses(),
-            'priorities' => VehicleInspectionOrder::priorities(),
+            'priorities' => PriorityMaster::forScope(PriorityMaster::APPLIES_WORKSHOP)->pluck('name', 'id'),
         ]);
     }
 }

@@ -25,21 +25,22 @@ class PickupDropFactory extends Factory
             'customer_id' => $customer->id,
             'customer_vehicle_id' => $vehicle->id,
             'scheduled_at' => $this->faker->dateTimeBetween('-3 days', '+1 week'),
-            'address' => strtoupper($this->faker->address()),
+            'pickup_address' => strtoupper($this->faker->address()),
             'contact_phone' => $this->faker->numerify('##########'),
             'driver_employee_id' => EmployeeMaster::factory(),
-            'status' => PickupDrop::STATUS_SCHEDULED,
+            'status' => PickupDrop::STATUS_PENDING,
+            'otp_mode' => PickupDrop::OTP_OPTIONAL,
         ];
     }
 
     public function picked(): static
     {
-        return $this->state(fn () => ['status' => PickupDrop::STATUS_PICKED]);
+        return $this->state(fn () => ['status' => PickupDrop::STATUS_VEHICLE_COLLECTED]);
     }
 
     public function delivered(): static
     {
-        return $this->state(fn () => ['status' => PickupDrop::STATUS_DELIVERED]);
+        return $this->state(fn () => ['status' => PickupDrop::STATUS_VEHICLE_DELIVERED]);
     }
 
     public function drop(): static

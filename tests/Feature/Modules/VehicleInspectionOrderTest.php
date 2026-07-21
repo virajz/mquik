@@ -4,6 +4,7 @@ use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VehicleInspectionOrder\Livewire\Edit;
 use App\Modules\VehicleInspectionOrder\Livewire\Index;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
@@ -32,16 +33,20 @@ it('requires authentication', function () {
 it('creates a work order, stamps VIO number, and redirects into the editor', function () {
     $jobCard = JobCard::factory()->create();
 
+    $high = PriorityMaster::factory()->create([
+        'name' => 'HIGH', 'sort_order' => 20, 'applies_to' => 'both',
+    ]);
+
     Livewire::test(Edit::class)
         ->set('job_card_id', $jobCard->id)
-        ->set('work_priority', 'high')
+        ->set('priority_id', $high->id)
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect();
 
     $order = VehicleInspectionOrder::firstOrFail();
     expect($order->order_no)->toBe('VIO-'.str_pad((string) $order->id, 5, '0', STR_PAD_LEFT))
-        ->and($order->work_priority)->toBe('high')
+        ->and($order->priority->name)->toBe('HIGH')
         ->and($order->status)->toBe(VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING);
 });
 

@@ -32,9 +32,21 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">When the appointment is for, how it came in, and its current state.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
+                @if (count($this->schedulingWarnings))
+                    <flux:callout variant="warning" icon="exclamation-triangle" inline>
+                        <flux:callout.heading>Heads up</flux:callout.heading>
+                        <flux:callout.text>
+                            @foreach ($this->schedulingWarnings as $warning)
+                                <div>{{ $warning }}</div>
+                            @endforeach
+                            You can still book — this is only a warning.
+                        </flux:callout.text>
+                    </flux:callout>
+                @endif
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <flux:date-picker
-                        wire:model="appointment_date"
+                        wire:model.live="appointment_date"
                         label="Date"
                         placeholder="Select date"
                         with-today
@@ -48,18 +60,50 @@
                         placeholder="Select time"
                         type="input"
                     />
-                    <flux:select wire:model="channel" variant="listbox" label="Channel" required>
-                        @foreach (\App\Modules\Appointment\Models\Appointment::channels() as $key => $label)
+                    <flux:select wire:model.live="time_slot_id" variant="listbox" label="Time Slot" placeholder="No specific slot">
+                        @foreach ($this->timeSlots as $slot)
+                            <flux:select.option :value="$slot['id']" wire:key="slot-{{ $slot['id'] }}">
+                                {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:select wire:model="booking_channel_id" variant="listbox" label="Booking Channel" placeholder="How did it come in?" required>
+                        @foreach ($this->bookingChannels as $channel)
+                            <flux:select.option :value="$channel->id" wire:key="chan-{{ $channel->id }}">{{ $channel->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:select wire:model="priority_id" variant="listbox" label="Priority" placeholder="Normal">
+                        @foreach ($this->priorities as $priority)
+                            <flux:select.option :value="$priority->id" wire:key="prio-{{ $priority->id }}">{{ $priority->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:select wire:model.live="status" variant="listbox" label="Status" required>
+                        @foreach (\App\Modules\Appointment\Models\Appointment::statuses() as $key => $label)
                             <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
 
-                <flux:select wire:model="status" variant="listbox" label="Status" class="md:max-w-xs" required>
-                    @foreach (\App\Modules\Appointment\Models\Appointment::statuses() as $key => $label)
-                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                @if ($status === \App\Modules\Appointment\Models\Appointment::STATUS_CANCELLED)
+                    <flux:select wire:model="cancel_reason_id" variant="listbox" label="Cancel Reason" class="md:max-w-xs" required>
+                        @foreach ($this->cancelReasons as $reason)
+                            <flux:select.option :value="$reason->id" wire:key="cxl-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endif
+
+                @if ($status === \App\Modules\Appointment\Models\Appointment::STATUS_PENDING)
+                    <flux:select wire:model="pending_reason_id" variant="listbox" label="Pending Reason" class="md:max-w-xs" placeholder="Not specified">
+                        @foreach ($this->pendingReasons as $reason)
+                            <flux:select.option :value="$reason->id" wire:key="pnd-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endif
             </div>
         </section>
 
@@ -164,16 +208,17 @@
         {{-- PICKUP --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
-                <flux:heading size="lg">Pickup</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Toggle on if we're collecting the vehicle from the customer.</flux:text>
+                <flux:heading size="lg">Pickup / Drop</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">How the vehicle reaches and leaves the workshop. Options where we move the vehicle need an address.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:switch
-                    wire:model.live="requires_pickup"
-                    label="Requires pickup"
-                />
+                <flux:select wire:model.live="pickup_drop_option_id" variant="listbox" label="Pickup/Drop Option" placeholder="Choose an option…" required>
+                    @foreach ($this->pickupDropOptions as $option)
+                        <flux:select.option :value="$option->id" wire:key="pdopt-{{ $option->id }}">{{ $option->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
 
-                @if ($requires_pickup)
+                @if ($this->optionInvolvesPickup())
                     @if ($this->customerAddresses->isNotEmpty())
                         <flux:select wire:model.live="pickup_address_choice" variant="listbox" label="Saved address">
                             @foreach ($this->customerAddresses as $addr)
@@ -208,6 +253,55 @@
                         <flux:error name="pickup_contact_phone" />
                     </flux:field>
                 @endif
+            </div>
+        </section>
+
+        <flux:separator />
+
+        {{-- COMPLAINTS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Customer Complaints</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">What the customer reported when booking. These carry into the job card.</flux:text>
+            </div>
+            <div class="space-y-3 min-w-0">
+                @forelse ($complaints as $i => $complaint)
+                    <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end" wire:key="complaint-{{ $i }}">
+                        <flux:select wire:model="complaints.{{ $i }}.complaint_type_id" variant="listbox" searchable clearable label="Complaint Type" placeholder="Pick a type…">
+                            @foreach ($this->complaintTypes as $type)
+                                <flux:select.option :value="$type->id" wire:key="ct-{{ $i }}-{{ $type->id }}">{{ $type->name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+
+                        <flux:select wire:model="complaints.{{ $i }}.job_description_id" variant="listbox" searchable clearable label="Job Description" placeholder="Optional…">
+                            @foreach ($this->jobDescriptions as $job)
+                                <flux:select.option :value="$job->id" wire:key="jd-{{ $i }}-{{ $job->id }}">{{ $job->name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+
+                        <flux:button
+                            type="button"
+                            variant="ghost"
+                            icon="trash"
+                            wire:click="removeComplaint({{ $i }})"
+                        />
+
+                        <div class="md:col-span-3">
+                            <flux:input
+                                wire:model="complaints.{{ $i }}.description"
+                                placeholder="e.g. SUSPENSION NOISE OVER SPEED BREAKERS"
+                                required
+                            />
+                            <flux:error name="complaints.{{ $i }}.description" />
+                        </div>
+                    </div>
+                @empty
+                    <flux:text size="sm" class="text-zinc-500">No complaints recorded yet.</flux:text>
+                @endforelse
+
+                <flux:button type="button" variant="ghost" icon="plus" size="sm" wire:click="addComplaint">
+                    Add complaint
+                </flux:button>
             </div>
         </section>
 

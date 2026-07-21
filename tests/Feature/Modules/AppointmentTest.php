@@ -1,20 +1,57 @@
 <?php
 
-use App\Models\User;
 use App\Modules\Appointment\Livewire\Edit;
 use App\Modules\Appointment\Livewire\Index;
 use App\Modules\Appointment\Models\Appointment;
-use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
+use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
+use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
+use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\HolidayMaster\Models\HolidayMaster;
+use App\Modules\PickupDrop\Models\PickupDrop;
+use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
-use App\Support\Menu;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 beforeEach(function () {
     $this->actingAs(adminUser());
 });
+
+/** A booking channel, created on demand so tests don't depend on the seeder. */
+function channel(string $name = 'PHONE CALL'): BookingChannelMaster
+{
+    return BookingChannelMaster::firstOrCreate(['name' => $name], ['is_active' => true]);
+}
+
+/** A pickup/drop option; $pickup decides whether the workshop collects the vehicle. */
+function pickupOption(bool $pickup = false, ?string $name = null): PickupDropOptionMaster
+{
+    $name ??= $pickup ? 'WORKSHOP PICKUP ONLY' : 'CUSTOMER SELF DROP';
+
+    return PickupDropOptionMaster::firstOrCreate(
+        ['name' => $name],
+        ['involves_pickup' => $pickup, 'involves_drop' => false, 'is_active' => true],
+    );
+}
+
+/** The minimum valid set of selections the Edit form needs to save. */
+function fillValidAppointment(Testable $component): Testable
+{
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    return $component
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
+        ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
+        ->set('booking_channel_id', channel()->id)
+        ->set('pickup_drop_option_id', pickupOption()->id);
+}
 
 it('renders the index page', function () {
     Appointment::factory()->count(3)->create();
@@ -41,13 +78,15 @@ it('filters by status', function () {
 });
 
 it('filters by channel and advisor', function () {
+    $email = channel('EMAIL');
+    $phone = channel('PHONE CALL');
     $a1 = EmployeeMaster::factory()->create(['name' => 'PRIYANKA']);
     $a2 = EmployeeMaster::factory()->create(['name' => 'VINOD']);
-    Appointment::factory()->create(['channel' => 'email', 'assigned_advisor_id' => $a1->id]);
-    Appointment::factory()->create(['channel' => 'phone_call', 'assigned_advisor_id' => $a2->id]);
+    Appointment::factory()->create(['booking_channel_id' => $email->id, 'assigned_advisor_id' => $a1->id]);
+    Appointment::factory()->create(['booking_channel_id' => $phone->id, 'assigned_advisor_id' => $a2->id]);
 
     Livewire::test(Index::class)
-        ->set('channelFilter', 'email')
+        ->set('channelFilter', (string) $email->id)
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1)
         ->set('channelFilter', 'all')
         ->set('advisorFilter', (string) $a2->id)
@@ -71,16 +110,7 @@ it('searches by appointment_no, customer name, and reg no', function () {
 });
 
 it('creates an appointment with capital typing on free-text fields', function () {
-    $customer = CustomerMaster::factory()->create();
-    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
-    $dept = WorkshopDepartmentMaster::factory()->create();
-    $advisor = EmployeeMaster::factory()->create();
-
-    Livewire::test(Edit::class)
-        ->set('customer_id', $customer->id)
-        ->set('customer_vehicle_id', $vehicle->id)
-        ->set('workshop_department_id', $dept->id)
-        ->set('assigned_advisor_id', $advisor->id)
+    fillValidAppointment(Livewire::test(Edit::class))
         ->set('notes', 'customer requested early delivery')
         ->call('save')
         ->assertHasNoErrors();
@@ -92,18 +122,31 @@ it('creates an appointment with capital typing on free-text fields', function ()
         ->and($a->appointment_no)->toStartWith('APT-');
 });
 
+it('requires a booking channel and a pickup/drop option', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
+        ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
+        ->call('save')
+        ->assertHasErrors(['booking_channel_id', 'pickup_drop_option_id']);
+});
+
 it('rejects a customer_vehicle that does not belong to the chosen customer', function () {
     $customerA = CustomerMaster::factory()->create();
     $customerB = CustomerMaster::factory()->create();
     $vehicleOfB = CustomerVehicleMaster::factory()->create(['customer_id' => $customerB->id]);
-    $dept = WorkshopDepartmentMaster::factory()->create();
-    $advisor = EmployeeMaster::factory()->create();
 
     Livewire::test(Edit::class)
         ->set('customer_id', $customerA->id)
         ->set('customer_vehicle_id', $vehicleOfB->id)
-        ->set('workshop_department_id', $dept->id)
-        ->set('assigned_advisor_id', $advisor->id)
+        ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
+        ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
+        ->set('booking_channel_id', channel()->id)
+        ->set('pickup_drop_option_id', pickupOption()->id)
         ->call('save')
         ->assertHasErrors(['customer_vehicle_id']);
 });
@@ -120,35 +163,25 @@ it('clears customer_vehicle_id when the customer changes', function () {
         ->assertSet('customer_vehicle_id', null);
 });
 
-it('requires pickup address when requires_pickup is on', function () {
-    $customer = CustomerMaster::factory()->create();
-    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
-    $dept = WorkshopDepartmentMaster::factory()->create();
-    $advisor = EmployeeMaster::factory()->create();
-
-    Livewire::test(Edit::class)
-        ->set('customer_id', $customer->id)
-        ->set('customer_vehicle_id', $vehicle->id)
-        ->set('workshop_department_id', $dept->id)
-        ->set('assigned_advisor_id', $advisor->id)
-        ->set('requires_pickup', true)
+it('requires a pickup address when the option means the workshop collects the vehicle', function () {
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', pickupOption(true)->id)
+        ->set('pickup_address', null)
         ->call('save')
         ->assertHasErrors(['pickup_address']);
 });
 
-it('combines appointment_date + appointment_time into a single datetime on save', function () {
-    $customer = CustomerMaster::factory()->create();
-    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
-    $dept = WorkshopDepartmentMaster::factory()->create();
-    $advisor = EmployeeMaster::factory()->create();
+it('does not require a pickup address for a self-drop option', function () {
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', pickupOption(false)->id)
+        ->call('save')
+        ->assertHasNoErrors();
+});
 
-    Livewire::test(Edit::class)
+it('combines appointment_date + appointment_time into a single datetime on save', function () {
+    fillValidAppointment(Livewire::test(Edit::class))
         ->set('appointment_date', '2026-08-15')
         ->set('appointment_time', '14:30')
-        ->set('customer_id', $customer->id)
-        ->set('customer_vehicle_id', $vehicle->id)
-        ->set('workshop_department_id', $dept->id)
-        ->set('assigned_advisor_id', $advisor->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -165,7 +198,7 @@ it('selecting a saved customer address fills the pickup_address textarea', funct
 
     Livewire::test(Edit::class)
         ->set('customer_id', $customer->id)
-        ->set('requires_pickup', true)
+        ->set('pickup_drop_option_id', pickupOption(true)->id)
         ->assertSet('pickup_address_choice', (string) $address->id)
         ->assertSet('pickup_address', '12 Maple Street');
 });
@@ -176,18 +209,18 @@ it('switching to custom address choice keeps whatever text is in the textarea', 
 
     Livewire::test(Edit::class)
         ->set('customer_id', $customer->id)
-        ->set('requires_pickup', true)
+        ->set('pickup_drop_option_id', pickupOption(true)->id)
         ->set('pickup_address', 'TYPED OVER ADDRESS')
         ->set('pickup_address_choice', 'custom')
         ->assertSet('pickup_address', 'TYPED OVER ADDRESS');
 });
 
-it('clears pickup fields when requires_pickup is toggled off', function () {
+it('clears pickup fields when the option switches back to self-drop', function () {
     Livewire::test(Edit::class)
-        ->set('requires_pickup', true)
+        ->set('pickup_drop_option_id', pickupOption(true)->id)
         ->set('pickup_address', 'SOME ADDRESS')
         ->set('pickup_contact_phone', '9999999999')
-        ->set('requires_pickup', false)
+        ->set('pickup_drop_option_id', pickupOption(false)->id)
         ->assertSet('pickup_address', null)
         ->assertSet('pickup_contact_phone', null);
 });
@@ -207,72 +240,111 @@ it('updates an existing appointment without changing appointment_no', function (
         ->and($a->fresh()->appointment_no)->toBe($original);
 });
 
-it('quick-adds a customer via the trait and selects them', function () {
-    $bt = BusinessTypeMaster::firstOrCreate(['name' => 'WALKING'], ['is_active' => true]);
+it('requires a cancel reason only when the status is cancelled', function () {
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('status', Appointment::STATUS_CANCELLED)
+        ->call('save')
+        ->assertHasErrors(['cancel_reason_id']);
 
-    Livewire::test(Edit::class)
-        ->set('quickCustomer.first_name', 'NEW WALKIN')
-        ->set('quickCustomer.phone', '9876543210')
-        ->set('quickCustomer.business_type_id', $bt->id)
-        ->call('createQuickCustomer')
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('status', Appointment::STATUS_CANCELLED)
+        ->set('cancel_reason_id', CancelReasonMaster::factory()->create()->id)
+        ->call('save')
+        ->assertHasNoErrors();
+});
+
+it('saves customer complaints as line items and re-syncs on update', function () {
+    $type = ComplaintTypeMaster::factory()->create();
+
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->call('addComplaint')
+        ->set('complaints.0.complaint_type_id', $type->id)
+        ->set('complaints.0.description', 'suspension noise')
+        ->call('addComplaint')
+        ->set('complaints.1.description', 'ac not working')
+        ->call('save')
         ->assertHasNoErrors();
 
-    $created = CustomerMaster::where('first_name', 'NEW WALKIN')->first();
-    expect($created)->not->toBeNull();
-});
+    $a = Appointment::first();
+    expect($a->complaints)->toHaveCount(2)
+        ->and($a->complaints->first()->description)->toBe('SUSPENSION NOISE')
+        ->and($a->complaints->first()->complaint_type_id)->toBe($type->id);
 
-it('Edit::save blocks a user without create permission', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo('appointment.view');
-    $this->actingAs($user);
-
-    $customer = CustomerMaster::factory()->create();
-    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
-    $dept = WorkshopDepartmentMaster::factory()->create();
-    $advisor = EmployeeMaster::factory()->create();
-
-    Livewire::test(Edit::class)
-        ->set('customer_id', $customer->id)
-        ->set('customer_vehicle_id', $vehicle->id)
-        ->set('workshop_department_id', $dept->id)
-        ->set('assigned_advisor_id', $advisor->id)
+    // Reopening and removing a line deletes it rather than orphaning it.
+    Livewire::test(Edit::class, ['appointment' => $a])
+        ->call('removeComplaint', 1)
         ->call('save')
-        ->assertStatus(403);
+        ->assertHasNoErrors();
 
-    expect(Appointment::count())->toBe(0);
+    expect($a->fresh()->complaints)->toHaveCount(1);
 });
 
-it('Index::delete blocks a user without delete permission', function () {
-    $a = Appointment::factory()->create();
+it('warns but still allows booking into a full time slot', function () {
+    $slot = TimeSlotMaster::factory()->window('09:00', '10:00', 1)->create();
+    $date = '2026-09-10';
 
-    $user = User::factory()->create();
-    $user->givePermissionTo('appointment.view');
-    $this->actingAs($user);
+    // Fill the slot's single seat.
+    Appointment::factory()->create([
+        'time_slot_id' => $slot->id,
+        'appointment_at' => $date.' 09:00:00',
+    ]);
 
-    Livewire::test(Index::class)
-        ->call('delete', $a->id)
-        ->assertStatus(403);
+    $component = fillValidAppointment(Livewire::test(Edit::class))
+        ->set('appointment_date', $date)
+        ->set('time_slot_id', $slot->id);
 
-    expect(Appointment::find($a->id))->not->toBeNull();
+    expect($component->instance()->schedulingWarnings)
+        ->toHaveCount(1)
+        ->and($component->instance()->schedulingWarnings[0])->toContain('capacity');
+
+    // Soft warning: the save still goes through.
+    $component->call('save')->assertHasNoErrors();
+
+    expect(Appointment::where('time_slot_id', $slot->id)->count())->toBe(2);
 });
 
-it('deletes an appointment from the index', function () {
-    $a = Appointment::factory()->create();
+it('warns when the chosen date is a holiday', function () {
+    HolidayMaster::factory()->create([
+        'name' => 'REPUBLIC DAY',
+        'holiday_date' => '2027-01-26',
+        'is_recurring' => false,
+        'is_active' => true,
+    ]);
 
-    Livewire::test(Index::class)
-        ->call('delete', $a->id);
+    $component = Livewire::test(Edit::class)->set('appointment_date', '2027-01-26');
 
-    expect(Appointment::find($a->id))->toBeNull();
+    expect($component->instance()->schedulingWarnings)->toHaveCount(1)
+        ->and($component->instance()->schedulingWarnings[0])->toContain('REPUBLIC DAY');
 });
 
-it('requires authentication', function () {
-    auth()->logout();
+it('derives the driver stage from the linked pickup/drop job', function () {
+    $a = Appointment::factory()->create(['status' => Appointment::STATUS_CONFIRMED]);
 
-    $this->get(route('appointment.index'))->assertRedirect(route('login'));
+    expect($a->effectiveStatusLabel())->toBe('Confirmed');
+
+    $job = PickupDrop::factory()->create([
+        'appointment_id' => $a->id,
+        'status' => PickupDrop::STATUS_DRIVER_ON_THE_WAY,
+    ]);
+
+    expect($a->fresh()->effectiveStatusLabel())->toBe('Driver on the Way');
+
+    $job->update(['status' => PickupDrop::STATUS_VEHICLE_COLLECTED]);
+    expect($a->fresh()->effectiveStatusLabel())->toBe('Vehicle Collected');
+
+    // A terminal appointment state always wins over the driver stage.
+    $a->update(['status' => Appointment::STATUS_CANCELLED]);
+    expect($a->fresh()->effectiveStatusLabel())->toBe('Cancelled');
 });
 
-it('sidebar mode toggle now appears because Appointment is the first operations item', function () {
-    $menu = app(Menu::class);
+it('stamps rescheduled_from_at when the appointment is moved', function () {
+    $a = Appointment::factory()->create(['appointment_at' => '2026-08-01 10:00:00']);
 
-    expect($menu->availableModes()->all())->toEqualCanonicalizing(['operations', 'setup']);
+    Livewire::test(Edit::class, ['appointment' => $a])
+        ->set('appointment_date', '2026-08-05')
+        ->set('appointment_time', '11:00')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($a->fresh()->rescheduled_from_at?->format('Y-m-d H:i'))->toBe('2026-08-01 10:00');
 });

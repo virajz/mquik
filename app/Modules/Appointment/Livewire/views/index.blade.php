@@ -51,7 +51,8 @@
             <flux:table.column>Customer / Vehicle</flux:table.column>
             <flux:table.column class="w-40">Advisor / Dept</flux:table.column>
             <flux:table.column class="w-32">Channel</flux:table.column>
-            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
+            <flux:table.column class="w-24">Priority</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
@@ -61,7 +62,9 @@
                     <flux:table.cell class="font-mono text-xs">{{ $row->appointment_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
                         <div class="font-medium">{{ $row->appointment_at?->format('d M Y') }}</div>
-                        <div class="text-xs text-zinc-500 mt-0.5">{{ $row->appointment_at?->format('h:i A') }}</div>
+                        <div class="text-xs text-zinc-500 mt-0.5">
+                            {{ $row->timeSlot?->window() ?? $row->appointment_at?->format('h:i A') }}
+                        </div>
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="font-medium">{{ trim($row->customer?->first_name.' '.($row->customer?->last_name ?? '')) }}</div>
@@ -82,17 +85,29 @@
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->workshopDepartment?->name ?? '—' }}</div>
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500">
-                        {{ \App\Modules\Appointment\Models\Appointment::channels()[$row->channel] ?? $row->channel }}
-                        @if ($row->requires_pickup)
-                            <div class="mt-0.5"><flux:badge color="amber" size="sm">Pickup</flux:badge></div>
+                        {{ $row->bookingChannel?->name ?? '—' }}
+                        @if ($row->pickupDropOption?->involves_pickup || $row->pickupDropOption?->involves_drop)
+                            <div class="mt-0.5">
+                                <flux:badge color="amber" size="sm">{{ $row->pickupDropOption->name }}</flux:badge>
+                            </div>
+                        @endif
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if ($row->priority)
+                            @php($priorityColor = match (strtoupper($row->priority->name)) {
+                                'URGENT' => 'red', 'HIGH' => 'amber', default => 'zinc',
+                            })
+                            <flux:badge :color="$priorityColor" size="sm">{{ $row->priority->name }}</flux:badge>
+                        @else
+                            —
                         @endif
                     </flux:table.cell>
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) {
-                            'pending' => 'amber', 'confirmed' => 'blue', 'completed' => 'lime',
-                            'cancelled' => 'zinc', 'no_show' => 'red', default => 'zinc',
+                            'pending' => 'amber', 'confirmed' => 'blue', 'rescheduled' => 'purple',
+                            'completed' => 'lime', 'cancelled' => 'zinc', 'no_show' => 'red', default => 'zinc',
                         })
-                        <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
+                        <flux:badge :color="$statusColor" size="sm">{{ $row->effectiveStatusLabel() }}</flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">

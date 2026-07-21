@@ -4,6 +4,7 @@ use App\Modules\InternalPartOrder\Livewire\Edit;
 use App\Modules\InternalPartOrder\Livewire\Index;
 use App\Modules\InternalPartOrder\Models\InternalPartOrder;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use Livewire\Livewire;
@@ -28,10 +29,14 @@ it('requires authentication', function () {
 it('creates an IPO, stamps the number, and redirects into the editor', function () {
     $jobCard = JobCard::factory()->create();
 
+    $urgent = PriorityMaster::factory()->create([
+        'name' => 'URGENT', 'sort_order' => 30, 'applies_to' => 'both',
+    ]);
+
     Livewire::test(Edit::class)
         ->set('job_card_id', $jobCard->id)
         ->set('ipo_type', 'general_use')
-        ->set('order_priority', 'urgent')
+        ->set('priority_id', $urgent->id)
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect();
@@ -39,7 +44,7 @@ it('creates an IPO, stamps the number, and redirects into the editor', function 
     $ipo = InternalPartOrder::firstOrFail();
     expect($ipo->order_no)->toBe('IPO-'.str_pad((string) $ipo->id, 5, '0', STR_PAD_LEFT))
         ->and($ipo->ipo_type)->toBe('general_use')
-        ->and($ipo->order_priority)->toBe('urgent');
+        ->and($ipo->priority->name)->toBe('URGENT');
 });
 
 it('prefills description, uom and stock status when a spare is picked', function () {

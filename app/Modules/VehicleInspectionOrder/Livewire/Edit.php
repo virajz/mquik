@@ -7,6 +7,7 @@ use App\Modules\DelayReasonMaster\Models\DelayReasonMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ReworkReasonMaster\Models\ReworkReasonMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
@@ -48,7 +49,7 @@ class Edit extends Component
 
     public ?int $inspection_template_id = null;
 
-    public string $work_priority = 'normal';
+    public ?int $priority_id = null;
 
     public string $status = VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING;
 
@@ -107,7 +108,7 @@ class Edit extends Component
         $this->technician_id = $order->technician_id;
         $this->bay_id = $order->bay_id;
         $this->inspection_template_id = $order->inspection_template_id;
-        $this->work_priority = $order->work_priority;
+        $this->priority_id = $order->priority_id;
         $this->status = $order->status;
         $this->completion_type = $order->completion_type;
         $this->hold_reason_id = $order->hold_reason_id;
@@ -233,7 +234,7 @@ class Edit extends Component
             'technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'bay_id' => ['nullable', 'integer', Rule::exists('bays', 'id')->where('is_active', true)],
             'inspection_template_id' => ['nullable', 'integer', Rule::exists('inspection_templates', 'id')->where('is_active', true)],
-            'work_priority' => ['required', Rule::in(array_keys(VehicleInspectionOrder::priorities()))],
+            'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'status' => ['required', Rule::in(array_keys(VehicleInspectionOrder::statuses()))],
             'completion_type' => ['nullable', Rule::in(array_keys(VehicleInspectionOrder::completionTypes()))],
             'hold_reason_id' => ['nullable', 'integer', 'exists:work_order_hold_reasons,id'],
@@ -257,6 +258,13 @@ class Edit extends Component
             'pauses.*.resumed_at' => ['nullable', 'date'],
             'pauses.*.notes' => ['nullable', 'string', 'max:500'],
         ];
+    }
+
+    /** Workshop-scoped urgency levels from the shared priority master. */
+    #[Computed]
+    public function priorities()
+    {
+        return PriorityMaster::forScope(PriorityMaster::APPLIES_WORKSHOP)->get(['id', 'name']);
     }
 
     #[Computed]
