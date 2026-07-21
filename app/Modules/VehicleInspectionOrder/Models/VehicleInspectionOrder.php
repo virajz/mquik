@@ -14,6 +14,7 @@ use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ReworkReasonMaster\Models\ReworkReasonMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Database\Factories\VehicleInspectionOrderFactory;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -151,6 +152,28 @@ class VehicleInspectionOrder extends Model
         return $this->hasMany(VehicleInspectionOrderPause::class, 'vehicle_inspection_order_id')->orderBy('paused_at');
     }
 
+    /** What this order is inspecting — complaints, job descriptions, packages. */
+    public function workScopes(): HasMany
+    {
+        return $this->hasMany(VehicleInspectionOrderScope::class, 'vehicle_inspection_order_id')->orderBy('sequence_no');
+    }
+
+    /** Order-level photo evidence, separate from the per-item before/after pair. */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(VehicleInspectionOrderPhoto::class, 'vehicle_inspection_order_id')->orderBy('sequence_no');
+    }
+
+    /**
+     * Extra work discovered during the inspection. Recorded by the Technician
+     * Findings module rather than duplicated here — this is the "additional
+     * work" side of the order.
+     */
+    public function findings(): HasMany
+    {
+        return $this->hasMany(TechnicianFinding::class, 'vehicle_inspection_order_id');
+    }
+
     /**
      * @return array<string, string>
      */
@@ -166,9 +189,6 @@ class VehicleInspectionOrder extends Model
         ];
     }
 
-    /**
-     * @return array<string, string>
-     */
     /**
      * @return array<string, string>
      */

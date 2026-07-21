@@ -38,12 +38,127 @@
             <flux:tab.group>
                 <flux:tabs wire:model="activeTab">
                     <flux:tab name="details" icon="clipboard-document-list">Details</flux:tab>
+                    <flux:tab name="scope" icon="rectangle-stack">Work Scope <flux:badge size="sm" class="ml-1">{{ count($workScopes) }}</flux:badge></flux:tab>
                     <flux:tab name="checklist" icon="list-bullet">Checklist &amp; Photos <flux:badge size="sm" class="ml-1">{{ count($items) }}</flux:badge></flux:tab>
+                    <flux:tab name="evidence" icon="camera">Evidence <flux:badge size="sm" class="ml-1">{{ count($photos) }}</flux:badge></flux:tab>
                     <flux:tab name="time" icon="clock">Time &amp; Status</flux:tab>
                 </flux:tabs>
 
                 <flux:tab.panel name="details" class="pt-6">
                     @include('vehicle-inspection-order::partials.section-details', ['lean' => false])
+                </flux:tab.panel>
+
+                {{-- WORK SCOPE — what this order is inspecting --}}
+                <flux:tab.panel name="scope" class="pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <flux:heading size="lg">Work Scope</flux:heading>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">
+                                What this order covers — a complaint, a job description, or a service / combo / AMC package.
+                            </flux:text>
+                        </div>
+                        <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addWorkScope">Add scope</flux:button>
+                    </div>
+
+                    @forelse ($workScopes as $i => $scope)
+                        <div wire:key="scope-{{ $i }}" class="space-y-3 p-3 mb-3 rounded-md border border-zinc-200 dark:border-zinc-800">
+                            <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                                <flux:select wire:model="workScopes.{{ $i }}.complaint_type_id" variant="listbox" size="sm" searchable clearable label="Complaint" placeholder="Optional…">
+                                    @foreach ($this->complaintTypes as $t)
+                                        <flux:select.option :value="$t->id" wire:key="sct-{{ $i }}-{{ $t->id }}">{{ $t->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+
+                                <flux:select wire:model="workScopes.{{ $i }}.job_description_id" variant="listbox" size="sm" searchable clearable label="Job Description" placeholder="Optional…">
+                                    @foreach ($this->jobDescriptions as $j)
+                                        <flux:select.option :value="$j->id" wire:key="sjd-{{ $i }}-{{ $j->id }}">{{ $j->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+
+                                <flux:select wire:model="workScopes.{{ $i }}.service_package_id" variant="listbox" size="sm" searchable clearable label="Package" placeholder="Service / Combo / AMC…">
+                                    @foreach ($this->servicePackages as $pkg)
+                                        <flux:select.option :value="$pkg->id" wire:key="spk-{{ $i }}-{{ $pkg->id }}">
+                                            {{ $pkg->name }}{{ $pkg->packageType ? ' · '.$pkg->packageType->name : '' }}
+                                        </flux:select.option>
+                                    @endforeach
+                                </flux:select>
+
+                                <flux:button type="button" variant="ghost" icon="trash" wire:click="removeWorkScope({{ $i }})" />
+                            </div>
+
+                            <flux:input wire:model="workScopes.{{ $i }}.description" size="sm" placeholder="e.g. PMS, FR SIDE NOISE, REAR SIDE NOISE" required />
+                            <flux:error name="workScopes.{{ $i }}.description" />
+                        </div>
+                    @empty
+                        <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
+                            No work scope recorded yet.
+                        </div>
+                    @endforelse
+                </flux:tab.panel>
+
+                {{-- EVIDENCE — order-level photos + technician findings --}}
+                <flux:tab.panel name="evidence" class="pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <flux:heading size="lg">Photo Evidence</flux:heading>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">
+                                Whole-vehicle views and fault evidence, separate from the per-item before/after shots.
+                            </flux:text>
+                        </div>
+                        <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addPhoto">Add photo</flux:button>
+                    </div>
+
+                    @forelse ($photos as $i => $photo)
+                        <div wire:key="vphoto-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-3">
+                            <flux:select wire:model="photos.{{ $i }}.photo_type_id" variant="listbox" size="sm" searchable clearable label="View" placeholder="Front, Damage…">
+                                @foreach ($this->photoTypes as $pt)
+                                    <flux:select.option :value="$pt->id" wire:key="vpt-{{ $i }}-{{ $pt->id }}">{{ $pt->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+
+                            <div>
+                                <flux:input type="file" size="sm" wire:model="photoFiles.{{ $i }}" label="Image" accept="image/*" />
+                                @if ($photo['path'])
+                                    <flux:text size="xs" class="text-zinc-500 mt-1">Saved: {{ basename($photo['path']) }}</flux:text>
+                                @endif
+                                <flux:error name="photoFiles.{{ $i }}" />
+                            </div>
+
+                            <flux:input wire:model="photos.{{ $i }}.notes" size="sm" label="Note" placeholder="Optional" />
+                            <flux:button type="button" variant="ghost" icon="trash" wire:click="removePhoto({{ $i }})" />
+                        </div>
+                    @empty
+                        <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
+                            No photo evidence yet.
+                        </div>
+                    @endforelse
+
+                    <flux:separator class="my-6" />
+
+                    <div class="mb-3">
+                        <flux:heading size="lg">Additional Work / Technician Findings</flux:heading>
+                        <flux:text size="sm" class="mt-1 text-zinc-500">
+                            Extra spares or labour raised against this order. Managed in Technician Findings.
+                        </flux:text>
+                    </div>
+
+                    @forelse ($this->findings as $finding)
+                        <div wire:key="find-{{ $finding->id }}" class="flex items-start justify-between gap-3 py-2 border-b border-zinc-100 dark:border-zinc-800">
+                            <div>
+                                <div class="font-medium text-sm">{{ $finding->description }}</div>
+                                <div class="text-xs text-zinc-500 mt-0.5">
+                                    {{ $finding->spare?->name ?? $finding->labour?->name ?? '—' }}
+                                    · Qty {{ $finding->quantity }}
+                                    @if ($finding->estimated_amount) · ₹{{ number_format((float) $finding->estimated_amount, 2) }} @endif
+                                </div>
+                            </div>
+                            <flux:badge size="sm" :color="match ($finding->status) {
+                                'approved' => 'lime', 'rejected' => 'red', default => 'amber',
+                            }">{{ ucfirst($finding->status) }}</flux:badge>
+                        </div>
+                    @empty
+                        <flux:text size="sm" class="text-zinc-500">No additional work raised on this order.</flux:text>
+                    @endforelse
                 </flux:tab.panel>
 
                 <flux:tab.panel name="checklist" class="pt-6">

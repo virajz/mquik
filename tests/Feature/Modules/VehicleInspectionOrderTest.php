@@ -1,10 +1,14 @@
 <?php
 
+use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
+use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
+use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Livewire\Edit;
 use App\Modules\VehicleInspectionOrder\Livewire\Index;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
@@ -128,4 +132,101 @@ it('deletes a work order from the index', function () {
     Livewire::test(Index::class)->call('delete', $order->id);
 
     expect(VehicleInspectionOrder::find($order->id))->toBeNull();
+});
+
+it('saves work scope lines covering complaints, job descriptions and packages', function () {
+    $order = VehicleInspectionOrder::factory()->create();
+    $complaint = ComplaintTypeMaster::factory()->create();
+    $package = ServicePackageMaster::factory()->create();
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('addWorkScope')
+        ->set('workScopes.0.complaint_type_id', $complaint->id)
+        ->set('workScopes.0.description', 'fr side noise')
+        ->call('addWorkScope')
+        ->set('workScopes.1.service_package_id', $package->id)
+        ->set('workScopes.1.description', 'pms')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $order->refresh()->load('workScopes');
+    expect($order->workScopes)->toHaveCount(2)
+        ->and($order->workScopes->first()->description)->toBe('FR SIDE NOISE')
+        ->and($order->workScopes->first()->complaint_type_id)->toBe($complaint->id)
+        ->and($order->workScopes->last()->service_package_id)->toBe($package->id);
+
+    // Removing a line deletes it rather than orphaning it.
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('removeWorkScope', 1)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($order->fresh()->workScopes)->toHaveCount(1);
+});
+
+it('requires a description on every work scope line', function () {
+    $order = VehicleInspectionOrder::factory()->create();
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('addWorkScope')
+        ->set('workScopes.0.description', '')
+        ->call('save')
+        ->assertHasErrors(['workScopes.0.description']);
+});
+
+it('stores order-level photo evidence against a photo type', function () {
+    Storage::fake('public');
+    $order = VehicleInspectionOrder::factory()->create();
+    $type = PhotoTypeMaster::factory()->create(['name' => 'DAMAGE PHOTO']);
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('addPhoto')
+        ->set('photos.0.photo_type_id', $type->id)
+        ->set('photos.0.notes', 'dent on left door')
+        ->set('photoFiles.0', UploadedFile::fake()->image('damage.jpg'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $photo = $order->fresh()->photos->first();
+    expect($photo)->not->toBeNull()
+        ->and($photo->photo_type_id)->toBe($type->id)
+        ->and($photo->notes)->toBe('dent on left door');
+    Storage::disk('public')->assertExists($photo->path);
+});
+
+it('drops photo rows that never got an image', function () {
+    $order = VehicleInspectionOrder::factory()->create();
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('addPhoto')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($order->fresh()->photos)->toHaveCount(0);
+});
+
+it('surfaces technician findings as the order\'s additional work', function () {
+    $order = VehicleInspectionOrder::factory()->create();
+    TechnicianFinding::factory()->create([
+        'vehicle_inspection_order_id' => $order->id,
+        'description' => 'BRAKE DISC WORN',
+    ]);
+
+    expect($order->fresh()->findings)->toHaveCount(1)
+        ->and($order->fresh()->findings->first()->description)->toBe('BRAKE DISC WORN');
+});
+
+it('counts pending, active, completed and cancelled inspections', function () {
+    VehicleInspectionOrder::factory()->create(['status' => VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING]);
+    VehicleInspectionOrder::factory()->create(['status' => VehicleInspectionOrder::STATUS_ASSIGNED]);
+    VehicleInspectionOrder::factory()->create(['status' => VehicleInspectionOrder::STATUS_WIP]);
+    VehicleInspectionOrder::factory()->create(['status' => VehicleInspectionOrder::STATUS_ON_HOLD]);
+    VehicleInspectionOrder::factory()->create(['status' => VehicleInspectionOrder::STATUS_COMPLETED]);
+    VehicleInspectionOrder::factory()->create(['status' => VehicleInspectionOrder::STATUS_CANCELLED]);
+
+    // Active spans assigned + wip + on_hold.
+    Livewire::test(Index::class)->assertViewHas('kpis', fn ($k) => $k['pending'] === 1
+        && $k['active'] === 3
+        && $k['completed'] === 1
+        && $k['cancelled'] === 1);
 });

@@ -11,6 +11,25 @@
         </div>
     </div>
 
+    {{-- Inspection counters --}}
+    <div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+        @foreach ([
+            ['label' => 'Pending', 'value' => $kpis['pending'], 'icon' => 'inbox', 'filter' => 'assignment_pending'],
+            ['label' => 'Active', 'value' => $kpis['active'], 'icon' => 'wrench-screwdriver', 'filter' => 'wip'],
+            ['label' => 'Completed', 'value' => $kpis['completed'], 'icon' => 'check-circle', 'filter' => 'completed'],
+            ['label' => 'Cancelled', 'value' => $kpis['cancelled'], 'icon' => 'x-circle', 'filter' => 'cancelled'],
+        ] as $kpi)
+            <button type="button" wire:click="$set('statusFilter', '{{ $kpi['filter'] }}')"
+                class="text-left rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 hover:border-zinc-400 dark:hover:border-zinc-500 transition">
+                <div class="flex items-center gap-2 text-zinc-500">
+                    <flux:icon :name="$kpi['icon']" class="size-4" />
+                    <flux:text size="sm">{{ $kpi['label'] }}</flux:text>
+                </div>
+                <div class="mt-1 text-2xl font-semibold tabular-nums">{{ $kpi['value'] }}</div>
+            </button>
+        @endforeach
+    </div>
+
     <div class="mb-4 flex items-center gap-3 flex-wrap">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by VIO no, JC no, or reg no..." icon="magnifying-glass" clearable class="max-w-md" />
         <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-44">

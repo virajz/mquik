@@ -18,16 +18,19 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\MissingDocumentReasonMaster\Models\MissingDocumentReasonMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DocumentCollection extends Model
 {
     use Auditable;
     use HasFactory;
     use Searchable;
+    use SoftDeletes;
 
     public const STATUS_PENDING = 'pending';
 
@@ -43,11 +46,22 @@ class DocumentCollection extends Model
 
     public const REQUEST_INSURANCE_CLAIM = 'insurance_claim';
 
+    public const RETENTION_ACTIVE = 'active';
+
+    public const RETENTION_ARCHIVE = 'archive';
+
+    public const RETENTION_DELETE = 'delete';
+
+    public const REMINDER_CUSTOM = 'custom';
+
     protected $table = 'document_collections';
 
     protected $guarded = [];
 
     protected $casts = [
+        'reminder_custom_days' => 'integer',
+        'retention_days' => 'integer',
+        'retired_at' => 'datetime',
         'requested_at' => 'datetime',
         'received_at' => 'datetime',
         'entry_at' => 'datetime',
@@ -70,6 +84,8 @@ class DocumentCollection extends Model
                 ])->saveQuietly();
             }
         });
+
+        static::bootRetentionCascade();
     }
 
     /** @return array<string, string> */
@@ -207,5 +223,57 @@ class DocumentCollection extends Model
     public function followUpMode(): BelongsTo
     {
         return $this->belongsTo(FollowUpModeMaster::class, 'follow_up_mode_id');
+    }
+
+    /**
+     * Soft-deleting a collection takes its document lines with it, so a restore
+     * brings back the whole checklist rather than an empty shell.
+     */
+    protected static function bootRetentionCascade(): void
+    {
+        static::deleted(function (self $row) {
+            if ($row->isForceDeleting()) {
+                return;
+            }
+
+            $row->items()->delete();
+        });
+
+        static::restored(function (self $row) {
+            $row->items()->withTrashed()->restore();
+        });
+    }
+
+    /**
+     * When this collection becomes eligible for retention clean-up, or null if
+     * it never does. The clock runs from the linked job card's closed_at — the
+     * closest thing to "billed" the schema currently has. Swap this one method
+     * when Document Collection gains a real invoice link.
+     */
+    public function retentionDueAt(): ?CarbonInterface
+    {
+        if ($this->retention !== self::RETENTION_DELETE || $this->retention_days === null) {
+            return null;
+        }
+
+        $billedAt = $this->jobCard?->closed_at;
+
+        return $billedAt?->copy()->addDays($this->retention_days);
+    }
+
+    /** True once the retention window has elapsed and nothing has retired it yet. */
+    public function isRetentionDue(): bool
+    {
+        $due = $this->retentionDueAt();
+
+        return $due !== null && $this->retired_at === null && $due->isPast();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function reminderIntervalDays(): array
+    {
+        return ['daily' => 1, 'every_2_days' => 2];
     }
 }

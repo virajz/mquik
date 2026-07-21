@@ -42,6 +42,12 @@ class PhotoTypeMasterSeeder extends Seeder
                 ['name' => 'ENGINE BAY', 'code' => 'ENG-BAY'],
                 ['name' => 'UNDER BODY', 'code' => 'ENG-UND'],
             ],
+            // Evidence slots used by inspection orders (row 9) alongside the
+            // exterior views, which already cover front/rear/left/right.
+            'EVIDENCE' => [
+                ['name' => 'DAMAGE PHOTO', 'code' => 'EVD-DMG'],
+                ['name' => 'FAULT EVIDENCE', 'code' => 'EVD-FLT'],
+            ],
             'WHEELS & TYRES' => [
                 ['name' => 'FRONT LEFT TYRE', 'code' => 'WHL-FL'],
                 ['name' => 'FRONT RIGHT TYRE', 'code' => 'WHL-FR'],

@@ -109,6 +109,29 @@ class Index extends Component
         return BayMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    /**
+     * The four counters the CSV asks for.
+     *
+     * @return array{pending:int, active:int, completed:int, cancelled:int}
+     */
+    protected function kpis(): array
+    {
+        $counts = VehicleInspectionOrder::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        return [
+            'pending' => (int) ($counts[VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING] ?? 0),
+            // "Active" spans everything a technician currently holds.
+            'active' => (int) ($counts[VehicleInspectionOrder::STATUS_ASSIGNED] ?? 0)
+                + (int) ($counts[VehicleInspectionOrder::STATUS_WIP] ?? 0)
+                + (int) ($counts[VehicleInspectionOrder::STATUS_ON_HOLD] ?? 0),
+            'completed' => (int) ($counts[VehicleInspectionOrder::STATUS_COMPLETED] ?? 0),
+            'cancelled' => (int) ($counts[VehicleInspectionOrder::STATUS_CANCELLED] ?? 0),
+        ];
+    }
+
     public function render()
     {
         $search = trim($this->search);
@@ -140,6 +163,7 @@ class Index extends Component
             'rows' => $rows,
             'statuses' => VehicleInspectionOrder::statuses(),
             'priorities' => PriorityMaster::forScope(PriorityMaster::APPLIES_WORKSHOP)->pluck('name', 'id'),
+            'kpis' => $this->kpis(),
         ]);
     }
 }

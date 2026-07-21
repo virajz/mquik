@@ -135,3 +135,34 @@ Need items from this checklist: MQUIK 360° VEHICLE INSPECTION CHECKLIST
 
 Tyre Checklist:
 Shared on WhatsApp
+
+Current flow for reminder:
+Based on the per day km in job card, automatic reminders are sent
+Make it configurable on model level
+
+Insurance Companies:
+Remove default pass percentage and move it to the Policy Type
+
+SPARES:
+New Spare Brand
+Allow to add MRP as well, along with the Rate (Before tax)
+Dependant Dropdowns are slow and querying everything
+Remove Suppliers / Vendors from spare
+Tyre Selection should be at the very top
+Type on top: Vehicle Specific, Tyre, Common
+Selecting multiple vehicles compatibility is a headache, need a smarter and fast way
+When we select common type, no need to select Vehicle Compatibility
+Label change: Location -> Godown
+
+Stock Report
+
+Vechicle Variants:
+When adding a new one provide an option to attach all spare parts from any previous variant. After that provide an optional popup to remove the parts which are not applicable
+
+New Labour
+Need a new page instead of popup
+
+Checklist Templates:
+Provide a dedicated create page
+
+Challan Rejection Reasons -> Item Rejection Reasons

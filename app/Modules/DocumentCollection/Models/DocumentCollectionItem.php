@@ -5,9 +5,12 @@ namespace App\Modules\DocumentCollection\Models;
 use App\Modules\DocumentRejectionReasonMaster\Models\DocumentRejectionReasonMaster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DocumentCollectionItem extends Model
 {
+    use SoftDeletes;
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_RECEIVED = 'received';

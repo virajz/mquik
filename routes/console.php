@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Clear expired barcode PDFs every hour.
 Schedule::command('barcode:clear-generated-pdfs')->hourly();
+
+// Retire document collections past their retention window (soft delete).
+Schedule::command('documents:apply-retention')->dailyAt('02:00');

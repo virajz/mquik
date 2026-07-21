@@ -3,13 +3,18 @@
 namespace App\Modules\VehicleInspectionOrder\Livewire;
 
 use App\Modules\BayMaster\Models\BayMaster;
+use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\DelayReasonMaster\Models\DelayReasonMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
+use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ReworkReasonMaster\Models\ReworkReasonMaster;
+use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -82,6 +87,15 @@ class Edit extends Component
     /** @var list<array{id: ?int, hold_reason_id: ?int, paused_at: ?string, resumed_at: ?string, notes: ?string}> */
     public array $pauses = [];
 
+    /** @var array<int, array{id:?int, complaint_type_id:?int, job_description_id:?int, service_package_id:?int, description:string}> */
+    public array $workScopes = [];
+
+    /** @var array<int, array{id:?int, photo_type_id:?int, path:?string, notes:?string}> */
+    public array $photos = [];
+
+    /** Freshly uploaded order-level evidence, keyed by photo row index. */
+    public array $photoFiles = [];
+
     public function mount(?VehicleInspectionOrder $vehicleInspectionOrder = null): void
     {
         if ($vehicleInspectionOrder && $vehicleInspectionOrder->exists) {
@@ -97,7 +111,7 @@ class Edit extends Component
 
     protected function load(VehicleInspectionOrder $order): void
     {
-        $order->load(['items.inspectionItem.group', 'pauses']);
+        $order->load(['items.inspectionItem.group', 'pauses', 'workScopes', 'photos']);
 
         $this->editingId = $order->id;
         $this->order_no = $order->order_no;
@@ -135,6 +149,21 @@ class Edit extends Component
             'paused_at' => $p->paused_at?->format('Y-m-d\TH:i'),
             'resumed_at' => $p->resumed_at?->format('Y-m-d\TH:i'),
             'notes' => $p->notes,
+        ])->all();
+
+        $this->workScopes = $order->workScopes->map(fn ($s) => [
+            'id' => $s->id,
+            'complaint_type_id' => $s->complaint_type_id,
+            'job_description_id' => $s->job_description_id,
+            'service_package_id' => $s->service_package_id,
+            'description' => $s->description,
+        ])->all();
+
+        $this->photos = $order->photos->map(fn ($ph) => [
+            'id' => $ph->id,
+            'photo_type_id' => $ph->photo_type_id,
+            'path' => $ph->path,
+            'notes' => $ph->notes,
         ])->all();
     }
 
@@ -207,6 +236,32 @@ class Edit extends Component
         unset($this->{$which === 'after' ? 'itemAfterFiles' : 'itemBeforeFiles'}[$index]);
     }
 
+    public function addWorkScope(): void
+    {
+        $this->workScopes[] = [
+            'id' => null, 'complaint_type_id' => null, 'job_description_id' => null,
+            'service_package_id' => null, 'description' => '',
+        ];
+    }
+
+    public function removeWorkScope(int $index): void
+    {
+        unset($this->workScopes[$index]);
+        $this->workScopes = array_values($this->workScopes);
+    }
+
+    public function addPhoto(): void
+    {
+        $this->photos[] = ['id' => null, 'photo_type_id' => null, 'path' => null, 'notes' => null];
+    }
+
+    public function removePhoto(int $index): void
+    {
+        unset($this->photos[$index], $this->photoFiles[$index]);
+        $this->photos = array_values($this->photos);
+        $this->photoFiles = array_values($this->photoFiles);
+    }
+
     public function addPause(): void
     {
         $this->pauses[] = [
@@ -248,6 +303,15 @@ class Edit extends Component
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
 
             'itemBeforeFiles' => ['array'],
+            'workScopes' => ['array'],
+            'workScopes.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
+            'workScopes.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
+            'workScopes.*.service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
+            'workScopes.*.description' => ['required', 'string', 'max:500'],
+            'photos' => ['array'],
+            'photos.*.photo_type_id' => ['nullable', 'integer', Rule::exists('photo_types', 'id')->where('is_active', true)],
+            'photos.*.notes' => ['nullable', 'string', 'max:255'],
+            'photoFiles.*' => ['nullable', 'image', 'max:8192'],
             'itemBeforeFiles.*' => ['image', 'max:8192'],
             'itemAfterFiles' => ['array'],
             'itemAfterFiles.*' => ['image', 'max:8192'],
@@ -325,6 +389,52 @@ class Edit extends Component
         return DelayReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    /** Complaint types for the work-scope lines. */
+    #[Computed]
+    public function complaintTypes()
+    {
+        return ComplaintTypeMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function jobDescriptions()
+    {
+        return JobDescriptionMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /** Service, Combo and AMC packages all live here, split by their type. */
+    #[Computed]
+    public function servicePackages()
+    {
+        return ServicePackageMaster::query()
+            ->with('packageType:id,name')
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name', 'service_package_type_id']);
+    }
+
+    #[Computed]
+    public function photoTypes()
+    {
+        return PhotoTypeMaster::query()
+            ->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'group']);
+    }
+
+    /** Extra work raised against this order by the Technician Findings module. */
+    #[Computed]
+    public function findings()
+    {
+        if (! $this->editingId) {
+            return collect();
+        }
+
+        return TechnicianFinding::query()
+            ->with(['spare:id,name', 'labour:id,name'])
+            ->where('vehicle_inspection_order_id', $this->editingId)
+            ->orderByDesc('id')
+            ->get();
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'vehicle_inspection_order.update' : 'vehicle_inspection_order.create');
@@ -332,7 +442,10 @@ class Edit extends Component
         $data = $this->validate();
         $items = $data['items'] ?? [];
         $pauses = $data['pauses'] ?? [];
-        unset($data['items'], $data['pauses'], $data['itemBeforeFiles'], $data['itemAfterFiles']);
+        $workScopes = $data['workScopes'] ?? [];
+        $photos = $data['photos'] ?? [];
+        unset($data['items'], $data['pauses'], $data['workScopes'], $data['photos'],
+            $data['itemBeforeFiles'], $data['itemAfterFiles'], $data['photoFiles']);
 
         // Stamp lifecycle timestamps on status transitions.
         $existing = $this->editingId ? VehicleInspectionOrder::find($this->editingId) : null;
@@ -352,7 +465,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $order = DB::transaction(function () use ($data, $items, $pauses, $isCreate) {
+        $order = DB::transaction(function () use ($data, $items, $pauses, $workScopes, $photos, $isCreate) {
             if ($isCreate) {
                 $row = VehicleInspectionOrder::create($data);
                 $this->editingId = $row->id;
@@ -364,12 +477,15 @@ class Edit extends Component
 
             $this->syncItems($row, $items);
             $this->syncPauses($row, $pauses);
+            $this->syncWorkScopes($row, $workScopes);
+            $this->syncPhotos($row, $photos);
 
             return $row;
         });
 
         $this->itemBeforeFiles = [];
         $this->itemAfterFiles = [];
+        $this->photoFiles = [];
 
         Flux::toast(
             text: 'Work Order '.$order->fresh()->order_no.($isCreate ? ' created.' : ' updated.'),
@@ -474,6 +590,69 @@ class Edit extends Component
         }
 
         $order->pauses()->whereNotIn('id', $keptIds)->delete();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    protected function syncWorkScopes(VehicleInspectionOrder $order, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach (array_values($rows) as $i => $row) {
+            $keptIds[] = $order->workScopes()->updateOrCreate(
+                ['id' => $row['id'] ?? null],
+                [
+                    'complaint_type_id' => $row['complaint_type_id'] ?: null,
+                    'job_description_id' => $row['job_description_id'] ?: null,
+                    'service_package_id' => $row['service_package_id'] ?: null,
+                    'description' => strtoupper(trim($row['description'])),
+                    'sequence_no' => $i + 1,
+                ],
+            )->id;
+        }
+
+        $order->workScopes()->whereKeyNot($keptIds)->delete();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    protected function syncPhotos(VehicleInspectionOrder $order, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach (array_values($rows) as $i => $row) {
+            $path = $row['path'] ?? null;
+            $originalName = null;
+            $size = null;
+
+            $upload = $this->photoFiles[$i] ?? null;
+            if ($upload) {
+                $path = $upload->store('inspection-orders/'.$order->id, 'public');
+                $originalName = $upload->getClientOriginalName();
+                $size = $upload->getSize();
+            }
+
+            // A row with no image is not worth persisting.
+            if ($path === null) {
+                continue;
+            }
+
+            $keptIds[] = $order->photos()->updateOrCreate(
+                ['id' => $row['id'] ?? null],
+                [
+                    'photo_type_id' => $row['photo_type_id'] ?: null,
+                    'path' => $path,
+                    'original_name' => $originalName,
+                    'size_bytes' => $size,
+                    'notes' => $row['notes'] ?: null,
+                    'sequence_no' => $i + 1,
+                ],
+            )->id;
+        }
+
+        $order->photos()->whereKeyNot($keptIds)->delete();
     }
 
     public function render()

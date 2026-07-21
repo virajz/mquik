@@ -7,6 +7,7 @@ use App\Modules\DocumentCollection\Livewire\Edit;
 use App\Modules\DocumentCollection\Livewire\Index;
 use App\Modules\DocumentCollection\Models\DocumentCollection;
 use App\Modules\DocumentRejectionReasonMaster\Models\DocumentRejectionReasonMaster;
+use App\Modules\JobCard\Models\JobCard;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -119,4 +120,103 @@ it('deletes a collection from the index', function () {
     Livewire::test(Index::class)->call('delete', $dc->id);
 
     expect(DocumentCollection::find($dc->id))->toBeNull();
+});
+
+it('accepts a DOCX attachment as the CSV requires', function () {
+    Storage::fake('public');
+    $dc = DocumentCollection::factory()->create();
+
+    Livewire::test(Edit::class, ['documentCollection' => $dc])
+        ->set('items', [
+            ['id' => null, 'label' => 'RC BOOK', 'is_required' => true, 'status' => 'pending',
+                'rejection_reason_id' => null, 'path' => null, 'original_name' => null,
+                'mime_type' => null, 'size_bytes' => null, 'notes' => null, 'sequence_no' => 1],
+        ])
+        ->set('itemFiles.0', UploadedFile::fake()->create('claim-form.docx', 40, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'))
+        ->call('save')
+        ->assertHasNoErrors(['itemFiles.0']);
+});
+
+it('requires a custom interval only when the reminder is Custom', function () {
+    $dc = DocumentCollection::factory()->create();
+
+    Livewire::test(Edit::class, ['documentCollection' => $dc])
+        ->set('reminder_frequency', DocumentCollection::REMINDER_CUSTOM)
+        ->set('reminder_custom_days', null)
+        ->call('save')
+        ->assertHasErrors(['reminder_custom_days']);
+
+    Livewire::test(Edit::class, ['documentCollection' => $dc])
+        ->set('reminder_frequency', 'daily')
+        ->call('save')
+        ->assertHasNoErrors(['reminder_custom_days']);
+});
+
+it('requires a day count only when retention is Delete', function () {
+    $dc = DocumentCollection::factory()->create();
+
+    Livewire::test(Edit::class, ['documentCollection' => $dc])
+        ->set('retention', DocumentCollection::RETENTION_DELETE)
+        ->set('retention_days', null)
+        ->call('save')
+        ->assertHasErrors(['retention_days']);
+});
+
+it('computes the retention due date from the job card closed_at', function () {
+    $jobCard = JobCard::factory()->create(['closed_at' => now()->subDays(100)]);
+
+    $dc = DocumentCollection::factory()->create([
+        'job_card_id' => $jobCard->id,
+        'retention' => DocumentCollection::RETENTION_DELETE,
+        'retention_days' => 90,
+    ]);
+
+    expect($dc->retentionDueAt()->toDateString())->toBe(now()->subDays(10)->toDateString())
+        ->and($dc->isRetentionDue())->toBeTrue();
+
+    // Not yet elapsed.
+    $fresh = DocumentCollection::factory()->create([
+        'job_card_id' => JobCard::factory()->create(['closed_at' => now()])->id,
+        'retention' => DocumentCollection::RETENTION_DELETE,
+        'retention_days' => 90,
+    ]);
+    expect($fresh->isRetentionDue())->toBeFalse();
+
+    // No job card means no clock at all.
+    $unbilled = DocumentCollection::factory()->create([
+        'job_card_id' => null,
+        'retention' => DocumentCollection::RETENTION_DELETE,
+        'retention_days' => 1,
+    ]);
+    expect($unbilled->retentionDueAt())->toBeNull()
+        ->and($unbilled->isRetentionDue())->toBeFalse();
+});
+
+it('retires due collections via the scheduled command, cascading to items', function () {
+    $jobCard = JobCard::factory()->create(['closed_at' => now()->subDays(200)]);
+    $due = DocumentCollection::factory()->create([
+        'job_card_id' => $jobCard->id,
+        'retention' => DocumentCollection::RETENTION_DELETE,
+        'retention_days' => 30,
+    ]);
+    $due->items()->create(['label' => 'RC BOOK', 'sequence_no' => 1]);
+
+    $keep = DocumentCollection::factory()->create(['retention' => DocumentCollection::RETENTION_ACTIVE]);
+
+    // Dry run changes nothing.
+    $this->artisan('documents:apply-retention', ['--dry-run' => true])->assertSuccessful();
+    expect(DocumentCollection::find($due->id))->not->toBeNull();
+
+    $this->artisan('documents:apply-retention')->assertSuccessful();
+
+    expect(DocumentCollection::find($due->id))->toBeNull()
+        ->and(DocumentCollection::withTrashed()->find($due->id)->retired_at)->not->toBeNull()
+        ->and(DocumentCollection::find($keep->id))->not->toBeNull();
+
+    // Items went with it, and come back on restore.
+    $trashed = DocumentCollection::withTrashed()->find($due->id);
+    expect($trashed->items()->count())->toBe(0);
+
+    $trashed->restore();
+    expect($trashed->items()->count())->toBe(1);
 });

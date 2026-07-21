@@ -80,7 +80,11 @@ class Edit extends Component
 
     public ?string $reminder_frequency = null;
 
+    public ?int $reminder_custom_days = null;
+
     public string $retention = 'active';
+
+    public ?int $retention_days = null;
 
     public string $requested_date = '';
 
@@ -147,7 +151,9 @@ class Edit extends Component
         $this->rejection_reason_id = $dc->rejection_reason_id;
         $this->follow_up_mode_id = $dc->follow_up_mode_id;
         $this->reminder_frequency = $dc->reminder_frequency;
+        $this->reminder_custom_days = $dc->reminder_custom_days;
         $this->retention = $dc->retention;
+        $this->retention_days = $dc->retention_days;
         $this->requested_date = $dc->requested_at?->format('Y-m-d') ?? '';
         $this->requested_time = $dc->requested_at?->format('H:i') ?? '';
         $this->received_date = $dc->received_at?->format('Y-m-d') ?? '';
@@ -288,7 +294,15 @@ class Edit extends Component
             'rejection_reason_id' => ['nullable', 'integer', 'exists:document_rejection_reasons,id'],
             'follow_up_mode_id' => ['nullable', 'integer', 'exists:follow_up_modes,id'],
             'reminder_frequency' => ['nullable', Rule::in(array_keys(DocumentCollection::reminderFrequencies()))],
+            'reminder_custom_days' => [
+                Rule::requiredIf(fn () => $this->reminder_frequency === DocumentCollection::REMINDER_CUSTOM),
+                'nullable', 'integer', 'min:1', 'max:365',
+            ],
             'retention' => ['required', Rule::in(array_keys(DocumentCollection::retentions()))],
+            'retention_days' => [
+                Rule::requiredIf(fn () => $this->retention === DocumentCollection::RETENTION_DELETE),
+                'nullable', 'integer', 'min:1', 'max:3650',
+            ],
             'requested_date' => ['nullable', 'date_format:Y-m-d'],
             'requested_time' => ['nullable', 'date_format:H:i'],
             'received_date' => ['nullable', 'date_format:Y-m-d'],
@@ -306,7 +320,7 @@ class Edit extends Component
             'verifications.*.notes' => ['nullable', 'string', 'max:500'],
 
             'itemFiles' => ['array'],
-            'itemFiles.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:8192'],
+            'itemFiles.*' => ['file', 'mimes:jpg,jpeg,png,pdf,docx', 'max:8192'],
             'signatureUpload' => ['nullable', 'image', 'max:2048'],
         ];
     }
