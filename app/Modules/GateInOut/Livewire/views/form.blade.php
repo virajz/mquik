@@ -1,6 +1,6 @@
 @php($G = \App\Modules\GateInOut\Models\GateInOut::class)
 <div>
-    <flux:modal name="gate-in-out-form" class="md:w-3xl">
+    <flux:modal name="gate-in-out-form" :dismissible="false" class="md:w-3xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Visit' : 'Record Inward' }}</flux:heading>

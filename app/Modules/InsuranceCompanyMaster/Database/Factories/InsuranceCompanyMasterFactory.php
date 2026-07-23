@@ -23,7 +23,6 @@ class InsuranceCompanyMasterFactory extends Factory
             'contact_person' => strtoupper($this->faker->name()),
             'phone' => $this->faker->numerify('98########'),
             'email' => $this->faker->safeEmail(),
-            'default_pass_percent' => $this->faker->randomElement([60, 70, 75, 80, 85, 100]),
             'address' => strtoupper($this->faker->address()),
             'notes' => null,
             'is_active' => true,

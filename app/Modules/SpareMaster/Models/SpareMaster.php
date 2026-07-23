@@ -33,6 +33,7 @@ class SpareMaster extends Model
         'is_active' => 'boolean',
         'is_tyre' => 'boolean',
         'rate_before_tax' => 'decimal:2',
+        'mrp' => 'decimal:2',
         'min_qty' => 'decimal:2',
         'max_qty' => 'decimal:2',
     ];

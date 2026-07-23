@@ -19,7 +19,6 @@ class InsuranceCompanyMaster extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'default_pass_percent' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 

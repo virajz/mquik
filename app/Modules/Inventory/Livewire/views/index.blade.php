@@ -23,7 +23,7 @@
     <div class="mb-4 flex flex-wrap items-center gap-3">
         <flux:input
             wire:model.live.debounce.300ms="search"
-            placeholder="Search spare name, code, location…"
+            placeholder="Search spare name, code, godown…"
             icon="magnifying-glass"
             clearable
             class="max-w-sm"
@@ -74,7 +74,7 @@
             </flux:table.column>
             <flux:table.column>Group</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'location'" :direction="$sortDirection" wire:click="sort('location')">
-                Location
+                Godown
             </flux:table.column>
             <flux:table.column class="w-28 text-right">Qty on Hand</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'min_qty'" :direction="$sortDirection" wire:click="sort('min_qty')" class="w-20 text-right">

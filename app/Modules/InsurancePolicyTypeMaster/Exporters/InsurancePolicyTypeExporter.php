@@ -15,7 +15,7 @@ class InsurancePolicyTypeExporter implements Exportable
 
     public function headers(): array
     {
-        return ['ID', 'Name', 'Code', 'Active', 'Notes', 'Created At'];
+        return ['ID', 'Name', 'Code', 'Default Pass %', 'Active', 'Notes', 'Created At'];
     }
 
     public function query(): Builder
@@ -32,6 +32,7 @@ class InsurancePolicyTypeExporter implements Exportable
             $model->id,
             $model->name,
             $model->code,
+            (float) $model->default_pass_percent,
             $model->is_active ? 'YES' : 'NO',
             $model->notes,
             $model->created_at?->toIso8601String(),

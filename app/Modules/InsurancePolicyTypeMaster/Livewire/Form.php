@@ -16,6 +16,8 @@ class Form extends Component
 
     public ?string $code = null;
 
+    public float $default_pass_percent = 100;
+
     public bool $is_active = true;
 
     public ?string $notes = null;
@@ -33,6 +35,7 @@ class Form extends Component
             'code' => ['nullable', 'string', 'max:20',
                 Rule::unique('insurance_policy_types', 'code')->ignore($this->editingId),
             ],
+            'default_pass_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -52,6 +55,7 @@ class Form extends Component
         $this->editingId = $record->id;
         $this->name = $record->name;
         $this->code = $record->code;
+        $this->default_pass_percent = (float) $record->default_pass_percent;
         $this->is_active = $record->is_active;
         $this->notes = $record->notes;
     }
@@ -63,7 +67,7 @@ class Form extends Component
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields.
-        $skip = ['is_active'];
+        $skip = ['is_active', 'default_pass_percent'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -88,6 +92,7 @@ class Form extends Component
         $this->editingId = null;
         $this->name = '';
         $this->code = null;
+        $this->default_pass_percent = 100;
         $this->is_active = true;
         $this->notes = null;
     }

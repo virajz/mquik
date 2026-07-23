@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="tax-master-form" class="md:w-lg">
+    <flux:modal name="tax-master-form" :dismissible="false" class="md:w-lg">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">

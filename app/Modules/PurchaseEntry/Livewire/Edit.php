@@ -4,11 +4,11 @@ namespace App\Modules\PurchaseEntry\Livewire;
 
 use App\Modules\ChallanEntry\Models\Challan;
 use App\Modules\ChallanReasonMaster\Models\ChallanReasonMaster;
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
 use App\Modules\ChargeTypeMaster\Models\ChargeTypeMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PurchaseEntry\Models\PurchaseEntry;
 use App\Modules\SpareMaster\Models\SpareMaster;
@@ -343,7 +343,7 @@ class Edit extends Component
     #[Computed]
     public function rejectionReasons()
     {
-        return ChallanRejectionReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return ItemRejectionReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]

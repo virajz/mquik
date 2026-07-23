@@ -27,7 +27,7 @@ class Index extends Component
     public string $sortDirection = 'desc';
 
     /** Whitelist sortable columns — never trust the URL */
-    protected array $sortable = ['id', 'name', 'gstin', 'default_pass_percent', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'gstin', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {

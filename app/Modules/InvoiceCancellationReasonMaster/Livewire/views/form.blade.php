@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="invoice-cancellation-reason-master-form" class="md:w-md">
+    <flux:modal name="invoice-cancellation-reason-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">

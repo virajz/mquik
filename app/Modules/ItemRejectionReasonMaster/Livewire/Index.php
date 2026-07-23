@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Modules\ChallanRejectionReasonMaster\Livewire;
+namespace App\Modules\ItemRejectionReasonMaster\Livewire;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use App\Support\RecordReferences;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
@@ -14,7 +14,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Challan Rejection Reasons')]
+#[Title('Item Rejection Reasons')]
 class Index extends Component
 {
     use WithPagination;
@@ -60,17 +60,17 @@ class Index extends Component
 
     public function openCreate(): void
     {
-        $this->dispatch('challan-rejection-reason-master:edit', id: null);
-        Flux::modal('challan-rejection-reason-master-form')->show();
+        $this->dispatch('item-rejection-reason-master:edit', id: null);
+        Flux::modal('item-rejection-reason-master-form')->show();
     }
 
     public function openEdit(int $id): void
     {
-        $this->dispatch('challan-rejection-reason-master:edit', id: $id);
-        Flux::modal('challan-rejection-reason-master-form')->show();
+        $this->dispatch('item-rejection-reason-master:edit', id: $id);
+        Flux::modal('item-rejection-reason-master-form')->show();
     }
 
-    #[On('challan-rejection-reason-master:saved')]
+    #[On('item-rejection-reason-master:saved')]
     public function refreshAfterSave(): void
     {
         // Triggers re-render; pagination cursor preserved.
@@ -78,12 +78,12 @@ class Index extends Component
 
     public function delete(int $id): void
     {
-        $this->authorize('challan_rejection_reason_master.delete');
+        $this->authorize('item_rejection_reason_master.delete');
 
         try {
-            $record = ChallanRejectionReasonMaster::findOrFail($id);
+            $record = ItemRejectionReasonMaster::findOrFail($id);
             $record->delete();
-            Flux::toast(text: 'Challan Rejection Reason #'.$id.' deleted.', variant: 'success');
+            Flux::toast(text: 'Item Rejection Reason #'.$id.' deleted.', variant: 'success');
         } catch (QueryException) {
             $refs = RecordReferences::summary($record);
             Flux::toast(
@@ -100,13 +100,13 @@ class Index extends Component
         $search = $this->search;
         $status = $this->statusFilter;
 
-        $rows = ChallanRejectionReasonMaster::query()
+        $rows = ItemRejectionReasonMaster::query()
             ->when($search !== '', fn ($q) => $q->search($search))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
             ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 
-        return view('challan-rejection-reason-master::index', ['rows' => $rows]);
+        return view('item-rejection-reason-master::index', ['rows' => $rows]);
     }
 }

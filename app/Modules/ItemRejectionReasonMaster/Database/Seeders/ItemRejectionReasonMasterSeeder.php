@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Modules\ChallanRejectionReasonMaster\Database\Seeders;
+namespace App\Modules\ItemRejectionReasonMaster\Database\Seeders;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use Illuminate\Database\Seeder;
 
-class ChallanRejectionReasonMasterSeeder extends Seeder
+class ItemRejectionReasonMasterSeeder extends Seeder
 {
     public function run(): void
     {
@@ -20,7 +20,7 @@ class ChallanRejectionReasonMasterSeeder extends Seeder
         ];
 
         foreach ($real as $type) {
-            ChallanRejectionReasonMaster::firstOrCreate(
+            ItemRejectionReasonMaster::firstOrCreate(
                 ['name' => $type['name']],
                 ['code' => $type['code'], 'is_active' => true],
             );

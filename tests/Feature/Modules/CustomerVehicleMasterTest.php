@@ -281,3 +281,78 @@ it('requires authentication', function () {
     auth()->logout();
     $this->get(route('customer-vehicle-master.index'))->assertRedirect(route('login'));
 });
+
+it('searches customers server-side instead of rendering the whole table', function () {
+    CustomerMaster::factory()->count(30)->create();
+    $needle = CustomerMaster::factory()->create(['first_name' => 'ZZQQ', 'last_name' => 'FINDME']);
+
+    $component = Livewire::test(Edit::class);
+
+    // Unsearched list is capped, not the full table.
+    expect($component->instance()->customers)->toHaveCount(20);
+
+    $component->set('customerSearch', 'ZZQQ');
+    expect($component->instance()->customers->pluck('id'))->toContain($needle->id)
+        ->and($component->instance()->customers->count())->toBeLessThan(5);
+});
+
+it('keeps the selected customer in the option list even when it does not match the search', function () {
+    CustomerMaster::factory()->count(30)->create();
+    $selected = CustomerMaster::factory()->create(['first_name' => 'AAAA', 'last_name' => 'OWNER']);
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $selected->id]);
+
+    $component = Livewire::test(Edit::class, ['customer_vehicle' => $vehicle])
+        ->set('customerSearch', 'ZZZZ-NO-MATCH');
+
+    // Otherwise the edit form would render a blank picker for a value it holds.
+    expect($component->instance()->customers->pluck('id'))->toContain($selected->id);
+});
+
+it('still offers a selected customer who has since been deactivated', function () {
+    $selected = CustomerMaster::factory()->create(['is_active' => false]);
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $selected->id]);
+
+    $component = Livewire::test(Edit::class, ['customer_vehicle' => $vehicle]);
+
+    expect($component->instance()->customers->pluck('id'))->toContain($selected->id);
+});
+
+it('searches vehicle variants by brand and by model, not just variant name', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'QQBRAND']);
+    $model = VehicleModelMaster::factory()->create(['name' => 'QQMODEL', 'brand_id' => $brand->id]);
+    $variant = VehicleVariantMaster::factory()->create(['name' => 'VXI', 'model_id' => $model->id]);
+    VehicleVariantMaster::factory()->count(25)->create();
+
+    $component = Livewire::test(Edit::class);
+
+    $component->set('vehicleSearch', 'QQBRAND');
+    expect($component->instance()->vehicles->pluck('id'))->toContain($variant->id);
+
+    $component->set('vehicleSearch', 'QQMODEL');
+    expect($component->instance()->vehicles->pluck('id'))->toContain($variant->id);
+});
+
+it('validates the registration number as it is typed', function () {
+    $existing = CustomerVehicleMaster::factory()->create(['registration_no' => 'GJ05RH4816']);
+
+    // Duplicate surfaces immediately, without submitting.
+    Livewire::test(Edit::class)
+        ->set('registration_no', 'GJ05RH4816')
+        ->assertHasErrors(['registration_no']);
+
+    // Malformed plate surfaces too.
+    Livewire::test(Edit::class)
+        ->set('registration_no', 'NOTAPLATE99')
+        ->assertHasErrors(['registration_no']);
+
+    // A half-typed plate is not nagged about.
+    Livewire::test(Edit::class)
+        ->set('registration_no', 'GJ05')
+        ->assertHasNoErrors(['registration_no']);
+
+    // Spaces are normalised away and a valid, unused plate passes.
+    Livewire::test(Edit::class)
+        ->set('registration_no', 'gj05 rh 4817')
+        ->assertSet('registration_no', 'GJ05RH4817')
+        ->assertHasNoErrors(['registration_no']);
+});

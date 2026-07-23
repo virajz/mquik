@@ -17,6 +17,7 @@ class InsurancePolicyTypeMasterFactory extends Factory
         return [
             'name' => strtoupper($this->faker->unique()->words(2, true)),
             'code' => null,
+            'default_pass_percent' => 100,
             'is_active' => true,
             'notes' => null,
         ];

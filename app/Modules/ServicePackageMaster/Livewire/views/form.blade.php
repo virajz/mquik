@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="service-package-master-form" class="md:w-3xl">
+    <flux:modal name="service-package-master-form" :dismissible="false" class="md:w-3xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Package' : 'New Service Package' }}</flux:heading>

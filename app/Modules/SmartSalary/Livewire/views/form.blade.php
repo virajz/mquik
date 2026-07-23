@@ -1,7 +1,7 @@
 <?php
 ?>
 <div>
-    <flux:modal name="smart-salary-form" class="md:w-lg">
+    <flux:modal name="smart-salary-form" :dismissible="false" class="md:w-lg">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit KPI Definition' : 'New KPI Definition' }}</flux:heading>

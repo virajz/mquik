@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Modules\ChallanRejectionReasonMaster\Database\Factories;
+namespace App\Modules\ItemRejectionReasonMaster\Database\Factories;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<ChallanRejectionReasonMaster>
+ * @extends Factory<ItemRejectionReasonMaster>
  */
-class ChallanRejectionReasonMasterFactory extends Factory
+class ItemRejectionReasonMasterFactory extends Factory
 {
-    protected $model = ChallanRejectionReasonMaster::class;
+    protected $model = ItemRejectionReasonMaster::class;
 
     public function definition(): array
     {

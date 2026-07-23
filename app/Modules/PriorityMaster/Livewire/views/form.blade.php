@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="priority-master-form" class="md:w-md">
+    <flux:modal name="priority-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">

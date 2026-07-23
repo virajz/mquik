@@ -1,9 +1,9 @@
 <div>
-    <flux:modal name="challan-rejection-reason-master-form" class="md:w-md">
+    <flux:modal name="item-rejection-reason-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
-                    {{ $editingId ? 'Edit Challan Rejection Reason' : 'New Challan Rejection Reason' }}
+                    {{ $editingId ? 'Edit Item Rejection Reason' : 'New Item Rejection Reason' }}
                 </flux:heading>
                 <flux:subheading>
                     Why a challan line is rejected or an issue raised.

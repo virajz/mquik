@@ -22,7 +22,6 @@ class InsuranceCompanyImporter implements Importable
             'contact_person' => ['label' => 'Contact Person', 'required' => false, 'type' => 'string'],
             'phone' => ['label' => 'Phone', 'required' => false, 'type' => 'string'],
             'email' => ['label' => 'Email', 'required' => false, 'type' => 'string'],
-            'default_pass_percent' => ['label' => 'Default Pass %', 'required' => false, 'type' => 'decimal', 'default' => 100],
             'address' => ['label' => 'Address', 'required' => false, 'type' => 'string'],
             'notes' => ['label' => 'Notes', 'required' => false, 'type' => 'string'],
             'is_active' => ['label' => 'Active', 'required' => false, 'type' => 'boolean', 'default' => true],
@@ -43,7 +42,6 @@ class InsuranceCompanyImporter implements Importable
             'contact_person' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
-            'default_pass_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'address' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['nullable', 'boolean'],
@@ -65,7 +63,7 @@ class InsuranceCompanyImporter implements Importable
 
     protected function normalize(array $data): array
     {
-        $skipUppercase = ['email', 'default_pass_percent', 'is_active'];
+        $skipUppercase = ['email', 'is_active'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skipUppercase, true)) {
                 $data[$key] = strtoupper($value);
@@ -74,9 +72,6 @@ class InsuranceCompanyImporter implements Importable
 
         if (! array_key_exists('is_active', $data) || $data['is_active'] === null) {
             $data['is_active'] = true;
-        }
-        if (! array_key_exists('default_pass_percent', $data) || $data['default_pass_percent'] === null) {
-            $data['default_pass_percent'] = 100;
         }
 
         return $data;

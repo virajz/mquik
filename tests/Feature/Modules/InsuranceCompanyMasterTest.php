@@ -42,7 +42,6 @@ it('creates an insurance company with full details', function () {
         ->set('contact_person', 'ravi sharma')
         ->set('phone', '9876543210')
         ->set('email', 'claims@newindia.com')
-        ->set('default_pass_percent', 75)
         ->set('address', 'mumbai office')
         ->set('is_active', true)
         ->call('save')
@@ -56,26 +55,22 @@ it('creates an insurance company with full details', function () {
         ->and($record->gstin)->toBe('22AAAAA0000A1Z5')
         ->and($record->contact_person)->toBe('RAVI SHARMA')
         ->and($record->email)->toBe('claims@newindia.com') // email NOT uppercased
-        ->and((float) $record->default_pass_percent)->toBe(75.0)
         ->and($record->is_active)->toBeTrue();
 });
 
 it('updates an existing record', function () {
     $record = InsuranceCompanyMaster::factory()->create([
         'name' => 'OLD NAME',
-        'default_pass_percent' => 60,
     ]);
 
     Livewire::test(Form::class)
         ->dispatch('insurance-company-master:edit', id: $record->id)
         ->set('name', 'updated name')
-        ->set('default_pass_percent', 80)
         ->call('save')
         ->assertHasNoErrors();
 
     $fresh = $record->fresh();
-    expect($fresh->name)->toBe('UPDATED NAME')
-        ->and((float) $fresh->default_pass_percent)->toBe(80.0);
+    expect($fresh->name)->toBe('UPDATED NAME');
 });
 
 it('deletes a record from the index', function () {
@@ -91,20 +86,6 @@ it('validates name is required', function () {
         ->set('name', '')
         ->call('save')
         ->assertHasErrors(['name' => 'required']);
-});
-
-it('validates pass percent is between 0 and 100', function () {
-    Livewire::test(Form::class)
-        ->set('name', 'TEST')
-        ->set('default_pass_percent', 150)
-        ->call('save')
-        ->assertHasErrors(['default_pass_percent']);
-
-    Livewire::test(Form::class)
-        ->set('name', 'TEST')
-        ->set('default_pass_percent', -5)
-        ->call('save')
-        ->assertHasErrors(['default_pass_percent']);
 });
 
 it('validates email format if provided', function () {

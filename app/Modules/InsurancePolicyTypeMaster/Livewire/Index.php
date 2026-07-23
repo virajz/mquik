@@ -32,7 +32,7 @@ class Index extends Component
     public string $sortDirection = 'asc';
 
     /** Whitelist sortable columns â never trust the URL */
-    protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'code', 'default_pass_percent', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {

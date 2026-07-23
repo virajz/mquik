@@ -2,12 +2,12 @@
     {{-- Page heading + primary action + actions menu --}}
     <div class="mb-6 flex items-start justify-between gap-4">
         <div>
-            <flux:heading size="xl" level="1">Challan Rejection Reasons</flux:heading>
+            <flux:heading size="xl" level="1">Item Rejection Reasons</flux:heading>
             <flux:text class="mt-1">Why a challan line is rejected or an issue raised.</flux:text>
         </div>
 
         <div class="flex items-center gap-2">
-            @can('challan_rejection_reason_master.create')
+            @can('item_rejection_reason_master.create')
                 <flux:button variant="primary" icon="plus" wire:click="openCreate">
                 New Type
             </flux:button>
@@ -16,13 +16,13 @@
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
 
                 <flux:menu>
-                    @can('challan_rejection_reason_master.import')
-                    <flux:menu.item icon="arrow-up-tray" wire:click="$dispatch('start-import', { module: 'ChallanRejectionReasonMaster' })">
+                    @can('item_rejection_reason_master.import')
+                    <flux:menu.item icon="arrow-up-tray" wire:click="$dispatch('start-import', { module: 'ItemRejectionReasonMaster' })">
                         Import…
                     </flux:menu.item>
                     @endcan
-                    @can('challan_rejection_reason_master.export')
-                    <flux:menu.item icon="arrow-down-tray" wire:click="$dispatch('start-export', { module: 'ChallanRejectionReasonMaster' })">
+                    @can('item_rejection_reason_master.export')
+                    <flux:menu.item icon="arrow-down-tray" wire:click="$dispatch('start-export', { module: 'ItemRejectionReasonMaster' })">
                         Export
                     </flux:menu.item>
                     @endcan
@@ -32,8 +32,8 @@
     </div>
 
     {{-- Engines — listen for 'start-export' / 'start-import' globally, only act on matching module --}}
-    <livewire:import-export.export-button :module="'ChallanRejectionReasonMaster'" wire:key="export-challan-rejection-reasons" />
-    <livewire:import-export.import-wizard :module="'ChallanRejectionReasonMaster'" wire:key="import-challan-rejection-reasons" />
+    <livewire:import-export.export-button :module="'ItemRejectionReasonMaster'" wire:key="export-item-rejection-reasons" />
+    <livewire:import-export.import-wizard :module="'ItemRejectionReasonMaster'" wire:key="import-item-rejection-reasons" />
 
     {{-- Filter bar --}}
     <div class="mb-4 flex items-center gap-3">
@@ -98,15 +98,15 @@
 
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
-                            @can('challan_rejection_reason_master.update')
+                            @can('item_rejection_reason_master.update')
                                 <flux:button size="sm" variant="ghost" icon="pencil-square"
                                 wire:click="openEdit({{ $row->id }})">Edit</flux:button>
                             @endcan
-                            @can('challan_rejection_reason_master.delete')
-                                <flux:modal.trigger :name="'challan-rejection-reason-master-delete-' . $row->id">
+                            @can('item_rejection_reason_master.delete')
+                                <flux:modal.trigger :name="'item-rejection-reason-master-delete-' . $row->id">
                                     <flux:button size="sm" variant="ghost" icon="trash" />
                                 </flux:modal.trigger>
-                                <flux:modal :name="'challan-rejection-reason-master-delete-' . $row->id">
+                                <flux:modal :name="'item-rejection-reason-master-delete-' . $row->id">
                                     <div class="space-y-4">
                                         <flux:heading size="lg">Delete {{ $row->name }}?</flux:heading>
                                         <flux:text>Cannot be undone. If this record is in use the delete will fail and you will see a warning.</flux:text>
@@ -116,7 +116,7 @@
                                             </flux:modal.close>
                                             <flux:button variant="danger"
                                                 wire:click="delete({{ $row->id }})"
-                                                x-on:click="$flux.modal('challan-rejection-reason-master-delete-{{ $row->id }}').close()">
+                                                x-on:click="$flux.modal('item-rejection-reason-master-delete-{{ $row->id }}').close()">
                                                 Delete
                                             </flux:button>
                                         </div>
@@ -130,7 +130,7 @@
                 <flux:table.row>
                     <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
                         <flux:icon.hand-raised class="mx-auto mb-3 size-8 text-zinc-400" />
-                        <div class="font-medium">No Challan Rejection Reasons yet</div>
+                        <div class="font-medium">No Item Rejection Reasons yet</div>
                         <flux:text class="mt-1">Add reasons like Damaged, Wrong Part, Expired.</flux:text>
                     </flux:table.cell>
                 </flux:table.row>
@@ -144,5 +144,5 @@
         </div>
     @endif
 
-    <livewire:challan-rejection-reason-master.form />
+    <livewire:item-rejection-reason-master.form />
 </div>

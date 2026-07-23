@@ -64,6 +64,9 @@
             <flux:table.column class="w-32" sortable :sorted="$sortBy === 'code'" :direction="$sortDirection" wire:click="sort('code')">
                 Code
             </flux:table.column>
+            <flux:table.column class="w-24" align="end" sortable :sorted="$sortBy === 'default_pass_percent'" :direction="$sortDirection" wire:click="sort('default_pass_percent')">
+                Pass %
+            </flux:table.column>
             <flux:table.column>Notes</flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">
                 Status
@@ -82,6 +85,10 @@
 
                     <flux:table.cell class="font-mono text-xs text-zinc-500">
                         {{ $row->code ?? '—' }}
+                    </flux:table.cell>
+
+                    <flux:table.cell class="text-end font-medium">
+                        {{ rtrim(rtrim(number_format((float) $row->default_pass_percent, 2), '0'), '.') }}%
                     </flux:table.cell>
 
                     <flux:table.cell class="text-zinc-500 max-w-md truncate">
@@ -128,7 +135,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
                         <flux:icon.exclamation-triangle class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No policy types yet</div>
                         <flux:text class="mt-1">Add types like Comprehensive, Third Party, Zero Dep.</flux:text>

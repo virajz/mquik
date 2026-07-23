@@ -3,6 +3,7 @@
 namespace App\Modules\SpareMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\RackMaster\Models\RackMaster;
@@ -26,6 +27,7 @@ use Livewire\Component;
 class Edit extends Component
 {
     use HasQuickCreate;
+    use SearchesPickerOptions;
 
     public ?int $editingId = null;
 
@@ -61,6 +63,17 @@ class Edit extends Component
     public string $uomSearch = '';
 
     public float $rate_before_tax = 0;
+
+    /** Printed MRP (tax-inclusive) — what the customer sees on the box. */
+    public ?float $mrp = null;
+
+    /** Which figure the user typed last: 'mrp' or 'rate'. Not persisted. */
+    public string $priceBasis = 'mrp';
+
+    /** Search terms for the server-backed pickers. */
+    public string $vendorSearch = '';
+
+    public string $variantSearch = '';
 
     public float $min_qty = 0;
 
@@ -112,6 +125,7 @@ class Edit extends Component
         $this->workshop_department_id = $spare->workshop_department_id;
         $this->uom_id = $spare->uom_id;
         $this->rate_before_tax = (float) $spare->rate_before_tax;
+        $this->mrp = $spare->mrp === null ? null : (float) $spare->mrp;
         $this->min_qty = (float) $spare->min_qty;
         $this->max_qty = (float) $spare->max_qty;
         $this->is_tyre = (bool) $spare->is_tyre;
@@ -137,6 +151,7 @@ class Edit extends Component
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'uom_id' => ['nullable', 'integer', Rule::exists('units_of_measure', 'id')->where('is_active', true)],
             'rate_before_tax' => ['numeric', 'min:0', 'max:9999999.99'],
+            'mrp' => ['nullable', 'numeric', 'min:0', 'max:9999999.99'],
             'min_qty' => ['numeric', 'min:0', 'max:9999999.99'],
             'max_qty' => ['numeric', 'min:0', 'max:9999999.99', 'gte:min_qty'],
             'barcode_type' => ['nullable', 'string', 'in:EAN-13,CODE-128,QR'],
@@ -249,7 +264,13 @@ class Edit extends Component
     #[Computed]
     public function vendorOptions()
     {
-        return VendorMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: VendorMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'vendor_code'],
+            term: $this->vendorSearch,
+            selected: $this->vendor_ids,
+            columns: ['id', 'name'],
+        );
     }
 
     #[Computed]
@@ -261,11 +282,18 @@ class Edit extends Component
     #[Computed]
     public function variants()
     {
-        return VehicleVariantMaster::query()
-            ->with(['model.brand'])
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'model_id'])
+        return $this->pickerOptions(
+            query: VehicleVariantMaster::query()
+                ->with(['model.brand'])
+                ->where('is_active', true)
+                ->orderBy('name'),
+            searchColumns: ['name', 'model.name', 'model.brand.name'],
+            term: $this->variantSearch,
+            selected: $this->variant_ids,
+            columns: ['id', 'name', 'model_id'],
+            // Compatibility is multi-select, so keep a slightly wider window.
+            limit: 30,
+        )
             ->map(fn ($v) => [
                 'id' => $v->id,
                 'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '').' '.$v->name),
@@ -278,10 +306,62 @@ class Edit extends Component
     #[Computed]
     public function rateInclTax(): float
     {
-        $tax = $this->tax_id ? TaxMaster::find($this->tax_id) : null;
-        $pct = (float) (($tax?->gst_percent ?? 0) + ($tax?->cess_percent ?? 0));
+        return round($this->rate_before_tax * (1 + $this->taxMultiplier() / 100), 2);
+    }
 
-        return round($this->rate_before_tax * (1 + $pct / 100), 2);
+    /** Combined GST + cess for the picked slab, as a percentage. */
+    protected function taxMultiplier(): float
+    {
+        $tax = $this->tax_id ? TaxMaster::find($this->tax_id) : null;
+
+        return (float) (($tax?->gst_percent ?? 0) + ($tax?->cess_percent ?? 0));
+    }
+
+    /**
+     * MRP and rate-before-tax are two views of one price, linked by the tax
+     * slab: MRP 118 at 18% means a rate of 100. Whichever figure the user typed
+     * last is authoritative, and the other is derived from it.
+     *
+     * Tracking the basis matters because the slab is often picked *after* the
+     * price: typing MRP 118 and then choosing 18% must yield a rate of 100, not
+     * quietly rewrite the 118 the user just entered.
+     *
+     * Assigning a property server-side does not re-fire these hooks, so the two
+     * fields cannot bounce off each other.
+     */
+    public function updatedMrp(): void
+    {
+        $this->priceBasis = 'mrp';
+        $this->syncPriceFromBasis();
+    }
+
+    public function updatedRateBeforeTax(): void
+    {
+        $this->priceBasis = 'rate';
+        $this->syncPriceFromBasis();
+    }
+
+    /** Changing the slab re-derives whichever figure the user did not type. */
+    public function updatedTaxId(): void
+    {
+        $this->syncPriceFromBasis();
+    }
+
+    protected function syncPriceFromBasis(): void
+    {
+        $multiplier = 1 + $this->taxMultiplier() / 100;
+
+        if ($this->priceBasis === 'mrp') {
+            if ($this->mrp !== null && $this->mrp > 0) {
+                $this->rate_before_tax = round($this->mrp / $multiplier, 2);
+            }
+
+            return;
+        }
+
+        $this->mrp = $this->rate_before_tax > 0
+            ? round($this->rate_before_tax * $multiplier, 2)
+            : null;
     }
 
     public function save()
@@ -293,7 +373,7 @@ class Edit extends Component
         $vendors = $data['vendor_ids'] ?? [];
         unset($data['variant_ids'], $data['vendor_ids']);
 
-        $skip = ['rate_before_tax', 'min_qty', 'max_qty', 'is_active', 'is_tyre', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
+        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'is_tyre', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);

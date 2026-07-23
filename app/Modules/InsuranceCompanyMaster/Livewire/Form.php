@@ -30,9 +30,6 @@ class Form extends Component
     #[Validate('nullable|email|max:255')]
     public ?string $email = null;
 
-    #[Validate('required|numeric|min:0|max:100')]
-    public float $default_pass_percent = 100;
-
     #[Validate('nullable|string|max:1000')]
     public ?string $address = null;
 
@@ -60,7 +57,6 @@ class Form extends Component
         $this->contact_person = $record->contact_person;
         $this->phone = $record->phone;
         $this->email = $record->email;
-        $this->default_pass_percent = (float) $record->default_pass_percent;
         $this->address = $record->address;
         $this->notes = $record->notes;
         $this->is_active = $record->is_active;
@@ -73,7 +69,7 @@ class Form extends Component
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields (skip email).
-        $skipUppercase = ['email', 'default_pass_percent', 'is_active'];
+        $skipUppercase = ['email', 'is_active'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skipUppercase, true)) {
                 $data[$key] = strtoupper($value);
@@ -102,7 +98,6 @@ class Form extends Component
         $this->contact_person = null;
         $this->phone = null;
         $this->email = null;
-        $this->default_pass_percent = 100;
         $this->address = null;
         $this->notes = null;
         $this->is_active = true;

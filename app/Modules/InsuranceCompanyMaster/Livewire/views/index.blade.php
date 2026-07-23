@@ -65,9 +65,6 @@
                 GSTIN
             </flux:table.column>
             <flux:table.column>Contact</flux:table.column>
-            <flux:table.column class="w-24" align="end" sortable :sorted="$sortBy === 'default_pass_percent'" :direction="$sortDirection" wire:click="sort('default_pass_percent')">
-                Pass %
-            </flux:table.column>
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">
                 Status
             </flux:table.column>
@@ -97,10 +94,6 @@
                             @if ($row->phone)
                                 <div class="text-xs text-zinc-500 mt-0.5">{{ $row->phone }}</div>
                             @endif
-                        </flux:table.cell>
-
-                        <flux:table.cell class="text-end font-medium">
-                            {{ rtrim(rtrim(number_format($row->default_pass_percent, 2), '0'), '.') }}%
                         </flux:table.cell>
 
                         <flux:table.cell>
@@ -143,7 +136,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
+                        <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
                             <flux:icon.shield-check class="mx-auto mb-3 size-8 text-zinc-400" />
                             <div class="font-medium">No insurance companies yet</div>
                             <flux:text class="mt-1">Add insurers like New India Assurance, ICICI Lombard, etc.</flux:text>

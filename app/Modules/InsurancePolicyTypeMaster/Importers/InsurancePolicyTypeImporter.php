@@ -28,6 +28,13 @@ class InsurancePolicyTypeImporter implements Importable
                 'type' => 'string',
                 'help' => 'Short code (max 20 chars).',
             ],
+            'default_pass_percent' => [
+                'label' => 'Default Pass %',
+                'required' => false,
+                'type' => 'decimal',
+                'default' => 100,
+                'help' => 'Share of the claim this policy type typically passes.',
+            ],
             'is_active' => [
                 'label' => 'Active',
                 'required' => false,
@@ -53,6 +60,7 @@ class InsurancePolicyTypeImporter implements Importable
         $validator = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:20'],
+            'default_pass_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);

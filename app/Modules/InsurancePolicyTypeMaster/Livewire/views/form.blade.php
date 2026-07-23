@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="insurance-policy-type-master-form" class="md:w-md">
+    <flux:modal name="insurance-policy-type-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
@@ -32,6 +32,16 @@
                         class:input="font-mono uppercase tracking-wide"
                     />
                 </div>
+
+                <flux:field>
+                    <flux:label>Default Pass %</flux:label>
+                    <flux:input.group>
+                        <flux:input wire:model="default_pass_percent" type="number" step="0.01" min="0" max="100" placeholder="100" required />
+                        <flux:input.group.suffix>%</flux:input.group.suffix>
+                    </flux:input.group>
+                    <flux:description>Share of the claim this policy type typically passes.</flux:description>
+                    <flux:error name="default_pass_percent" />
+                </flux:field>
 
                 <flux:textarea
                     wire:model="notes"

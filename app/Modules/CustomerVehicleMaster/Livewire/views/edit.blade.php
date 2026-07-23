@@ -24,15 +24,25 @@
                     <flux:label>Customer <span class="text-red-500">*</span></flux:label>
                     <div class="flex items-stretch gap-2">
                         <div class="flex-1 min-w-0">
+                            {{-- Backend search: ~9,700 customers, queried per keystroke. --}}
                             <flux:select
                                 wire:model="customer_id"
                                 variant="listbox"
-                                placeholder="Select customer"
+                                placeholder="Search by name or phone…"
                                 searchable
+                                :filter="false"
                             >
-                                @foreach ($this->customers as $c)
-                                    <flux:select.option :value="$c->id">{{ $c->name }} — +91 {{ $c->phone }}</flux:select.option>
-                                @endforeach
+                                <x-slot name="search">
+                                    <flux:select.search
+                                        wire:model.live.debounce.250ms="customerSearch"
+                                        placeholder="Type a name or phone…"
+                                    />
+                                </x-slot>
+                                @forelse ($this->customers as $c)
+                                    <flux:select.option :value="$c->id" wire:key="cust-{{ $c->id }}">{{ $c->name }} — +91 {{ $c->phone }}</flux:select.option>
+                                @empty
+                                    <flux:select.option value="" disabled>No matching customers.</flux:select.option>
+                                @endforelse
                             </flux:select>
                         </div>
                         @can('customer_master.create')
@@ -66,16 +76,25 @@
                     <flux:label>Vehicle <span class="text-red-500">*</span></flux:label>
                     <div class="flex items-stretch gap-2">
                         <div class="flex-1 min-w-0">
+                            {{-- Backend search: the catalogue is ~1,800 variants, so
+                                 options are queried per keystroke instead of rendered whole. --}}
                             <flux:select
                                 wire:model="variant_id"
                                 variant="listbox"
                                 placeholder="Search by brand, model, or variant…"
                                 searchable
+                                :filter="false"
                             >
+                                <x-slot name="search">
+                                    <flux:select.search
+                                        wire:model.live.debounce.250ms="vehicleSearch"
+                                        placeholder="Type a brand, model or variant…"
+                                    />
+                                </x-slot>
                                 @forelse ($this->vehicles as $v)
-                                    <flux:select.option :value="$v->id">{{ $v->label }}</flux:select.option>
+                                    <flux:select.option :value="$v->id" wire:key="veh-{{ $v->id }}">{{ $v->label }}</flux:select.option>
                                 @empty
-                                    <flux:select.option value="" disabled>No active variants in the catalogue.</flux:select.option>
+                                    <flux:select.option value="" disabled>No matching variants.</flux:select.option>
                                 @endforelse
                             </flux:select>
                         </div>
@@ -140,7 +159,7 @@
                     </flux:select>
                     <div class="md:col-span-2">
                         <flux:input
-                            wire:model="registration_no"
+                            wire:model.live.debounce.400ms="registration_no"
                             label="Registration No."
                             placeholder="GJ05RH4816 / 24BH1234AA"
                             maxlength="20"

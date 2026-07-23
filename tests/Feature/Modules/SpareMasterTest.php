@@ -165,3 +165,91 @@ it('requires authentication', function () {
 
     $this->get(route('spare-master.index'))->assertRedirect(route('login'));
 });
+
+it('derives rate before tax when MRP is entered', function () {
+    $tax = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('tax_id', $tax->id)
+        ->set('mrp', 118)
+        ->assertSet('rate_before_tax', 100.0);
+});
+
+it('derives MRP when rate before tax is entered', function () {
+    $tax = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('tax_id', $tax->id)
+        ->set('rate_before_tax', 100)
+        ->assertSet('mrp', 118.0);
+});
+
+it('re-derives MRP from the rate when the tax slab changes', function () {
+    $gst18 = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+    $gst28 = TaxMaster::factory()->create(['gst_percent' => 28, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('tax_id', $gst18->id)
+        ->set('rate_before_tax', 100)
+        ->assertSet('mrp', 118.0)
+        ->set('tax_id', $gst28->id)
+        ->assertSet('mrp', 128.0);
+});
+
+it('includes cess in the MRP linkage', function () {
+    $tax = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 2]);
+
+    Livewire::test(Edit::class)
+        ->set('tax_id', $tax->id)
+        ->set('mrp', 120)
+        ->assertSet('rate_before_tax', 100.0);
+});
+
+it('persists both MRP and rate', function () {
+    $tax = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('name', 'brake pad front')
+        ->set('tax_id', $tax->id)
+        ->set('mrp', 118)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $spare = SpareMaster::where('name', 'BRAKE PAD FRONT')->firstOrFail();
+    expect((float) $spare->mrp)->toBe(118.0)
+        ->and((float) $spare->rate_before_tax)->toBe(100.0);
+});
+
+it('derives the rate when MRP is typed BEFORE the tax slab is picked', function () {
+    // The real advisor flow: type the printed price, then choose the slab.
+    $tax = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('mrp', 118)
+        ->set('tax_id', $tax->id)
+        ->assertSet('mrp', 118.0)          // the typed figure must survive
+        ->assertSet('rate_before_tax', 100.0);
+});
+
+it('keeps the rate authoritative when the rate was typed before the slab', function () {
+    $tax = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('rate_before_tax', 100)
+        ->set('tax_id', $tax->id)
+        ->assertSet('rate_before_tax', 100.0)
+        ->assertSet('mrp', 118.0);
+});
+
+it('switching slabs after typing MRP re-derives the rate, not the MRP', function () {
+    $gst18 = TaxMaster::factory()->create(['gst_percent' => 18, 'cess_percent' => 0]);
+    $gst28 = TaxMaster::factory()->create(['gst_percent' => 28, 'cess_percent' => 0]);
+
+    Livewire::test(Edit::class)
+        ->set('mrp', 118)
+        ->set('tax_id', $gst18->id)
+        ->assertSet('rate_before_tax', 100.0)
+        ->set('tax_id', $gst28->id)
+        ->assertSet('mrp', 118.0)           // still what the user typed
+        ->assertSet('rate_before_tax', 92.19);
+});

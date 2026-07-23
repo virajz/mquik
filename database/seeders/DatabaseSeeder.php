@@ -10,7 +10,6 @@ use App\Modules\BookingChannelMaster\Database\Seeders\BookingChannelMasterSeeder
 use App\Modules\BusinessTypeMaster\Database\Seeders\BusinessTypeMasterSeeder;
 use App\Modules\CancelReasonMaster\Database\Seeders\CancelReasonMasterSeeder;
 use App\Modules\ChallanReasonMaster\Database\Seeders\ChallanReasonMasterSeeder;
-use App\Modules\ChallanRejectionReasonMaster\Database\Seeders\ChallanRejectionReasonMasterSeeder;
 use App\Modules\ChargeTypeMaster\Database\Seeders\ChargeTypeMasterSeeder;
 use App\Modules\ChecklistGroupMaster\Database\Seeders\ChecklistGroupMasterSeeder;
 use App\Modules\ChecklistTemplateMaster\Database\Seeders\ChecklistTemplateMasterSeeder;
@@ -55,6 +54,7 @@ use App\Modules\InventoryGroupMaster\Database\Seeders\InventoryGroupMasterSeeder
 use App\Modules\InvoiceCancellationReasonMaster\Database\Seeders\InvoiceCancellationReasonMasterSeeder;
 use App\Modules\IpoCancellationReasonMaster\Database\Seeders\IpoCancellationReasonMasterSeeder;
 use App\Modules\IpoRejectionReasonMaster\Database\Seeders\IpoRejectionReasonMasterSeeder;
+use App\Modules\ItemRejectionReasonMaster\Database\Seeders\ItemRejectionReasonMasterSeeder;
 use App\Modules\JobCardCancelReasonMaster\Database\Seeders\JobCardCancelReasonMasterSeeder;
 use App\Modules\JobCardPendingReasonMaster\Database\Seeders\JobCardPendingReasonMasterSeeder;
 use App\Modules\JobDescriptionMaster\Database\Seeders\JobDescriptionMasterSeeder;
@@ -176,7 +176,7 @@ class DatabaseSeeder extends Seeder
             LossReasonMasterSeeder::class,
             TransportModeMasterSeeder::class,
             ChallanReasonMasterSeeder::class,
-            ChallanRejectionReasonMasterSeeder::class,
+            ItemRejectionReasonMasterSeeder::class,
             ChargeTypeMasterSeeder::class,
             LossTypeMasterSeeder::class,
             InvoiceCancellationReasonMasterSeeder::class,

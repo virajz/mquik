@@ -5,6 +5,7 @@ namespace App\Modules\CustomerVehicleMaster\Livewire;
 use App\Concerns\CanQuickAddCustomer;
 use App\Concerns\CanQuickAddVehicle;
 use App\Concerns\HasQuickCreate;
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
@@ -25,6 +26,7 @@ class Edit extends Component
     use CanQuickAddCustomer;
     use CanQuickAddVehicle;
     use HasQuickCreate;
+    use SearchesPickerOptions;
 
     public ?int $editingId = null;
 
@@ -37,6 +39,11 @@ class Edit extends Component
 
     /** Search string for the Color combobox — also used as the inline "Create" name. */
     public string $colorSearch = '';
+
+    /** Search terms for the server-backed pickers. */
+    public string $customerSearch = '';
+
+    public string $vehicleSearch = '';
 
     public string $registration_no = '';
 
@@ -77,6 +84,25 @@ class Edit extends Component
         $this->notes = $vehicle->notes;
     }
 
+    /**
+     * Validate the plate as it is typed rather than at submit, so a duplicate or
+     * malformed number surfaces immediately. Normalising first means "gj05 rh
+     * 4816" is accepted and stored as GJ05RH4816.
+     */
+    public function updatedRegistrationNo(): void
+    {
+        $this->registration_no = strtoupper(preg_replace('/\s+/', '', (string) $this->registration_no) ?? '');
+
+        // Don't nag while the plate is still obviously half-typed.
+        if (strlen($this->registration_no) < 8) {
+            $this->resetErrorBag('registration_no');
+
+            return;
+        }
+
+        $this->validateOnly('registration_no');
+    }
+
     protected function rules(): array
     {
         return [
@@ -109,13 +135,20 @@ class Edit extends Component
         ];
     }
 
+    /**
+     * Searched server-side — the customer table is ~9,700 rows, far too many to
+     * render into a select and re-ship on every Livewire round trip.
+     */
     #[Computed]
     public function customers()
     {
-        return CustomerMaster::query()
-            ->where('is_active', true)
-            ->orderBy('first_name')
-            ->get(['id', 'first_name', 'middle_name', 'last_name', 'phone']);
+        return $this->pickerOptions(
+            query: CustomerMaster::query()->where('is_active', true)->orderBy('first_name'),
+            searchColumns: ['first_name', 'middle_name', 'last_name', 'phone'],
+            term: $this->customerSearch,
+            selected: $this->customer_id,
+            columns: ['id', 'first_name', 'middle_name', 'last_name', 'phone'],
+        );
     }
 
     /**
@@ -125,12 +158,20 @@ class Edit extends Component
     #[Computed]
     public function vehicles()
     {
-        return VehicleVariantMaster::query()
+        $query = VehicleVariantMaster::query()
             ->with(['model.brand:id,name', 'fuelType:id,name', 'transmissionType:id,name'])
             ->where('is_active', true)
             ->whereHas('model', fn ($q) => $q->where('is_active', true))
-            ->orderBy('name')
-            ->get(['id', 'model_id', 'name', 'year', 'fuel_type_id', 'transmission_type_id'])
+            ->orderBy('name');
+
+        return $this->pickerOptions(
+            query: $query,
+            // Advisors type a brand or model, not the variant name alone.
+            searchColumns: ['name', 'model.name', 'model.brand.name'],
+            term: $this->vehicleSearch,
+            selected: $this->variant_id,
+            columns: ['id', 'model_id', 'name', 'year', 'fuel_type_id', 'transmission_type_id'],
+        )
             ->map(function ($v) {
                 $bits = array_filter([
                     $v->year,

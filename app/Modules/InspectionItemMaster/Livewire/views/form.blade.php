@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="inspection-item-master-form" class="md:w-2xl">
+    <flux:modal name="inspection-item-master-form" :dismissible="false" class="md:w-2xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">

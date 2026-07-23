@@ -19,7 +19,7 @@ class SpareExporter implements Exportable
             'ID', 'Name', 'Part No.', 'Description', 'HSN Code', 'Brand',
             'Tax', 'Rate Before Tax', 'Rate Incl Tax',
             'Inventory Group', 'Sub Group', 'Department', 'UoM',
-            'Min Qty', 'Max Qty', 'Barcode Type', 'Location',
+            'MRP', 'Min Qty', 'Max Qty', 'Barcode Type', 'Godown',
             'Is Tyre', 'Tyre Dimension', 'Rim Size', 'LI-SI', 'Tread Pattern',
             'Remark', 'Active', 'Created At',
         ];
@@ -46,6 +46,7 @@ class SpareExporter implements Exportable
             $model->brand?->name,
             $model->tax?->name,
             number_format((float) $model->rate_before_tax, 2, '.', ''),
+            $model->mrp === null ? null : number_format((float) $model->mrp, 2, '.', ''),
             number_format($model->rate_incl_tax, 2, '.', ''),
             $model->inventoryGroup?->name,
             $model->inventorySubGroup?->name,

@@ -2,12 +2,12 @@
 
 namespace App\Modules\Proforma\Livewire;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\EstimateRevisionReasonMaster\Models\EstimateRevisionReasonMaster;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\InsuranceDeductionTypeMaster\Models\InsuranceDeductionTypeMaster;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\LossReasonMaster\Models\LossReasonMaster;
@@ -435,7 +435,7 @@ class Edit extends Component
     #[Computed]
     public function rejectionReasons()
     {
-        return ChallanRejectionReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return ItemRejectionReasonMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]

@@ -25,6 +25,7 @@ class SpareMasterFactory extends Factory
             'spare_code' => 'SP-'.strtoupper(Str::random(6)),
             'description' => strtoupper($this->faker->sentence(4)),
             'hsn_code' => (string) $this->faker->numberBetween(8000, 8999),
+            'mrp' => $this->faker->randomFloat(2, 100, 5000),
             'rate_before_tax' => $this->faker->randomFloat(2, 50, 5000),
             'min_qty' => $this->faker->numberBetween(1, 5),
             'max_qty' => $this->faker->numberBetween(20, 100),

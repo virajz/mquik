@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="authorization-master-user-form" class="md:w-2xl">
+    <flux:modal name="authorization-master-user-form" :dismissible="false" class="md:w-2xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">New User</flux:heading>

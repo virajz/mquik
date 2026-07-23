@@ -1,7 +1,7 @@
 <?php
 ?>
 <div>
-    <flux:modal name="payroll-form" class="md:w-2xl">
+    <flux:modal name="payroll-form" :dismissible="false" class="md:w-2xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Payroll Entry' : 'New Payroll Entry' }}</flux:heading>

@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="job-description-master-form" class="md:w-2xl">
+    <flux:modal name="job-description-master-form" :dismissible="false" class="md:w-2xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Job Description' : 'New Job Description' }}</flux:heading>

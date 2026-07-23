@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="labour-master-form" class="md:w-2xl">
+    <flux:modal name="labour-master-form" :dismissible="false" class="md:w-2xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Labour' : 'New Labour' }}</flux:heading>

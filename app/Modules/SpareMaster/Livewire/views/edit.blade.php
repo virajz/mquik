@@ -107,14 +107,31 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Pricing & Tax</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Sale rate before tax and the GST slab applied at billing.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Printed MRP, the sale rate before tax, and the GST slab applied at billing.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:field>
+                        <flux:label>MRP</flux:label>
+                        <flux:input.group>
+                            <flux:input.group.prefix>₹</flux:input.group.prefix>
+                            <flux:input
+                                wire:model.live.debounce.500ms="mrp"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                class:input="text-right font-mono"
+                            />
+                        </flux:input.group>
+                        <flux:description>Tax inclusive. Fills the rate below.</flux:description>
+                        <flux:error name="mrp" />
+                    </flux:field>
+
                     <flux:input.group label="Rate (Before Tax)">
                         <flux:input.group.prefix>₹</flux:input.group.prefix>
                         <flux:input
-                            wire:model.live.debounce.300ms="rate_before_tax"
+                            wire:model.live.debounce.500ms="rate_before_tax"
                             type="number"
                             step="0.01"
                             min="0"
@@ -138,9 +155,12 @@
                 </div>
 
                 @if ($tax_id)
-                    <div class="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-sm">
-                        <span class="text-zinc-500">Rate including tax:</span>
-                        <span class="font-mono font-medium">₹ {{ number_format($this->rateInclTax, 2) }}</span>
+                    <div class="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-sm text-zinc-500">
+                        Enter either figure &mdash; the other is derived from the tax slab.
+                    </div>
+                @else
+                    <div class="rounded-md border border-dashed border-amber-300 dark:border-amber-700/60 px-3 py-2 text-sm text-zinc-500">
+                        Pick a tax slab to link MRP and rate automatically.
                     </div>
                 @endif
             </div>
@@ -171,7 +191,7 @@
 
                     <flux:input
                         wire:model="location"
-                        label="Storage Location"
+                        label="Godown"
                         placeholder="RACK-A-12"
                         class:input="font-mono uppercase"
                     />
@@ -240,9 +260,14 @@
                     multiple
                     searchable
                     clearable
+                    clear="close"
+                    :filter="false"
                     label="Suppliers / Vendors"
                     placeholder="Vendors that supply this part…"
                 >
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
+                    </x-slot>
                     @foreach ($this->vendorOptions as $v)
                         <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
                     @endforeach
@@ -344,8 +369,13 @@
                     variant="listbox"
                     multiple
                     searchable
+                    clear="close"
+                    :filter="false"
                     placeholder="Pick one or more variants…"
                 >
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="variantSearch" placeholder="Type a brand, model or variant…" />
+                    </x-slot>
                     @foreach ($this->variants as $v)
                         <flux:select.option :value="$v['id']" wire:key="var-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
                     @endforeach

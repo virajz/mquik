@@ -1,7 +1,7 @@
 <?php
 ?>
 <div>
-    <flux:modal name="late-memo-form" class="md:w-md">
+    <flux:modal name="late-memo-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Late Memo' : 'New Late Memo' }}</flux:heading>

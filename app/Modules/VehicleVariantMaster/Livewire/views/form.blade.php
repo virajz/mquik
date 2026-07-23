@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="vehicle-variant-master-form" class="md:w-md">
+    <flux:modal name="vehicle-variant-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Variant' : 'New Variant' }}</flux:heading>

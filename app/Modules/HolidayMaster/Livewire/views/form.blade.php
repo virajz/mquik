@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="holiday-master-form" class="md:w-md">
+    <flux:modal name="holiday-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
@@ -39,7 +39,17 @@
                             <flux:select.option :value="$k">{{ $l }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:input type="date" wire:model="holiday_date" label="Date" description="Blank for weekly recurring" />
+                    <flux:date-picker
+                        wire:model="holiday_date"
+                        label="Date"
+                        placeholder="Pick a date"
+                        description="Blank for weekly recurring"
+                        with-today
+                        selectable-header
+                        fixed-weeks
+                        clearable
+                        type="input"
+                    />
                     <flux:switch wire:model="is_recurring" label="Recurring" description="e.g. every Sunday." />
                 </div>
 

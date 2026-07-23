@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="insurance-company-master-form" class="md:w-2xl">
+    <flux:modal name="insurance-company-master-form" :dismissible="false" class="md:w-2xl">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
@@ -34,33 +34,15 @@
                     />
                 </div>
 
-                {{-- GSTIN + Pass % --}}
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div class="md:col-span-2">
-                        <flux:input
-                            wire:model="gstin"
-                            label="GSTIN"
-                            mask="99aaaaa9999a9z*"
-                            placeholder="22AAAAA0000A1Z5"
-                            maxlength="15"
-                            class:input="font-mono uppercase tracking-wide"
-                        />
-                    </div>
-
-                    <flux:field>
-                        <flux:label>Default Pass %</flux:label>
-                        <flux:input
-                            wire:model="default_pass_percent"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            placeholder="100"
-                            required
-                        />
-                        <flux:error name="default_pass_percent" />
-                    </flux:field>
-                </div>
+                {{-- GSTIN --}}
+                <flux:input
+                    wire:model="gstin"
+                    label="GSTIN"
+                    mask="99aaaaa9999a9z*"
+                    placeholder="22AAAAA0000A1Z5"
+                    maxlength="15"
+                    class:input="font-mono uppercase tracking-wide"
+                />
 
                 {{-- Contact + Phone --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

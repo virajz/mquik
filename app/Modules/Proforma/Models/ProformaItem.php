@@ -2,7 +2,7 @@
 
 namespace App\Modules\Proforma\Models;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
@@ -46,6 +46,6 @@ class ProformaItem extends Model
 
     public function rejectionReason(): BelongsTo
     {
-        return $this->belongsTo(ChallanRejectionReasonMaster::class, 'rejection_reason_id');
+        return $this->belongsTo(ItemRejectionReasonMaster::class, 'rejection_reason_id');
     }
 }

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Modules\ChallanRejectionReasonMaster\Livewire;
+namespace App\Modules\ItemRejectionReasonMaster\Livewire;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
@@ -28,17 +28,17 @@ class Form extends Component
     {
         return [
             'name' => ['required', 'string', 'max:255',
-                Rule::unique('challan_rejection_reasons', 'name')->ignore($this->editingId),
+                Rule::unique('item_rejection_reasons', 'name')->ignore($this->editingId),
             ],
             'code' => ['nullable', 'string', 'max:20',
-                Rule::unique('challan_rejection_reasons', 'code')->ignore($this->editingId),
+                Rule::unique('item_rejection_reasons', 'code')->ignore($this->editingId),
             ],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
-    #[On('challan-rejection-reason-master:edit')]
+    #[On('item-rejection-reason-master:edit')]
     public function load(?int $id): void
     {
         $this->resetForm();
@@ -48,7 +48,7 @@ class Form extends Component
             return;
         }
 
-        $record = ChallanRejectionReasonMaster::findOrFail($id);
+        $record = ItemRejectionReasonMaster::findOrFail($id);
         $this->editingId = $record->id;
         $this->name = $record->name;
         $this->code = $record->code;
@@ -58,7 +58,7 @@ class Form extends Component
 
     public function save(): void
     {
-        $this->authorize($this->editingId ? 'challan_rejection_reason_master.update' : 'challan_rejection_reason_master.create');
+        $this->authorize($this->editingId ? 'item_rejection_reason_master.update' : 'item_rejection_reason_master.create');
 
         $data = $this->validate();
 
@@ -71,16 +71,16 @@ class Form extends Component
         }
 
         if ($this->editingId) {
-            ChallanRejectionReasonMaster::findOrFail($this->editingId)->update($data);
-            Flux::toast(text: 'Challan Rejection Reason #'.$this->editingId.' updated.', variant: 'success');
+            ItemRejectionReasonMaster::findOrFail($this->editingId)->update($data);
+            Flux::toast(text: 'Item Rejection Reason #'.$this->editingId.' updated.', variant: 'success');
         } else {
-            $record = ChallanRejectionReasonMaster::create($data);
-            Flux::toast(text: 'Challan Rejection Reason #'.$record->id.' created.', variant: 'success');
+            $record = ItemRejectionReasonMaster::create($data);
+            Flux::toast(text: 'Item Rejection Reason #'.$record->id.' created.', variant: 'success');
         }
 
-        $this->dispatch('challan-rejection-reason-master:saved');
+        $this->dispatch('item-rejection-reason-master:saved');
         $this->resetForm();
-        Flux::modal('challan-rejection-reason-master-form')->close();
+        Flux::modal('item-rejection-reason-master-form')->close();
     }
 
     protected function resetForm(): void
@@ -94,6 +94,6 @@ class Form extends Component
 
     public function render()
     {
-        return view('challan-rejection-reason-master::form');
+        return view('item-rejection-reason-master::form');
     }
 }

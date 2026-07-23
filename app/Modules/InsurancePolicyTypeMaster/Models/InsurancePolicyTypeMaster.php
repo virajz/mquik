@@ -20,6 +20,7 @@ class InsurancePolicyTypeMaster extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'default_pass_percent' => 'decimal:2',
     ];
 
     protected static array $searchableFields = ['name', 'code'];

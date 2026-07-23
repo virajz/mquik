@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Modules\ChallanRejectionReasonMaster\Importers;
+namespace App\Modules\ItemRejectionReasonMaster\Importers;
 
-use App\Modules\ChallanRejectionReasonMaster\Models\ChallanRejectionReasonMaster;
 use App\Modules\ImportExport\Contracts\Importable;
+use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use Illuminate\Support\Facades\Validator;
 
-class ChallanRejectionReasonImporter implements Importable
+class ItemRejectionReasonImporter implements Importable
 {
     public function label(): string
     {
-        return 'Challan Rejection Reasons';
+        return 'Item Rejection Reasons';
     }
 
     public function columns(): array
@@ -62,12 +62,12 @@ class ChallanRejectionReasonImporter implements Importable
 
     public function createRecord(array $data): void
     {
-        ChallanRejectionReasonMaster::create($this->normalize($data));
+        ItemRejectionReasonMaster::create($this->normalize($data));
     }
 
     public function updateRecord(object $existing, array $data): void
     {
-        /** @var ChallanRejectionReasonMaster $existing */
+        /** @var ItemRejectionReasonMaster $existing */
         $existing->update($this->normalize($data));
     }
 

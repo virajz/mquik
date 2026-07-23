@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="checklist-group-master-form" class="md:w-md">
+    <flux:modal name="checklist-group-master-form" :dismissible="false" class="md:w-md">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
