@@ -3,6 +3,7 @@
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\InventorySearch\Livewire\Index;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
+use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
@@ -36,10 +37,13 @@ it('filters by part type', function () {
         ->assertDontSee('OTHER PAD');
 });
 
-it('filters by vendor (many-to-many)', function () {
+it('filters by vendor via the parts brand', function () {
+    // Suppliers are tracked against the parts brand, not each part number.
     $vendor = VendorMaster::factory()->create();
-    $withVendor = SpareMaster::factory()->create(['name' => 'VENDOR PART']);
-    $withVendor->vendors()->attach($vendor->id);
+    $brand = SpareBrandMaster::factory()->create();
+    $brand->vendors()->attach($vendor->id);
+
+    SpareMaster::factory()->create(['name' => 'VENDOR PART', 'spare_brand_id' => $brand->id]);
     SpareMaster::factory()->create(['name' => 'NO VENDOR PART']);
 
     Livewire::test(Index::class)

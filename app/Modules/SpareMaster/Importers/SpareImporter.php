@@ -37,7 +37,7 @@ class SpareImporter implements Importable
             'barcode_type' => ['label' => 'Barcode Type', 'required' => false, 'type' => 'string', 'help' => 'EAN-13, CODE-128, or QR.'],
             'mrp' => ['label' => 'MRP', 'required' => false, 'type' => 'decimal', 'help' => 'Printed price, tax inclusive.'],
             'location' => ['label' => 'Godown', 'required' => false, 'type' => 'string'],
-            'is_tyre' => ['label' => 'Is Tyre', 'required' => false, 'type' => 'boolean', 'default' => false, 'help' => 'YES/NO.'],
+            'spare_type' => ['label' => 'Part Type', 'required' => false, 'type' => 'string', 'default' => 'vehicle_specific', 'help' => 'vehicle_specific, tyre or common.'],
             'tyre_dimension' => ['label' => 'Tyre Dimension', 'required' => false, 'type' => 'string'],
             'rim_size' => ['label' => 'Rim Size', 'required' => false, 'type' => 'string'],
             'load_speed_index' => ['label' => 'LI-SI', 'required' => false, 'type' => 'string'],
@@ -65,7 +65,7 @@ class SpareImporter implements Importable
             'barcode_type' => ['nullable', 'string', 'in:EAN-13,CODE-128,QR'],
             'mrp' => ['nullable', 'numeric', 'min:0'],
             'location' => ['nullable', 'string', 'max:64'],
-            'is_tyre' => ['nullable', 'boolean'],
+            'spare_type' => ['nullable', 'string', 'in:vehicle_specific,tyre,common'],
             'tyre_dimension' => ['nullable', 'string', 'max:32'],
             'rim_size' => ['nullable', 'string', 'max:16'],
             'load_speed_index' => ['nullable', 'string', 'max:16'],
@@ -137,8 +137,8 @@ class SpareImporter implements Importable
         if (! array_key_exists('is_active', $data) || $data['is_active'] === null) {
             $data['is_active'] = true;
         }
-        if (! array_key_exists('is_tyre', $data) || $data['is_tyre'] === null) {
-            $data['is_tyre'] = false;
+        if (! array_key_exists('spare_type', $data) || $data['spare_type'] === null || $data['spare_type'] === '') {
+            $data['spare_type'] = SpareMaster::TYPE_VEHICLE_SPECIFIC;
         }
 
         return $data;

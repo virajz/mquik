@@ -20,7 +20,7 @@ class SpareExporter implements Exportable
             'Tax', 'Rate Before Tax', 'Rate Incl Tax',
             'Inventory Group', 'Sub Group', 'Department', 'UoM',
             'MRP', 'Min Qty', 'Max Qty', 'Barcode Type', 'Godown',
-            'Is Tyre', 'Tyre Dimension', 'Rim Size', 'LI-SI', 'Tread Pattern',
+            'Part Type', 'Tyre Dimension', 'Rim Size', 'LI-SI', 'Tread Pattern',
             'Remark', 'Active', 'Created At',
         ];
     }
@@ -56,7 +56,7 @@ class SpareExporter implements Exportable
             number_format((float) $model->max_qty, 2, '.', ''),
             $model->barcode_type,
             $model->location,
-            $model->is_tyre ? 'YES' : 'NO',
+            SpareMaster::spareTypes()[$model->spare_type] ?? $model->spare_type,
             $model->tyre_dimension,
             $model->rim_size,
             $model->load_speed_index,

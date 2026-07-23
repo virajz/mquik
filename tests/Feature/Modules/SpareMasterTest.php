@@ -39,7 +39,7 @@ it('filters records by search across name / part no / hsn', function () {
 });
 
 it('filters by tyre vs general category', function () {
-    SpareMaster::factory()->create(['name' => 'GENERAL ITEM XYZ', 'is_tyre' => false]);
+    SpareMaster::factory()->create(['name' => 'GENERAL ITEM XYZ', 'spare_type' => SpareMaster::TYPE_VEHICLE_SPECIFIC]);
     SpareMaster::factory()->tyre()->create(['name' => 'MRF TYRE QQQ']);
 
     Livewire::test(Index::class)
@@ -89,23 +89,50 @@ it('updates an existing spare via the edit page', function () {
     expect($spare->fresh()->name)->toBe('UPDATED NAME');
 });
 
-it('requires tyre dimension and rim size when is_tyre is true', function () {
+it('requires tyre dimension and rim size when the type is Tyre', function () {
     Livewire::test(Edit::class)
         ->set('name', 'A TYRE')
-        ->set('is_tyre', true)
+        ->set('spare_type', SpareMaster::TYPE_TYRE)
         ->call('save')
         ->assertHasErrors(['tyre_dimension', 'rim_size']);
 });
 
-it('clears tyre fields when is_tyre is toggled off', function () {
+it('clears tyre fields when the type moves away from Tyre', function () {
     Livewire::test(Edit::class)
         ->set('name', 'TYRE')
-        ->set('is_tyre', true)
+        ->set('spare_type', SpareMaster::TYPE_TYRE)
         ->set('tyre_dimension', '195/65 R15')
         ->set('rim_size', '15')
-        ->set('is_tyre', false)
+        ->set('spare_type', SpareMaster::TYPE_COMMON)
         ->assertSet('tyre_dimension', null)
         ->assertSet('rim_size', null);
+});
+
+it('drops the vehicle compatibility list when the type is not vehicle-specific', function () {
+    $variant = VehicleVariantMaster::factory()->create();
+
+    $component = Livewire::test(Edit::class)
+        ->set('name', 'UNIVERSAL OIL')
+        ->set('spare_type', SpareMaster::TYPE_VEHICLE_SPECIFIC)
+        ->set('variant_ids', [$variant->id]);
+
+    expect($component->instance()->needsVehicleCompatibility())->toBeTrue();
+
+    $component->set('spare_type', SpareMaster::TYPE_COMMON)
+        ->assertSet('variant_ids', []);
+
+    expect($component->instance()->needsVehicleCompatibility())->toBeFalse();
+});
+
+it('keeps compatibility available only for vehicle-specific parts', function () {
+    foreach ([
+        SpareMaster::TYPE_VEHICLE_SPECIFIC => true,
+        SpareMaster::TYPE_TYRE => false,
+        SpareMaster::TYPE_COMMON => false,
+    ] as $type => $expected) {
+        $component = Livewire::test(Edit::class)->set('spare_type', $type);
+        expect($component->instance()->needsVehicleCompatibility())->toBe($expected);
+    }
 });
 
 it('rate including tax is computed live from rate_before_tax + tax slab', function () {

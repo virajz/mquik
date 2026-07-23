@@ -31,7 +31,7 @@ class SpareMasterFactory extends Factory
             'max_qty' => $this->faker->numberBetween(20, 100),
             'barcode_type' => $this->faker->randomElement(['EAN-13', 'CODE-128', 'QR', null]),
             'location' => 'RACK-'.strtoupper(Str::random(2)).'-'.$this->faker->numberBetween(1, 99),
-            'is_tyre' => false,
+            'spare_type' => SpareMaster::TYPE_VEHICLE_SPECIFIC,
             'remark' => null,
             'is_active' => true,
         ];
@@ -41,7 +41,7 @@ class SpareMasterFactory extends Factory
     {
         return $this->state(fn () => [
             'name' => strtoupper($this->faker->randomElement(['MRF ZAPPER', 'APOLLO ALNAC', 'CEAT MILAZE', 'BRIDGESTONE TURANZA'])),
-            'is_tyre' => true,
+            'spare_type' => SpareMaster::TYPE_TYRE,
             'tyre_dimension' => '195/65 R15',
             'rim_size' => '15',
             'load_speed_index' => '91H',

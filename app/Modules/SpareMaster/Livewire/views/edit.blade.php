@@ -47,6 +47,93 @@
 
         <flux:separator />
 
+        {{-- TYPE — drives the rest of the form, so it comes first --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Type</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    What kind of part this is. Tyres capture size details; Common parts fit anything and need no vehicle list.
+                </flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <flux:radio.group wire:model.live="spare_type" variant="segmented" label="Part Type">
+                    @foreach (\App\Modules\SpareMaster\Models\SpareMaster::spareTypes() as $key => $label)
+                        <flux:radio :value="$key" :label="$label" />
+                    @endforeach
+                </flux:radio.group>
+                <flux:error name="spare_type" />
+
+                @if ($spare_type === \App\Modules\SpareMaster\Models\SpareMaster::TYPE_TYRE)
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <flux:input
+                            wire:model="tyre_dimension"
+                            label="Tyre Dimension"
+                            placeholder="195/65 R15"
+                            class:input="font-mono"
+                            required
+                        />
+                        <flux:input
+                            wire:model="rim_size"
+                            label="Rim Size (inch)"
+                            placeholder="15"
+                            class:input="font-mono"
+                            required
+                        />
+                        <flux:input
+                            wire:model="load_speed_index"
+                            label="Load / Speed Index"
+                            placeholder="91H"
+                            class:input="font-mono"
+                        />
+                        <flux:input
+                            wire:model="tread_pattern"
+                            label="Tread Pattern"
+                            placeholder="HIGHWAY / OFF-ROAD / TOURING"
+                            class:input="uppercase"
+                        />
+                    </div>
+                @elseif ($spare_type === \App\Modules\SpareMaster\Models\SpareMaster::TYPE_COMMON)
+                    <flux:text size="sm" class="text-zinc-500">
+                        Common parts fit any vehicle, so the compatibility list is skipped.
+                    </flux:text>
+                @endif
+            </div>
+        </section>
+
+        <flux:separator />
+
+        {{-- VEHICLE COMPATIBILITY — sits next to Type so the effect of
+             switching type is visible immediately --}}
+        @if ($this->needsVehicleCompatibility())
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Vehicle Compatibility</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Variants this spare fits. Shown only for vehicle-specific parts.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <flux:select
+                    wire:model="variant_ids"
+                    variant="listbox"
+                    multiple
+                    searchable
+                    clear="close"
+                    :filter="false"
+                    placeholder="Pick one or more variants…"
+                >
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="variantSearch" placeholder="Type a brand, model or variant…" />
+                    </x-slot>
+                    @foreach ($this->variants as $v)
+                        <flux:select.option :value="$v['id']" wire:key="var-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="variant_ids" />
+            </div>
+        </section>
+
+        <flux:separator />
+        @endif
+
         {{-- CLASSIFICATION --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
@@ -254,25 +341,6 @@
                     </flux:select>
                 </div>
 
-                <flux:select
-                    wire:model="vendor_ids"
-                    variant="listbox"
-                    multiple
-                    searchable
-                    clearable
-                    clear="close"
-                    :filter="false"
-                    label="Suppliers / Vendors"
-                    placeholder="Vendors that supply this part…"
-                >
-                    <x-slot name="search">
-                        <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
-                    </x-slot>
-                    @foreach ($this->vendorOptions as $v)
-                        <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="vendor_ids" />
             </div>
         </section>
 
@@ -305,82 +373,6 @@
                         class:input="text-right font-mono"
                     />
                 </div>
-            </div>
-        </section>
-
-        <flux:separator />
-
-        {{-- TYRE --}}
-        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
-            <div>
-                <flux:heading size="lg">Tyre Details</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Toggle on for tyre items to capture dimension, rim, LI-SI and tread pattern.</flux:text>
-            </div>
-            <div class="space-y-4 min-w-0">
-                <flux:switch
-                    wire:model.live="is_tyre"
-                    label="This is a tyre"
-                />
-
-                @if ($is_tyre)
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <flux:input
-                            wire:model="tyre_dimension"
-                            label="Tyre Dimension"
-                            placeholder="195/65 R15"
-                            class:input="font-mono"
-                            required
-                        />
-                        <flux:input
-                            wire:model="rim_size"
-                            label="Rim Size (inch)"
-                            placeholder="15"
-                            class:input="font-mono"
-                            required
-                        />
-                        <flux:input
-                            wire:model="load_speed_index"
-                            label="Load / Speed Index"
-                            placeholder="91H"
-                            class:input="font-mono"
-                        />
-                        <flux:input
-                            wire:model="tread_pattern"
-                            label="Tread Pattern"
-                            placeholder="HIGHWAY / OFF-ROAD / TOURING"
-                            class:input="uppercase"
-                        />
-                    </div>
-                @endif
-            </div>
-        </section>
-
-        <flux:separator />
-
-        {{-- VEHICLE COMPATIBILITY --}}
-        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
-            <div>
-                <flux:heading size="lg">Vehicle Compatibility</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Variants this spare fits. Leave empty for universal items.</flux:text>
-            </div>
-            <div class="space-y-4 min-w-0">
-                <flux:select
-                    wire:model="variant_ids"
-                    variant="listbox"
-                    multiple
-                    searchable
-                    clear="close"
-                    :filter="false"
-                    placeholder="Pick one or more variants…"
-                >
-                    <x-slot name="search">
-                        <flux:select.search wire:model.live.debounce.250ms="variantSearch" placeholder="Type a brand, model or variant…" />
-                    </x-slot>
-                    @foreach ($this->variants as $v)
-                        <flux:select.option :value="$v['id']" wire:key="var-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="variant_ids" />
             </div>
         </section>
 

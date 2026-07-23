@@ -246,7 +246,7 @@ class Index extends Component
             ->when($this->partsBrandFilter !== 'all', fn ($q) => $q->where('spare_brand_id', (int) $this->partsBrandFilter))
             ->when($this->uomFilter !== 'all', fn ($q) => $q->where('uom_id', (int) $this->uomFilter))
             ->when($this->rackFilter !== 'all', fn ($q) => $q->where('rack_id', (int) $this->rackFilter))
-            ->when($this->vendorFilter !== 'all', fn ($q) => $q->whereHas('vendors', fn ($v) => $v->where('vendors.id', (int) $this->vendorFilter)))
+            ->when($this->vendorFilter !== 'all', fn ($q) => $q->whereHas('brand.vendors', fn ($v) => $v->where('vendors.id', (int) $this->vendorFilter)))
             ->when($this->variantFilter !== 'all', fn ($q) => $q->whereHas('vehicleVariants', fn ($v) => $v->where('vehicle_variants.id', (int) $this->variantFilter)))
             ->when($this->variantFilter === 'all' && $this->modelFilter !== 'all', fn ($q) => $q->whereHas('vehicleVariants', fn ($v) => $v->where('model_id', (int) $this->modelFilter)))
             ->when($this->variantFilter === 'all' && $this->modelFilter === 'all' && $this->vehicleBrandFilter !== 'all', fn ($q) => $q->whereHas('vehicleVariants.model', fn ($m) => $m->where('brand_id', (int) $this->vehicleBrandFilter)))

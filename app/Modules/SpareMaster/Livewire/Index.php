@@ -100,8 +100,8 @@ class Index extends Component
                     ->orWhereLike('hsn_code', '%'.$search.'%', caseSensitive: false);
             }))
             ->when($this->brandFilter !== 'all', fn ($q) => $q->where('spare_brand_id', (int) $this->brandFilter))
-            ->when($this->categoryFilter === 'tyre', fn ($q) => $q->where('is_tyre', true))
-            ->when($this->categoryFilter === 'general', fn ($q) => $q->where('is_tyre', false))
+            ->when($this->categoryFilter === 'tyre', fn ($q) => $q->where('spare_type', SpareMaster::TYPE_TYRE))
+            ->when($this->categoryFilter === 'general', fn ($q) => $q->where('spare_type', '!=', SpareMaster::TYPE_TYRE))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->when($this->statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)

@@ -12,7 +12,6 @@ use App\Modules\SpareMaster\Database\Factories\SpareMasterFactory;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
-use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,13 +24,21 @@ class SpareMaster extends Model
     use HasFactory;
     use Searchable;
 
+    /** Fits particular vehicles — carries a compatibility list. */
+    public const TYPE_VEHICLE_SPECIFIC = 'vehicle_specific';
+
+    /** A tyre — carries size fields instead of a compatibility list. */
+    public const TYPE_TYRE = 'tyre';
+
+    /** Fits anything (oils, consumables, fasteners) — no compatibility list. */
+    public const TYPE_COMMON = 'common';
+
     protected $table = 'spares';
 
     protected $guarded = [];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'is_tyre' => 'boolean',
         'rate_before_tax' => 'decimal:2',
         'mrp' => 'decimal:2',
         'min_qty' => 'decimal:2',
@@ -85,16 +92,6 @@ class SpareMaster extends Model
         return $this->belongsTo(RackMaster::class, 'rack_id');
     }
 
-    public function vendors(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            VendorMaster::class,
-            'spare_vendor',
-            'spare_id',
-            'vendor_id'
-        )->withTimestamps();
-    }
-
     public function vehicleVariants(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -116,5 +113,28 @@ class SpareMaster extends Model
         $pct = (float) (($tax?->gst_percent ?? 0) + ($tax?->cess_percent ?? 0));
 
         return round($rate * (1 + $pct / 100), 2);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function spareTypes(): array
+    {
+        return [
+            self::TYPE_VEHICLE_SPECIFIC => 'Vehicle Specific',
+            self::TYPE_TYRE => 'Tyre',
+            self::TYPE_COMMON => 'Common',
+        ];
+    }
+
+    /** Only vehicle-specific parts are pinned to particular variants. */
+    public function needsVehicleCompatibility(): bool
+    {
+        return $this->spare_type === self::TYPE_VEHICLE_SPECIFIC;
+    }
+
+    public function isTyre(): bool
+    {
+        return $this->spare_type === self::TYPE_TYRE;
     }
 }

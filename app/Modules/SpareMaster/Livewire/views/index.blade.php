@@ -61,9 +61,14 @@
                     <flux:table.cell>
                         <div class="font-medium">{{ $row->name }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5 flex items-center gap-2">
-                            @if ($row->is_tyre)
-                                <flux:badge color="blue" size="sm">Tyre</flux:badge>
-                            @endif
+                            @php($typeColor = match ($row->spare_type) {
+                                \App\Modules\SpareMaster\Models\SpareMaster::TYPE_TYRE => 'blue',
+                                \App\Modules\SpareMaster\Models\SpareMaster::TYPE_COMMON => 'zinc',
+                                default => 'purple',
+                            })
+                            <flux:badge :color="$typeColor" size="sm">
+                                {{ \App\Modules\SpareMaster\Models\SpareMaster::spareTypes()[$row->spare_type] ?? $row->spare_type }}
+                            </flux:badge>
                             @if ($row->hsn_code)
                                 <span class="font-mono">HSN {{ $row->hsn_code }}</span>
                             @endif

@@ -12,7 +12,6 @@ use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
-use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -48,8 +47,6 @@ class Edit extends Component
     public ?int $rack_id = null;
 
     /** @var list<int> */
-    public array $vendor_ids = [];
-
     public ?int $tax_id = null;
 
     public ?int $inventory_group_id = null;
@@ -71,8 +68,6 @@ class Edit extends Component
     public string $priceBasis = 'mrp';
 
     /** Search terms for the server-backed pickers. */
-    public string $vendorSearch = '';
-
     public string $variantSearch = '';
 
     public float $min_qty = 0;
@@ -83,7 +78,7 @@ class Edit extends Component
 
     public ?string $location = null;
 
-    public bool $is_tyre = false;
+    public string $spare_type = SpareMaster::TYPE_VEHICLE_SPECIFIC;
 
     public ?string $tyre_dimension = null;
 
@@ -109,12 +104,11 @@ class Edit extends Component
 
     protected function load(SpareMaster $spare): void
     {
-        $spare->load(['vehicleVariants:id', 'vendors:id']);
+        $spare->load(['vehicleVariants:id']);
 
         $this->editingId = $spare->id;
         $this->part_type_id = $spare->part_type_id;
         $this->rack_id = $spare->rack_id;
-        $this->vendor_ids = $spare->vendors->pluck('id')->all();
         foreach (['name', 'spare_code', 'description', 'hsn_code', 'barcode_type', 'location', 'tyre_dimension', 'rim_size', 'load_speed_index', 'tread_pattern', 'remark'] as $k) {
             $this->{$k} = $spare->{$k};
         }
@@ -128,7 +122,7 @@ class Edit extends Component
         $this->mrp = $spare->mrp === null ? null : (float) $spare->mrp;
         $this->min_qty = (float) $spare->min_qty;
         $this->max_qty = (float) $spare->max_qty;
-        $this->is_tyre = (bool) $spare->is_tyre;
+        $this->spare_type = $spare->spare_type ?? SpareMaster::TYPE_VEHICLE_SPECIFIC;
         $this->is_active = (bool) $spare->is_active;
         $this->variant_ids = $spare->vehicleVariants->pluck('id')->all();
     }
@@ -143,8 +137,6 @@ class Edit extends Component
             'spare_brand_id' => ['nullable', 'integer', Rule::exists('spare_brands', 'id')->where('is_active', true)],
             'part_type_id' => ['nullable', 'integer', Rule::exists('part_types', 'id')->where('is_active', true)],
             'rack_id' => ['nullable', 'integer', Rule::exists('racks', 'id')->where('is_active', true)],
-            'vendor_ids' => ['array'],
-            'vendor_ids.*' => ['integer', Rule::exists('vendors', 'id')->where('is_active', true)],
             'tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)],
             'inventory_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)->whereNull('parent_id')],
             'inventory_sub_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)],
@@ -156,9 +148,9 @@ class Edit extends Component
             'max_qty' => ['numeric', 'min:0', 'max:9999999.99', 'gte:min_qty'],
             'barcode_type' => ['nullable', 'string', 'in:EAN-13,CODE-128,QR'],
             'location' => ['nullable', 'string', 'max:64'],
-            'is_tyre' => ['boolean'],
-            'tyre_dimension' => ['nullable', 'string', 'max:32', 'required_if:is_tyre,true'],
-            'rim_size' => ['nullable', 'string', 'max:16', 'required_if:is_tyre,true'],
+            'spare_type' => ['required', Rule::in(array_keys(SpareMaster::spareTypes()))],
+            'tyre_dimension' => ['nullable', 'string', 'max:32', 'required_if:spare_type,'.SpareMaster::TYPE_TYRE],
+            'rim_size' => ['nullable', 'string', 'max:16', 'required_if:spare_type,'.SpareMaster::TYPE_TYRE],
             'load_speed_index' => ['nullable', 'string', 'max:16'],
             'tread_pattern' => ['nullable', 'string', 'max:32'],
             'remark' => ['nullable', 'string', 'max:1000'],
@@ -174,15 +166,29 @@ class Edit extends Component
         $this->inventory_sub_group_id = null;
     }
 
-    public function updatedIsTyre(bool $value): void
+    /**
+     * The type decides which half of the form applies, so switching it clears
+     * whatever no longer belongs — otherwise a part switched from Tyre to Common
+     * would ghost-save a tyre size it no longer has.
+     */
+    public function updatedSpareType(): void
     {
-        // Clear tyre fields when toggled off so they don't ghost-save.
-        if (! $value) {
+        if ($this->spare_type !== SpareMaster::TYPE_TYRE) {
             $this->tyre_dimension = null;
             $this->rim_size = null;
             $this->load_speed_index = null;
             $this->tread_pattern = null;
         }
+
+        if ($this->spare_type !== SpareMaster::TYPE_VEHICLE_SPECIFIC) {
+            $this->variant_ids = [];
+        }
+    }
+
+    /** Only vehicle-specific parts pin to particular variants. */
+    public function needsVehicleCompatibility(): bool
+    {
+        return $this->spare_type === SpareMaster::TYPE_VEHICLE_SPECIFIC;
     }
 
     public function createSpareBrand(): void
@@ -259,18 +265,6 @@ class Edit extends Component
     public function racks()
     {
         return RackMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
-    }
-
-    #[Computed]
-    public function vendorOptions()
-    {
-        return $this->pickerOptions(
-            query: VendorMaster::query()->where('is_active', true)->orderBy('name'),
-            searchColumns: ['name', 'vendor_code'],
-            term: $this->vendorSearch,
-            selected: $this->vendor_ids,
-            columns: ['id', 'name'],
-        );
     }
 
     #[Computed]
@@ -370,10 +364,9 @@ class Edit extends Component
 
         $data = $this->validate();
         $variants = $data['variant_ids'] ?? [];
-        $vendors = $data['vendor_ids'] ?? [];
-        unset($data['variant_ids'], $data['vendor_ids']);
+        unset($data['variant_ids']);
 
-        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'is_tyre', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
+        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -382,7 +375,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $spare = DB::transaction(function () use ($data, $variants, $vendors) {
+        $spare = DB::transaction(function () use ($data, $variants) {
             if ($this->editingId) {
                 $s = SpareMaster::findOrFail($this->editingId);
                 $s->update($data);
@@ -392,7 +385,6 @@ class Edit extends Component
             }
 
             $s->vehicleVariants()->sync(array_map('intval', $variants));
-            $s->vendors()->sync(array_map('intval', $vendors));
 
             return $s;
         });
