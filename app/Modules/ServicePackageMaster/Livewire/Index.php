@@ -5,7 +5,6 @@ namespace App\Modules\ServicePackageMaster\Livewire;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -62,24 +61,6 @@ class Index extends Component
             $this->sortBy = $column;
             $this->sortDirection = 'asc';
         }
-    }
-
-    public function openCreate(): void
-    {
-        $this->dispatch('service-package-master:edit', id: null);
-        Flux::modal('service-package-master-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('service-package-master:edit', id: $id);
-        Flux::modal('service-package-master-form')->show();
-    }
-
-    #[On('service-package-master:saved')]
-    public function refreshAfterSave(): void
-    {
-        // Triggers re-render; pagination cursor preserved.
     }
 
     public function delete(int $id): void

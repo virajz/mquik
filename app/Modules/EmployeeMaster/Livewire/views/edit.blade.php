@@ -1,15 +1,24 @@
 <div>
-    <flux:modal name="employee-master-form" :dismissible="false" class="md:w-2xl">
-        <form wire:submit="save" class="space-y-5">
+    <form wire:submit="save" class="max-w-3xl">
+        <div class="mb-8">
+            <flux:link :href="route('employee-master.index')" variant="ghost" class="text-xs">
+                <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Employees
+            </flux:link>
+            <flux:heading size="xl" level="1" class="mt-1">
+                {{ $editingId ? ($name ?: 'Employee '.$employee_code) : 'New Employee' }}
+            </flux:heading>
+            <flux:text size="sm" class="mt-1 text-zinc-500">Workshop staff — advisors, technicians, cashiers, accountants, drivers, security guards.</flux:text>
+        </div>
+
+        <flux:separator />
+
+        {{-- IDENTITY --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
             <div>
-                <flux:heading size="lg">{{ $editingId ? 'Edit Employee' : 'New Employee' }}</flux:heading>
-                <flux:subheading>Workshop staff — advisors, technicians, cashiers, accountants, drivers, security guards.</flux:subheading>
+                <flux:heading size="lg">Identity</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Code, name and basic details.</flux:text>
             </div>
-
-            <flux:separator variant="subtle" />
-
-            <div class="space-y-4">
-                {{-- IDENTITY --}}
+            <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <flux:input wire:model="employee_code" label="Employee Code" placeholder="EMP-00001" required class:input="font-mono uppercase tracking-wide" />
                     <div class="md:col-span-2">
@@ -27,8 +36,18 @@
                     <flux:date-picker wire:model="date_of_birth" label="Date of Birth" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="city" label="City" placeholder="e.g. AHMEDABAD" />
                 </div>
+            </div>
+        </section>
 
-                {{-- CONTACT --}}
+        <flux:separator />
+
+        {{-- CONTACT --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Contact</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">How to reach them.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:field>
                         <flux:label>Phone <span class="text-red-500">*</span></flux:label>
@@ -48,14 +67,20 @@
                 </div>
 
                 <flux:input wire:model="email" type="email" label="Email" placeholder="employee@workshop.com" icon="envelope" />
-
                 <flux:textarea wire:model="address" label="Address" rows="2" />
+                <flux:input wire:model="pincode" label="Pincode" mask="999999" inputmode="numeric" maxlength="6" class="md:max-w-xs" />
+            </div>
+        </section>
 
-                <flux:input wire:model="pincode" label="Pincode" mask="999999" inputmode="numeric" maxlength="6" />
+        <flux:separator />
 
-                <flux:separator variant="subtle" />
-
-                {{-- EMPLOYMENT --}}
+        {{-- EMPLOYMENT --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Employment</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Role, grade, CTC and dates.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:select wire:model="designation_id" label="Designation" variant="combobox" required>
                         <x-slot name="input">
@@ -85,7 +110,7 @@
                     </flux:select>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <flux:select wire:model="employee_category_id" label="Category" variant="listbox" clearable placeholder="Permanent / Probation…">
                         @foreach ($categories as $c)
                             <flux:select.option :value="$c->id" wire:key="cat-{{ $c->id }}">{{ $c->name }}</flux:select.option>
@@ -103,10 +128,18 @@
                     <flux:date-picker wire:model="joining_date" label="Joining Date" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
                     <flux:date-picker wire:model="exit_date" label="Exit Date" placeholder="Still employed" with-today selectable-header fixed-weeks type="input" />
                 </div>
+            </div>
+        </section>
 
-                <flux:separator variant="subtle" />
+        <flux:separator />
 
-                {{-- KYC --}}
+        {{-- KYC & BANKING --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">KYC & Banking</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Identity and salary account.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="md:col-span-2">
                         <flux:input wire:model="aadhar" label="Aadhar" mask="9999 9999 9999" placeholder="0000 0000 0000" class:input="font-mono uppercase tracking-wide" inputmode="numeric" />
@@ -114,9 +147,6 @@
                     <flux:input wire:model="pan" label="PAN" placeholder="ABCDE1234F" maxlength="10" class:input="font-mono uppercase tracking-wide" />
                 </div>
 
-                <flux:separator variant="subtle" />
-
-                {{-- BANKING --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:input wire:model="bank_name" label="Bank Name" placeholder="e.g. HDFC BANK" />
                     <flux:input wire:model="bank_branch" label="Branch" placeholder="e.g. SATELLITE" />
@@ -126,18 +156,27 @@
                     <flux:input wire:model="ifsc" label="IFSC" placeholder="HDFC0000001" maxlength="11" class:input="font-mono uppercase tracking-wide" />
                     <flux:input wire:model="account_no" label="Account No" placeholder="Account number" class:input="font-mono tracking-wide" />
                 </div>
+            </div>
+        </section>
 
+        <flux:separator />
+
+        {{-- STATUS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Notes & Status</flux:heading>
+            </div>
+            <div class="space-y-4 min-w-0">
                 <flux:textarea wire:model="notes" label="Internal Notes" rows="2" />
-
-                <flux:separator variant="subtle" />
-
                 <flux:switch wire:model="is_active" label="Active" description="Inactive employees won't appear in advisor / technician dropdowns." />
             </div>
+        </section>
 
-            <div class="flex justify-end gap-2 pt-2">
-                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save changes' : 'Create' }}</flux:button>
-            </div>
-        </form>
-    </flux:modal>
+        <flux:separator />
+
+        <div class="flex items-center justify-end gap-2 py-6">
+            <flux:button :href="route('employee-master.index')" variant="ghost" wire:navigate>Cancel</flux:button>
+            <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save changes' : 'Create employee' }}</flux:button>
+        </div>
+    </form>
 </div>

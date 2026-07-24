@@ -5,7 +5,6 @@ namespace App\Modules\GateInOut\Livewire;
 use App\Modules\GateInOut\Models\GateInOut;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -76,24 +75,6 @@ class Index extends Component
             $this->sortBy = $column;
             $this->sortDirection = 'asc';
         }
-    }
-
-    public function openCreate(): void
-    {
-        $this->dispatch('gate-in-out:edit', id: null);
-        Flux::modal('gate-in-out-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('gate-in-out:edit', id: $id);
-        Flux::modal('gate-in-out-form')->show();
-    }
-
-    #[On('gate-in-out:saved')]
-    public function refreshAfterSave(): void
-    {
-        // re-render
     }
 
     public function delete(int $id): void

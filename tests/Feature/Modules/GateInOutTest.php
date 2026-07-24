@@ -3,7 +3,7 @@
 use App\Models\User;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
-use App\Modules\GateInOut\Livewire\Form;
+use App\Modules\GateInOut\Livewire\Edit;
 use App\Modules\GateInOut\Livewire\Index;
 use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\GateMaster\Models\GateMaster;
@@ -69,8 +69,7 @@ it('reports no TAT while the vehicle is still inside', function () {
 });
 
 it('rejects an exit that predates the entry', function () {
-    Livewire::test(Form::class)
-        ->dispatch('gate-in-out:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('registration_no', 'GJ 05 AA 1234')
         ->set('entered_date', '2026-09-02')
         ->set('entered_time', '10:00')
@@ -86,8 +85,7 @@ it('records the outward leg with gate, type and driver type', function () {
     $gate = GateMaster::factory()->create(['name' => 'GATE NO. 2']);
     $slot = ParkingSlotMaster::factory()->create(['name' => 'SLOT NO. 1']);
 
-    Livewire::test(Form::class)
-        ->dispatch('gate-in-out:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('registration_no', 'GJ 05 AA 1234')
         ->set('parking_slot_id', $slot->id)
         ->set('entered_date', '2026-09-01')
@@ -121,13 +119,12 @@ it('counts today\'s inward, outward and trial runs on the index', function () {
 });
 
 it('records a gate event with capital typing on notes', function () {
-    Livewire::test(Form::class)
-        ->dispatch('gate-in-out:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('registration_no', 'gj 05 aa 1234')
         ->set('notes', 'late entry')
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched('gate-in-out:saved');
+        ->assertRedirect(route('gate-in-out.index'));
 
     $row = GateInOut::first();
     expect($row->registration_no)->toBe('GJ 05 AA 1234')
@@ -144,28 +141,25 @@ it('auto-resolves customer_vehicle_id when reg-no matches', function () {
         'registration_no' => 'GJ 05 AA 1234',
     ]);
 
-    Livewire::test(Form::class)
-        ->dispatch('gate-in-out:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('registration_no', 'gj 05  aa 1234')  // intentionally messy
         ->assertSet('customer_vehicle_id', $vehicle->id)
         ->assertSet('customer_id', $customer->id);
 });
 
 it('leaves customer_vehicle_id null when reg-no is unknown (walk-in)', function () {
-    Livewire::test(Form::class)
-        ->dispatch('gate-in-out:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('registration_no', 'GJ 99 ZZ 9999')
         ->assertSet('customer_vehicle_id', null)
         ->assertSet('customer_id', null);
 });
 
-it('Form::save blocks a user without create permission', function () {
+it('Edit::save blocks a user without create permission', function () {
     $user = User::factory()->create();
     $user->givePermissionTo('gate_in_out.view');
     $this->actingAs($user);
 
-    Livewire::test(Form::class)
-        ->dispatch('gate-in-out:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('registration_no', 'GJ 05 AA 1234')
         ->call('save')
         ->assertStatus(403);

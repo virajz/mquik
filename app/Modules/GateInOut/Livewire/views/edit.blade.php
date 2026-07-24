@@ -1,18 +1,23 @@
 @php($G = \App\Modules\GateInOut\Models\GateInOut::class)
 <div>
-    <flux:modal name="gate-in-out-form" :dismissible="false" class="md:w-3xl">
-        <form wire:submit="save" class="space-y-5">
+    <form wire:submit="save" class="max-w-3xl">
+        <div class="mb-8">
+            <flux:link :href="route('gate-in-out.index')" variant="ghost" class="text-xs">
+                <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Inward / Outward
+            </flux:link>
+            <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? 'Edit Visit' : 'Record Inward' }}</flux:heading>
+            <flux:text size="sm" class="mt-1 text-zinc-500">One record covers the whole visit. Fill the outward half when the vehicle leaves — TAT is calculated from the two.</flux:text>
+        </div>
+
+        <flux:separator />
+
+        {{-- INWARD --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
             <div>
-                <flux:heading size="lg">{{ $editingId ? 'Edit Visit' : 'Record Inward' }}</flux:heading>
-                <flux:subheading>One record covers the whole visit. Fill the outward half when the vehicle leaves — TAT is calculated from the two.</flux:subheading>
+                <flux:heading size="lg">Inward</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">When the vehicle arrived and where it's parked.</flux:text>
             </div>
-
-            <flux:separator variant="subtle" />
-
-            {{-- INWARD --}}
-            <div class="space-y-4">
-                <flux:heading size="sm" class="text-zinc-500">Inward</flux:heading>
-
+            <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:date-picker wire:model="entered_date" label="Entry Date" placeholder="Today" with-today selectable-header fixed-weeks type="input" />
                     <flux:time-picker wire:model="entered_time" label="Entry Time" placeholder="Now" type="input" />
@@ -60,14 +65,17 @@
                     </flux:select>
                 </div>
             </div>
+        </section>
 
-            <flux:separator variant="subtle" />
+        <flux:separator />
 
-            {{-- OUTWARD --}}
-            <div class="space-y-4">
-                <flux:heading size="sm" class="text-zinc-500">Outward</flux:heading>
-                <flux:text size="sm" class="text-zinc-500">Leave blank while the vehicle is still on site.</flux:text>
-
+        {{-- OUTWARD --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Outward</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Leave blank while the vehicle is still on site.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:date-picker wire:model="exited_date" label="Exit Date" placeholder="Not yet" with-today selectable-header fixed-weeks type="input" clearable />
                     <flux:time-picker wire:model="exited_time" label="Exit Time" placeholder="Not yet" type="input" clearable />
@@ -109,29 +117,39 @@
                     </flux:select>
                 </div>
             </div>
+        </section>
 
-            <flux:separator variant="subtle" />
+        <flux:separator />
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <flux:select wire:model="status" variant="listbox" label="Job Status" required>
-                    @foreach ($G::statuses() as $key => $label)
-                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-
-                <flux:select wire:model="source" variant="listbox" label="Source">
-                    @foreach ($G::sources() as $key => $label)
-                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+        {{-- STATUS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Status & Notes</flux:heading>
             </div>
+            <div class="space-y-4 min-w-0">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <flux:select wire:model="status" variant="listbox" label="Job Status" required>
+                        @foreach ($G::statuses() as $key => $label)
+                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
 
-            <flux:textarea wire:model="notes" label="Notes" placeholder="Optional — e.g. 'driver waiting outside', 'late entry'." rows="2" />
+                    <flux:select wire:model="source" variant="listbox" label="Source">
+                        @foreach ($G::sources() as $key => $label)
+                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
 
-            <div class="flex justify-end gap-2 pt-2">
-                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save changes' : 'Record visit' }}</flux:button>
+                <flux:textarea wire:model="notes" label="Notes" placeholder="Optional — e.g. 'driver waiting outside', 'late entry'." rows="2" />
             </div>
-        </form>
-    </flux:modal>
+        </section>
+
+        <flux:separator />
+
+        <div class="flex items-center justify-end gap-2 py-6">
+            <flux:button :href="route('gate-in-out.index')" variant="ghost" wire:navigate>Cancel</flux:button>
+            <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save changes' : 'Record visit' }}</flux:button>
+        </div>
+    </form>
 </div>

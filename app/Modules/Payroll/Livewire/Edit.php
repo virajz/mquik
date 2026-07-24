@@ -7,10 +7,13 @@ use App\Modules\Payroll\Models\Payroll;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
-class Form extends Component
+#[Layout('layouts.app')]
+#[Title('Payroll')]
+class Edit extends Component
 {
     public ?int $editingId = null;
 
@@ -38,21 +41,19 @@ class Form extends Component
 
     public ?string $notes = null;
 
-    #[On('payroll:edit')]
-    public function load(?int $id): void
+    public function mount(?Payroll $payroll = null): void
     {
-        $this->resetForm();
-        $this->resetErrorBag();
+        $now = now();
+        $this->period_year = (int) $now->format('Y');
+        $this->period_month = (int) $now->format('n');
 
-        if ($id === null) {
-            $now = now();
-            $this->period_year = (int) $now->format('Y');
-            $this->period_month = (int) $now->format('n');
-
-            return;
+        if ($payroll && $payroll->exists) {
+            $this->load($payroll);
         }
+    }
 
-        $record = Payroll::findOrFail($id);
+    protected function load(Payroll $record): void
+    {
         $this->editingId = $record->id;
         $this->employee_id = $record->employee_id;
         $this->period_year = $record->period_year;
@@ -110,7 +111,7 @@ class Form extends Component
         return $this->grossPreview() - $this->deductions_amount;
     }
 
-    public function save(): void
+    public function save()
     {
         $data = $this->validate();
 
@@ -129,30 +130,11 @@ class Form extends Component
             Flux::toast(text: 'Payroll #'.$record->id.' created.', variant: 'success');
         }
 
-        $this->dispatch('payroll:saved');
-        $this->resetForm();
-        Flux::modal('payroll-form')->close();
-    }
-
-    protected function resetForm(): void
-    {
-        $this->editingId = null;
-        $this->employee_id = null;
-        $this->period_year = (int) now()->format('Y');
-        $this->period_month = (int) now()->format('n');
-        $this->basic_amount = 0;
-        $this->hra_amount = 0;
-        $this->da_amount = 0;
-        $this->allowances_amount = 0;
-        $this->incentive_amount = 0;
-        $this->deductions_amount = 0;
-        $this->payment_date = null;
-        $this->status = Payroll::STATUS_DRAFT;
-        $this->notes = null;
+        return redirect()->route('payroll.index');
     }
 
     public function render()
     {
-        return view('payroll::form');
+        return view('payroll::edit');
     }
 }

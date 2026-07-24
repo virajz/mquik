@@ -1,6 +1,7 @@
 <?php
 
-use App\Modules\ServicePackageMaster\Livewire\Form;
+use App\Models\User;
+use App\Modules\ServicePackageMaster\Livewire\Edit;
 use App\Modules\ServicePackageMaster\Livewire\Index;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageService;
@@ -33,7 +34,7 @@ it('filters by AMC vs Combo kind', function () {
 });
 
 it('creates a package with capital typing and no line items', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'standard amc')
         ->set('code', 'sp-amc1')
         ->set('description', 'one year cover')
@@ -42,7 +43,7 @@ it('creates a package with capital typing and no line items', function () {
         ->set('total_price', 5000)
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched('service-package-master:saved');
+        ->assertRedirect(route('service-package-master.index'));
 
     $row = ServicePackageMaster::first();
     expect($row->name)->toBe('STANDARD AMC')
@@ -55,7 +56,7 @@ it('persists line items when added', function () {
     $a = ServiceTypeMaster::factory()->create(['name' => 'BASIC SERVICE']);
     $b = ServiceTypeMaster::factory()->create(['name' => 'MAJOR SERVICE']);
 
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'AMC GOLD')
         ->call('addService')
         ->call('addService')
@@ -78,7 +79,7 @@ it('persists line items when added', function () {
 it('strips blank line-item rows before validating', function () {
     $a = ServiceTypeMaster::factory()->create(['name' => 'BASIC SERVICE']);
 
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'AMC SILVER')
         ->call('addService')
         ->call('addService')                            // blank trailing row
@@ -93,7 +94,7 @@ it('removes a line item', function () {
     $a = ServiceTypeMaster::factory()->create();
     $b = ServiceTypeMaster::factory()->create();
 
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->call('addService')
         ->call('addService')
         ->set('services.0.service_type_id', $a->id)
@@ -112,8 +113,7 @@ it('updates an existing package and syncs line items', function () {
         ['service_type_id' => $b->id, 'sequence_no' => 2],
     ]);
 
-    Livewire::test(Form::class)
-        ->dispatch('service-package-master:edit', id: $package->id)
+    Livewire::test(Edit::class, ['servicePackageMaster' => $package])
         ->set('name', 'updated')
         ->call('removeService', 1)                      // drop second line
         ->call('save')
@@ -126,7 +126,7 @@ it('updates an existing package and syncs line items', function () {
 });
 
 it('validates required name on save', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', '')
         ->call('save')
         ->assertHasErrors(['name' => 'required']);
@@ -135,7 +135,7 @@ it('validates required name on save', function () {
 it('enforces unique code', function () {
     ServicePackageMaster::factory()->create(['code' => 'DUP-PKG']);
 
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'NEW')
         ->set('code', 'DUP-PKG')
         ->call('save')
@@ -166,4 +166,18 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('service-package-master.index'))->assertRedirect(route('login'));
+});
+
+it('renders the create page', function () {
+    $this->get(route('service-package-master.create'))
+        ->assertOk()
+        ->assertSeeLivewire(Edit::class);
+});
+
+it('blocks the create page for a user without create permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('service_package_master.view');
+    $this->actingAs($user);
+
+    $this->get(route('service-package-master.create'))->assertForbidden();
 });

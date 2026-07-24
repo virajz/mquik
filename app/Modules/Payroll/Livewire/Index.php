@@ -7,7 +7,6 @@ use App\Modules\Payroll\Models\Payroll;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -79,26 +78,6 @@ class Index extends Component
             $this->sortBy = $column;
             $this->sortDirection = 'asc';
         }
-    }
-
-    public function openCreate(): void
-    {
-        $this->authorize('payroll.create');
-        $this->dispatch('payroll:edit', id: null);
-        Flux::modal('payroll-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->authorize('payroll.update');
-        $this->dispatch('payroll:edit', id: $id);
-        Flux::modal('payroll-form')->show();
-    }
-
-    #[On('payroll:saved')]
-    public function refreshAfterSave(): void
-    {
-        // re-render
     }
 
     public function delete(int $id): void

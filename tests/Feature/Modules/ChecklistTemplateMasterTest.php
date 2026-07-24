@@ -1,7 +1,8 @@
 <?php
 
+use App\Models\User;
 use App\Modules\ChecklistGroupMaster\Models\ChecklistGroupMaster;
-use App\Modules\ChecklistTemplateMaster\Livewire\Form;
+use App\Modules\ChecklistTemplateMaster\Livewire\Edit;
 use App\Modules\ChecklistTemplateMaster\Livewire\Index;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use Livewire\Livewire;
@@ -70,7 +71,7 @@ it('filters by active status', function () {
 });
 
 it('creates a template with items array and capitalizes name', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'document collection standard')
         ->set('code', 'doc-std')
         ->set('checklist_group_id', $this->group->id)
@@ -82,7 +83,7 @@ it('creates a template with items array and capitalizes name', function () {
         ])
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched('checklist-template-master:saved');
+        ->assertRedirect(route('checklist-template-master.index'));
 
     $r = ChecklistTemplateMaster::firstOrFail();
     expect($r->name)->toBe('DOCUMENT COLLECTION STANDARD')
@@ -105,8 +106,7 @@ it('updates an existing template', function () {
         ],
     ]);
 
-    Livewire::test(Form::class)
-        ->dispatch('checklist-template-master:edit', id: $r->id)
+    Livewire::test(Edit::class, ['checklistTemplateMaster' => $r])
         ->set('name', 'updated template')
         ->set('items', [
             ['label' => 'new item one', 'is_required' => true],
@@ -129,7 +129,7 @@ it('deletes a template from the index', function () {
 });
 
 it('requires name, group, applies_to, and at least one item', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', '')
         ->set('checklist_group_id', null)
         ->set('applies_to', '')
@@ -142,7 +142,7 @@ it('blocks duplicate template name within the same group', function () {
     ChecklistTemplateMaster::factory()->forGroup($this->group)->create(['name' => 'EXISTING TPL']);
 
     // Same name in same group → blocked
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'EXISTING TPL')
         ->set('checklist_group_id', $this->group->id)
         ->set('applies_to', 'generic')
@@ -151,7 +151,7 @@ it('blocks duplicate template name within the same group', function () {
         ->assertHasErrors(['name']);
 
     // Same name in a different group → allowed
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('name', 'EXISTING TPL')
         ->set('checklist_group_id', $this->otherGroup->id)
         ->set('applies_to', 'generic')
@@ -161,7 +161,7 @@ it('blocks duplicate template name within the same group', function () {
 });
 
 it('addItem and removeItem actions update the items array', function () {
-    $component = Livewire::test(Form::class);
+    $component = Livewire::test(Edit::class);
 
     // Mount initializes 1 row
     expect(count($component->get('items')))->toBe(1);
@@ -171,6 +171,20 @@ it('addItem and removeItem actions update the items array', function () {
 
     $component->call('removeItem', 1);
     expect(count($component->get('items')))->toBe(2);
+});
+
+it('renders the create page', function () {
+    $this->get(route('checklist-template-master.create'))
+        ->assertOk()
+        ->assertSeeLivewire(Edit::class);
+});
+
+it('blocks the create page for a user without create permission', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('checklist_template_master.view');
+    $this->actingAs($user);
+
+    $this->get(route('checklist-template-master.create'))->assertForbidden();
 });
 
 it('requires authentication', function () {

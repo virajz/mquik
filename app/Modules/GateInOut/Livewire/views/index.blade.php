@@ -6,7 +6,7 @@
         </div>
         <div class="flex items-center gap-2">
             @can('gate_in_out.create')
-                <flux:button variant="primary" icon="plus" wire:click="openCreate">Record Inward</flux:button>
+                <flux:button variant="primary" icon="plus" :href="route('gate-in-out.create')" wire:navigate>Record Inward</flux:button>
             @endcan
         </div>
     </div>
@@ -113,7 +113,7 @@
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('gate_in_out.update')
-                                <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('gate-in-out.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
                             @can('gate_in_out.delete')
                                 <flux:modal.trigger :name="'gate-in-out-delete-' . $row->id">
@@ -147,5 +147,4 @@
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
 
-    <livewire:gate-in-out.form />
 </div>

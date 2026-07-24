@@ -2,7 +2,7 @@
 
 use App\Models\User;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
-use App\Modules\Payroll\Livewire\Form;
+use App\Modules\Payroll\Livewire\Edit;
 use App\Modules\Payroll\Livewire\Index;
 use App\Modules\Payroll\Models\Payroll;
 use Livewire\Livewire;
@@ -22,8 +22,7 @@ it('renders the index page', function () {
 it('creates a payroll entry with computed gross + net', function () {
     $employee = EmployeeMaster::factory()->create();
 
-    Livewire::test(Form::class)
-        ->dispatch('payroll:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('employee_id', $employee->id)
         ->set('period_year', 2026)
         ->set('period_month', 5)
@@ -34,7 +33,7 @@ it('creates a payroll entry with computed gross + net', function () {
         ->set('deductions_amount', 4500)
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched('payroll:saved');
+        ->assertRedirect(route('payroll.index'));
 
     $row = Payroll::first();
     expect((float) $row->gross_amount)->toBe(47000.0)
@@ -47,8 +46,7 @@ it('enforces unique (employee, year, month)', function () {
     $employee = EmployeeMaster::factory()->create();
     Payroll::factory()->create(['employee_id' => $employee->id, 'period_year' => 2026, 'period_month' => 5]);
 
-    Livewire::test(Form::class)
-        ->dispatch('payroll:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('employee_id', $employee->id)
         ->set('period_year', 2026)
         ->set('period_month', 5)
@@ -61,8 +59,7 @@ it('allows same employee in a different month', function () {
     $employee = EmployeeMaster::factory()->create();
     Payroll::factory()->create(['employee_id' => $employee->id, 'period_year' => 2026, 'period_month' => 5]);
 
-    Livewire::test(Form::class)
-        ->dispatch('payroll:edit', id: null)
+    Livewire::test(Edit::class)
         ->set('employee_id', $employee->id)
         ->set('period_year', 2026)
         ->set('period_month', 6)
@@ -101,14 +98,12 @@ it('deletes a payroll entry from the index', function () {
     expect(Payroll::find($row->id))->toBeNull();
 });
 
-it('blocks Form::save for a user without create permission', function () {
+it('blocks the create page for a user without create permission', function () {
     $user = User::factory()->create();
     $user->givePermissionTo('payroll.view');
     $this->actingAs($user);
 
-    Livewire::test(Index::class)
-        ->call('openCreate')
-        ->assertStatus(403);
+    $this->get(route('payroll.create'))->assertForbidden();
 });
 
 it('requires authentication', function () {

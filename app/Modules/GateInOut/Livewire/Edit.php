@@ -12,10 +12,13 @@ use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
-class Form extends Component
+#[Layout('layouts.app')]
+#[Title('Gate Visit')]
+class Edit extends Component
 {
     public ?int $editingId = null;
 
@@ -91,21 +94,19 @@ class Form extends Component
         ];
     }
 
-    #[On('gate-in-out:edit')]
-    public function load(?int $id): void
+    public function mount(?GateInOut $gateInOut = null): void
     {
-        $this->resetForm();
-        $this->resetErrorBag();
-
         $now = now();
         $this->entered_date = $now->format('Y-m-d');
         $this->entered_time = $now->format('H:i');
 
-        if ($id === null) {
-            return;
+        if ($gateInOut && $gateInOut->exists) {
+            $this->load($gateInOut);
         }
+    }
 
-        $r = GateInOut::findOrFail($id);
+    protected function load(GateInOut $r): void
+    {
         $this->editingId = $r->id;
         $this->entered_date = $r->entered_at?->format('Y-m-d') ?? $this->entered_date;
         $this->entered_time = $r->entered_at?->format('H:i') ?? $this->entered_time;
@@ -173,7 +174,7 @@ class Form extends Component
         return JobCard::query()->orderByDesc('id')->limit(200)->get(['id', 'job_card_no']);
     }
 
-    public function save(): void
+    public function save()
     {
         $this->authorize($this->editingId ? 'gate_in_out.update' : 'gate_in_out.create');
 
@@ -203,36 +204,11 @@ class Form extends Component
             Flux::toast(text: 'Gate visit '.$row->fresh()->gate_event_no.' recorded.', variant: 'success');
         }
 
-        $this->dispatch('gate-in-out:saved');
-        $this->resetForm();
-        Flux::modal('gate-in-out-form')->close();
-    }
-
-    protected function resetForm(): void
-    {
-        $this->editingId = null;
-        $this->entered_date = '';
-        $this->entered_time = '';
-        $this->entry_gate_id = null;
-        $this->parking_slot_id = null;
-        $this->registration_no = '';
-        $this->customer_vehicle_id = null;
-        $this->customer_id = null;
-        $this->job_card_id = null;
-        $this->exited_date = null;
-        $this->exited_time = null;
-        $this->exit_gate_id = null;
-        $this->outward_type = null;
-        $this->driver_type = null;
-        $this->delivered_by_id = null;
-        $this->exit_by_id = null;
-        $this->status = GateInOut::STATUS_PENDING;
-        $this->source = GateInOut::SOURCE_MANUAL;
-        $this->notes = null;
+        return redirect()->route('gate-in-out.index');
     }
 
     public function render()
     {
-        return view('gate-in-out::form');
+        return view('gate-in-out::edit');
     }
 }

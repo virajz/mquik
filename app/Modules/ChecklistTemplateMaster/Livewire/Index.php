@@ -7,7 +7,6 @@ use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -71,21 +70,6 @@ class Index extends Component
             $this->sortDirection = 'asc';
         }
     }
-
-    public function openCreate(): void
-    {
-        $this->dispatch('checklist-template-master:edit', id: null);
-        Flux::modal('checklist-template-master-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('checklist-template-master:edit', id: $id);
-        Flux::modal('checklist-template-master-form')->show();
-    }
-
-    #[On('checklist-template-master:saved')]
-    public function refreshAfterSave(): void {}
 
     public function delete(int $id): void
     {

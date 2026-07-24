@@ -2,7 +2,7 @@
 
 use App\Modules\DepartmentMaster\Models\DepartmentMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
-use App\Modules\EmployeeMaster\Livewire\Form;
+use App\Modules\EmployeeMaster\Livewire\Edit;
 use App\Modules\EmployeeMaster\Livewire\Index;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use Livewire\Livewire;
@@ -20,7 +20,7 @@ it('renders the index page', function () {
 });
 
 it('creates an employee with full details', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('employee_code', 'EMP-00001')
         ->set('name', 'ravi sharma')
         ->set('phone', '9876543210')
@@ -30,7 +30,7 @@ it('creates an employee with full details', function () {
         ->set('joining_date', '2024-01-15')
         ->call('save')
         ->assertHasNoErrors()
-        ->assertDispatched('employee-master:saved');
+        ->assertRedirect(route('employee-master.index'));
 
     $r = EmployeeMaster::firstOrFail();
     expect($r->name)->toBe('RAVI SHARMA')
@@ -41,13 +41,13 @@ it('creates an employee with full details', function () {
 });
 
 it('requires employee_code, name, phone, designation, department, joining_date', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->call('save')
         ->assertHasErrors(['employee_code', 'name', 'phone', 'designation_id', 'department_id', 'joining_date']);
 });
 
 it('rejects unknown designation or department FK', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('employee_code', 'EMP-X')
         ->set('name', 'TEST')
         ->set('phone', '9999999999')
@@ -59,7 +59,7 @@ it('rejects unknown designation or department FK', function () {
 });
 
 it('rejects exit_date before joining_date', function () {
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('employee_code', 'EMP-X')
         ->set('name', 'TEST')
         ->set('phone', '9999999999')
@@ -74,7 +74,7 @@ it('rejects exit_date before joining_date', function () {
 it('blocks duplicate employee_code', function () {
     EmployeeMaster::factory()->create(['employee_code' => 'EMP-DUPE']);
 
-    Livewire::test(Form::class)
+    Livewire::test(Edit::class)
         ->set('employee_code', 'EMP-DUPE')
         ->set('name', 'TEST')
         ->set('phone', '9999999999')
@@ -103,8 +103,7 @@ it('filters by department and designation', function () {
 
 it('updates an employee', function () {
     $r = EmployeeMaster::factory()->create(['name' => 'OLD']);
-    Livewire::test(Form::class)
-        ->dispatch('employee-master:edit', id: $r->id)
+    Livewire::test(Edit::class, ['employeeMaster' => $r])
         ->set('name', 'updated')
         ->call('save')
         ->assertHasNoErrors();

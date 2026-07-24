@@ -10,15 +10,19 @@ use App\Modules\EmployeeGradeMaster\Models\EmployeeGradeMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
-class Form extends Component
+#[Layout('layouts.app')]
+#[Title('Employee')]
+class Edit extends Component
 {
     use HasQuickCreate;
 
     public ?int $editingId = null;
 
+    /** Display-only — the code the user typed, shown in the page title. */
     public string $designationSearch = '';
 
     public string $departmentSearch = '';
@@ -73,6 +77,13 @@ class Form extends Component
 
     public ?string $notes = null;
 
+    public function mount(?EmployeeMaster $employeeMaster = null): void
+    {
+        if ($employeeMaster && $employeeMaster->exists) {
+            $this->load($employeeMaster);
+        }
+    }
+
     protected function rules(): array
     {
         return [
@@ -104,16 +115,8 @@ class Form extends Component
         ];
     }
 
-    #[On('employee-master:edit')]
-    public function load(?int $id): void
+    protected function load(EmployeeMaster $r): void
     {
-        $this->resetForm();
-        $this->resetErrorBag();
-        if ($id === null) {
-            return;
-        }
-
-        $r = EmployeeMaster::findOrFail($id);
         foreach (['employee_code', 'name', 'gender', 'phone', 'alternate_phone', 'email', 'address', 'city', 'pincode', 'aadhar', 'pan', 'bank_name', 'bank_branch', 'ifsc', 'account_no', 'notes'] as $k) {
             $this->{$k} = $r->{$k};
         }
@@ -151,7 +154,7 @@ class Form extends Component
         );
     }
 
-    public function save(): void
+    public function save()
     {
         $this->authorize($this->editingId ? 'employee_master.update' : 'employee_master.create');
 
@@ -164,52 +167,23 @@ class Form extends Component
             }
         }
 
-        if ($this->editingId) {
-            EmployeeMaster::findOrFail($this->editingId)->update($data);
-            Flux::toast(text: 'Employee #'.$this->editingId.' updated.', variant: 'success');
-        } else {
+        $isCreate = $this->editingId === null;
+
+        if ($isCreate) {
             $r = EmployeeMaster::create($data);
-            Flux::toast(text: 'Employee #'.$r->id.' created.', variant: 'success');
+            $this->editingId = $r->id;
+        } else {
+            EmployeeMaster::findOrFail($this->editingId)->update($data);
         }
 
-        $this->dispatch('employee-master:saved');
-        $this->resetForm();
-        Flux::modal('employee-master-form')->close();
-    }
+        Flux::toast(text: 'Employee '.$this->employee_code.($isCreate ? ' created.' : ' updated.'), variant: 'success');
 
-    protected function resetForm(): void
-    {
-        $this->editingId = null;
-        $this->employee_code = '';
-        $this->name = '';
-        $this->gender = null;
-        $this->date_of_birth = null;
-        $this->phone = '';
-        $this->alternate_phone = null;
-        $this->email = null;
-        $this->address = null;
-        $this->city = null;
-        $this->pincode = null;
-        $this->aadhar = null;
-        $this->pan = null;
-        $this->designation_id = null;
-        $this->department_id = null;
-        $this->employee_category_id = null;
-        $this->employee_grade_id = null;
-        $this->ctc = null;
-        $this->joining_date = null;
-        $this->exit_date = null;
-        $this->bank_name = null;
-        $this->bank_branch = null;
-        $this->ifsc = null;
-        $this->account_no = null;
-        $this->is_active = true;
-        $this->notes = null;
+        return redirect()->route('employee-master.index');
     }
 
     public function render()
     {
-        return view('employee-master::form', [
+        return view('employee-master::edit', [
             'designations' => DesignationMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'departments' => DepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'categories' => EmployeeCategoryMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),

@@ -6,7 +6,7 @@
         </div>
         <div class="flex items-center gap-2">
             @can('service_package_master.create')
-                <flux:button variant="primary" icon="plus" wire:click="openCreate">New Package</flux:button>
+                <flux:button variant="primary" icon="plus" :href="route('service-package-master.create')" wire:navigate>New Package</flux:button>
             @endcan
         </div>
     </div>
@@ -75,7 +75,7 @@
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('service_package_master.update')
-                                <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('service-package-master.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
                             @can('service_package_master.delete')
                                 <flux:modal.trigger :name="'service-package-master-delete-' . $row->id">
@@ -108,6 +108,4 @@
     </flux:table>
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
-
-    <livewire:service-package-master.form />
 </div>

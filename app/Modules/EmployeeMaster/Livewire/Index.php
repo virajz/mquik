@@ -8,7 +8,6 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -72,21 +71,6 @@ class Index extends Component
             $this->sortDirection = 'asc';
         }
     }
-
-    public function openCreate(): void
-    {
-        $this->dispatch('employee-master:edit', id: null);
-        Flux::modal('employee-master-form')->show();
-    }
-
-    public function openEdit(int $id): void
-    {
-        $this->dispatch('employee-master:edit', id: $id);
-        Flux::modal('employee-master-form')->show();
-    }
-
-    #[On('employee-master:saved')]
-    public function refreshAfterSave(): void {}
 
     public function delete(int $id): void
     {

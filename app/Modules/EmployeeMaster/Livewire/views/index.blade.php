@@ -6,7 +6,7 @@
         </div>
         <div class="flex items-center gap-2">
             @can('employee_master.create')
-                <flux:button variant="primary" icon="plus" wire:click="openCreate">New Employee</flux:button>
+                <flux:button variant="primary" icon="plus" :href="route('employee-master.create')" wire:navigate>New Employee</flux:button>
             @endcan
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
@@ -77,7 +77,7 @@
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('employee_master.update')
-                                <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('employee-master.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
                             @can('employee_master.delete')
                                 <flux:modal.trigger :name="'employee-master-delete-' . $row->id">
@@ -111,7 +111,6 @@
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
 
-    <livewire:employee-master.form />
     <livewire:import-export.export-button :module="'EmployeeMaster'" wire:key="export-employee-master" />
     <livewire:import-export.import-wizard :module="'EmployeeMaster'" wire:key="import-employee-master" />
 </div>

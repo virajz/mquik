@@ -8,7 +8,7 @@
         </div>
         <div class="flex items-center gap-2">
             @can('payroll.create')
-                <flux:button variant="primary" icon="plus" wire:click="openCreate">New Entry</flux:button>
+                <flux:button variant="primary" icon="plus" :href="route('payroll.create')" wire:navigate>New Entry</flux:button>
             @endcan
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
@@ -77,7 +77,7 @@
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('payroll.update')
-                                <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('payroll.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
                             @can('payroll.delete')
                                 <flux:modal.trigger :name="'payroll-delete-' . $row->id">
@@ -113,5 +113,4 @@
         <div class="mt-4"><flux:pagination :paginator="$rows" /></div>
     @endif
 
-    <livewire:payroll.form />
 </div>

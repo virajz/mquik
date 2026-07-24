@@ -7,7 +7,7 @@
 
         <div class="flex items-center gap-2">
             @can('checklist_template_master.create')
-                <flux:button variant="primary" icon="plus" wire:click="openCreate">New Template</flux:button>
+                <flux:button variant="primary" icon="plus" :href="route('checklist-template-master.create')" wire:navigate>New Template</flux:button>
             @endcan
             <flux:dropdown align="end">
                 <flux:button variant="ghost" icon="ellipsis-vertical" />
@@ -105,7 +105,7 @@
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('checklist_template_master.update')
-                                <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEdit({{ $row->id }})">Edit</flux:button>
+                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('checklist-template-master.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
                             @can('checklist_template_master.delete')
                                 <flux:modal.trigger :name="'checklist-template-master-delete-' . $row->id">
@@ -142,6 +142,4 @@
             <flux:pagination :paginator="$rows" />
         </div>
     @endif
-
-    <livewire:checklist-template-master.form />
 </div>

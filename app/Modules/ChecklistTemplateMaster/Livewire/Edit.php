@@ -7,10 +7,13 @@ use App\Modules\ChecklistGroupMaster\Models\ChecklistGroupMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
-class Form extends Component
+#[Layout('layouts.app')]
+#[Title('Checklist Template')]
+class Edit extends Component
 {
     use HasQuickCreate;
 
@@ -56,8 +59,14 @@ class Form extends Component
         ];
     }
 
-    public function mount(): void
+    public function mount(?ChecklistTemplateMaster $checklistTemplateMaster = null): void
     {
+        if ($checklistTemplateMaster && $checklistTemplateMaster->exists) {
+            $this->load($checklistTemplateMaster);
+
+            return;
+        }
+
         if (empty($this->items)) {
             $this->items = [
                 ['label' => '', 'is_required' => true],
@@ -65,17 +74,8 @@ class Form extends Component
         }
     }
 
-    #[On('checklist-template-master:edit')]
-    public function load(?int $id): void
+    protected function load(ChecklistTemplateMaster $r): void
     {
-        $this->resetForm();
-        $this->resetErrorBag();
-
-        if ($id === null) {
-            return;
-        }
-
-        $r = ChecklistTemplateMaster::findOrFail($id);
         $this->editingId = $r->id;
         $this->name = $r->name;
         $this->code = $r->code;
@@ -112,7 +112,7 @@ class Form extends Component
         );
     }
 
-    public function save(): void
+    public function save()
     {
         $this->authorize($this->editingId ? 'checklist_template_master.update' : 'checklist_template_master.create');
 
@@ -142,23 +142,7 @@ class Form extends Component
             Flux::toast(text: 'Checklist template #'.$record->id.' created.', variant: 'success');
         }
 
-        $this->dispatch('checklist-template-master:saved');
-        $this->resetForm();
-        Flux::modal('checklist-template-master-form')->close();
-    }
-
-    protected function resetForm(): void
-    {
-        $this->editingId = null;
-        $this->name = '';
-        $this->code = null;
-        $this->checklist_group_id = null;
-        $this->applies_to = 'generic';
-        $this->items = [
-            ['label' => '', 'is_required' => true],
-        ];
-        $this->is_active = true;
-        $this->notes = null;
+        return redirect()->route('checklist-template-master.index');
     }
 
     /**
@@ -189,7 +173,7 @@ class Form extends Component
 
     public function render()
     {
-        return view('checklist-template-master::form', [
+        return view('checklist-template-master::edit', [
             'appliesToOptions' => ChecklistTemplateMaster::appliesToOptions(),
             'groupOptions' => ChecklistGroupMaster::query()
                 ->where('is_active', true)

@@ -166,3 +166,44 @@ Checklist Templates:
 Provide a dedicated create page
 
 Challan Rejection Reasons -> Item Rejection Reasons
+
+### 24 JULY:
+
+Compalaint Types & Requested Repairs
+
+- check how complaint groups are organized, if it's available or not
+- if not, then we need to migrate complaint types to Complaint Groups, those will be used in the Requested Repairs as the parent.
+
+Service Package
+
+- We need labour items
+- We also need spare or parts, which can be given as FOC or discount percentange
+- We also need quanitites for services like washing 4 times, alignment and balancing 3 times etc.
+- we need to provide a copy button
+- decrease the quantity when the services are availaed
+- need to provide a print preview to customers when the package is selected
+- when we create a JOB CARD - show the packages when customer has none or already have one for the selected vehicle
+- show the section below the customer, if there are none, show the packages button, it will open the packages with details
+- if customer has a package then show what's remaining
+- when the package is selected, add to bill (later use)
+
+Terms and Condition Master
+
+- need to be attached to the service package
+- when package is sold, need a customer signature as well
+
+Inventory Group
+
+- search is not working in the new group
+
+Spare
+
+- Inventory group and sub group creation option should be there in the spare like others
+- Provide the same option for Part Type Rack etc
+
+Internal Part Orders:
+
+- When you select the job card, things should fill automatically
+- Need complete details of the Part
+- Need to provide a way to add manual parts as well (custom, not in the spares)
+- Fetch details from Estimate approval (not in this phase)

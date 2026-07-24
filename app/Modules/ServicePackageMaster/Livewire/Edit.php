@@ -9,10 +9,13 @@ use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
-class Form extends Component
+#[Layout('layouts.app')]
+#[Title('Service Package')]
+class Edit extends Component
 {
     public ?int $editingId = null;
 
@@ -59,17 +62,16 @@ class Form extends Component
         ];
     }
 
-    #[On('service-package-master:edit')]
-    public function load(?int $id): void
+    public function mount(?ServicePackageMaster $servicePackageMaster = null): void
     {
-        $this->resetForm();
-        $this->resetErrorBag();
-
-        if ($id === null) {
-            return;
+        if ($servicePackageMaster && $servicePackageMaster->exists) {
+            $this->load($servicePackageMaster);
         }
+    }
 
-        $r = ServicePackageMaster::with('services')->findOrFail($id);
+    protected function load(ServicePackageMaster $r): void
+    {
+        $r->loadMissing('services');
         $this->editingId = $r->id;
         $this->name = $r->name;
         $this->code = $r->code;
@@ -127,7 +129,7 @@ class Form extends Component
         return ServicePackageTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
-    public function save(): void
+    public function save()
     {
         $this->authorize($this->editingId ? 'service_package_master.update' : 'service_package_master.create');
 
@@ -167,9 +169,7 @@ class Form extends Component
             variant: 'success',
         );
 
-        $this->dispatch('service-package-master:saved');
-        $this->resetForm();
-        Flux::modal('service-package-master-form')->close();
+        return redirect()->route('service-package-master.index');
     }
 
     /**
@@ -205,23 +205,8 @@ class Form extends Component
         $package->services()->whereNotIn('id', $keptIds)->delete();
     }
 
-    protected function resetForm(): void
-    {
-        $this->editingId = null;
-        $this->name = '';
-        $this->code = null;
-        $this->service_package_type_id = null;
-        $this->description = null;
-        $this->is_amc = false;
-        $this->validity_months = null;
-        $this->validity_km = null;
-        $this->total_price = 0;
-        $this->is_active = true;
-        $this->services = [];
-    }
-
     public function render()
     {
-        return view('service-package-master::form');
+        return view('service-package-master::edit');
     }
 }
