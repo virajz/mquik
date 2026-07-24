@@ -2,6 +2,7 @@
 
 namespace App\Modules\SpareMaster\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use Flux\Flux;
@@ -16,7 +17,11 @@ use Livewire\WithPagination;
 #[Title('Spares')]
 class Index extends Component
 {
+    use SearchesPickerOptions;
     use WithPagination;
+
+    /** Search term for the server-backed brands picker. */
+    public string $brandSearch = '';
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -85,7 +90,14 @@ class Index extends Component
     #[Computed]
     public function brands()
     {
-        return SpareBrandMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: SpareBrandMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->brandSearch,
+            selected: is_numeric($this->brandFilter) ? (int) $this->brandFilter : null,
+            columns: ['id', 'name'],
+            limit: 30,
+        );
     }
 
     public function render()
@@ -93,11 +105,11 @@ class Index extends Component
         $search = trim($this->search);
 
         $rows = SpareMaster::query()
-            ->with(['brand:id,name', 'uom:id,code,name'])
+            ->with(['brand:id,name', 'uom:id,code,name', 'hsn:id,code'])
             ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
                 $q->whereLike('name', '%'.$search.'%', caseSensitive: false)
                     ->orWhereLike('spare_code', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('hsn_code', '%'.$search.'%', caseSensitive: false);
+                    ->orWhereHas('hsn', fn ($h) => $h->whereLike('code', '%'.$search.'%', caseSensitive: false));
             }))
             ->when($this->brandFilter !== 'all', fn ($q) => $q->where('spare_brand_id', (int) $this->brandFilter))
             ->when($this->categoryFilter === 'tyre', fn ($q) => $q->where('spare_type', SpareMaster::TYPE_TYRE))

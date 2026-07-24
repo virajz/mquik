@@ -82,28 +82,30 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model.live="status" variant="listbox" label="Status" required>
+                    {{-- Status reveals its reason field client-side (Alpine), no round-trip.
+                         Server still nulls the off-state reason on save, so it stays authoritative. --}}
+                    <flux:select wire:model="status" variant="listbox" label="Status" required>
                         @foreach (\App\Modules\Appointment\Models\Appointment::statuses() as $key => $label)
                             <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
 
-                @if ($status === \App\Modules\Appointment\Models\Appointment::STATUS_CANCELLED)
-                    <flux:select wire:model="cancel_reason_id" variant="listbox" label="Cancel Reason" class="md:max-w-xs" required>
+                <div x-show="$wire.status === '{{ \App\Modules\Appointment\Models\Appointment::STATUS_CANCELLED }}'" x-cloak>
+                    <flux:select wire:model="cancel_reason_id" variant="listbox" label="Cancel Reason" class="md:max-w-xs">
                         @foreach ($this->cancelReasons as $reason)
                             <flux:select.option :value="$reason->id" wire:key="cxl-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                @endif
+                </div>
 
-                @if ($status === \App\Modules\Appointment\Models\Appointment::STATUS_PENDING)
+                <div x-show="$wire.status === '{{ \App\Modules\Appointment\Models\Appointment::STATUS_PENDING }}'" x-cloak>
                     <flux:select wire:model="pending_reason_id" variant="listbox" label="Pending Reason" class="md:max-w-xs" placeholder="Not specified">
                         @foreach ($this->pendingReasons as $reason)
                             <flux:select.option :value="$reason->id" wire:key="pnd-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                @endif
+                </div>
             </div>
         </section>
 

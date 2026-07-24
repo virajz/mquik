@@ -2,6 +2,7 @@
 
 namespace App\Modules\Barcode\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\Barcode\Models\BarcodeLabel;
 use App\Modules\Barcode\Services\BarcodeService;
 use App\Modules\SpareMaster\Models\SpareMaster;
@@ -17,7 +18,11 @@ use Livewire\WithPagination;
 #[Title('Barcode Labels')]
 class Index extends Component
 {
+    use SearchesPickerOptions;
     use WithPagination;
+
+    /** Search term for the server-backed spares picker. */
+    public string $spareSearch = '';
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -122,10 +127,14 @@ class Index extends Component
     #[Computed]
     public function spares()
     {
-        return SpareMaster::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'spare_code']);
+        return $this->pickerOptions(
+            query: SpareMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'spare_code'],
+            term: $this->spareSearch,
+            selected: $this->selectedSpareId,
+            columns: ['id', 'name', 'spare_code'],
+            limit: 30,
+        );
     }
 
     public function render()

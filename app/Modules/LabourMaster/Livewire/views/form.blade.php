@@ -33,13 +33,18 @@
                 />
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:input
-                        wire:model="hsn_sac_code"
-                        label="HSN / SAC Code"
-                        placeholder="9988"
-                        description="6-digit SAC for service-tax classification."
-                        class:input="font-mono"
-                    />
+                    <flux:select
+                        wire:model="hsn_id"
+                        variant="listbox"
+                        searchable
+                        clearable
+                        label="SAC Code"
+                        placeholder="Pick a SAC code…"
+                    >
+                        @foreach ($this->sacCodes as $h)
+                            <flux:select.option :value="$h->id" wire:key="sac-{{ $h->id }}">{{ $h->code }} — {{ $h->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
                     <flux:select wire:model="vehicle_segment_id" label="Vehicle Segment" variant="combobox" clearable>
                         <x-slot name="input">
                             <flux:select.input wire:model="vehicleSegmentSearch" placeholder="Pick or type to add…" />

@@ -24,7 +24,10 @@
 
     <div class="mb-4 flex items-center gap-3 flex-wrap">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name, part no., or HSN..." icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:select wire:model.live="brandFilter" variant="listbox" searchable class="max-w-52">
+        <flux:select wire:model.live="brandFilter" variant="listbox" searchable class="max-w-52" :filter="false">
+        <x-slot name="search">
+            <flux:select.search wire:model.live.debounce.250ms="brandSearch" placeholder="Type a brand name…" />
+        </x-slot>
             <flux:select.option value="all">All brands</flux:select.option>
             @foreach ($this->brands as $b)
                 <flux:select.option :value="(string) $b->id">{{ $b->name }}</flux:select.option>
@@ -69,8 +72,8 @@
                             <flux:badge :color="$typeColor" size="sm">
                                 {{ \App\Modules\SpareMaster\Models\SpareMaster::spareTypes()[$row->spare_type] ?? $row->spare_type }}
                             </flux:badge>
-                            @if ($row->hsn_code)
-                                <span class="font-mono">HSN {{ $row->hsn_code }}</span>
+                            @if ($row->hsn)
+                                <span class="font-mono">HSN {{ $row->hsn->code }}</span>
                             @endif
                             @if ($row->uom)
                                 <span>· {{ $row->uom->code ?? $row->uom->name }}</span>

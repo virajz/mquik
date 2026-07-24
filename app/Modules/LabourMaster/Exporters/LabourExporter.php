@@ -40,7 +40,7 @@ class LabourExporter implements Exportable
             $model->name,
             $model->labour_code,
             $model->description,
-            $model->hsn_sac_code,
+            $model->hsn?->code,
             $model->vehicleSegment?->name,
             $model->tax?->name,
             number_format((float) $model->rate_before_tax, 2, '.', ''),

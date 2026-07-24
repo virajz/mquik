@@ -26,6 +26,10 @@ class Form extends Component
 
     public ?int $vehicle_segment_id = null;
 
+    public ?int $service_interval_km = null;
+
+    public ?int $service_interval_months = null;
+
     public string $vehicleSegmentSearch = '';
 
     public bool $is_active = true;
@@ -43,6 +47,8 @@ class Form extends Component
                     ->ignore($this->editingId),
             ],
             'vehicle_segment_id' => ['nullable', 'integer', Rule::exists('vehicle_segments', 'id')->where('is_active', true)],
+            'service_interval_km' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            'service_interval_months' => ['nullable', 'integer', 'min:0', 'max:120'],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -74,6 +80,8 @@ class Form extends Component
         $this->brand_id = $r->brand_id;
         $this->name = $r->name;
         $this->vehicle_segment_id = $r->vehicle_segment_id;
+        $this->service_interval_km = $r->service_interval_km;
+        $this->service_interval_months = $r->service_interval_months;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
     }
@@ -131,6 +139,8 @@ class Form extends Component
         $this->brand_id = null;
         $this->name = '';
         $this->vehicle_segment_id = null;
+        $this->service_interval_km = null;
+        $this->service_interval_months = null;
         $this->is_active = true;
         $this->notes = null;
     }

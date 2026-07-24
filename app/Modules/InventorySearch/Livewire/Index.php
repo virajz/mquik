@@ -2,6 +2,7 @@
 
 namespace App\Modules\InventorySearch\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
@@ -24,7 +25,23 @@ use Livewire\WithPagination;
 #[Title('Inventory Search')]
 class Index extends Component
 {
+    use SearchesPickerOptions;
     use WithPagination;
+
+    /** Search term for the server-backed subGroups picker. */
+    public string $subGroupSearch = '';
+
+    /** Search term for the server-backed variants picker. */
+    public string $variantSearch = '';
+
+    /** Search term for the server-backed models picker. */
+    public string $modelSearch = '';
+
+    /** Search term for the server-backed partsBrands picker. */
+    public string $partsBrandSearch = '';
+
+    /** Search term for the server-backed vendors picker. */
+    public string $vendorSearch = '';
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -107,25 +124,27 @@ class Index extends Component
     #[Computed]
     public function models()
     {
-        if ($this->vehicleBrandFilter === 'all') {
-            return collect();
-        }
-
-        return VehicleModelMaster::query()->where('is_active', true)
-            ->where('brand_id', (int) $this->vehicleBrandFilter)
-            ->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: VehicleModelMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'brand.name'],
+            term: $this->modelSearch,
+            selected: is_numeric($this->modelFilter) ? (int) $this->modelFilter : null,
+            columns: ['id', 'name', 'brand_id'],
+            limit: 30,
+        );
     }
 
     #[Computed]
     public function variants()
     {
-        if ($this->modelFilter === 'all') {
-            return collect();
-        }
-
-        return VehicleVariantMaster::query()->where('is_active', true)
-            ->where('model_id', (int) $this->modelFilter)
-            ->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: VehicleVariantMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'model.name', 'model.brand.name'],
+            term: $this->variantSearch,
+            selected: is_numeric($this->variantFilter) ? (int) $this->variantFilter : null,
+            columns: ['id', 'name', 'model_id'],
+            limit: 30,
+        );
     }
 
     #[Computed]
@@ -143,19 +162,27 @@ class Index extends Component
     #[Computed]
     public function subGroups()
     {
-        if ($this->groupFilter === 'all') {
-            return collect();
-        }
-
-        return InventoryGroupMaster::query()->where('is_active', true)
-            ->where('parent_id', (int) $this->groupFilter)
-            ->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: InventoryGroupMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->subGroupSearch,
+            selected: is_numeric($this->subGroupFilter) ? (int) $this->subGroupFilter : null,
+            columns: ['id', 'name', 'parent_id'],
+            limit: 30,
+        );
     }
 
     #[Computed]
     public function partsBrands()
     {
-        return SpareBrandMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: SpareBrandMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->partsBrandSearch,
+            selected: is_numeric($this->partsBrandFilter) ? (int) $this->partsBrandFilter : null,
+            columns: ['id', 'name'],
+            limit: 30,
+        );
     }
 
     #[Computed]
@@ -173,7 +200,14 @@ class Index extends Component
     #[Computed]
     public function vendors()
     {
-        return VendorMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: VendorMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'vendor_code'],
+            term: $this->vendorSearch,
+            selected: is_numeric($this->vendorFilter) ? (int) $this->vendorFilter : null,
+            columns: ['id', 'name'],
+            limit: 20,
+        );
     }
 
     /**
@@ -238,7 +272,7 @@ class Index extends Component
             ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
                 $q->whereLike('name', '%'.$search.'%', caseSensitive: false)
                     ->orWhereLike('spare_code', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('hsn_code', '%'.$search.'%', caseSensitive: false);
+                    ->orWhereHas('hsn', fn ($h) => $h->whereLike('code', '%'.$search.'%', caseSensitive: false));
             }))
             ->when($this->partTypeFilter !== 'all', fn ($q) => $q->where('part_type_id', (int) $this->partTypeFilter))
             ->when($this->groupFilter !== 'all', fn ($q) => $q->where('inventory_group_id', (int) $this->groupFilter))

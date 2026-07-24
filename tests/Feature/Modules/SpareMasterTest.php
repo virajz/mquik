@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Livewire\Edit;
 use App\Modules\SpareMaster\Livewire\Index;
@@ -23,8 +24,10 @@ it('renders the index page', function () {
 });
 
 it('filters records by search across name / part no / hsn', function () {
-    SpareMaster::factory()->create(['name' => 'BREMBO BRAKE PAD', 'spare_code' => 'BBP-001', 'hsn_code' => '8708']);
-    SpareMaster::factory()->create(['name' => 'BOSCH AIR FILTER', 'spare_code' => 'BAF-001', 'hsn_code' => '8421']);
+    $hsn8708 = HsnMaster::factory()->create(['code' => '8708']);
+    $hsn8421 = HsnMaster::factory()->create(['code' => '8421']);
+    SpareMaster::factory()->create(['name' => 'BREMBO BRAKE PAD', 'spare_code' => 'BBP-001', 'hsn_id' => $hsn8708->id]);
+    SpareMaster::factory()->create(['name' => 'BOSCH AIR FILTER', 'spare_code' => 'BAF-001', 'hsn_id' => $hsn8421->id]);
 
     Livewire::test(Index::class)
         ->set('search', 'BREMBO')

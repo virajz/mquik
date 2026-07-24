@@ -2,6 +2,7 @@
 
 namespace App\Modules\EstimateTemplateMaster\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\EstimateTemplateMaster\Models\EstimateTemplateMaster;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\LabourMaster\Models\LabourMaster;
@@ -18,6 +19,11 @@ use Livewire\Component;
 #[Title('Estimate Template')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
+
+    /** Search term for the server-backed inventoryGroups picker. */
+    public string $inventoryGroupSearch = '';
+
     public ?int $editingId = null;
 
     public string $name = '';
@@ -97,7 +103,14 @@ class Edit extends Component
     #[Computed]
     public function inventoryGroups()
     {
-        return InventoryGroupMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: InventoryGroupMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->inventoryGroupSearch,
+            selected: $this->inventory_group_id,
+            columns: ['id', 'name', 'parent_id'],
+            limit: 30,
+        );
     }
 
     #[Computed]

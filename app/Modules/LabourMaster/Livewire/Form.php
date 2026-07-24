@@ -3,6 +3,7 @@
 namespace App\Modules\LabourMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
@@ -26,7 +27,7 @@ class Form extends Component
 
     public ?string $description = null;
 
-    public ?string $hsn_sac_code = null;
+    public ?int $hsn_id = null;
 
     public ?int $vehicle_segment_id = null;
 
@@ -54,7 +55,7 @@ class Form extends Component
             'name' => ['required', 'string', 'max:255'],
             'labour_code' => ['nullable', 'string', 'max:64', Rule::unique('labours', 'labour_code')->ignore($this->editingId)],
             'description' => ['nullable', 'string', 'max:1000'],
-            'hsn_sac_code' => ['nullable', 'string', 'max:16'],
+            'hsn_id' => ['nullable', 'integer', Rule::exists('hsn_codes', 'id')->where('is_active', true)],
             'vehicle_segment_id' => ['nullable', 'integer', Rule::exists('vehicle_segments', 'id')->where('is_active', true)],
             'tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)],
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
@@ -84,9 +85,10 @@ class Form extends Component
 
         $r = LabourMaster::findOrFail($id);
         $this->editingId = $r->id;
-        foreach (['name', 'labour_code', 'description', 'hsn_sac_code', 'remark'] as $k) {
+        foreach (['name', 'labour_code', 'description', 'remark'] as $k) {
             $this->{$k} = $r->{$k};
         }
+        $this->hsn_id = $r->hsn_id;
         $this->vehicle_segment_id = $r->vehicle_segment_id;
         $this->tax_id = $r->tax_id;
         $this->workshop_department_id = $r->workshop_department_id;
@@ -106,6 +108,17 @@ class Form extends Component
             permission: 'vehicle_segment_master.create',
             label: 'Vehicle segment',
         );
+    }
+
+    /** Service codes only — HSN is for goods. */
+    #[Computed]
+    public function sacCodes()
+    {
+        return HsnMaster::query()
+            ->where('is_active', true)
+            ->where('kind', HsnMaster::KIND_SAC)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
     }
 
     #[Computed]
@@ -187,7 +200,7 @@ class Form extends Component
         $this->name = '';
         $this->labour_code = null;
         $this->description = null;
-        $this->hsn_sac_code = null;
+        $this->hsn_id = null;
         $this->vehicle_segment_id = null;
         $this->tax_id = null;
         $this->workshop_department_id = null;

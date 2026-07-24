@@ -17,7 +17,10 @@
                 <flux:input wire:model="code" label="Code" placeholder="PMS-B" class:input="font-mono uppercase" />
             </div>
 
-            <flux:select wire:model="inventory_group_id" variant="listbox" searchable clearable label="Inventory Group" placeholder="Group-wise (optional)…" class="md:max-w-sm">
+            <flux:select wire:model="inventory_group_id" variant="listbox" searchable clearable label="Inventory Group" placeholder="Group-wise (optional)…" class="md:max-w-sm" :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="inventoryGroupSearch" placeholder="Type a group name…" />
+            </x-slot>
                 @foreach ($this->inventoryGroups as $g)
                     <flux:select.option :value="$g->id" wire:key="ig-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                 @endforeach

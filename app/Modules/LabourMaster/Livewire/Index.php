@@ -116,7 +116,7 @@ class Index extends Component
             ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
                 $q->whereLike('name', '%'.$search.'%', caseSensitive: false)
                     ->orWhereLike('labour_code', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('hsn_sac_code', '%'.$search.'%', caseSensitive: false);
+                    ->orWhereHas('hsn', fn ($h) => $h->whereLike('code', '%'.$search.'%', caseSensitive: false));
             }))
             ->when($this->segmentFilter !== 'all', fn ($q) => $q->where('vehicle_segment_id', (int) $this->segmentFilter))
             ->when($this->oslFilter === 'osl', fn ($q) => $q->where('is_osl', true))

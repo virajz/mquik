@@ -64,8 +64,8 @@
                             @if ($row->is_osl)
                                 <flux:badge color="amber" size="sm">OSL</flux:badge>
                             @endif
-                            @if ($row->hsn_sac_code)
-                                <span class="font-mono">SAC {{ $row->hsn_sac_code }}</span>
+                            @if ($row->hsn)
+                                <span class="font-mono">SAC {{ $row->hsn->code }}</span>
                             @endif
                             @if ($row->workshopDepartment)
                                 <span>· {{ $row->workshopDepartment->name }}</span>

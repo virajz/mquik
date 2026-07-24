@@ -28,23 +28,33 @@
 
                 <flux:separator variant="subtle" />
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:input wire:model.live="basic_amount" type="number" step="0.01" min="0" label="Basic" class:input="text-right font-mono" required />
-                    <flux:input wire:model.live="hra_amount" type="number" step="0.01" min="0" label="HRA" class:input="text-right font-mono" required />
-                    <flux:input wire:model.live="da_amount" type="number" step="0.01" min="0" label="DA" class:input="text-right font-mono" required />
-                    <flux:input wire:model.live="allowances_amount" type="number" step="0.01" min="0" label="Allowances (OT + Bonus)" class:input="text-right font-mono" required />
-                    <flux:input wire:model.live="incentive_amount" type="number" step="0.01" min="0" label="Incentive (Smart Salary)" class:input="text-right font-mono" required />
-                    <flux:input wire:model.live="deductions_amount" type="number" step="0.01" min="0" label="Deductions (PF/ESI/Adv)" class:input="text-right font-mono" required />
-                </div>
-
-                <div class="rounded-md bg-zinc-50 dark:bg-zinc-900 px-4 py-3 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <div class="text-zinc-500 text-xs">Gross</div>
-                        <div class="font-mono font-medium">₹ {{ number_format($this->grossPreview, 2) }}</div>
+                {{-- Gross/Net preview is pure arithmetic, so it's computed in Alpine
+                     and updates as you type — no per-keystroke round-trip. The saved
+                     gross/net are still recomputed server-side in save(). --}}
+                <div x-data="{
+                    n(v) { return parseFloat(v) || 0 },
+                    get gross() { return this.n($wire.basic_amount) + this.n($wire.hra_amount) + this.n($wire.da_amount) + this.n($wire.allowances_amount) + this.n($wire.incentive_amount) },
+                    get net() { return this.gross - this.n($wire.deductions_amount) },
+                    money(v) { return '₹ ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                }">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <flux:input wire:model="basic_amount" type="number" step="0.01" min="0" label="Basic" class:input="text-right font-mono" required />
+                        <flux:input wire:model="hra_amount" type="number" step="0.01" min="0" label="HRA" class:input="text-right font-mono" required />
+                        <flux:input wire:model="da_amount" type="number" step="0.01" min="0" label="DA" class:input="text-right font-mono" required />
+                        <flux:input wire:model="allowances_amount" type="number" step="0.01" min="0" label="Allowances (OT + Bonus)" class:input="text-right font-mono" required />
+                        <flux:input wire:model="incentive_amount" type="number" step="0.01" min="0" label="Incentive (Smart Salary)" class:input="text-right font-mono" required />
+                        <flux:input wire:model="deductions_amount" type="number" step="0.01" min="0" label="Deductions (PF/ESI/Adv)" class:input="text-right font-mono" required />
                     </div>
-                    <div>
-                        <div class="text-zinc-500 text-xs">Net</div>
-                        <div class="font-mono font-medium">₹ {{ number_format($this->netPreview, 2) }}</div>
+
+                    <div class="mt-4 rounded-md bg-zinc-50 dark:bg-zinc-900 px-4 py-3 grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-zinc-500 text-xs">Gross</div>
+                            <div class="font-mono font-medium" x-text="money(gross)"></div>
+                        </div>
+                        <div>
+                            <div class="text-zinc-500 text-xs">Net</div>
+                            <div class="font-mono font-medium" x-text="money(net)"></div>
+                        </div>
                     </div>
                 </div>
 

@@ -24,7 +24,10 @@
 
     <div class="mb-4 flex items-center gap-3 flex-wrap">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by variant name..." icon="magnifying-glass" clearable class="max-w-sm" />
-        <flux:select wire:model.live="modelFilter" variant="listbox" searchable class="max-w-56">
+        <flux:select wire:model.live="modelFilter" variant="listbox" searchable class="max-w-56" :filter="false">
+        <x-slot name="search">
+            <flux:select.search wire:model.live.debounce.250ms="modelSearch" placeholder="Type a brand or model…" />
+        </x-slot>
             <flux:select.option value="all">All models</flux:select.option>
             @foreach ($this->models as $m)
                 <flux:select.option :value="(string) $m->id">{{ $m->brand?->name }} {{ $m->name }}</flux:select.option>

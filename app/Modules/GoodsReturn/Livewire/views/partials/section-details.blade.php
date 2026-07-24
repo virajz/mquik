@@ -6,7 +6,10 @@
     </div>
     <div class="space-y-4 min-w-0">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <flux:select wire:model="vendor_id" variant="listbox" searchable label="Vendor" placeholder="Pick a vendor…" required>
+            <flux:select wire:model="vendor_id" variant="listbox" searchable label="Vendor" placeholder="Pick a vendor…" required :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
+            </x-slot>
                 @foreach ($this->vendors as $v)
                     <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
                 @endforeach

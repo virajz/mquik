@@ -4,6 +4,7 @@ namespace App\Modules\SpareMaster\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\RackMaster\Models\RackMaster;
@@ -45,11 +46,16 @@ class SpareMaster extends Model
         'max_qty' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['name', 'spare_code', 'hsn_code', 'description'];
+    protected static array $searchableFields = ['name', 'spare_code', 'description'];
 
     protected static function newFactory(): SpareMasterFactory
     {
         return SpareMasterFactory::new();
+    }
+
+    public function hsn(): BelongsTo
+    {
+        return $this->belongsTo(HsnMaster::class, 'hsn_id');
     }
 
     public function brand(): BelongsTo

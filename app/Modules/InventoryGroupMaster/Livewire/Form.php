@@ -3,6 +3,7 @@
 namespace App\Modules\InventoryGroupMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,7 @@ use Livewire\Component;
 class Form extends Component
 {
     use HasQuickCreate;
+    use SearchesPickerOptions;
 
     public ?int $editingId = null;
 
@@ -61,10 +63,14 @@ class Form extends Component
     #[Computed]
     public function parents()
     {
-        return InventoryGroupMaster::query()
-            ->when($this->editingId, fn ($q, $id) => $q->where('id', '!=', $id))
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: InventoryGroupMaster::query()->where('is_active', true)->when($this->editingId, fn ($q, $id) => $q->where('id', '!=', $id))->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->parentSearch,
+            selected: $this->parent_id,
+            columns: ['id', 'name'],
+            limit: 30,
+        );
     }
 
     #[On('inventory-group-master:edit')]

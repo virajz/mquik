@@ -138,40 +138,40 @@
                 <flux:time-picker wire:model="requested_time" label="Requested Time" type="input" />
                 <flux:date-picker wire:model="received_date" label="Received Date" placeholder="When received" with-today selectable-header fixed-weeks type="input" />
                 <flux:time-picker wire:model="received_time" label="Received Time" type="input" />
-                <flux:select wire:model.live="reminder_frequency" variant="listbox" clearable label="Auto Reminder" placeholder="None">
+                {{-- Custom-days / retention-days reveal client-side (Alpine); the
+                     server still requires them via requiredIf, so they stay authoritative. --}}
+                <flux:select wire:model="reminder_frequency" variant="listbox" clearable label="Auto Reminder" placeholder="None">
                     @foreach (\App\Modules\DocumentCollection\Models\DocumentCollection::reminderFrequencies() as $key => $label)
                         <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                     @endforeach
                 </flux:select>
 
-                @if ($reminder_frequency === \App\Modules\DocumentCollection\Models\DocumentCollection::REMINDER_CUSTOM)
+                <div x-show="$wire.reminder_frequency === '{{ \App\Modules\DocumentCollection\Models\DocumentCollection::REMINDER_CUSTOM }}'" x-cloak>
                     <flux:input
                         type="number"
                         wire:model="reminder_custom_days"
                         label="Remind Every (days)"
                         min="1"
                         placeholder="3"
-                        required
                     />
-                @endif
+                </div>
 
-                <flux:select wire:model.live="retention" variant="listbox" label="Retention">
+                <flux:select wire:model="retention" variant="listbox" label="Retention">
                     @foreach (\App\Modules\DocumentCollection\Models\DocumentCollection::retentions() as $key => $label)
                         <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                     @endforeach
                 </flux:select>
 
-                @if ($retention === \App\Modules\DocumentCollection\Models\DocumentCollection::RETENTION_DELETE)
+                <div x-show="$wire.retention === '{{ \App\Modules\DocumentCollection\Models\DocumentCollection::RETENTION_DELETE }}'" x-cloak>
                     <flux:input
                         type="number"
                         wire:model="retention_days"
                         label="Delete After (days)"
                         min="1"
                         placeholder="90"
-                        required
                         description="Counted from the job card's closed date. The record is soft-deleted, so it stays recoverable."
                     />
-                @endif
+                </div>
             </div>
         @endunless
     </div>

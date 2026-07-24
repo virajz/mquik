@@ -3,8 +3,10 @@
 namespace App\Modules\VendorMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\GstTypeMaster\Models\GstTypeMaster;
+use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\ServiceSpecialistMaster\Models\ServiceSpecialistMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
@@ -26,6 +28,7 @@ use Livewire\WithFileUploads;
 class Edit extends Component
 {
     use HasQuickCreate;
+    use SearchesPickerOptions;
     use WithFileUploads;
 
     public ?int $editingId = null;
@@ -60,6 +63,12 @@ class Edit extends Component
 
     /** @var array<int, int> */
     public array $service_specialist_ids = [];
+
+    /** @var array<int, int> inventory groups this vendor supplies */
+    public array $inventory_group_ids = [];
+
+    /** Search term for the inventory-group picker (~1,000 rows). */
+    public string $inventoryGroupSearch = '';
 
     public ?int $region_id = null;
 
@@ -129,6 +138,7 @@ class Edit extends Component
         $this->vendor_type_ids = $vendor->vendorTypes->pluck('id')->all();
         $this->spare_brand_ids = $vendor->spareBrands->pluck('id')->all();
         $this->service_specialist_ids = $vendor->serviceSpecialists->pluck('id')->all();
+        $this->inventory_group_ids = $vendor->inventoryGroups->pluck('id')->all();
         $this->credit_days = (int) $vendor->credit_days;
         $this->credit_limit = (float) $vendor->credit_limit;
         $this->is_active = $vendor->is_active;
@@ -149,6 +159,8 @@ class Edit extends Component
             'name' => ['required', 'string', 'max:255'],
             'vendor_type_ids' => ['required', 'array', 'min:1'],
             'vendor_type_ids.*' => ['integer', Rule::exists('vendor_types', 'id')->where('is_active', true)],
+            'inventory_group_ids' => ['array'],
+            'inventory_group_ids.*' => ['integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)],
             'spare_brand_ids' => ['array'],
             'spare_brand_ids.*' => ['integer', Rule::exists('spare_brands', 'id')->where('is_active', true)],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
@@ -253,6 +265,26 @@ class Edit extends Component
         );
     }
 
+    /**
+     * Inventory groups, searched server-side — there are ~1,000 sub-groups, far
+     * too many to render into a select.
+     */
+    #[Computed]
+    public function inventoryGroupOptions()
+    {
+        return $this->pickerOptions(
+            query: InventoryGroupMaster::query()
+                ->with('parent:id,name')
+                ->where('is_active', true)
+                ->orderBy('name'),
+            searchColumns: ['name', 'code', 'parent.name'],
+            term: $this->inventoryGroupSearch,
+            selected: $this->inventory_group_ids,
+            columns: ['id', 'name', 'code', 'parent_id'],
+            limit: 30,
+        );
+    }
+
     #[Computed]
     public function gstTypes()
     {
@@ -307,13 +339,21 @@ class Edit extends Component
             ->get(['id', 'name']);
     }
 
+    /**
+     * Searched server-side — the imported catalogue carries ~770 parts brands,
+     * too many to render into a select and re-ship on every round trip.
+     */
     #[Computed]
     public function spareBrands()
     {
-        return SpareBrandMaster::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: SpareBrandMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->spareBrandSearch,
+            selected: $this->spare_brand_ids,
+            columns: ['id', 'name'],
+            limit: 30,
+        );
     }
 
     public function addTerm(): void
@@ -360,13 +400,14 @@ class Edit extends Component
         $typeIds = array_map('intval', $this->vendor_type_ids);
         $brandIds = array_map('intval', $this->spare_brand_ids);
         $specialistIds = array_map('intval', $this->service_specialist_ids);
+        $groupIds = array_map('intval', $this->inventory_group_ids);
         $aadharFile = $this->aadhar_file;
         $panFile = $this->pan_file;
         $aadharCleared = $this->aadhar_file_path === null;
         $panCleared = $this->pan_file_path === null;
 
         $data = collect($this->validate())->except([
-            'vendor_type_ids', 'spare_brand_ids', 'service_specialist_ids', 'terms', 'aadhar_file', 'pan_file',
+            'vendor_type_ids', 'spare_brand_ids', 'service_specialist_ids', 'inventory_group_ids', 'terms', 'aadhar_file', 'pan_file',
         ])->all();
 
         $skip = ['email', 'secondary_email', 'phone', 'alternate_phone', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'region_id', 'bank_id', 'gst_type_id'];
@@ -378,7 +419,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $specialistIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
+        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $specialistIds, $groupIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
             if ($this->editingId) {
                 $v = VendorMaster::findOrFail($this->editingId);
                 $v->update($data);
@@ -390,6 +431,7 @@ class Edit extends Component
             $v->vendorTypes()->sync($typeIds);
             $v->spareBrands()->sync($brandIds);
             $v->serviceSpecialists()->sync($specialistIds);
+            $v->inventoryGroups()->sync($groupIds);
             $this->syncTerms($v, $terms);
             $this->syncKycFile($v, 'aadhar', $aadharFile, $aadharCleared);
             $this->syncKycFile($v, 'pan', $panFile, $panCleared);

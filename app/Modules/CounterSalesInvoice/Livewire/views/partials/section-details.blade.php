@@ -13,7 +13,7 @@
         <flux:error name="customer_id" />
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <flux:select wire:model.live="delivery_type" variant="listbox" label="Delivery Type" required>
+            <flux:select wire:model="delivery_type" variant="listbox" label="Delivery Type" required>
                 @foreach (CounterSalesInvoice::deliveryTypes() as $k => $l)
                     <flux:select.option :value="$k">{{ $l }}</flux:select.option>
                 @endforeach
@@ -31,9 +31,10 @@
             <flux:input wire:model="tracking_no" label="Tracking / Docket No." placeholder="Optional" class:input="font-mono uppercase" />
         </div>
 
-        @if ($delivery_type !== 'counter_pickup')
+        {{-- Delivery address reveals client-side (Alpine) for any non-counter delivery. --}}
+        <div x-show="$wire.delivery_type !== 'counter_pickup'" x-cloak>
             <flux:textarea wire:model="delivery_address" label="Delivery Address" rows="2" placeholder="Where the parts are being delivered." />
-        @endif
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <flux:select wire:model="department_id" variant="listbox" searchable clearable label="Department" placeholder="Optional…">
@@ -69,7 +70,10 @@
                     <flux:select.option :value="$e->id" wire:key="tec-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="vendor_id" variant="listbox" searchable clearable label="Vendor" placeholder="Supplier / outsource…">
+            <flux:select wire:model="vendor_id" variant="listbox" searchable clearable label="Vendor" placeholder="Supplier / outsource…" :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
+            </x-slot>
                 @foreach ($this->vendors as $v)
                     <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
                 @endforeach

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Proforma\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\EstimateRevisionReasonMaster\Models\EstimateRevisionReasonMaster;
@@ -36,7 +37,11 @@ use Livewire\WithFileUploads;
 #[Title('Proforma')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
     use WithFileUploads;
+
+    /** Search term for the server-backed vendors picker. */
+    public string $vendorSearch = '';
 
     public ?int $editingId = null;
 
@@ -411,7 +416,14 @@ class Edit extends Component
     #[Computed]
     public function vendors()
     {
-        return VendorMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: VendorMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'vendor_code'],
+            term: $this->vendorSearch,
+            selected: $this->vendor_id,
+            columns: ['id', 'name'],
+            limit: 20,
+        );
     }
 
     #[Computed]

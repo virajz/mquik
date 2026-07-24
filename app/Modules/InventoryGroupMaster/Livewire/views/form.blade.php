@@ -33,7 +33,10 @@
                     />
                 </div>
 
-                <flux:select wire:model="parent_id" label="Parent Group" variant="combobox" clearable>
+                <flux:select wire:model="parent_id" label="Parent Group" variant="combobox" clearable :filter="false">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="parentSearch" placeholder="Type a group name…" />
+                </x-slot>
                     <x-slot name="input">
                         <flux:select.input wire:model="parentSearch" placeholder="Pick or type to add…" />
                     </x-slot>

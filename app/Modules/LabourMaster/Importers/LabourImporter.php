@@ -2,6 +2,7 @@
 
 namespace App\Modules\LabourMaster\Importers;
 
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\ImportExport\Contracts\Importable;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\LabourMaster\Models\LabourMaster;
@@ -23,7 +24,7 @@ class LabourImporter implements Importable
             'name' => ['label' => 'Labour Name', 'required' => true, 'type' => 'string', 'help' => 'Will be uppercased.'],
             'labour_code' => ['label' => 'Code', 'required' => false, 'type' => 'string', 'help' => 'Unique labour code; uppercased.'],
             'description' => ['label' => 'Description', 'required' => false, 'type' => 'string'],
-            'hsn_sac_code' => ['label' => 'HSN/SAC', 'required' => false, 'type' => 'string'],
+            'hsn_sac_code' => ['label' => 'SAC Code', 'required' => false, 'type' => 'string', 'help' => 'Digits — matched to the HSN/SAC master.'],
             'segment_name' => ['label' => 'Vehicle Segment', 'required' => false, 'type' => 'string', 'help' => 'Looked up by name; created if missing.'],
             'tax_name' => ['label' => 'Tax', 'required' => false, 'type' => 'string', 'help' => 'Tax slab name (must already exist).'],
             'rate_before_tax' => ['label' => 'Rate Before Tax', 'required' => false, 'type' => 'numeric'],
@@ -70,7 +71,13 @@ class LabourImporter implements Importable
 
     protected function normalize(array $data): array
     {
-        foreach (['name', 'labour_code', 'description', 'hsn_sac_code', 'remark'] as $k) {
+        // Imports carry the digits; resolve them to the master and drop the text.
+        if (! empty($data['hsn_sac_code'])) {
+            $data['hsn_id'] = HsnMaster::where('code', trim((string) $data['hsn_sac_code']))->value('id');
+        }
+        unset($data['hsn_sac_code']);
+
+        foreach (['name', 'labour_code', 'description', 'remark'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
             }

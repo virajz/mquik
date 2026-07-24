@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\BankMaster\Models\BankMaster;
+use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\VendorMaster\Livewire\Edit;
@@ -603,4 +604,41 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('vendor-master.index'))->assertRedirect(route('login'));
+});
+
+it('saves the inventory groups a vendor supplies', function () {
+    $brakes = InventoryGroupMaster::factory()->create(['name' => 'BRAKE PARTS']);
+    $filters = InventoryGroupMaster::factory()->create(['name' => 'FILTERS']);
+    $type = VendorTypeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('name', 'acme parts co')
+        ->set('vendor_code', 'VND-IG1')
+        ->set('phone', '9876543210')
+        ->set('vendor_type_ids', [$type->id])
+        ->set('inventory_group_ids', [$brakes->id, $filters->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $vendor = VendorMaster::where('name', 'ACME PARTS CO')->firstOrFail();
+    expect($vendor->inventoryGroups->pluck('name')->sort()->values()->all())
+        ->toBe(['BRAKE PARTS', 'FILTERS']);
+});
+
+it('searches inventory groups server-side and keeps the selected ones', function () {
+    InventoryGroupMaster::factory()->count(40)->create();
+    $needle = InventoryGroupMaster::factory()->create(['name' => 'ZZQQ CLUTCH PARTS']);
+
+    $component = Livewire::test(Edit::class);
+
+    // Capped, not the whole 1,000-row table.
+    expect($component->instance()->inventoryGroupOptions)->toHaveCount(30);
+
+    $component->set('inventoryGroupSearch', 'ZZQQ');
+    expect($component->instance()->inventoryGroupOptions->pluck('id'))->toContain($needle->id);
+
+    // A selection survives a search that excludes it.
+    $component->set('inventory_group_ids', [$needle->id])
+        ->set('inventoryGroupSearch', 'NOTHING-MATCHES-THIS');
+    expect($component->instance()->inventoryGroupOptions->pluck('id'))->toContain($needle->id);
 });

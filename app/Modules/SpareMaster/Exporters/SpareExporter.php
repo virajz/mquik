@@ -42,7 +42,7 @@ class SpareExporter implements Exportable
             $model->name,
             $model->spare_code,
             $model->description,
-            $model->hsn_code,
+            $model->hsn?->code,
             $model->brand?->name,
             $model->tax?->name,
             number_format((float) $model->rate_before_tax, 2, '.', ''),

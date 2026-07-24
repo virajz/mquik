@@ -2,6 +2,7 @@
 
 namespace App\Modules\SalesReturn\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\CounterSalesInvoice\Models\CounterSalesInvoice;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
@@ -34,6 +35,11 @@ use Livewire\Component;
 #[Title('Sales Return')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
+
+    /** Search term for the server-backed vendors picker. */
+    public string $vendorSearch = '';
+
     public ?int $editingId = null;
 
     public ?string $return_no = null;
@@ -408,7 +414,14 @@ class Edit extends Component
     #[Computed]
     public function vendors()
     {
-        return VendorMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: VendorMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'vendor_code'],
+            term: $this->vendorSearch,
+            selected: $this->vendor_id,
+            columns: ['id', 'name'],
+            limit: 20,
+        );
     }
 
     #[Computed]

@@ -4,6 +4,7 @@ namespace App\Modules\LabourMaster\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\LabourMaster\Database\Factories\LabourMasterFactory;
 use App\Modules\TaxMaster\Models\TaxMaster;
@@ -29,7 +30,7 @@ class LabourMaster extends Model
         'rate_before_tax' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['name', 'labour_code', 'hsn_sac_code', 'description'];
+    protected static array $searchableFields = ['name', 'labour_code', 'description'];
 
     protected static function newFactory(): LabourMasterFactory
     {
@@ -68,5 +69,11 @@ class LabourMaster extends Model
         $pct = (float) (($tax?->gst_percent ?? 0) + ($tax?->cess_percent ?? 0));
 
         return round($rate * (1 + $pct / 100), 2);
+    }
+
+    /** SAC code for this labour operation. */
+    public function hsn(): BelongsTo
+    {
+        return $this->belongsTo(HsnMaster::class, 'hsn_id');
     }
 }

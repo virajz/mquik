@@ -43,10 +43,12 @@ use App\Modules\FuelTypeMaster\Database\Seeders\FuelTypeMasterSeeder;
 use App\Modules\GateMaster\Database\Seeders\GateMasterSeeder;
 use App\Modules\GstTypeMaster\Database\Seeders\GstTypeMasterSeeder;
 use App\Modules\HolidayMaster\Database\Seeders\HolidayMasterSeeder;
+use App\Modules\HsnMaster\Database\Seeders\HsnMasterSeeder;
 use App\Modules\IncentivePolicyMaster\Database\Seeders\IncentivePolicyMasterSeeder;
 use App\Modules\InspectionItemGroupMaster\Database\Seeders\InspectionItemGroupMasterSeeder;
 use App\Modules\InspectionItemMaster\Database\Seeders\InspectionItemMasterSeeder;
 use App\Modules\InspectionTemplateMaster\Database\Seeders\InspectionTemplateMasterSeeder;
+use App\Modules\InspectionTemplateMaster\Database\Seeders\Mquik360TemplateSeeder;
 use App\Modules\InsuranceCompanyMaster\Database\Seeders\InsuranceCompanyMasterSeeder;
 use App\Modules\InsuranceDeductionTypeMaster\Database\Seeders\InsuranceDeductionTypeMasterSeeder;
 use App\Modules\InsurancePolicyTypeMaster\Database\Seeders\InsurancePolicyTypeMasterSeeder;
@@ -130,6 +132,7 @@ class DatabaseSeeder extends Seeder
             GstTypeMasterSeeder::class,
             AccountGroupMasterSeeder::class,
             TaxMasterSeeder::class,
+            HsnMasterSeeder::class,
             EnquirySourceMasterSeeder::class,
             ComplaintTypeMasterSeeder::class,
             ClaimTypeMasterSeeder::class,
@@ -232,6 +235,7 @@ class DatabaseSeeder extends Seeder
             VehicleModelMasterSeeder::class,
             JobDescriptionMasterSeeder::class,
             InspectionTemplateMasterSeeder::class,
+            Mquik360TemplateSeeder::class,
         ]);
 
         // 5) Third-level FK deps.

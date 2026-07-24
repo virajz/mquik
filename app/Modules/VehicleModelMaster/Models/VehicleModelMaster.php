@@ -25,6 +25,8 @@ class VehicleModelMaster extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'service_interval_km' => 'integer',
+        'service_interval_months' => 'integer',
     ];
 
     protected static array $searchableFields = ['name'];

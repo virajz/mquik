@@ -25,7 +25,7 @@ class LabourMasterFactory extends Factory
             'name' => $job,
             'labour_code' => 'LB-'.strtoupper(Str::random(6)),
             'description' => strtoupper($this->faker->sentence(4)),
-            'hsn_sac_code' => (string) $this->faker->numberBetween(9988, 9999),
+            'hsn_id' => null,
             'rate_before_tax' => $this->faker->randomFloat(2, 100, 3000),
             'is_osl' => false,
             'remark' => null,

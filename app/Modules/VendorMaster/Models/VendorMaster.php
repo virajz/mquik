@@ -6,6 +6,7 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\GstTypeMaster\Models\GstTypeMaster;
+use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\ServiceSpecialistMaster\Models\ServiceSpecialistMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
@@ -113,5 +114,16 @@ class VendorMaster extends Model
                 }
             }
         });
+    }
+
+    /** Inventory groups this vendor supplies — drives sourcing lookups. */
+    public function inventoryGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            InventoryGroupMaster::class,
+            'inventory_group_vendor',
+            'vendor_id',
+            'inventory_group_id',
+        );
     }
 }

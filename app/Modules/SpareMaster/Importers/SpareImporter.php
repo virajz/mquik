@@ -2,6 +2,7 @@
 
 namespace App\Modules\SpareMaster\Importers;
 
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\ImportExport\Contracts\Importable;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
@@ -24,7 +25,7 @@ class SpareImporter implements Importable
             'name' => ['label' => 'Spare Name', 'required' => true, 'type' => 'string', 'help' => 'Will be uppercased.'],
             'spare_code' => ['label' => 'Part No.', 'required' => false, 'type' => 'string', 'help' => 'Unique part number; uppercased.'],
             'description' => ['label' => 'Description', 'required' => false, 'type' => 'string'],
-            'hsn_code' => ['label' => 'HSN Code', 'required' => false, 'type' => 'string'],
+            'hsn_code' => ['label' => 'HSN Code', 'required' => false, 'type' => 'string', 'help' => 'Digits — matched to the HSN master.'],
             'brand_name' => ['label' => 'Brand', 'required' => false, 'type' => 'string', 'help' => 'Looked up by name; created if missing.'],
             'tax_name' => ['label' => 'Tax', 'required' => false, 'type' => 'string', 'help' => 'Tax slab name (must already exist).'],
             'rate_before_tax' => ['label' => 'Rate Before Tax', 'required' => false, 'type' => 'numeric'],
@@ -93,7 +94,13 @@ class SpareImporter implements Importable
      */
     protected function normalize(array $data): array
     {
-        foreach (['name', 'spare_code', 'description', 'hsn_code', 'barcode_type', 'location', 'tyre_dimension', 'rim_size', 'load_speed_index', 'tread_pattern', 'remark'] as $k) {
+        // Imports carry the digits; resolve them to the master and drop the text.
+        if (! empty($data['hsn_code'])) {
+            $data['hsn_id'] = HsnMaster::where('code', trim((string) $data['hsn_code']))->value('id');
+        }
+        unset($data['hsn_code']);
+
+        foreach (['name', 'spare_code', 'description', 'barcode_type', 'location', 'tyre_dimension', 'rim_size', 'load_speed_index', 'tread_pattern', 'remark'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
             }

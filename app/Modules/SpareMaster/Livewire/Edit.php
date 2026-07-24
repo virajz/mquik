@@ -4,6 +4,7 @@ namespace App\Modules\SpareMaster\Livewire;
 
 use App\Concerns\HasQuickCreate;
 use App\Concerns\SearchesPickerOptions;
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\RackMaster\Models\RackMaster;
@@ -36,7 +37,7 @@ class Edit extends Component
 
     public ?string $description = null;
 
-    public ?string $hsn_code = null;
+    public ?int $hsn_id = null;
 
     public ?int $spare_brand_id = null;
 
@@ -108,8 +109,9 @@ class Edit extends Component
 
         $this->editingId = $spare->id;
         $this->part_type_id = $spare->part_type_id;
+        $this->hsn_id = $spare->hsn_id;
         $this->rack_id = $spare->rack_id;
-        foreach (['name', 'spare_code', 'description', 'hsn_code', 'barcode_type', 'location', 'tyre_dimension', 'rim_size', 'load_speed_index', 'tread_pattern', 'remark'] as $k) {
+        foreach (['name', 'spare_code', 'description', 'barcode_type', 'location', 'tyre_dimension', 'rim_size', 'load_speed_index', 'tread_pattern', 'remark'] as $k) {
             $this->{$k} = $spare->{$k};
         }
         $this->spare_brand_id = $spare->spare_brand_id;
@@ -133,7 +135,7 @@ class Edit extends Component
             'name' => ['required', 'string', 'max:255'],
             'spare_code' => ['nullable', 'string', 'max:64', Rule::unique('spares', 'spare_code')->ignore($this->editingId)],
             'description' => ['nullable', 'string', 'max:1000'],
-            'hsn_code' => ['nullable', 'string', 'max:16'],
+            'hsn_id' => ['nullable', 'integer', Rule::exists('hsn_codes', 'id')->where('is_active', true)],
             'spare_brand_id' => ['nullable', 'integer', Rule::exists('spare_brands', 'id')->where('is_active', true)],
             'part_type_id' => ['nullable', 'integer', Rule::exists('part_types', 'id')->where('is_active', true)],
             'rack_id' => ['nullable', 'integer', Rule::exists('racks', 'id')->where('is_active', true)],
@@ -213,10 +215,28 @@ class Edit extends Component
         );
     }
 
+    /** Goods codes only — SAC is for labour. */
+    #[Computed]
+    public function hsnCodes()
+    {
+        return HsnMaster::query()
+            ->where('is_active', true)
+            ->where('kind', HsnMaster::KIND_HSN)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
+    }
+
     #[Computed]
     public function brands()
     {
-        return SpareBrandMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: SpareBrandMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->spareBrandSearch,
+            selected: $this->spare_brand_id,
+            columns: ['id', 'name'],
+            limit: 30,
+        );
     }
 
     #[Computed]

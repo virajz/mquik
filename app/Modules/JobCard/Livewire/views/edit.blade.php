@@ -97,7 +97,10 @@
                                     @endforeach
                                 </flux:select>
                                 <flux:input wire:model="policy_no" label="Policy No." placeholder="Insurance policy number" class:input="font-mono uppercase" />
-                                <flux:select wire:model="vendor_id" variant="listbox" searchable clearable label="Vendor" placeholder="Outside / parts vendor…">
+                                <flux:select wire:model="vendor_id" variant="listbox" searchable clearable label="Vendor" placeholder="Outside / parts vendor…" :filter="false">
+                                <x-slot name="search">
+                                    <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
+                                </x-slot>
                                     @foreach ($this->vendors as $v)
                                         <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
                                     @endforeach

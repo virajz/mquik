@@ -16,13 +16,19 @@
                     <flux:select.option :value="(string) $b->id">{{ $b->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="modelFilter" variant="listbox" searchable :disabled="$vehicleBrandFilter === 'all'">
+            <flux:select wire:model.live="modelFilter" variant="listbox" searchable :disabled="$vehicleBrandFilter === 'all'" :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="modelSearch" placeholder="Type a brand or model…" />
+            </x-slot>
                 <flux:select.option value="all">All models</flux:select.option>
                 @foreach ($this->models as $m)
                     <flux:select.option :value="(string) $m->id">{{ $m->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="variantFilter" variant="listbox" searchable :disabled="$modelFilter === 'all'">
+            <flux:select wire:model.live="variantFilter" variant="listbox" searchable :disabled="$modelFilter === 'all'" :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="variantSearch" placeholder="Type a brand, model or variant…" />
+            </x-slot>
                 <flux:select.option value="all">All variants</flux:select.option>
                 @foreach ($this->variants as $v)
                     <flux:select.option :value="(string) $v->id">{{ $v->name }}</flux:select.option>
@@ -40,13 +46,19 @@
                     <flux:select.option :value="(string) $g->id">{{ $g->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="subGroupFilter" variant="listbox" searchable :disabled="$groupFilter === 'all'">
+            <flux:select wire:model.live="subGroupFilter" variant="listbox" searchable :disabled="$groupFilter === 'all'" :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="subGroupSearch" placeholder="Type a group name…" />
+            </x-slot>
                 <flux:select.option value="all">All sub-groups</flux:select.option>
                 @foreach ($this->subGroups as $g)
                     <flux:select.option :value="(string) $g->id">{{ $g->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="partsBrandFilter" variant="listbox" searchable>
+            <flux:select wire:model.live="partsBrandFilter" variant="listbox" searchable :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="partsBrandSearch" placeholder="Type a brand name…" />
+            </x-slot>
                 <flux:select.option value="all">All parts brands</flux:select.option>
                 @foreach ($this->partsBrands as $b)
                     <flux:select.option :value="(string) $b->id">{{ $b->name }}</flux:select.option>
@@ -64,7 +76,10 @@
                     <flux:select.option :value="(string) $r->id">{{ $r->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="vendorFilter" variant="listbox" searchable>
+            <flux:select wire:model.live="vendorFilter" variant="listbox" searchable :filter="false">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
+            </x-slot>
                 <flux:select.option value="all">All vendors</flux:select.option>
                 @foreach ($this->vendors as $v)
                     <flux:select.option :value="(string) $v->id">{{ $v->name }}</flux:select.option>

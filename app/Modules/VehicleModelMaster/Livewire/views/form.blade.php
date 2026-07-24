@@ -40,6 +40,28 @@
                     @endcan
                 </flux:select>
 
+                {{-- Service interval — variants inherit this unless they override it. --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <flux:field>
+                        <flux:label>Service Interval (KM)</flux:label>
+                        <flux:input.group>
+                            <flux:input wire:model="service_interval_km" type="number" min="0" placeholder="10000" class:input="text-right font-mono" />
+                            <flux:input.group.suffix>km</flux:input.group.suffix>
+                        </flux:input.group>
+                        <flux:error name="service_interval_km" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Service Interval (Months)</flux:label>
+                        <flux:input.group>
+                            <flux:input wire:model="service_interval_months" type="number" min="0" placeholder="12" class:input="text-right font-mono" />
+                            <flux:input.group.suffix>mo</flux:input.group.suffix>
+                        </flux:input.group>
+                        <flux:description>Whichever comes first drives the next-service-due date.</flux:description>
+                        <flux:error name="service_interval_months" />
+                    </flux:field>
+                </div>
+
                 <flux:textarea wire:model="notes" label="Notes" rows="2" />
 
                 <flux:separator variant="subtle" />

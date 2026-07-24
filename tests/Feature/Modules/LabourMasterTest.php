@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\LabourMaster\Livewire\Form;
 use App\Modules\LabourMaster\Livewire\Index;
 use App\Modules\LabourMaster\Models\LabourMaster;
@@ -20,8 +21,10 @@ it('renders the index page', function () {
 });
 
 it('filters records by search across name / code / hsn-sac', function () {
-    LabourMaster::factory()->create(['name' => 'BRAKE PAD JOB', 'labour_code' => 'BPJ-001', 'hsn_sac_code' => '9988']);
-    LabourMaster::factory()->create(['name' => 'AC GAS REFILL', 'labour_code' => 'AGR-001', 'hsn_sac_code' => '9989']);
+    $sac9988 = HsnMaster::factory()->sac()->create(['code' => '998801']);
+    $sac9989 = HsnMaster::factory()->sac()->create(['code' => '998901']);
+    LabourMaster::factory()->create(['name' => 'BRAKE PAD JOB', 'labour_code' => 'BPJ-001', 'hsn_id' => $sac9988->id]);
+    LabourMaster::factory()->create(['name' => 'AC GAS REFILL', 'labour_code' => 'AGR-001', 'hsn_id' => $sac9989->id]);
 
     Livewire::test(Index::class)
         ->set('search', 'BRAKE')

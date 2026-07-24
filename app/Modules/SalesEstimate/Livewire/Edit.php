@@ -2,6 +2,7 @@
 
 namespace App\Modules\SalesEstimate\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DamageCauseMaster\Models\DamageCauseMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
@@ -30,6 +31,11 @@ use Livewire\Component;
 #[Title('Sales Estimate')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
+
+    /** Search term for the server-backed inventoryGroups picker. */
+    public string $inventoryGroupSearch = '';
+
     public ?int $editingId = null;
 
     public ?string $estimate_no = null;
@@ -420,7 +426,14 @@ class Edit extends Component
     #[Computed]
     public function inventoryGroups()
     {
-        return InventoryGroupMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->pickerOptions(
+            query: InventoryGroupMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->inventoryGroupSearch,
+            selected: $this->inventory_group_id,
+            columns: ['id', 'name', 'parent_id'],
+            limit: 30,
+        );
     }
 
     public function save()

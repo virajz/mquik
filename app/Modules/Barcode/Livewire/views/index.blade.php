@@ -216,7 +216,10 @@
             <flux:separator variant="subtle" />
 
             <div class="space-y-4">
-                <flux:select wire:model="selectedSpareId" label="Spare" required>
+                <flux:select wire:model="selectedSpareId" label="Spare" required :filter="false">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="spareSearch" placeholder="Type a part name or number…" />
+                </x-slot>
                     <flux:select.option value="">— select spare —</flux:select.option>
                     @foreach ($this->spares as $spare)
                         <flux:select.option :value="$spare->id">

@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleVariantMaster\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Support\RecordReferences;
@@ -19,7 +20,11 @@ use Livewire\WithPagination;
 #[Title('Vehicle Variants')]
 class Index extends Component
 {
+    use SearchesPickerOptions;
     use WithPagination;
+
+    /** Search term for the server-backed models picker. */
+    public string $modelSearch = '';
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -103,7 +108,14 @@ class Index extends Component
     #[Computed]
     public function models()
     {
-        return VehicleModelMaster::query()->with('brand:id,name')->orderBy('name')->get();
+        return $this->pickerOptions(
+            query: VehicleModelMaster::query()->where('is_active', true)->orderBy('name'),
+            searchColumns: ['name', 'brand.name'],
+            term: $this->modelSearch,
+            selected: is_numeric($this->modelFilter) ? (int) $this->modelFilter : null,
+            columns: ['id', 'name', 'brand_id'],
+            limit: 30,
+        );
     }
 
     public function render()

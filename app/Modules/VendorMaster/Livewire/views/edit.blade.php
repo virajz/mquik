@@ -75,16 +75,24 @@
                     <flux:description>If this vendor supplies parts, pick the brands they carry.</flux:description>
                     <div class="flex items-stretch gap-2">
                         <div class="flex-1 min-w-0">
+                            {{-- ~770 brands, so options are queried per keystroke. --}}
                             <flux:select
                                 wire:model="spare_brand_ids"
                                 variant="listbox"
                                 multiple
                                 searchable
+                                clear="close"
+                                :filter="false"
                                 placeholder="Pick one or more brands…"
                             >
-                                @foreach ($this->spareBrands as $b)
+                                <x-slot name="search">
+                                    <flux:select.search wire:model.live.debounce.250ms="spareBrandSearch" placeholder="Type a brand name…" />
+                                </x-slot>
+                                @forelse ($this->spareBrands as $b)
                                     <flux:select.option :value="$b->id" wire:key="sb-{{ $b->id }}">{{ $b->name }}</flux:select.option>
-                                @endforeach
+                                @empty
+                                    <flux:select.option value="" disabled>No matching brands.</flux:select.option>
+                                @endforelse
                             </flux:select>
                         </div>
                         @can('spare_brand_master.create')
@@ -100,6 +108,35 @@
                     </div>
                     <flux:error name="spare_brand_ids" />
                     <flux:error name="spare_brand_ids.0" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Inventory Groups Supplied</flux:label>
+                    <flux:description>Which part categories this vendor can source &mdash; drives sourcing lookups.</flux:description>
+                    {{-- ~1,000 sub-groups, so options are queried per keystroke. --}}
+                    <flux:select
+                        wire:model="inventory_group_ids"
+                        variant="listbox"
+                        multiple
+                        searchable
+                        clearable
+                        clear="close"
+                        :filter="false"
+                        placeholder="Pick one or more groups…"
+                    >
+                        <x-slot name="search">
+                            <flux:select.search wire:model.live.debounce.250ms="inventoryGroupSearch" placeholder="Type a group name or code…" />
+                        </x-slot>
+                        @forelse ($this->inventoryGroupOptions as $g)
+                            <flux:select.option :value="$g->id" wire:key="ig-{{ $g->id }}">
+                                {{ $g->parent ? $g->parent->name.' › ' : '' }}{{ $g->name }}
+                            </flux:select.option>
+                        @empty
+                            <flux:select.option value="" disabled>No matching groups.</flux:select.option>
+                        @endforelse
+                    </flux:select>
+                    <flux:error name="inventory_group_ids" />
+                    <flux:error name="inventory_group_ids.0" />
                 </flux:field>
             </div>
         </section>

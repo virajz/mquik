@@ -142,7 +142,10 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model="spare_brand_id" variant="combobox" label="Brand" clearable>
+                    <flux:select wire:model="spare_brand_id" variant="combobox" label="Brand" clearable :filter="false">
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="spareBrandSearch" placeholder="Type a brand name…" />
+                    </x-slot>
                         <x-slot name="input">
                             <flux:select.input wire:model="spareBrandSearch" placeholder="Pick or type to add…" />
                         </x-slot>
@@ -156,12 +159,18 @@
                         @endcan
                     </flux:select>
 
-                    <flux:input
-                        wire:model="hsn_code"
+                    <flux:select
+                        wire:model="hsn_id"
+                        variant="listbox"
+                        searchable
+                        clearable
                         label="HSN Code"
-                        placeholder="8708 — 4 to 8 digits"
-                        class:input="font-mono"
-                    />
+                        placeholder="Pick an HSN code…"
+                    >
+                        @foreach ($this->hsnCodes as $h)
+                            <flux:select.option :value="$h->id" wire:key="hsn-{{ $h->id }}">{{ $h->code }} — {{ $h->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
