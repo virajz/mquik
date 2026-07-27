@@ -18,6 +18,9 @@ class EstimateRevisionReasonMasterSeeder extends Seeder
             ['name' => 'PRICE REVISION',          'code' => 'PRV'],
             ['name' => 'BILLING NAME REVISION',   'code' => 'BNR'],
             ['name' => 'SCOPE CHANGE',            'code' => 'SCH'],
+            ['name' => 'QUANTITY CHANGE',         'code' => 'QTY'],
+            ['name' => 'SPECIFICATION CHANGE',    'code' => 'SPC'],
+            ['name' => 'DISCOUNT UPDATE',         'code' => 'DSC'],
         ];
 
         foreach ($real as $type) {

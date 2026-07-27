@@ -9,10 +9,13 @@ class ChargeTypeMasterSeeder extends Seeder
 {
     public function run(): void
     {
-        // Real complaint categories used by the workshop CRM and advisor routing.
+        // Additional-charge heads used on purchases, RFQs and invoices.
         $real = [
             ['name' => 'FREIGHT',          'code' => 'FRT'],
             ['name' => 'P & F',            'code' => 'PNF'],
+            ['name' => 'TRANSPORT',        'code' => 'TRP'],
+            ['name' => 'PACKING',          'code' => 'PKG'],
+            ['name' => 'HANDLING',         'code' => 'HDL'],
             ['name' => 'COURIER',          'code' => 'CUR'],
             ['name' => 'LOADING',          'code' => 'LOD'],
             ['name' => 'INSURANCE',        'code' => 'INS'],
