@@ -54,6 +54,7 @@ use App\Modules\InsuranceDeductionTypeMaster\Database\Seeders\InsuranceDeduction
 use App\Modules\InsurancePolicyTypeMaster\Database\Seeders\InsurancePolicyTypeMasterSeeder;
 use App\Modules\InventoryGroupMaster\Database\Seeders\InventoryGroupMasterSeeder;
 use App\Modules\InvoiceCancellationReasonMaster\Database\Seeders\InvoiceCancellationReasonMasterSeeder;
+use App\Modules\IpiRejectionReasonMaster\Database\Seeders\IpiRejectionReasonMasterSeeder;
 use App\Modules\IpoCancellationReasonMaster\Database\Seeders\IpoCancellationReasonMasterSeeder;
 use App\Modules\IpoRejectionReasonMaster\Database\Seeders\IpoRejectionReasonMasterSeeder;
 use App\Modules\ItemRejectionReasonMaster\Database\Seeders\ItemRejectionReasonMasterSeeder;
@@ -67,6 +68,7 @@ use App\Modules\LocationMaster\Database\Seeders\LocationMasterSeeder;
 use App\Modules\LossReasonMaster\Database\Seeders\LossReasonMasterSeeder;
 use App\Modules\LossTypeMaster\Database\Seeders\LossTypeMasterSeeder;
 use App\Modules\MissingDocumentReasonMaster\Database\Seeders\MissingDocumentReasonMasterSeeder;
+use App\Modules\OutsideLabourRejectionReasonMaster\Database\Seeders\OutsideLabourRejectionReasonMasterSeeder;
 use App\Modules\ParkingSlotMaster\Database\Seeders\ParkingSlotMasterSeeder;
 use App\Modules\PartTypeMaster\Database\Seeders\PartTypeMasterSeeder;
 use App\Modules\PaymentCancellationReasonMaster\Database\Seeders\PaymentCancellationReasonMasterSeeder;
@@ -165,6 +167,8 @@ class DatabaseSeeder extends Seeder
             BayMasterSeeder::class,
             WorkOrderHoldReasonMasterSeeder::class,
             ReworkReasonMasterSeeder::class,
+            OutsideLabourRejectionReasonMasterSeeder::class,
+            IpiRejectionReasonMasterSeeder::class,
             DelayReasonMasterSeeder::class,
             StandardObservationMasterSeeder::class,
             PartTypeMasterSeeder::class,

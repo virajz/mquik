@@ -19,7 +19,7 @@ class VehicleInspectionOrderScope extends Model
 
     protected $guarded = [];
 
-    protected $casts = ['sequence_no' => 'integer'];
+    protected $casts = ['sequence_no' => 'integer', 'is_additional' => 'boolean'];
 
     public function order(): BelongsTo
     {

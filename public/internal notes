@@ -207,3 +207,19 @@ Internal Part Orders:
 - Need complete details of the Part
 - Need to provide a way to add manual parts as well (custom, not in the spares)
 - Fetch details from Estimate approval (not in this phase)
+
+UX Flow after Job Card:
+
+- Assign vehicles to technician, need to see the time it was assigned
+- Vehicle Inspection Order - this is basically assignment of work
+- technician started working, we will add all complaints and services
+- worker will start and stop timers when they start working
+- they will select start and stop based on the task line items (for example: PMS, Wheel Alignement, basically any one of these 3 labour master or requested repairs, service descriptions)
+- Advisor or Floor Incharge will talk to technician and will generate Internal Part Inquiry (IPI)
+- They can see the availability of the parts
+- Store Manager will respond based on the IPI, and will update upon the items
+- Store Manager will carry forward the request (Vendor Parts Inquiry)
+
+Users:
+
+- Provide an Edit option

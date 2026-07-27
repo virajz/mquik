@@ -22,6 +22,10 @@ class ServiceSpecialistMasterSeeder extends Seeder
             ['name' => 'DETAILING',          'code' => 'DTL'],
             ['name' => 'CAR SPA',            'code' => 'SPA'],
             ['name' => 'GEAR BOX',           'code' => 'GBX'],
+            ['name' => 'REPOWERING',         'code' => 'RPW'],
+            ['name' => 'ALLOY/RIM REFURBISH', 'code' => 'ARR'],
+            ['name' => 'ACCESSORIES INSTALLATION', 'code' => 'ACC'],
+            ['name' => 'LATHE WORK',         'code' => 'LTH'],
         ];
 
         foreach ($real as $type) {

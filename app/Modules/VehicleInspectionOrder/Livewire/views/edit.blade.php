@@ -88,6 +88,12 @@
 
                             <flux:input wire:model="workScopes.{{ $i }}.description" size="sm" placeholder="e.g. PMS, FR SIDE NOISE, REAR SIDE NOISE" required />
                             <flux:error name="workScopes.{{ $i }}.description" />
+
+                            <flux:checkbox
+                                wire:model="workScopes.{{ $i }}.is_additional"
+                                label="Additional work performed"
+                                description="Discovered during inspection, beyond the originally-booked work."
+                            />
                         </div>
                     @empty
                         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">

@@ -30,6 +30,9 @@ class Index extends Component
     #[Url(as: 'target')]
     public string $targetFilter = 'all';
 
+    #[Url(as: 'type')]
+    public string $typeFilter = 'all';
+
     #[Url(as: 'sort')]
     public string $sortBy = 'requested_at';
 
@@ -54,6 +57,11 @@ class Index extends Component
     }
 
     public function updatingTargetFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingTypeFilter(): void
     {
         $this->resetPage();
     }
@@ -83,7 +91,7 @@ class Index extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'statusFilter', 'requestedByFilter', 'targetFilter']);
+        $this->reset(['search', 'statusFilter', 'requestedByFilter', 'targetFilter', 'typeFilter']);
         $this->resetPage();
     }
 
@@ -91,6 +99,32 @@ class Index extends Component
     public function employees()
     {
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Dashboard counters: open (not yet resolved), pending, ordered, cancelled.
+     *
+     * @return array{open:int, pending:int, ordered:int, cancelled:int}
+     */
+    protected function kpis(): array
+    {
+        $counts = InternalPartsInquiry::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $get = fn (string $s) => (int) ($counts[$s] ?? 0);
+
+        return [
+            'open' => $get(InternalPartsInquiry::STATUS_PENDING)
+                + $get(InternalPartsInquiry::STATUS_IN_PROGRESS)
+                + $get(InternalPartsInquiry::STATUS_PARTIALLY_AVAILABLE)
+                + $get(InternalPartsInquiry::STATUS_ALTERNATIVE_SUGGESTED),
+            'pending' => $get(InternalPartsInquiry::STATUS_PENDING),
+            'ordered' => $get(InternalPartsInquiry::STATUS_ORDERED),
+            'cancelled' => $get(InternalPartsInquiry::STATUS_CANCELLED)
+                + $get(InternalPartsInquiry::STATUS_NOT_AVAILABLE),
+        ];
     }
 
     public function render()
@@ -113,12 +147,15 @@ class Index extends Component
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->requestedByFilter !== 'all', fn ($q) => $q->where('requested_by_employee_id', (int) $this->requestedByFilter))
             ->when($this->targetFilter !== 'all', fn ($q) => $q->where('target_employee_id', (int) $this->targetFilter))
+            ->when($this->typeFilter !== 'all', fn ($q) => $q->where('inquiry_type', $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 
         return view('internal-parts-inquiry::index', [
             'rows' => $rows,
             'statuses' => InternalPartsInquiry::statuses(),
+            'inquiryTypes' => InternalPartsInquiry::inquiryTypes(),
+            'kpis' => $this->kpis(),
         ]);
     }
 }

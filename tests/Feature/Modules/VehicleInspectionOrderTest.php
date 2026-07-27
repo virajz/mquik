@@ -174,6 +174,23 @@ it('requires a description on every work scope line', function () {
         ->assertHasErrors(['workScopes.0.description']);
 });
 
+it('flags a work scope line as additional work performed', function () {
+    $order = VehicleInspectionOrder::factory()->create();
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('addWorkScope')
+        ->set('workScopes.0.description', 'brake pad replacement')
+        ->set('workScopes.0.is_additional', true)
+        ->call('addWorkScope')
+        ->set('workScopes.1.description', 'pms')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $order->refresh()->load('workScopes');
+    expect($order->workScopes->firstWhere('description', 'BRAKE PAD REPLACEMENT')->is_additional)->toBeTrue()
+        ->and($order->workScopes->firstWhere('description', 'PMS')->is_additional)->toBeFalse();
+});
+
 it('stores order-level photo evidence against a photo type', function () {
     Storage::fake('public');
     $order = VehicleInspectionOrder::factory()->create();

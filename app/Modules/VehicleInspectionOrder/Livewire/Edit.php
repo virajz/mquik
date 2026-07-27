@@ -87,7 +87,7 @@ class Edit extends Component
     /** @var list<array{id: ?int, hold_reason_id: ?int, paused_at: ?string, resumed_at: ?string, notes: ?string}> */
     public array $pauses = [];
 
-    /** @var array<int, array{id:?int, complaint_type_id:?int, job_description_id:?int, service_package_id:?int, description:string}> */
+    /** @var array<int, array{id:?int, complaint_type_id:?int, job_description_id:?int, service_package_id:?int, is_additional:bool, description:string}> */
     public array $workScopes = [];
 
     /** @var array<int, array{id:?int, photo_type_id:?int, path:?string, notes:?string}> */
@@ -156,6 +156,7 @@ class Edit extends Component
             'complaint_type_id' => $s->complaint_type_id,
             'job_description_id' => $s->job_description_id,
             'service_package_id' => $s->service_package_id,
+            'is_additional' => (bool) $s->is_additional,
             'description' => $s->description,
         ])->all();
 
@@ -240,7 +241,7 @@ class Edit extends Component
     {
         $this->workScopes[] = [
             'id' => null, 'complaint_type_id' => null, 'job_description_id' => null,
-            'service_package_id' => null, 'description' => '',
+            'service_package_id' => null, 'is_additional' => false, 'description' => '',
         ];
     }
 
@@ -307,6 +308,7 @@ class Edit extends Component
             'workScopes.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'workScopes.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
             'workScopes.*.service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
+            'workScopes.*.is_additional' => ['boolean'],
             'workScopes.*.description' => ['required', 'string', 'max:500'],
             'photos' => ['array'],
             'photos.*.photo_type_id' => ['nullable', 'integer', Rule::exists('photo_types', 'id')->where('is_active', true)],
@@ -606,6 +608,7 @@ class Edit extends Component
                     'complaint_type_id' => $row['complaint_type_id'] ?: null,
                     'job_description_id' => $row['job_description_id'] ?: null,
                     'service_package_id' => $row['service_package_id'] ?: null,
+                    'is_additional' => (bool) ($row['is_additional'] ?? false),
                     'description' => strtoupper(trim($row['description'])),
                     'sequence_no' => $i + 1,
                 ],
