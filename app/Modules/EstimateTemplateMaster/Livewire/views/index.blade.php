@@ -30,7 +30,17 @@
         <flux:table.rows>
             @forelse ($rows as $row)
                 <flux:table.row :key="$row->id">
-                    <flux:table.cell class="font-medium">{{ $row->name }}</flux:table.cell>
+                    <flux:table.cell>
+                        <div class="font-medium">{{ $row->name }}</div>
+                        <div class="mt-0.5 flex items-center gap-2 text-xs text-zinc-500">
+                            @if ($row->category)
+                                <flux:badge color="sky" size="sm">{{ \App\Modules\EstimateTemplateMaster\Models\EstimateTemplateMaster::categories()[$row->category] ?? $row->category }}</flux:badge>
+                            @endif
+                            @if ($row->effective_date)
+                                <span>w.e.f. {{ $row->effective_date->format('d M Y') }}</span>
+                            @endif
+                        </div>
+                    </flux:table.cell>
                     <flux:table.cell class="font-mono text-xs text-zinc-500">{{ $row->code ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">{{ $row->inventoryGroup?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-center font-mono text-sm">{{ $row->items_count }}</flux:table.cell>
