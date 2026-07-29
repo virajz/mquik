@@ -10,6 +10,7 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\LabourMaster\Models\LabourMaster;
+use App\Modules\OutsideLabourOrder\Models\OutsideLabourOrder;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TechnicianFinding\Database\Factories\TechnicianFindingFactory;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
@@ -82,6 +83,11 @@ class TechnicianFinding extends Model
     public function finalWorkOrder(): BelongsTo
     {
         return $this->belongsTo(FinalWorkOrder::class, 'final_work_order_id');
+    }
+
+    public function outsideLabourOrder(): BelongsTo
+    {
+        return $this->belongsTo(OutsideLabourOrder::class, 'outside_labour_order_id');
     }
 
     public function spare(): BelongsTo
