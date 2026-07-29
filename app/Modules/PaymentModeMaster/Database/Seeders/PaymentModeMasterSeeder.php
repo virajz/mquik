@@ -14,8 +14,14 @@ class PaymentModeMasterSeeder extends Seeder
             ['name' => 'CASH',          'code' => 'CSH'],
             ['name' => 'UPI',           'code' => 'UPI'],
             ['name' => 'CARD',          'code' => 'CRD'],
+            ['name' => 'CREDIT CARD',   'code' => 'CC'],
+            ['name' => 'DEBIT CARD',    'code' => 'DC'],
             ['name' => 'BANK TRANSFER', 'code' => 'BNK'],
+            ['name' => 'NEFT',          'code' => 'NEFT'],
+            ['name' => 'RTGS',          'code' => 'RTGS'],
+            ['name' => 'IMPS',          'code' => 'IMPS'],
             ['name' => 'CHEQUE',        'code' => 'CHQ'],
+            ['name' => 'RAZORPAY',      'code' => 'RZP'],
             ['name' => 'CREDIT NOTE',   'code' => 'CRN'],
         ];
 

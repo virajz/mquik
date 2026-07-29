@@ -19,6 +19,7 @@ class JobCardCancelReasonMasterSeeder extends Seeder
             ['name' => 'DUPLICATE ENTRY',        'code' => null],
             ['name' => 'WRONG VEHICLE',          'code' => null],
             ['name' => 'NO PARTS AVAILABLE',     'code' => null],
+            ['name' => 'DELAY IN SERVICE',       'code' => null],
         ];
 
         foreach ($real as $row) {
