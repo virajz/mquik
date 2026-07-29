@@ -5,6 +5,7 @@ namespace App\Modules\TechnicianFinding\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\FinalWorkOrder\Models\FinalWorkOrder;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
@@ -76,6 +77,11 @@ class TechnicianFinding extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(VehicleInspectionOrder::class, 'vehicle_inspection_order_id');
+    }
+
+    public function finalWorkOrder(): BelongsTo
+    {
+        return $this->belongsTo(FinalWorkOrder::class, 'final_work_order_id');
     }
 
     public function spare(): BelongsTo
