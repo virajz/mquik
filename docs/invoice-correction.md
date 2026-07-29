@@ -7,7 +7,7 @@ lines (each carrying the **old vs new** value) + document attachments.
 
 ## What's done
 
-`app/Modules/InvoiceCorrection/` (`ICR-#####`, group **Sales**, route `invoice-correction.index`)
+`app/Modules/InvoiceCorrection/` (`INC-#####`, group **Sales**, route `invoice-correction.index`)
 - Parent `invoice_corrections` + `invoice_correction_items` + `invoice_correction_attachments`.
 - Enums: `requestTypes` (the full 20-value list — billing-name B2C/B2B swaps, GST, address, vehicle,
   qty/rate, add/delete labour or spares, discount, tax, insurance share, recommendation),

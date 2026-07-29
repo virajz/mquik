@@ -56,7 +56,7 @@ class InvoiceCorrection extends Model
     {
         static::created(function (self $row) {
             if ($row->correction_no === null) {
-                $row->forceFill(['correction_no' => 'ICR-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT)])->saveQuietly();
+                $row->forceFill(['correction_no' => 'INC-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT)])->saveQuietly();
             }
         });
     }

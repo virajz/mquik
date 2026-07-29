@@ -38,7 +38,7 @@ it('raises a correction with an old/new line and stamps requested_at', function 
         ->assertRedirect(route('invoice-correction.index'));
 
     $c = InvoiceCorrection::with('items')->first();
-    expect($c->correction_no)->toBe('ICR-'.str_pad((string) $c->id, 5, '0', STR_PAD_LEFT))
+    expect($c->correction_no)->toBe('INC-'.str_pad((string) $c->id, 5, '0', STR_PAD_LEFT))
         ->and($c->requested_at)->not->toBeNull()
         ->and($c->invoice_reference)->toBe('MQ/26-27/12345')
         ->and($c->items)->toHaveCount(1)
