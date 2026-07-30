@@ -9,6 +9,7 @@ use App\Modules\VendorMaster\Livewire\Index;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorMaster\Models\VendorTerm;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
+use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -641,4 +642,99 @@ it('searches inventory groups server-side and keeps the selected ones', function
     $component->set('inventory_group_ids', [$needle->id])
         ->set('inventoryGroupSearch', 'NOTHING-MATCHES-THIS');
     expect($component->instance()->inventoryGroupOptions->pluck('id'))->toContain($needle->id);
+});
+
+it('persists the extended profile, classification and performance fields', function () {
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-EXT-1')
+        ->set('name', 'ext vendor')
+        ->set('legal_name', 'ext vendor pvt ltd')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->set('reference', 'trade fair')
+        ->set('contact_person1', 'ramesh')
+        ->set('pincode', '380001')
+        ->set('udyam_no', 'udyam-gj-01-0001234')
+        ->set('classification', 'authorized_distributor')
+        ->set('constitution', 'private_limited')
+        ->set('gst_registration_type', 'regular')
+        ->set('msme_type', 'small')
+        ->set('msme_activity', 'trading')
+        ->set('vendor_category', 'oem')
+        ->set('payment_terms', '30_days')
+        ->set('delivery_method', 'courier')
+        ->set('rating', 4)
+        ->set('on_time_delivery_percent', 92.5)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $v = VendorMaster::where('vendor_code', 'VND-EXT-1')->firstOrFail();
+    expect($v->legal_name)->toBe('EXT VENDOR PVT LTD')
+        ->and($v->classification)->toBe('authorized_distributor')
+        ->and($v->constitution)->toBe('private_limited')
+        ->and($v->msme_type)->toBe('small')
+        ->and($v->vendor_category)->toBe('oem')
+        ->and($v->payment_terms)->toBe('30_days')
+        ->and($v->delivery_method)->toBe('courier')
+        ->and($v->rating)->toBe(4)
+        ->and((float) $v->on_time_delivery_percent)->toBe(92.5);
+});
+
+it('requires a blacklist reason when the vendor status is blacklisted', function () {
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-BL-1')
+        ->set('name', 'bad vendor')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->set('vendor_status', 'blacklisted')
+        ->call('save')
+        ->assertHasErrors(['blacklist_reason']);
+
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-BL-2')
+        ->set('name', 'bad vendor')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->set('vendor_status', 'blacklisted')
+        ->set('blacklist_reason', 'fake_parts')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(VendorMaster::where('vendor_code', 'VND-BL-2')->first()->blacklist_reason)->toBe('fake_parts');
+});
+
+it('persists a T&Cs-typed term row', function () {
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-TT-1')
+        ->set('name', 'terms vendor')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->call('addTerm')
+        ->set('terms.0.term_type', 'warranty_policy')
+        ->set('terms.0.name', 'Warranty')
+        ->set('terms.0.value', '12 months on parts')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $term = VendorMaster::where('vendor_code', 'VND-TT-1')->firstOrFail()->terms->first();
+    expect($term->term_type)->toBe('warranty_policy');
+});
+
+it('stores a vendor document attachment', function () {
+    Storage::fake('public');
+
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-DOC-1')
+        ->set('name', 'doc vendor')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->call('addAttachment')
+        ->set('attachments.0.attachment_type', 'gst_certificate')
+        ->set('attachmentFiles.0', File::create('gst.pdf', 40))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $v = VendorMaster::where('vendor_code', 'VND-DOC-1')->firstOrFail();
+    expect($v->attachments)->toHaveCount(1)
+        ->and($v->attachments->first()->attachment_type)->toBe('gst_certificate');
 });

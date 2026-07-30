@@ -293,6 +293,19 @@
                     />
                 </div>
 
+                <flux:select
+                    wire:model="inventory_type"
+                    variant="listbox"
+                    searchable
+                    clearable
+                    label="Inventory Type"
+                    placeholder="Accessories / Consumables / Mechanical…"
+                >
+                    @foreach (\App\Modules\SpareMaster\Models\SpareMaster::inventoryTypes() as $key => $label)
+                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select
                         wire:model.live="inventory_group_id"

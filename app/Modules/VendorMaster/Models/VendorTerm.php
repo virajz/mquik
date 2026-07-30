@@ -17,6 +17,17 @@ class VendorTerm extends Model
 
     protected $guarded = [];
 
+    /** @return array<string, string> */
+    public static function termTypes(): array
+    {
+        return [
+            'payment_policy' => 'Payment Policy',
+            'delivery_policy' => 'Delivery Policy',
+            'return_policy' => 'Return Policy',
+            'warranty_policy' => 'Warranty Policy',
+        ];
+    }
+
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(VendorMaster::class, 'vendor_id');

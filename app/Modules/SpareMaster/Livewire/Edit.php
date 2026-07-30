@@ -17,10 +17,13 @@ use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Modules\SpareMaster\Models\SpareAttachment;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Spare')]
@@ -28,6 +31,7 @@ class Edit extends Component
 {
     use HasQuickCreate;
     use SearchesPickerOptions;
+    use WithFileUploads;
 
     public ?int $editingId = null;
 
@@ -53,6 +57,8 @@ class Edit extends Component
     public ?int $inventory_group_id = null;
 
     public ?int $inventory_sub_group_id = null;
+
+    public ?string $inventory_type = null;
 
     public ?int $workshop_department_id = null;
 
@@ -96,6 +102,11 @@ class Edit extends Component
     /** @var list<int> */
     public array $variant_ids = [];
 
+    /** @var array<int, array{id:?int, attachment_type:?string, path:?string, original_name:?string, notes:?string}> */
+    public array $attachments = [];
+
+    public array $attachmentFiles = [];
+
     public function mount(?SpareMaster $spare = null): void
     {
         if ($spare && $spare->exists) {
@@ -105,9 +116,10 @@ class Edit extends Component
 
     protected function load(SpareMaster $spare): void
     {
-        $spare->load(['vehicleVariants:id']);
+        $spare->load(['vehicleVariants:id', 'attachments']);
 
         $this->editingId = $spare->id;
+        $this->inventory_type = $spare->inventory_type;
         $this->part_type_id = $spare->part_type_id;
         $this->hsn_id = $spare->hsn_id;
         $this->rack_id = $spare->rack_id;
@@ -127,6 +139,11 @@ class Edit extends Component
         $this->spare_type = $spare->spare_type ?? SpareMaster::TYPE_VEHICLE_SPECIFIC;
         $this->is_active = (bool) $spare->is_active;
         $this->variant_ids = $spare->vehicleVariants->pluck('id')->all();
+
+        $this->attachments = $spare->attachments->map(fn ($a) => [
+            'id' => $a->id, 'attachment_type' => $a->attachment_type, 'path' => $a->path,
+            'original_name' => $a->original_name, 'notes' => $a->notes,
+        ])->all();
     }
 
     protected function rules(): array
@@ -142,6 +159,7 @@ class Edit extends Component
             'tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)],
             'inventory_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)->whereNull('parent_id')],
             'inventory_sub_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)],
+            'inventory_type' => ['nullable', Rule::in(array_keys(SpareMaster::inventoryTypes()))],
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'uom_id' => ['nullable', 'integer', Rule::exists('units_of_measure', 'id')->where('is_active', true)],
             'rate_before_tax' => ['numeric', 'min:0', 'max:9999999.99'],
@@ -159,7 +177,23 @@ class Edit extends Component
             'is_active' => ['boolean'],
             'variant_ids' => ['array'],
             'variant_ids.*' => ['integer', Rule::exists('vehicle_variants', 'id')->where('is_active', true)],
+
+            'attachments' => ['array'],
+            'attachments.*.attachment_type' => ['nullable', Rule::in(array_keys(SpareAttachment::attachmentTypes()))],
+            'attachments.*.notes' => ['nullable', 'string', 'max:255'],
+            'attachmentFiles.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
         ];
+    }
+
+    public function addAttachment(): void
+    {
+        $this->attachments[] = ['id' => null, 'attachment_type' => null, 'path' => null, 'original_name' => null, 'notes' => null];
+    }
+
+    public function removeAttachment(int $index): void
+    {
+        unset($this->attachments[$index], $this->attachmentFiles[$index]);
+        $this->attachments = array_values($this->attachments);
     }
 
     public function updatedInventoryGroupId(): void
@@ -384,9 +418,10 @@ class Edit extends Component
 
         $data = $this->validate();
         $variants = $data['variant_ids'] ?? [];
-        unset($data['variant_ids']);
+        $attachments = $data['attachments'] ?? [];
+        unset($data['variant_ids'], $data['attachments'], $data['attachmentFiles']);
 
-        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
+        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -395,7 +430,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $spare = DB::transaction(function () use ($data, $variants) {
+        $spare = DB::transaction(function () use ($data, $variants, $attachments) {
             if ($this->editingId) {
                 $s = SpareMaster::findOrFail($this->editingId);
                 $s->update($data);
@@ -405,9 +440,12 @@ class Edit extends Component
             }
 
             $s->vehicleVariants()->sync(array_map('intval', $variants));
+            $this->syncAttachments($s, $attachments);
 
             return $s;
         });
+
+        $this->attachmentFiles = [];
 
         Flux::toast(
             text: 'Spare #'.$spare->id.($isCreate ? ' created.' : ' updated.'),
@@ -415,6 +453,41 @@ class Edit extends Component
         );
 
         return redirect()->route('spare-master.index');
+    }
+
+    /** @param  array<int, array<string, mixed>>  $rows */
+    protected function syncAttachments(SpareMaster $spare, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach (array_values($rows) as $i => $row) {
+            $path = $this->attachments[$i]['path'] ?? null;
+            $originalName = $this->attachments[$i]['original_name'] ?? null;
+            $size = null;
+            $kind = 'image';
+
+            $upload = $this->attachmentFiles[$i] ?? null;
+            if ($upload instanceof TemporaryUploadedFile) {
+                $path = $upload->store('spares/'.$spare->id, 'public');
+                $originalName = $upload->getClientOriginalName();
+                $size = $upload->getSize();
+                $kind = strtolower((string) $upload->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'image';
+            }
+
+            if ($path === null) {
+                continue;
+            }
+
+            $keptIds[] = $spare->attachments()->updateOrCreate(
+                ['id' => $row['id'] ?? null],
+                [
+                    'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
+                    'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,
+                ],
+            )->id;
+        }
+
+        $spare->attachments()->whereKeyNot($keptIds)->delete();
     }
 
     public function render()

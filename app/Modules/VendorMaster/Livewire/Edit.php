@@ -10,7 +10,9 @@ use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\ServiceSpecialistMaster\Models\ServiceSpecialistMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
+use App\Modules\VendorMaster\Models\VendorAttachment;
 use App\Modules\VendorMaster\Models\VendorMaster;
+use App\Modules\VendorMaster\Models\VendorTerm;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -114,8 +116,60 @@ class Edit extends Component
 
     public ?string $notes = null;
 
-    /** @var list<array{id: ?int, name: string, value: string}> */
+    // --- Profile (module 97 extension) ---
+    public ?string $legal_name = null;
+
+    public ?string $registration_date = null;
+
+    public ?string $reference = null;
+
+    public ?string $contact_person1 = null;
+
+    public ?string $contact_person2 = null;
+
+    public ?string $branch_address = null;
+
+    public ?string $pincode = null;
+
+    public ?string $udyam_no = null;
+
+    public ?string $classification = null;
+
+    public ?string $constitution = null;
+
+    public ?string $gst_registration_type = null;
+
+    public ?string $msme_type = null;
+
+    public ?string $msme_activity = null;
+
+    public ?string $vendor_category = null;
+
+    public string $vendor_status = 'active';
+
+    public ?string $blacklist_reason = null;
+
+    public ?int $rating = null;
+
+    public ?string $delivery_method = null;
+
+    public ?string $payment_terms = null;
+
+    public ?float $on_time_delivery_percent = null;
+
+    public ?float $parts_return_percent = null;
+
+    public ?float $return_rejection_percent = null;
+
+    public ?float $avg_response_hours = null;
+
+    /** @var list<array{id: ?int, term_type: ?string, name: string, value: string}> */
     public array $terms = [];
+
+    /** @var array<int, array{id:?int, attachment_type:?string, path:?string, original_name:?string, notes:?string}> */
+    public array $attachments = [];
+
+    public array $attachmentFiles = [];
 
     public function mount(?VendorMaster $vendor = null): void
     {
@@ -126,12 +180,30 @@ class Edit extends Component
 
     protected function load(VendorMaster $vendor): void
     {
-        $vendor->load(['vendorTypes:id', 'spareBrands:id', 'terms']);
+        $vendor->load(['vendorTypes:id', 'spareBrands:id', 'terms', 'attachments']);
 
         $this->editingId = $vendor->id;
-        foreach (['vendor_code', 'name', 'phone', 'alternate_phone', 'email', 'secondary_email', 'address', 'aadhar', 'pan', 'gstin', 'bank_branch', 'ifsc', 'account_no', 'account_holder', 'notes', 'aadhar_file_path', 'aadhar_file_name', 'pan_file_path', 'pan_file_name'] as $k) {
+        foreach ([
+            'vendor_code', 'name', 'phone', 'alternate_phone', 'email', 'secondary_email', 'address', 'aadhar', 'pan', 'gstin',
+            'bank_branch', 'ifsc', 'account_no', 'account_holder', 'notes', 'aadhar_file_path', 'aadhar_file_name', 'pan_file_path', 'pan_file_name',
+            'legal_name', 'reference', 'contact_person1', 'contact_person2', 'branch_address', 'pincode', 'udyam_no',
+            'classification', 'constitution', 'gst_registration_type', 'msme_type', 'msme_activity', 'vendor_category',
+            'blacklist_reason', 'delivery_method', 'payment_terms',
+        ] as $k) {
             $this->{$k} = $vendor->{$k};
         }
+        $this->vendor_status = $vendor->vendor_status ?? 'active';
+        $this->registration_date = $vendor->registration_date?->format('Y-m-d');
+        $this->rating = $vendor->rating;
+        $this->on_time_delivery_percent = $vendor->on_time_delivery_percent === null ? null : (float) $vendor->on_time_delivery_percent;
+        $this->parts_return_percent = $vendor->parts_return_percent === null ? null : (float) $vendor->parts_return_percent;
+        $this->return_rejection_percent = $vendor->return_rejection_percent === null ? null : (float) $vendor->return_rejection_percent;
+        $this->avg_response_hours = $vendor->avg_response_hours === null ? null : (float) $vendor->avg_response_hours;
+
+        $this->attachments = $vendor->attachments->map(fn ($a) => [
+            'id' => $a->id, 'attachment_type' => $a->attachment_type, 'path' => $a->path,
+            'original_name' => $a->original_name, 'notes' => $a->notes,
+        ])->all();
         $this->region_id = $vendor->region_id;
         $this->bank_id = $vendor->bank_id;
         $this->gst_type_id = $vendor->gst_type_id;
@@ -146,6 +218,7 @@ class Edit extends Component
         $this->terms = $vendor->terms
             ->map(fn ($t) => [
                 'id' => $t->id,
+                'term_type' => $t->term_type,
                 'name' => $t->name,
                 'value' => $t->value,
             ])
@@ -187,9 +260,39 @@ class Edit extends Component
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
 
+            'legal_name' => ['nullable', 'string', 'max:255'],
+            'registration_date' => ['nullable', 'date'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'contact_person1' => ['nullable', 'string', 'max:255'],
+            'contact_person2' => ['nullable', 'string', 'max:255'],
+            'branch_address' => ['nullable', 'string', 'max:1000'],
+            'pincode' => ['nullable', 'string', 'size:6'],
+            'udyam_no' => ['nullable', 'string', 'max:25'],
+            'classification' => ['nullable', Rule::in(array_keys(VendorMaster::classifications()))],
+            'constitution' => ['nullable', Rule::in(array_keys(VendorMaster::constitutions()))],
+            'gst_registration_type' => ['nullable', Rule::in(array_keys(VendorMaster::gstRegistrationTypes()))],
+            'msme_type' => ['nullable', Rule::in(array_keys(VendorMaster::msmeTypes()))],
+            'msme_activity' => ['nullable', Rule::in(array_keys(VendorMaster::msmeActivities()))],
+            'vendor_category' => ['nullable', Rule::in(array_keys(VendorMaster::vendorCategories()))],
+            'vendor_status' => ['required', Rule::in(array_keys(VendorMaster::vendorStatuses()))],
+            'blacklist_reason' => ['nullable', Rule::in(array_keys(VendorMaster::blacklistReasons())), Rule::requiredIf(fn () => $this->vendor_status === 'blacklisted')],
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'delivery_method' => ['nullable', Rule::in(array_keys(VendorMaster::deliveryMethods()))],
+            'payment_terms' => ['nullable', Rule::in(array_keys(VendorMaster::paymentTermsOptions()))],
+            'on_time_delivery_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'parts_return_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'return_rejection_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'avg_response_hours' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+
             'terms' => ['array'],
+            'terms.*.term_type' => ['nullable', Rule::in(array_keys(VendorTerm::termTypes()))],
             'terms.*.name' => ['required_with:terms.*.value', 'nullable', 'string', 'max:100'],
             'terms.*.value' => ['required_with:terms.*.name', 'nullable', 'string', 'max:1000'],
+
+            'attachments' => ['array'],
+            'attachments.*.attachment_type' => ['nullable', Rule::in(array_keys(VendorAttachment::attachmentTypes()))],
+            'attachments.*.notes' => ['nullable', 'string', 'max:255'],
+            'attachmentFiles.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
         ];
     }
 
@@ -358,7 +461,18 @@ class Edit extends Component
 
     public function addTerm(): void
     {
-        $this->terms[] = ['id' => null, 'name' => '', 'value' => ''];
+        $this->terms[] = ['id' => null, 'term_type' => null, 'name' => '', 'value' => ''];
+    }
+
+    public function addAttachment(): void
+    {
+        $this->attachments[] = ['id' => null, 'attachment_type' => null, 'path' => null, 'original_name' => null, 'notes' => null];
+    }
+
+    public function removeAttachment(int $index): void
+    {
+        unset($this->attachments[$index], $this->attachmentFiles[$index]);
+        $this->attachments = array_values($this->attachments);
     }
 
     public function removeTerm(int $index): void
@@ -406,11 +520,19 @@ class Edit extends Component
         $aadharCleared = $this->aadhar_file_path === null;
         $panCleared = $this->pan_file_path === null;
 
+        $attachments = $this->attachments;
+
         $data = collect($this->validate())->except([
             'vendor_type_ids', 'spare_brand_ids', 'service_specialist_ids', 'inventory_group_ids', 'terms', 'aadhar_file', 'pan_file',
+            'attachments', 'attachmentFiles',
         ])->all();
 
-        $skip = ['email', 'secondary_email', 'phone', 'alternate_phone', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'region_id', 'bank_id', 'gst_type_id'];
+        $skip = [
+            'email', 'secondary_email', 'phone', 'alternate_phone', 'account_no', 'credit_days', 'credit_limit', 'is_active', 'aadhar', 'region_id', 'bank_id', 'gst_type_id',
+            'registration_date', 'rating', 'classification', 'constitution', 'gst_registration_type', 'msme_type', 'msme_activity', 'vendor_category',
+            'vendor_status', 'blacklist_reason', 'delivery_method', 'payment_terms',
+            'on_time_delivery_percent', 'parts_return_percent', 'return_rejection_percent', 'avg_response_hours',
+        ];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -419,7 +541,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $specialistIds, $groupIds, $terms, $aadharFile, $panFile, $aadharCleared, $panCleared) {
+        $vendor = DB::transaction(function () use ($data, $typeIds, $brandIds, $specialistIds, $groupIds, $terms, $attachments, $aadharFile, $panFile, $aadharCleared, $panCleared) {
             if ($this->editingId) {
                 $v = VendorMaster::findOrFail($this->editingId);
                 $v->update($data);
@@ -435,9 +557,12 @@ class Edit extends Component
             $this->syncTerms($v, $terms);
             $this->syncKycFile($v, 'aadhar', $aadharFile, $aadharCleared);
             $this->syncKycFile($v, 'pan', $panFile, $panCleared);
+            $this->syncAttachments($v, $attachments);
 
             return $v;
         });
+
+        $this->attachmentFiles = [];
 
         Flux::toast(
             text: 'Vendor #'.$vendor->id.($isCreate ? ' created.' : ' updated.'),
@@ -456,6 +581,7 @@ class Edit extends Component
 
         foreach ($rows as $i => $row) {
             $payload = [
+                'term_type' => $row['term_type'] ?? null,
                 'name' => trim((string) ($row['name'] ?? '')),
                 'value' => trim((string) ($row['value'] ?? '')),
                 'sort_order' => $i,
@@ -476,6 +602,41 @@ class Edit extends Component
         }
 
         $vendor->terms()->whereNotIn('id', $keptIds)->delete();
+    }
+
+    /** @param  array<int, array<string, mixed>>  $rows */
+    protected function syncAttachments(VendorMaster $vendor, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach (array_values($rows) as $i => $row) {
+            $path = $this->attachments[$i]['path'] ?? null;
+            $originalName = $this->attachments[$i]['original_name'] ?? null;
+            $size = null;
+            $kind = 'image';
+
+            $upload = $this->attachmentFiles[$i] ?? null;
+            if ($upload instanceof TemporaryUploadedFile) {
+                $path = $upload->store('vendors/'.$vendor->id.'/attachments', 'public');
+                $originalName = $upload->getClientOriginalName();
+                $size = $upload->getSize();
+                $kind = strtolower((string) $upload->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'image';
+            }
+
+            if ($path === null) {
+                continue;
+            }
+
+            $keptIds[] = $vendor->attachments()->updateOrCreate(
+                ['id' => $row['id'] ?? null],
+                [
+                    'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
+                    'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,
+                ],
+            )->id;
+        }
+
+        $vendor->attachments()->whereKeyNot($keptIds)->delete();
     }
 
     protected function syncKycFile(VendorMaster $vendor, string $type, $newFile, bool $clearedByUser): void

@@ -31,12 +31,18 @@
                     <div class="md:col-span-2">
                         <flux:input
                             wire:model="name"
-                            label="Name"
-                            placeholder="Vendor name"
+                            label="Trade Name"
+                            placeholder="Vendor trade name"
                             required
                             autofocus
                         />
                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:input wire:model="legal_name" label="Legal Name" placeholder="Registered legal name" />
+                    <flux:input wire:model="registration_date" type="date" label="Date of Registration" />
+                    <flux:input wire:model="reference" label="Reference" placeholder="Referred by / source" />
                 </div>
 
                 <flux:field>
@@ -151,6 +157,11 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:input wire:model="contact_person1" label="Contact Person 1" placeholder="Primary contact" />
+                    <flux:input wire:model="contact_person2" label="Contact Person 2" placeholder="Secondary contact" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Phone <span class="text-red-500">*</span></flux:label>
                         <flux:input.group>
@@ -211,15 +222,24 @@
             <div class="space-y-4 min-w-0">
                 <flux:textarea
                     wire:model="address"
-                    label="Street / Building"
+                    label="Head Office Address"
                     placeholder="House no, street, area…"
                     rows="2"
                 />
 
+                <flux:textarea
+                    wire:model="branch_address"
+                    label="Branch Address"
+                    placeholder="Branch / warehouse address (if any)"
+                    rows="2"
+                />
+
+                <flux:input wire:model="pincode" label="Pincode" mask="999999" placeholder="380001" inputmode="numeric" class:input="font-mono" />
+
                 <flux:select
                     wire:model="region_id"
                     variant="combobox"
-                    label="Region"
+                    label="Region (State / City / Area)"
                     clearable
                 >
                     <x-slot name="input">
@@ -268,6 +288,13 @@
                             <flux:select.option :value="$gt->id" wire:key="gt-{{ $gt->id }}">{{ $gt->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:select wire:model="gst_registration_type" variant="listbox" clearable label="GST Registration Type" placeholder="Regular / SEZ / Export…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::gstRegistrationTypes() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                    <flux:input wire:model="udyam_no" label="Udyam Registration No." placeholder="UDYAM-XX-00-0000000" class:input="font-mono uppercase" />
                 </div>
 
                 <flux:select wire:model="service_specialist_ids" variant="listbox" multiple searchable clearable label="Service Specialities" placeholder="Denting, Painting, AC…">
@@ -366,6 +393,37 @@
 
         <flux:separator />
 
+        {{-- BUSINESS & CLASSIFICATION --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Business & Classification</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">How the vendor is constituted, classified and categorised.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:select wire:model="classification" variant="listbox" clearable label="Vendor Classification" placeholder="Manufacturer / Dealer…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::classifications() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                    <flux:select wire:model="constitution" variant="listbox" clearable label="Constitution of Business" placeholder="Proprietorship / LLP…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::constitutions() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <flux:select wire:model="vendor_category" variant="listbox" clearable label="Vendor Category" placeholder="Genuine / OEM…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::vendorCategories() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                    <flux:select wire:model="msme_type" variant="listbox" clearable label="MSME Type" placeholder="Micro / Small…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::msmeTypes() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                    <flux:select wire:model="msme_activity" variant="listbox" clearable label="MSME Major Activity" placeholder="Trading / Services…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::msmeActivities() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                </div>
+            </div>
+        </section>
+
+        <flux:separator />
+
         {{-- BANKING --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
@@ -446,6 +504,15 @@
                         <flux:error name="credit_limit" />
                     </flux:field>
                 </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:select wire:model="payment_terms" variant="listbox" clearable label="Payment Terms" placeholder="Advance / 30 Days…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::paymentTermsOptions() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                    <flux:select wire:model="delivery_method" variant="listbox" clearable label="Delivery Method" placeholder="Self Pickup / Courier…">
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::deliveryMethods() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                </div>
             </div>
         </section>
 
@@ -467,7 +534,10 @@
                             <flux:button size="xs" variant="ghost" icon="trash"
                                 wire:click="removeTerm({{ $i }})" type="button" />
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <flux:select wire:model="terms.{{ $i }}.term_type" variant="listbox" clearable label="Policy Type" placeholder="Payment / Delivery…">
+                                @foreach (\App\Modules\VendorMaster\Models\VendorTerm::termTypes() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                            </flux:select>
                             <flux:input
                                 wire:model="terms.{{ $i }}.name"
                                 label="Name"
@@ -500,24 +570,100 @@
 
         <flux:separator />
 
+        {{-- DOCUMENTS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Documents</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">GST / MSME certificate, cancelled cheque, passbook, signed T&Cs.</flux:text>
+            </div>
+            <div class="space-y-3 min-w-0">
+                <div class="flex items-center justify-between">
+                    <flux:text size="sm" class="font-medium">Attachments</flux:text>
+                    <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addAttachment">Add file</flux:button>
+                </div>
+                @forelse ($attachments as $i => $att)
+                    <div wire:key="vendor-att-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
+                        <flux:select wire:model="attachments.{{ $i }}.attachment_type" variant="listbox" size="sm" clearable label="Type" placeholder="Type…">
+                            @foreach (\App\Modules\VendorMaster\Models\VendorAttachment::attachmentTypes() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                        </flux:select>
+                        <div>
+                            <flux:input type="file" wire:model="attachmentFiles.{{ $i }}" size="sm" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+                            @if (! empty($att['path']))<flux:text size="sm" class="text-zinc-500 mt-1">Current: {{ $att['original_name'] ?? basename($att['path']) }}</flux:text>@endif
+                            <flux:error name="attachmentFiles.{{ $i }}" />
+                        </div>
+                        <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removeAttachment({{ $i }})" class="h-9!" />
+                    </div>
+                @empty
+                    <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-4 text-center text-sm text-zinc-500">No documents yet.</div>
+                @endforelse
+            </div>
+        </section>
+
+        <flux:separator />
+
+        {{-- PERFORMANCE & RATING --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Performance & Rating</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Scorecard — summarised manually until sourced from transactions.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <flux:select wire:model="rating" variant="listbox" clearable label="Vendor Rating" placeholder="1–5 Star" class="md:max-w-xs">
+                    @foreach (\App\Modules\VendorMaster\Models\VendorMaster::ratings() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                </flux:select>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <flux:input.group label="On-Time Delivery">
+                        <flux:input wire:model="on_time_delivery_percent" type="number" step="0.01" min="0" max="100" placeholder="0" class:input="text-right font-mono" />
+                        <flux:input.group.suffix>%</flux:input.group.suffix>
+                    </flux:input.group>
+                    <flux:input.group label="Parts Return">
+                        <flux:input wire:model="parts_return_percent" type="number" step="0.01" min="0" max="100" placeholder="0" class:input="text-right font-mono" />
+                        <flux:input.group.suffix>%</flux:input.group.suffix>
+                    </flux:input.group>
+                    <flux:input.group label="Return Rejection">
+                        <flux:input wire:model="return_rejection_percent" type="number" step="0.01" min="0" max="100" placeholder="0" class:input="text-right font-mono" />
+                        <flux:input.group.suffix>%</flux:input.group.suffix>
+                    </flux:input.group>
+                    <flux:input.group label="Response Time">
+                        <flux:input wire:model="avg_response_hours" type="number" step="0.01" min="0" placeholder="0" class:input="text-right font-mono" />
+                        <flux:input.group.suffix>hrs</flux:input.group.suffix>
+                    </flux:input.group>
+                </div>
+            </div>
+        </section>
+
+        <flux:separator />
+
         {{-- NOTES & STATUS --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Notes & Status</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Internal context and visibility.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Lifecycle, internal context and visibility.</flux:text>
             </div>
-            <div class="space-y-4 min-w-0">
+            <div class="space-y-4 min-w-0" x-data>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <flux:select wire:model.live="vendor_status" variant="listbox" label="Vendor Status" required>
+                        @foreach (\App\Modules\VendorMaster\Models\VendorMaster::vendorStatuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                    </flux:select>
+                    <div x-show="$wire.vendor_status === 'blacklisted'" x-cloak>
+                        <flux:select wire:model="blacklist_reason" variant="listbox" clearable label="Blacklist Reason" placeholder="Why blacklisted…">
+                            @foreach (\App\Modules\VendorMaster\Models\VendorMaster::blacklistReasons() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                        </flux:select>
+                        <flux:error name="blacklist_reason" />
+                    </div>
+                </div>
+
                 <flux:textarea
                     wire:model="notes"
-                    label="Internal Notes"
+                    label="Internal Notes / Remarks"
                     placeholder="Anything the team should know about this vendor"
                     rows="3"
                 />
 
                 <flux:switch
                     wire:model="is_active"
-                    label="Active"
-                    description="Inactive vendors won't appear in purchase order or bill entry dropdowns."
+                    label="Active (visible in pickers)"
+                    description="Inactive vendors won't appear in purchase order or bill entry dropdowns. Independent of the lifecycle status above."
                 />
             </div>
         </section>

@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class SpareMaster extends Model
 {
@@ -51,6 +53,41 @@ class SpareMaster extends Model
     protected static function newFactory(): SpareMasterFactory
     {
         return SpareMasterFactory::new();
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (self $spare) {
+            foreach ($spare->attachments as $attachment) {
+                if ($attachment->path) {
+                    Storage::disk('public')->delete($attachment->path);
+                }
+            }
+        });
+    }
+
+    /**
+     * Fixed inventory classification (distinct from the hierarchical
+     * group / sub-group).
+     *
+     * @return array<string, string>
+     */
+    public static function inventoryTypes(): array
+    {
+        return [
+            'accessories' => 'Accessories',
+            'body_parts' => 'Body Parts',
+            'consumables' => 'Consumables',
+            'lubricants' => 'Lubricants',
+            'mechanical' => 'Mechanical',
+            'tyres' => 'Tyres',
+            'wheel_rim_parts' => 'Wheel Rim & Parts',
+        ];
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(SpareAttachment::class, 'spare_id')->orderBy('sequence_no');
     }
 
     public function hsn(): BelongsTo
