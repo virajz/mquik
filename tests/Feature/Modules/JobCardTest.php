@@ -23,6 +23,7 @@ use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
+use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -154,6 +155,8 @@ it('persists complaints with capital typing and severity', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
     $type = ComplaintTypeMaster::factory()->create();
+    $brake = StandardObservationMaster::factory()->create(['name' => 'BRAKE PADS WORN OUT']);
+    $ac = StandardObservationMaster::factory()->create(['name' => 'AC COOLING LOW']);
 
     Livewire::test(Edit::class)
         ->set('customer_id', $customer->id)
@@ -162,21 +165,22 @@ it('persists complaints with capital typing and severity', function () {
         ->set('assigned_advisor_id', $advisor->id)
         ->call('addComplaint')
         ->call('addComplaint')
-        ->set('complaints.0.description', 'brake noise on left turn')
+        ->set('complaints.0.standard_observation_id', $brake->id)
         ->set('complaints.0.severity', 'high')
         ->set('complaints.0.complaint_type_id', $type->id)
-        ->set('complaints.1.description', 'ac not cooling')
+        ->set('complaints.1.standard_observation_id', $ac->id)
         ->set('complaints.1.severity', 'medium')
         ->call('save')
         ->assertHasNoErrors();
 
     $jc = JobCard::with('complaints')->first();
     expect($jc->complaints)->toHaveCount(2)
-        ->and($jc->complaints[0]->description)->toBe('BRAKE NOISE ON LEFT TURN')
+        ->and($jc->complaints[0]->standard_observation_id)->toBe($brake->id)
+        ->and($jc->complaints[0]->description)->toBe('BRAKE PADS WORN OUT')   // derived from the picked phrase
         ->and($jc->complaints[0]->severity)->toBe('high')
         ->and($jc->complaints[0]->complaint_type_id)->toBe($type->id)
         ->and($jc->complaints[0]->sequence_no)->toBe(1)
-        ->and($jc->complaints[1]->description)->toBe('AC NOT COOLING')
+        ->and($jc->complaints[1]->description)->toBe('AC COOLING LOW')
         ->and($jc->complaints[1]->severity)->toBe('medium');
 });
 
@@ -193,11 +197,30 @@ it('strips blank complaint rows before validating', function () {
         ->set('assigned_advisor_id', $advisor->id)
         ->call('addComplaint')
         ->call('addComplaint')
-        ->set('complaints.0.description', 'real complaint')
+        ->set('complaints.0.standard_observation_id', StandardObservationMaster::factory()->create()->id)
         ->call('save')
         ->assertHasNoErrors();
 
     expect(JobCard::first()->complaints)->toHaveCount(1);
+});
+
+it('does not persist a complaint row unless a complaint is picked (no free typing)', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('assigned_advisor_id', $advisor->id)
+        ->call('addComplaint')
+        ->set('complaints.0.severity', 'high')   // no observation picked — nothing to type
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(JobCard::first()->complaints)->toHaveCount(0);
 });
 
 it('syncs requested repairs (many-to-many) on the job card', function () {
@@ -309,8 +332,8 @@ it('updates an existing job card and re-syncs complaints + inventory', function 
     $jc = JobCard::factory()->create();
     $type = ComplaintTypeMaster::factory()->create();
     $jc->complaints()->createMany([
-        ['description' => 'OLD ONE', 'severity' => 'low', 'sequence_no' => 1],
-        ['description' => 'OLD TWO', 'severity' => 'high', 'sequence_no' => 2],
+        ['standard_observation_id' => StandardObservationMaster::factory()->create()->id, 'description' => 'OLD ONE', 'severity' => 'low', 'sequence_no' => 1],
+        ['standard_observation_id' => StandardObservationMaster::factory()->create()->id, 'description' => 'OLD TWO', 'severity' => 'high', 'sequence_no' => 2],
     ]);
     $invItem = VehicleInventoryItemMaster::factory()->create();
 

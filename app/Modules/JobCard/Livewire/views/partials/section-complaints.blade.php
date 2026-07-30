@@ -15,15 +15,20 @@
         @else
             @foreach ($complaints as $i => $row)
                 <div wire:key="complaint-row-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1fr_180px_120px_40px] gap-2 items-end p-3 rounded-md border border-zinc-200 dark:border-zinc-800">
-                    <flux:textarea
-                        wire:model="complaints.{{ $i }}.description"
+                    <flux:select
+                        wire:model="complaints.{{ $i }}.standard_observation_id"
+                        variant="listbox"
+                        searchable
                         size="sm"
                         label="Complaint"
-                        placeholder="e.g. Brake making grinding noise on left turn"
-                        rows="2"
+                        placeholder="Pick a complaint…"
                         required
-                    />
-                    <flux:select wire:model="complaints.{{ $i }}.complaint_type_id" variant="listbox" searchable clearable size="sm" label="Type">
+                    >
+                        @foreach ($this->standardObservations as $obs)
+                            <flux:select.option :value="$obs->id" wire:key="obs-{{ $i }}-{{ $obs->id }}">{{ $obs->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:select wire:model="complaints.{{ $i }}.complaint_type_id" variant="listbox" searchable clearable size="sm" label="Category">
                         @foreach ($this->complaintTypes as $ct)
                             <flux:select.option :value="$ct->id" wire:key="ct-{{ $i }}-{{ $ct->id }}">{{ $ct->name }}</flux:select.option>
                         @endforeach
@@ -42,7 +47,7 @@
                         class="h-9!"
                     />
                 </div>
-                <flux:error name="complaints.{{ $i }}.description" />
+                <flux:error name="complaints.{{ $i }}.standard_observation_id" />
             @endforeach
         @endif
     </div>

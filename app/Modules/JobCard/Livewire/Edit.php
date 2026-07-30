@@ -22,6 +22,7 @@ use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -210,6 +211,7 @@ class Edit extends Component
             ->map(fn ($c) => [
                 'id' => $c->id,
                 'complaint_type_id' => $c->complaint_type_id,
+                'standard_observation_id' => $c->standard_observation_id,
                 'description' => $c->description,
                 'severity' => $c->severity,
                 'sequence_no' => (int) $c->sequence_no,
@@ -309,7 +311,8 @@ class Edit extends Component
             'notes' => ['nullable', 'string', 'max:2000'],
 
             'complaints' => ['array'],
-            'complaints.*.description' => ['required', 'string', 'max:1000'],
+            'complaints.*.standard_observation_id' => ['required', 'integer', Rule::exists('standard_observations', 'id')->where('is_active', true)],
+            'complaints.*.description' => ['nullable', 'string', 'max:1000'],
             'complaints.*.severity' => ['required', 'string', 'in:low,medium,high'],
             'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'complaints.*.sequence_no' => ['integer', 'min:1', 'max:99'],
@@ -353,6 +356,7 @@ class Edit extends Component
         $this->complaints[] = [
             'id' => null,
             'complaint_type_id' => null,
+            'standard_observation_id' => null,
             'description' => '',
             'severity' => 'medium',
             'sequence_no' => count($this->complaints) + 1,
@@ -619,6 +623,14 @@ class Edit extends Component
         return ComplaintTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    /** Common complaint phrases users pick from (instead of typing). */
+    #[Computed]
+    public function standardObservations()
+    {
+        return StandardObservationMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
     #[Computed]
     public function inventoryChecklist()
     {
@@ -760,10 +772,12 @@ class Edit extends Component
     {
         $this->authorize($this->editingId ? 'job_card.update' : 'job_card.create');
 
-        // Strip blank complaint rows before validating.
+        // Strip only blank NEW rows before validating (a new row is real once a
+        // common-complaint is picked). Already-persisted rows are kept so they are
+        // never silently deleted — validation makes the user pick a phrase instead.
         $this->complaints = array_values(array_filter(
             $this->complaints,
-            fn ($c) => filled($c['description'] ?? null),
+            fn ($c) => filled($c['standard_observation_id'] ?? null) || filled($c['id'] ?? null),
         ));
 
         $data = $this->validate();
@@ -957,16 +971,23 @@ class Edit extends Component
     }
 
     /**
-     * @param  array<int, array{id?: int|null, complaint_type_id?: int|null, description: string, severity: string, sequence_no?: int}>  $rows
+     * @param  array<int, array{id?: int|null, complaint_type_id?: int|null, standard_observation_id?: int|null, description?: string, severity: string, sequence_no?: int}>  $rows
      */
     protected function syncComplaints(JobCard $jc, array $rows): void
     {
         $keptIds = [];
 
+        // Common-complaint phrases, keyed by id — the picked observation is the
+        // authoritative complaint text (users pick, they don't type).
+        $observations = StandardObservationMaster::query()
+            ->pluck('name', 'id');
+
         foreach ($rows as $i => $row) {
+            $observationId = $row['standard_observation_id'] ?? null;
             $payload = [
                 'complaint_type_id' => $row['complaint_type_id'] ?? null,
-                'description' => strtoupper($row['description']),
+                'standard_observation_id' => $observationId,
+                'description' => strtoupper((string) ($observations[$observationId] ?? $row['description'] ?? '')),
                 'severity' => $row['severity'],
                 'sequence_no' => (int) ($row['sequence_no'] ?? $i + 1),
             ];

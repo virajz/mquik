@@ -5,6 +5,7 @@ namespace App\Modules\JobCard\Models;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -51,5 +52,10 @@ class JobCardComplaint extends Model
     public function complaintType(): BelongsTo
     {
         return $this->belongsTo(ComplaintTypeMaster::class, 'complaint_type_id');
+    }
+
+    public function standardObservation(): BelongsTo
+    {
+        return $this->belongsTo(StandardObservationMaster::class, 'standard_observation_id');
     }
 }
