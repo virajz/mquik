@@ -86,14 +86,65 @@
                                 <flux:button type="button" variant="ghost" icon="trash" wire:click="removeWorkScope({{ $i }})" />
                             </div>
 
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <flux:select wire:model="workScopes.{{ $i }}.labour_id" variant="listbox" size="sm" searchable clearable label="Labour" placeholder="PMS, Wheel Alignment…">
+                                    @foreach ($this->labours as $l)
+                                        <flux:select.option :value="$l->id" wire:key="slab-{{ $i }}-{{ $l->id }}">{{ $l->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:select wire:model="workScopes.{{ $i }}.requested_repair_id" variant="listbox" size="sm" searchable clearable label="Requested Repair" placeholder="Optional…">
+                                    @foreach ($this->requestedRepairs as $r)
+                                        <flux:select.option :value="$r->id" wire:key="srr-{{ $i }}-{{ $r->id }}">{{ $r->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:select wire:model="workScopes.{{ $i }}.technician_id" variant="listbox" size="sm" searchable clearable label="Technician" placeholder="Defaults to order tech…">
+                                    @foreach ($this->employees as $e)
+                                        <flux:select.option :value="$e->id" wire:key="stech-{{ $i }}-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+
                             <flux:input wire:model="workScopes.{{ $i }}.description" size="sm" placeholder="e.g. PMS, FR SIDE NOISE, REAR SIDE NOISE" required />
                             <flux:error name="workScopes.{{ $i }}.description" />
 
-                            <flux:checkbox
-                                wire:model="workScopes.{{ $i }}.is_additional"
-                                label="Additional work performed"
-                                description="Discovered during inspection, beyond the originally-booked work."
-                            />
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <flux:checkbox
+                                    wire:model="workScopes.{{ $i }}.is_additional"
+                                    label="Additional work performed"
+                                    description="Discovered during inspection, beyond the originally-booked work."
+                                />
+
+                                {{-- Per-task timer --}}
+                                @if (! empty($scope['id']))
+                                    @php($ws = $scope['work_status'] ?? 'pending')
+                                    <div wire:key="timer-{{ $i }}-{{ $ws }}-{{ $scope['run_started_at'] ?? 0 }}-{{ $scope['duration_seconds'] ?? 0 }}"
+                                        class="flex items-center gap-2"
+                                        x-data="{
+                                            base: {{ (int) ($scope['duration_seconds'] ?? 0) }},
+                                            start: {{ $scope['run_started_at'] ? (int) $scope['run_started_at'] : 'null' }},
+                                            now: Math.floor(Date.now() / 1000),
+                                            t: null,
+                                            get elapsed() { return this.base + (this.start ? (this.now - this.start) : 0) },
+                                            fmt(s) { return new Date(Math.max(0, s) * 1000).toISOString().substr(11, 8) },
+                                            init() { if (this.start) { this.t = setInterval(() => this.now = Math.floor(Date.now() / 1000), 1000) } },
+                                            destroy() { if (this.t) clearInterval(this.t) }
+                                        }">
+                                        @php($sc = match ($ws) { 'in_progress' => 'sky', 'paused' => 'amber', 'completed' => 'lime', default => 'zinc' })
+                                        <flux:badge :color="$sc" size="sm">{{ \App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrderScope::workStatuses()[$ws] ?? $ws }}</flux:badge>
+                                        <span class="font-mono tabular-nums text-sm text-zinc-600 dark:text-zinc-300" x-text="fmt(elapsed)"></span>
+                                        @if ($ws === 'in_progress')
+                                            <flux:button type="button" size="xs" variant="ghost" icon="pause" wire:click="pauseScope({{ $i }})">Pause</flux:button>
+                                            <flux:button type="button" size="xs" variant="primary" icon="check" wire:click="completeScope({{ $i }})">Complete</flux:button>
+                                        @elseif ($ws === 'completed')
+                                            <flux:button type="button" size="xs" variant="ghost" icon="play" wire:click="startScope({{ $i }})">Resume</flux:button>
+                                        @else
+                                            <flux:button type="button" size="xs" variant="primary" icon="play" wire:click="startScope({{ $i }})">Start</flux:button>
+                                        @endif
+                                    </div>
+                                @else
+                                    <flux:text size="sm" class="text-zinc-500">Save the order to enable the work timer.</flux:text>
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">

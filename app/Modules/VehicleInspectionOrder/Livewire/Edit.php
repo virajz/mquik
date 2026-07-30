@@ -9,13 +9,16 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
+use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
+use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ReworkReasonMaster\Models\ReworkReasonMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
+use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrderScope;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
@@ -158,8 +161,14 @@ class Edit extends Component
             'complaint_type_id' => $s->complaint_type_id,
             'job_description_id' => $s->job_description_id,
             'service_package_id' => $s->service_package_id,
+            'labour_id' => $s->labour_id,
+            'requested_repair_id' => $s->requested_repair_id,
+            'technician_id' => $s->technician_id,
             'is_additional' => (bool) $s->is_additional,
             'description' => $s->description,
+            'work_status' => $s->work_status ?? 'pending',
+            'run_started_at' => $s->run_started_at?->getTimestamp(),
+            'duration_seconds' => (int) $s->duration_seconds,
         ])->all();
 
         $this->photos = $order->photos->map(fn ($ph) => [
@@ -243,7 +252,9 @@ class Edit extends Component
     {
         $this->workScopes[] = [
             'id' => null, 'complaint_type_id' => null, 'job_description_id' => null,
-            'service_package_id' => null, 'is_additional' => false, 'description' => '',
+            'service_package_id' => null, 'labour_id' => null, 'requested_repair_id' => null,
+            'technician_id' => null, 'is_additional' => false, 'description' => '',
+            'work_status' => 'pending', 'run_started_at' => null, 'duration_seconds' => 0,
         ];
     }
 
@@ -251,6 +262,100 @@ class Edit extends Component
     {
         unset($this->workScopes[$index]);
         $this->workScopes = array_values($this->workScopes);
+    }
+
+    // ---- Per-task work timers (one running task at a time per technician) ----
+
+    public function startScope(int $index): void
+    {
+        $scope = $this->scopeRow($index);
+        if (! $scope) {
+            return;
+        }
+
+        $technicianId = $scope->technician_id ?: $this->technician_id;
+        if (! $technicianId) {
+            Flux::toast(text: 'Assign a technician to the order (or this line) before starting.', variant: 'warning');
+
+            return;
+        }
+
+        // One active task at a time: pause any other running line for this technician.
+        VehicleInspectionOrderScope::query()
+            ->where('technician_id', $technicianId)
+            ->where('work_status', VehicleInspectionOrderScope::STATUS_IN_PROGRESS)
+            ->whereKeyNot($scope->id)
+            ->get()
+            ->each(fn (VehicleInspectionOrderScope $other) => $this->accumulateAndStop($other, VehicleInspectionOrderScope::STATUS_PAUSED));
+
+        $scope->forceFill([
+            'technician_id' => $technicianId,
+            'work_status' => VehicleInspectionOrderScope::STATUS_IN_PROGRESS,
+            'run_started_at' => now(),
+            'completed_at' => null,
+        ])->save();
+
+        $this->refreshScope($index, $scope);
+        Flux::toast(text: 'Timer started.', variant: 'success');
+    }
+
+    public function pauseScope(int $index): void
+    {
+        $scope = $this->scopeRow($index);
+        if (! $scope) {
+            return;
+        }
+        $this->accumulateAndStop($scope, VehicleInspectionOrderScope::STATUS_PAUSED);
+        $this->refreshScope($index, $scope);
+    }
+
+    public function completeScope(int $index): void
+    {
+        $scope = $this->scopeRow($index);
+        if (! $scope) {
+            return;
+        }
+        $this->accumulateAndStop($scope, VehicleInspectionOrderScope::STATUS_COMPLETED);
+        $scope->forceFill(['completed_at' => now()])->save();
+        $this->refreshScope($index, $scope);
+        Flux::toast(text: 'Task completed.', variant: 'success');
+    }
+
+    /** Fold the current running segment into the accumulated total and stop. */
+    protected function accumulateAndStop(VehicleInspectionOrderScope $scope, string $status): void
+    {
+        $accrued = $scope->run_started_at
+            ? max(0, now()->getTimestamp() - $scope->run_started_at->getTimestamp())
+            : 0;
+
+        $scope->forceFill([
+            'duration_seconds' => (int) $scope->duration_seconds + $accrued,
+            'run_started_at' => null,
+            'work_status' => $status,
+        ])->save();
+    }
+
+    /** The persisted scope row for a timer action, or null (with a toast) if unsaved. */
+    protected function scopeRow(int $index): ?VehicleInspectionOrderScope
+    {
+        $id = $this->workScopes[$index]['id'] ?? null;
+        if (! $id) {
+            Flux::toast(text: 'Save the order first, then start the timer.', variant: 'warning');
+
+            return null;
+        }
+
+        return VehicleInspectionOrderScope::find($id);
+    }
+
+    /** Push a scope's timing fields back into the local array for display. */
+    protected function refreshScope(int $index, VehicleInspectionOrderScope $scope): void
+    {
+        $fresh = $scope->fresh();
+        $this->workScopes[$index]['technician_id'] = $fresh->technician_id;
+        $this->workScopes[$index]['work_status'] = $fresh->work_status;
+        $this->workScopes[$index]['run_started_at'] = $fresh->run_started_at?->getTimestamp();
+        $this->workScopes[$index]['duration_seconds'] = (int) $fresh->duration_seconds;
     }
 
     public function addPhoto(): void
@@ -312,6 +417,9 @@ class Edit extends Component
             'workScopes.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'workScopes.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
             'workScopes.*.service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
+            'workScopes.*.labour_id' => ['nullable', 'integer', Rule::exists('labours', 'id')->where('is_active', true)],
+            'workScopes.*.requested_repair_id' => ['nullable', 'integer', Rule::exists('requested_repairs', 'id')->where('is_active', true)],
+            'workScopes.*.technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'workScopes.*.is_additional' => ['boolean'],
             'workScopes.*.description' => ['required', 'string', 'max:500'],
             'photos' => ['array'],
@@ -422,6 +530,20 @@ class Edit extends Component
     }
 
     #[Computed]
+    public function labours()
+    {
+        return LabourMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function requestedRepairs()
+    {
+        return RequestedRepairMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
     public function photoTypes()
     {
         return PhotoTypeMaster::query()
@@ -450,7 +572,10 @@ class Edit extends Component
         $data = $this->validate();
         $items = $data['items'] ?? [];
         $pauses = $data['pauses'] ?? [];
-        $workScopes = $data['workScopes'] ?? [];
+        // Use the component array (not the validated copy) so each scope keeps its
+        // `id` — validate() drops unruled keys, which would delete+recreate rows and
+        // wipe their timer state. syncWorkScopes only writes the descriptive columns.
+        $workScopes = $this->workScopes;
         $photos = $data['photos'] ?? [];
         unset($data['items'], $data['pauses'], $data['workScopes'], $data['photos'],
             $data['itemBeforeFiles'], $data['itemAfterFiles'], $data['photoFiles']);
@@ -610,12 +735,18 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
+            // Descriptive fields only — timer columns (work_status / run_started_at /
+            // duration_seconds / completed_at) are owned by the start/pause/complete
+            // actions and must never be overwritten by a form save.
             $keptIds[] = $order->workScopes()->updateOrCreate(
                 ['id' => $row['id'] ?? null],
                 [
                     'complaint_type_id' => $row['complaint_type_id'] ?: null,
                     'job_description_id' => $row['job_description_id'] ?: null,
                     'service_package_id' => $row['service_package_id'] ?: null,
+                    'labour_id' => $row['labour_id'] ?: null,
+                    'requested_repair_id' => $row['requested_repair_id'] ?: null,
+                    'technician_id' => $row['technician_id'] ?: null,
                     'is_additional' => (bool) ($row['is_additional'] ?? false),
                     'description' => strtoupper(trim($row['description'])),
                     'sequence_no' => $i + 1,

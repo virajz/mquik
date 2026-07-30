@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
@@ -246,4 +247,69 @@ it('counts pending, active, completed and cancelled inspections', function () {
         && $k['active'] === 3
         && $k['completed'] === 1
         && $k['cancelled'] === 1);
+});
+
+it('starts then pauses a task timer, accumulating elapsed seconds', function () {
+    $tech = EmployeeMaster::factory()->create();
+    $order = VehicleInspectionOrder::factory()->create(['technician_id' => $tech->id]);
+    $scope = $order->workScopes()->create(['description' => 'PMS', 'sequence_no' => 1]);
+
+    $component = Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])->call('startScope', 0);
+
+    $scope->refresh();
+    expect($scope->work_status)->toBe('in_progress')
+        ->and($scope->run_started_at)->not->toBeNull()
+        ->and($scope->technician_id)->toBe($tech->id);
+
+    $this->travel(5)->seconds();
+    $component->call('pauseScope', 0);
+
+    $scope->refresh();
+    expect($scope->work_status)->toBe('paused')
+        ->and($scope->run_started_at)->toBeNull()
+        ->and($scope->duration_seconds)->toBeGreaterThanOrEqual(5);
+});
+
+it('keeps one active task at a time per technician', function () {
+    $tech = EmployeeMaster::factory()->create();
+    $order = VehicleInspectionOrder::factory()->create(['technician_id' => $tech->id]);
+    $a = $order->workScopes()->create(['description' => 'PMS', 'sequence_no' => 1]);
+    $b = $order->workScopes()->create(['description' => 'WHEEL ALIGNMENT', 'sequence_no' => 2]);
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('startScope', 0)
+        ->call('startScope', 1);
+
+    expect($a->fresh()->work_status)->toBe('paused')
+        ->and($b->fresh()->work_status)->toBe('in_progress');
+});
+
+it('completes a task timer and stamps completed_at', function () {
+    $tech = EmployeeMaster::factory()->create();
+    $order = VehicleInspectionOrder::factory()->create(['technician_id' => $tech->id]);
+    $scope = $order->workScopes()->create(['description' => 'PMS', 'sequence_no' => 1]);
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('startScope', 0)
+        ->call('completeScope', 0);
+
+    $scope->refresh();
+    expect($scope->work_status)->toBe('completed')
+        ->and($scope->completed_at)->not->toBeNull()
+        ->and($scope->run_started_at)->toBeNull();
+});
+
+it('does not reset a running timer when the order form is saved', function () {
+    $tech = EmployeeMaster::factory()->create();
+    $order = VehicleInspectionOrder::factory()->create(['technician_id' => $tech->id]);
+    $scope = $order->workScopes()->create(['description' => 'PMS', 'sequence_no' => 1]);
+
+    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
+        ->call('startScope', 0)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $scope->refresh();
+    expect($scope->work_status)->toBe('in_progress')
+        ->and($scope->run_started_at)->not->toBeNull();
 });
