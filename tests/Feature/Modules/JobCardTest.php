@@ -760,3 +760,15 @@ it('lists other job cards for the same vehicle in the history drawer', function 
     // The other vehicle's card never appears in the drawer markup.
     $component->assertSee($past->job_card_no)->assertDontSee($otherVehicleCard->job_card_no);
 });
+
+it('stamps technician_assigned_at when a technician is assigned and clears it when unassigned', function () {
+    $tech = EmployeeMaster::factory()->create();
+    $card = JobCard::factory()->create(['assigned_technician_id' => null]);
+    expect($card->technician_assigned_at)->toBeNull();
+
+    $card->update(['assigned_technician_id' => $tech->id]);
+    expect($card->fresh()->technician_assigned_at)->not->toBeNull();
+
+    $card->update(['assigned_technician_id' => null]);
+    expect($card->fresh()->technician_assigned_at)->toBeNull();
+});

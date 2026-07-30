@@ -27,11 +27,16 @@
                     <flux:select.option :value="$e->id" wire:key="adv-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="Technician" placeholder="Auto-assign later or pick now…">
-                @foreach ($this->employees as $e)
-                    <flux:select.option :value="$e->id" wire:key="tech-{{ $e->id }}">{{ $e->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
+            <div>
+                <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="Technician" placeholder="Auto-assign later or pick now…">
+                    @foreach ($this->employees as $e)
+                        <flux:select.option :value="$e->id" wire:key="tech-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                @if ($technician_assigned_at)
+                    <flux:text size="sm" class="mt-1 text-zinc-500"><flux:icon.clock class="inline size-3 -mt-0.5" /> Assigned {{ $technician_assigned_at }}</flux:text>
+                @endif
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

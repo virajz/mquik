@@ -40,6 +40,9 @@
                             @endif
                         </flux:menu>
                     </flux:dropdown>
+                    @can('internal_parts_inquiry.create')
+                        <flux:button :href="route('internal-parts-inquiry.create', ['from-job-card' => $editingId])" wire:navigate size="sm" variant="ghost" icon="clipboard-document-list">Raise Part Inquiry</flux:button>
+                    @endcan
                     <flux:button :href="route('job-history.show', $editingId)" wire:navigate size="sm" variant="ghost" icon="clock">History</flux:button>
                     <flux:badge :color="match ($status) {
                         'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',

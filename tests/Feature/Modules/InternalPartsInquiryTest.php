@@ -6,7 +6,9 @@ use App\Modules\InternalPartsInquiry\Livewire\Edit;
 use App\Modules\InternalPartsInquiry\Livewire\Index;
 use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiryItem;
+use App\Modules\Inventory\Models\StockEntry;
 use App\Modules\IpiRejectionReasonMaster\Models\IpiRejectionReasonMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -92,6 +94,47 @@ it('auto-fills a line from the picked spare master', function () {
     expect($component->get('items.0.uom_id'))->toBe($spare->uom_id)
         ->and($component->get('items.0.part_type_id'))->toBe($spare->part_type_id)
         ->and($component->get('items.0.spare_brand_id'))->toBe($spare->spare_brand_id);
+});
+
+it('sets stock availability from the ledger when a spare is picked', function () {
+    $inStock = SpareMaster::factory()->create();
+    StockEntry::factory()->create(['spare_id' => $inStock->id, 'qty' => 5]);
+    $outOfStock = SpareMaster::factory()->create();
+
+    $component = Livewire::test(Edit::class)->set('items.0.spare_id', $inStock->id);
+    expect($component->get('items.0.stock_status'))->toBe('available')
+        ->and($component->instance()->onHandQty(0))->toBe(5.0);
+
+    $component->set('items.0.spare_id', $outOfStock->id);
+    expect($component->get('items.0.stock_status'))->toBe('not_available');
+});
+
+it('prefills from a job card when raised via ?from-job-card', function () {
+    $jobCard = JobCard::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['fromJobCard' => $jobCard->id]);
+
+    expect($component->get('job_card_id'))->toBe($jobCard->id)
+        ->and($component->get('customer_id'))->toBe($jobCard->customer_id)
+        ->and($component->get('customer_vehicle_id'))->toBe($jobCard->customer_vehicle_id)
+        ->and($component->get('inquiry_type'))->toBe('against_job_card');
+});
+
+it('stamps responded_at and responder when the store marks a responded status', function () {
+    $inquiry = InternalPartsInquiry::factory()->create();
+    $store = EmployeeMaster::factory()->create();
+    expect($inquiry->responded_at)->toBeNull();
+
+    Livewire::test(Edit::class, ['internalPartsInquiry' => $inquiry])
+        ->set('items.0.description', 'brake pad')
+        ->set('status', InternalPartsInquiry::STATUS_FULLY_AVAILABLE)
+        ->set('responded_by_employee_id', $store->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $fresh = $inquiry->fresh();
+    expect($fresh->responded_at)->not->toBeNull()
+        ->and($fresh->responded_by_employee_id)->toBe($store->id);
 });
 
 it('requires a description on every part line', function () {

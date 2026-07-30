@@ -80,6 +80,9 @@ class Edit extends Component
 
     public ?int $assigned_technician_id = null;
 
+    /** Display-only: when the current technician was assigned (stamped by the model). */
+    public ?string $technician_assigned_at = null;
+
     public string $opened_date = '';
 
     public string $opened_time = '';
@@ -187,6 +190,7 @@ class Edit extends Component
         $this->customer_approval_type_id = $jc->customer_approval_type_id;
         $this->assigned_advisor_id = $jc->assigned_advisor_id;
         $this->assigned_technician_id = $jc->assigned_technician_id;
+        $this->technician_assigned_at = $jc->technician_assigned_at?->format('d M Y, h:i A');
         $this->opened_date = $jc->opened_at?->format('Y-m-d') ?? '';
         $this->opened_time = $jc->opened_at?->format('H:i') ?? '';
         $this->promised_date = $jc->promised_at?->format('Y-m-d') ?? '';

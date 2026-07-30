@@ -502,6 +502,15 @@ class Edit extends Component
     {
         $this->authorize($this->editingId ? 'vendor_master.update' : 'vendor_master.create');
 
+        // Normalise formatted inputs before validation: uppercase the alphanumeric
+        // codes, and strip the mask spaces from Aadhaar / phone (their masks bind the
+        // separators into the value, which would otherwise fail the length rules).
+        $this->pan = filled($this->pan) ? strtoupper(trim($this->pan)) : null;
+        $this->gstin = filled($this->gstin) ? strtoupper(trim($this->gstin)) : null;
+        $this->aadhar = filled($this->aadhar) ? preg_replace('/\D/', '', $this->aadhar) : null;
+        $this->phone = preg_replace('/\D/', '', (string) $this->phone);
+        $this->alternate_phone = filled($this->alternate_phone) ? preg_replace('/\D/', '', $this->alternate_phone) : null;
+
         // Drop empty term rows so blank-row noise doesn't fail validation.
         $this->terms = array_values(array_filter(
             $this->terms,

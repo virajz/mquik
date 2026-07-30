@@ -112,6 +112,86 @@ it('creates a customer with full details', function () {
         ->and($r->is_active)->toBeTrue();
 });
 
+it('saves a valid GST number and rejects a malformed one', function () {
+    Livewire::test(Edit::class)
+        ->set('first_name', 'gst')
+        ->set('last_name', 'customer')
+        ->set('business_type_id', $this->loyal->id)
+        ->set('phone', '9876543211')
+        ->set('gstin', '24ABCDE1234F1Z5')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(CustomerMaster::firstOrFail()->gstin)->toBe('24ABCDE1234F1Z5');
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'bad')
+        ->set('phone', '9876543212')
+        ->set('gstin', 'NOTAGSTIN123456')
+        ->call('save')
+        ->assertHasErrors(['gstin']);
+});
+
+it('blocks a duplicate GST number', function () {
+    CustomerMaster::factory()->create(['gstin' => '24ABCDE1234F1Z5']);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'dupe')
+        ->set('phone', '9876543213')
+        ->set('gstin', '24ABCDE1234F1Z5')
+        ->call('save')
+        ->assertHasErrors(['gstin']);
+});
+
+it('uppercases PAN and GSTIN before validation', function () {
+    Livewire::test(Edit::class)
+        ->set('first_name', 'lower')
+        ->set('business_type_id', $this->loyal->id)
+        ->set('phone', '9876543214')
+        ->set('pan', 'abcde1234f')
+        ->set('gstin', '24abcde1234f1z5')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $c = CustomerMaster::firstOrFail();
+    expect($c->pan)->toBe('ABCDE1234F')
+        ->and($c->gstin)->toBe('24ABCDE1234F1Z5');
+});
+
+it('strips mask spaces from Aadhaar and phone before validation', function () {
+    Livewire::test(Edit::class)
+        ->set('first_name', 'masked')
+        ->set('business_type_id', $this->loyal->id)
+        ->set('phone', '98765 43215')
+        ->set('aadhar', '9451 0770 6068')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $c = CustomerMaster::firstOrFail();
+    expect($c->aadhar)->toBe('945107706068')
+        ->and($c->phone)->toBe('9876543215');
+});
+
+it('uploads a GST certificate, persists path + name, and can stream it', function () {
+    Storage::fake();
+
+    $customer = Livewire::test(Edit::class)
+        ->set('first_name', 'gstdoc')
+        ->set('business_type_id', $this->loyal->id)
+        ->set('phone', '9876543216')
+        ->set('gst_certificate_file', UploadedFile::fake()->create('GST Cert.pdf', 200, 'application/pdf'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $c = CustomerMaster::firstOrFail();
+    expect($c->gst_certificate_file_path)->not->toBeNull()
+        ->and($c->gst_certificate_file_name)->toBe('GST Cert.pdf');
+    Storage::disk(config('filesystems.default'))->assertExists($c->gst_certificate_file_path);
+
+    $this->get(route('customer-master.file', ['customer' => $c, 'type' => 'gst_certificate']))
+        ->assertOk();
+});
+
 it('creates a customer with multiple addresses and one primary', function () {
     $state = RegionMaster::firstOrCreate(['kind' => 'state', 'parent_id' => null, 'name' => 'GUJARAT'], ['code' => 'GJ', 'is_active' => true]);
     $city = RegionMaster::firstOrCreate(['kind' => 'city', 'parent_id' => $state->id, 'name' => 'AHMEDABAD'], ['code' => 'AHD', 'is_active' => true]);

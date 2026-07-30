@@ -6,6 +6,7 @@ use App\Concerns\SearchesPickerOptions;
 use App\Modules\ChargeTypeMaster\Models\ChargeTypeMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\EstimateRevisionReasonMaster\Models\EstimateRevisionReasonMaster;
+use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
@@ -23,6 +24,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -43,6 +45,15 @@ class Edit extends Component
     public ?int $vendor_id = null;
 
     public ?int $job_card_id = null;
+
+    /** ?int — passed via ?from-ipi=ID for the IPI → VPI carry-forward. */
+    #[Url(as: 'from-ipi')]
+    public ?int $fromIpi = null;
+
+    public ?int $internal_parts_inquiry_id = null;
+
+    /** Display-only: source IPI number when carried forward. */
+    public ?string $sourceIpiNo = null;
 
     public ?int $employee_id = null;
 
@@ -95,6 +106,41 @@ class Edit extends Component
         }
 
         $this->items = [$this->blankItem()];
+
+        // Carry-forward from an Internal Parts Inquiry (?from-ipi=ID): link it,
+        // copy the header context, and seed the lines the store couldn't supply.
+        if ($this->fromIpi) {
+            $ipi = InternalPartsInquiry::with('items')->find($this->fromIpi);
+            if ($ipi) {
+                $this->internal_parts_inquiry_id = $ipi->id;
+                $this->sourceIpiNo = $ipi->ipi_no;
+                $this->job_card_id = $ipi->job_card_id;
+                $this->vendor_id = $ipi->vendor_id;
+                $this->priority_id = $ipi->priority_id;
+                $this->inquiry_type = $ipi->job_card_id ? 'against_job_card' : 'stock_replenishment';
+
+                $lines = $ipi->carryForwardItems()
+                    ->map(fn ($it) => array_merge($this->blankItem(), [
+                        'spare_id' => $it->spare_id,
+                        'spare_brand_id' => $it->spare_brand_id,
+                        'part_type_id' => $it->part_type_id,
+                        'uom_id' => $it->uom_id,
+                        'hsn_id' => $it->hsn_id,
+                        'tax_id' => $it->tax_id,
+                        'vehicle_variant_id' => $it->vehicle_variant_id,
+                        'description' => $it->description,
+                        'quantity' => $it->quantity,
+                        'stock_status' => $it->stock_status === 'not_available' ? 'not_available' : null,
+                        'alternative_option' => $it->alternative_option ?: 'primary',
+                    ]))
+                    ->values()
+                    ->all();
+
+                if (! empty($lines)) {
+                    $this->items = $lines;
+                }
+            }
+        }
     }
 
     protected function load(VendorPurchaseInquiry $inquiry): void
@@ -103,13 +149,16 @@ class Edit extends Component
 
         $this->editingId = $inquiry->id;
         foreach ([
-            'vpi_no', 'inquiry_type', 'vendor_id', 'job_card_id', 'employee_id', 'priority_id',
+            'vpi_no', 'inquiry_type', 'vendor_id', 'job_card_id', 'internal_parts_inquiry_id', 'employee_id', 'priority_id',
             'revision_reason_id', 'vendor_category', 'vendor_rating_type', 'payment_term',
             'comparison_parameter', 'approval_authority', 'tat_option', 'tat_custom_days',
             'status', 'terms_conditions', 'notes',
         ] as $k) {
             $this->{$k} = $inquiry->{$k};
         }
+        $this->sourceIpiNo = $inquiry->internal_parts_inquiry_id
+            ? InternalPartsInquiry::whereKey($inquiry->internal_parts_inquiry_id)->value('ipi_no')
+            : null;
 
         $this->items = $inquiry->items->map(fn (VendorPurchaseInquiryItem $i) => [
             'id' => $i->id,
@@ -175,6 +224,7 @@ class Edit extends Component
             'inquiry_type' => ['required', Rule::in(array_keys(VendorPurchaseInquiry::inquiryTypes()))],
             'vendor_id' => ['required', 'integer', Rule::exists('vendors', 'id')],
             'job_card_id' => ['nullable', 'integer', Rule::exists('job_cards', 'id')],
+            'internal_parts_inquiry_id' => ['nullable', 'integer', Rule::exists('internal_parts_inquiries', 'id')],
             'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')],
             'revision_reason_id' => ['nullable', 'integer', Rule::exists('estimate_revision_reasons', 'id')],

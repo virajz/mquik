@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\ChargeTypeMaster\Models\ChargeTypeMaster;
+use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseInquiry\Livewire\Edit;
@@ -185,4 +186,35 @@ it('blocks the create page for a user without create permission', function () {
 it('requires authentication', function () {
     auth()->logout();
     $this->get(route('vendor-purchase-inquiry.index'))->assertRedirect(route('login'));
+});
+
+it('carries forward from an IPI: links it and seeds the not-available lines', function () {
+    $ipi = InternalPartsInquiry::factory()->create();
+    $spare = SpareMaster::factory()->create();
+    $ipi->items()->create(['description' => 'BRAKE PAD', 'quantity' => 2, 'stock_status' => 'not_available', 'spare_id' => $spare->id]);
+    $ipi->items()->create(['description' => 'ENGINE OIL', 'quantity' => 1, 'stock_status' => 'available']);
+
+    $component = Livewire::test(Edit::class, ['fromIpi' => $ipi->id]);
+
+    expect($component->get('internal_parts_inquiry_id'))->toBe($ipi->id)
+        ->and($component->get('job_card_id'))->toBe($ipi->job_card_id);
+
+    $items = $component->get('items');
+    expect($items)->toHaveCount(1)                       // only the not-available line
+        ->and($items[0]['description'])->toBe('BRAKE PAD')
+        ->and($items[0]['spare_id'])->toBe($spare->id)
+        ->and($items[0]['stock_status'])->toBe('not_available');
+});
+
+it('persists the IPI link when a carried-forward VPI is saved', function () {
+    $ipi = InternalPartsInquiry::factory()->create();
+    $ipi->items()->create(['description' => 'BRAKE PAD', 'quantity' => 1, 'stock_status' => 'not_available']);
+
+    Livewire::test(Edit::class, ['fromIpi' => $ipi->id])
+        ->set('inquiry_type', 'against_job_card')
+        ->set('vendor_id', VendorMaster::factory()->create()->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(VendorPurchaseInquiry::latest('id')->first()->internal_parts_inquiry_id)->toBe($ipi->id);
 });

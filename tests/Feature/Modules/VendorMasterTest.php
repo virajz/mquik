@@ -644,6 +644,37 @@ it('searches inventory groups server-side and keeps the selected ones', function
     expect($component->instance()->inventoryGroupOptions->pluck('id'))->toContain($needle->id);
 });
 
+it('uppercases PAN and GSTIN before validation', function () {
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-LC-1')
+        ->set('name', 'lower vendor')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '9876543210')
+        ->set('pan', 'abcde1234f')
+        ->set('gstin', '24abcde1234f1z5')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $v = VendorMaster::where('vendor_code', 'VND-LC-1')->firstOrFail();
+    expect($v->pan)->toBe('ABCDE1234F')
+        ->and($v->gstin)->toBe('24ABCDE1234F1Z5');
+});
+
+it('strips mask spaces from Aadhaar and phone before validation', function () {
+    Livewire::test(Edit::class)
+        ->set('vendor_code', 'VND-MASK-1')
+        ->set('name', 'masked vendor')
+        ->set('vendor_type_ids', [$this->sparesType->id])
+        ->set('phone', '98765 43217')
+        ->set('aadhar', '9451 0770 6068')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $v = VendorMaster::where('vendor_code', 'VND-MASK-1')->firstOrFail();
+    expect($v->aadhar)->toBe('945107706068')
+        ->and($v->phone)->toBe('9876543217');
+});
+
 it('persists the extended profile, classification and performance fields', function () {
     Livewire::test(Edit::class)
         ->set('vendor_code', 'VND-EXT-1')

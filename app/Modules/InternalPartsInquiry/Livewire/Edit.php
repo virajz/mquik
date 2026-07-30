@@ -8,6 +8,7 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiryItem;
+use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\IpiRejectionReasonMaster\Models\IpiRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
@@ -25,6 +26,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -40,6 +42,10 @@ class Edit extends Component
 
     public ?string $ipi_no = null;
 
+    /** ?int — passed via ?from-job-card=ID for the JobCard → IPI handoff. */
+    #[Url(as: 'from-job-card')]
+    public ?int $fromJobCard = null;
+
     public ?int $job_card_id = null;
 
     public ?int $workshop_department_id = null;
@@ -47,6 +53,11 @@ class Edit extends Component
     public ?int $requested_by_employee_id = null;
 
     public ?int $target_employee_id = null;
+
+    public ?int $responded_by_employee_id = null;
+
+    /** Display-only: when the store responded (auto-stamped by save). */
+    public ?string $responded_at = null;
 
     public ?int $customer_id = null;
 
@@ -102,6 +113,18 @@ class Edit extends Component
 
         $this->requested_at = now()->format('Y-m-d');
         $this->items = [$this->blankItem()];
+
+        // Prefill when raised straight from a job card (?from-job-card=ID).
+        if ($this->fromJobCard) {
+            $jobCard = JobCard::find($this->fromJobCard);
+            if ($jobCard) {
+                $this->job_card_id = $jobCard->id;
+                $this->customer_id = $jobCard->customer_id;
+                $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+                $this->workshop_department_id = $jobCard->workshop_department_id;
+                $this->inquiry_type = 'against_job_card';
+            }
+        }
     }
 
     protected function load(InternalPartsInquiry $inquiry): void
@@ -111,7 +134,7 @@ class Edit extends Component
         $this->editingId = $inquiry->id;
         foreach ([
             'ipi_no', 'job_card_id', 'workshop_department_id', 'requested_by_employee_id',
-            'target_employee_id', 'customer_id', 'customer_vehicle_id', 'vendor_id', 'priority_id',
+            'target_employee_id', 'responded_by_employee_id', 'customer_id', 'customer_vehicle_id', 'vendor_id', 'priority_id',
             'inquiry_type', 'approval_authority', 'tat_option', 'tat_custom_days', 'status',
             'rejection_reason_id', 'notes',
         ] as $k) {
@@ -119,6 +142,7 @@ class Edit extends Component
         }
         $this->requested_at = $inquiry->requested_at?->format('Y-m-d');
         $this->needed_by = $inquiry->needed_by?->format('Y-m-d');
+        $this->responded_at = $inquiry->responded_at?->format('d M Y, h:i A');
 
         $this->items = $inquiry->items->map(fn (InternalPartsInquiryItem $i) => [
             'id' => $i->id,
@@ -171,6 +195,7 @@ class Edit extends Component
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')],
             'requested_by_employee_id' => ['required', 'integer', Rule::exists('employees', 'id')],
             'target_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
+            'responded_by_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')],
             'customer_vehicle_id' => ['nullable', 'integer', Rule::exists('customer_vehicles', 'id')],
             'vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')],
@@ -251,6 +276,17 @@ class Edit extends Component
         if (blank($this->items[$index]['description'])) {
             $this->items[$index]['description'] = $spare->name;
         }
+
+        // Auto-set availability from the live stock ledger (same source as IPO).
+        $this->items[$index]['stock_status'] = StockLedger::currentQty($spareId) > 0 ? 'available' : 'not_available';
+    }
+
+    /** Live on-hand quantity for a picked spare, for the availability hint in the row. */
+    public function onHandQty(int $index): float
+    {
+        $spareId = $this->items[$index]['spare_id'] ?? null;
+
+        return $spareId ? (float) StockLedger::currentQty($spareId) : 0.0;
     }
 
     public function addAttachment(): void
@@ -413,6 +449,16 @@ class Edit extends Component
         }
         if ($data['tat_option'] !== 'custom') {
             $data['tat_custom_days'] = null;
+        }
+
+        // Stamp the store response the first time the inquiry reaches a responded state.
+        if (in_array($data['status'], InternalPartsInquiry::respondedStatuses(), true)) {
+            $existingRespondedAt = $this->editingId
+                ? InternalPartsInquiry::whereKey($this->editingId)->value('responded_at')
+                : null;
+            if (! $existingRespondedAt) {
+                $data['responded_at'] = now();
+            }
         }
 
         $isCreate = $this->editingId === null;

@@ -16,7 +16,7 @@ class CustomerDocumentController
 {
     public function __invoke(Request $request, CustomerMaster $customer, string $type): StreamedResponse|BinaryFileResponse
     {
-        abort_unless(in_array($type, ['aadhar', 'pan'], true), 404);
+        abort_unless(in_array($type, ['aadhar', 'pan', 'gst_certificate'], true), 404);
 
         $path = $customer->{$type.'_file_path'};
         $name = $customer->{$type.'_file_name'};

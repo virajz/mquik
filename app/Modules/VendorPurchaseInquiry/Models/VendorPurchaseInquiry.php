@@ -6,6 +6,7 @@ use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\EstimateRevisionReasonMaster\Models\EstimateRevisionReasonMaster;
+use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
@@ -156,6 +157,11 @@ class VendorPurchaseInquiry extends Model
     public function jobCard(): BelongsTo
     {
         return $this->belongsTo(JobCard::class, 'job_card_id');
+    }
+
+    public function internalPartsInquiry(): BelongsTo
+    {
+        return $this->belongsTo(InternalPartsInquiry::class, 'internal_parts_inquiry_id');
     }
 
     public function employee(): BelongsTo

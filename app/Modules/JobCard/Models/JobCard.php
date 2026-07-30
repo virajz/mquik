@@ -55,6 +55,7 @@ class JobCard extends Model
 
     protected $casts = [
         'opened_at' => 'datetime',
+        'technician_assigned_at' => 'datetime',
         'promised_at' => 'datetime',
         'expected_completion_at' => 'datetime',
         'closed_at' => 'datetime',
@@ -72,6 +73,13 @@ class JobCard extends Model
 
     protected static function booted(): void
     {
+        // Stamp (or clear) the assignment time whenever the technician changes.
+        static::saving(function (self $row) {
+            if ($row->isDirty('assigned_technician_id')) {
+                $row->technician_assigned_at = $row->assigned_technician_id ? now() : null;
+            }
+        });
+
         static::created(function (self $row) {
             if ($row->job_card_no === null) {
                 $row->forceFill([

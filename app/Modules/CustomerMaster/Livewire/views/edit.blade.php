@@ -65,6 +65,14 @@
                         @endforeach
                     </flux:select>
 
+                    <flux:input
+                        wire:model="gstin"
+                        label="GST Number"
+                        placeholder="22ABCDE1234F1Z5"
+                        maxlength="15"
+                        class:input="font-mono uppercase tracking-wide"
+                    />
+
                     <flux:field>
                         <flux:label>Referred by</flux:label>
                         <div class="flex items-stretch gap-2">
@@ -343,6 +351,42 @@
                         </flux:file-upload>
                     @endif
                     <flux:error name="pan_file" />
+                </div>
+
+                {{-- GST certificate --}}
+                <div class="space-y-2">
+                    <flux:label>GST Certificate</flux:label>
+                    @if ($gst_certificate_file)
+                        <flux:file-item
+                            :heading="$gst_certificate_file->getClientOriginalName()"
+                            :size="$gst_certificate_file->getSize()"
+                        >
+                            <x-slot name="actions">
+                                <flux:file-item.remove wire:click="removeGstCertificateFile" />
+                            </x-slot>
+                        </flux:file-item>
+                    @elseif ($gst_certificate_file_path && $editingId)
+                        <flux:file-item :heading="$gst_certificate_file_name ?? 'GST certificate'">
+                            <x-slot name="actions">
+                                <flux:button
+                                    size="xs"
+                                    variant="ghost"
+                                    icon="arrow-down-tray"
+                                    :href="route('customer-master.file', ['customer' => $editingId, 'type' => 'gst_certificate'])"
+                                    target="_blank"
+                                />
+                                <flux:file-item.remove wire:click="removeGstCertificateFile" />
+                            </x-slot>
+                        </flux:file-item>
+                    @else
+                        <flux:file-upload wire:model="gst_certificate_file" accept="image/jpeg,image/png,application/pdf">
+                            <flux:file-upload.dropzone
+                                heading="Upload GST certificate"
+                                text="JPG, PNG, or PDF up to 5 MB"
+                            />
+                        </flux:file-upload>
+                    @endif
+                    <flux:error name="gst_certificate_file" />
                 </div>
 
                 <flux:date-picker

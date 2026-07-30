@@ -223,3 +223,11 @@ UX Flow after Job Card:
 Users:
 
 - Provide an Edit option
+
+# 30 July 2026
+
+- list of common complaints in Job Card, job card is a mess right now
+
+## Customer Vehicle:
+
+- remove km, it is not required here, it will be fetched from the first job card created, not required when creating a new vehicle

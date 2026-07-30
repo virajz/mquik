@@ -59,7 +59,7 @@ class CustomerMaster extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['first_name', 'middle_name', 'last_name', 'phone', 'email', 'aadhar', 'pan'];
+    protected static array $searchableFields = ['first_name', 'middle_name', 'last_name', 'phone', 'email', 'aadhar', 'pan', 'gstin'];
 
     /**
      * Virtual `name` attribute — joins first/middle/last for display.
@@ -125,7 +125,7 @@ class CustomerMaster extends Model
     protected static function booted(): void
     {
         static::deleting(function (self $customer) {
-            foreach (['aadhar_file_path', 'pan_file_path'] as $col) {
+            foreach (['aadhar_file_path', 'pan_file_path', 'gst_certificate_file_path'] as $col) {
                 if ($customer->{$col}) {
                     Storage::delete($customer->{$col});
                 }

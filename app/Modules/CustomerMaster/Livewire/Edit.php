@@ -39,6 +39,8 @@ class Edit extends Component
 
     public ?int $gst_type_id = null;
 
+    public ?string $gstin = null;
+
     /** Combobox search string for the Type picker — also used as the "Create" name. */
     public string $businessTypeSearch = '';
 
@@ -71,6 +73,12 @@ class Edit extends Component
 
     public ?string $pan_file_name = null;
 
+    public $gst_certificate_file = null;
+
+    public ?string $gst_certificate_file_path = null;
+
+    public ?string $gst_certificate_file_name = null;
+
     public ?string $date_of_birth = null;
 
     public ?string $notes = null;
@@ -101,6 +109,7 @@ class Edit extends Component
         $this->last_name = $customer->last_name;
         $this->business_type_id = $customer->business_type_id;
         $this->gst_type_id = $customer->gst_type_id;
+        $this->gstin = $customer->gstin;
         $this->referred_by_customer_id = $customer->referred_by_customer_id;
         $this->phone = $customer->phone;
         $this->alternate_phone = $customer->alternate_phone;
@@ -112,6 +121,8 @@ class Edit extends Component
         $this->aadhar_file_name = $customer->aadhar_file_name;
         $this->pan_file_path = $customer->pan_file_path;
         $this->pan_file_name = $customer->pan_file_name;
+        $this->gst_certificate_file_path = $customer->gst_certificate_file_path;
+        $this->gst_certificate_file_name = $customer->gst_certificate_file_name;
         $this->date_of_birth = $customer->date_of_birth?->format('Y-m-d');
         $this->notes = $customer->notes;
         $this->is_active = $customer->is_active;
@@ -142,6 +153,11 @@ class Edit extends Component
             'last_name' => ['nullable', 'string', 'max:255'],
             'business_type_id' => ['required', 'integer', Rule::exists('business_types', 'id')->where('is_active', true)],
             'gst_type_id' => ['nullable', 'integer', Rule::exists('gst_types', 'id')->where('is_active', true)],
+            'gstin' => [
+                'nullable', 'string', 'size:15',
+                'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/',
+                Rule::unique('customers', 'gstin')->ignore($this->editingId),
+            ],
             'referred_by_customer_id' => [
                 'nullable', 'integer',
                 $this->editingId !== null
@@ -163,6 +179,7 @@ class Edit extends Component
             ],
             'aadhar_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'pan_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'gst_certificate_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
@@ -255,6 +272,13 @@ class Edit extends Component
         $this->pan_file_name = null;
     }
 
+    public function removeGstCertificateFile(): void
+    {
+        $this->gst_certificate_file = null;
+        $this->gst_certificate_file_path = null;
+        $this->gst_certificate_file_name = null;
+    }
+
     public function addAddress(): void
     {
         $this->addresses[] = $this->blankAddress(false);
@@ -286,6 +310,15 @@ class Edit extends Component
     {
         $this->authorize($this->editingId ? 'customer_master.update' : 'customer_master.create');
 
+        // Normalise formatted inputs before validation: uppercase the alphanumeric
+        // codes, and strip the mask spaces from Aadhaar / phone (their masks bind the
+        // separators into the value, which would otherwise fail the length rules).
+        $this->pan = filled($this->pan) ? strtoupper(trim($this->pan)) : null;
+        $this->gstin = filled($this->gstin) ? strtoupper(trim($this->gstin)) : null;
+        $this->aadhar = filled($this->aadhar) ? preg_replace('/\D/', '', $this->aadhar) : null;
+        $this->phone = preg_replace('/\D/', '', (string) $this->phone);
+        $this->alternate_phone = filled($this->alternate_phone) ? preg_replace('/\D/', '', $this->alternate_phone) : null;
+
         $this->addresses = array_values(array_filter(
             $this->addresses,
             fn ($a) => ! empty($a['label']) || ! empty($a['address_line']) || ! empty($a['region_id']),
@@ -305,7 +338,7 @@ class Edit extends Component
 
         $this->validate();
         $addresses = $this->addresses;
-        $data = collect($this->validate())->except(['addresses', 'aadhar_file', 'pan_file'])->all();
+        $data = collect($this->validate())->except(['addresses', 'aadhar_file', 'pan_file', 'gst_certificate_file'])->all();
 
         $skip = ['email', 'secondary_email', 'business_type_id', 'gst_type_id', 'referred_by_customer_id', 'date_of_birth', 'is_active', 'phone', 'alternate_phone', 'aadhar'];
         foreach ($data as $key => $value) {
@@ -317,10 +350,12 @@ class Edit extends Component
         $isCreate = $this->editingId === null;
         $aadharFile = $this->aadhar_file;
         $panFile = $this->pan_file;
+        $gstCertFile = $this->gst_certificate_file;
         $aadharCleared = $this->aadhar_file_path === null;
         $panCleared = $this->pan_file_path === null;
+        $gstCertCleared = $this->gst_certificate_file_path === null;
 
-        $customer = DB::transaction(function () use ($data, $addresses, $aadharFile, $panFile, $aadharCleared, $panCleared) {
+        $customer = DB::transaction(function () use ($data, $addresses, $aadharFile, $panFile, $gstCertFile, $aadharCleared, $panCleared, $gstCertCleared) {
             if ($this->editingId) {
                 $c = CustomerMaster::findOrFail($this->editingId);
                 $c->update($data);
@@ -332,6 +367,7 @@ class Edit extends Component
             $this->syncAddresses($c, $addresses);
             $this->syncKycFile($c, 'aadhar', $aadharFile, $aadharCleared);
             $this->syncKycFile($c, 'pan', $panFile, $panCleared);
+            $this->syncKycFile($c, 'gst_certificate', $gstCertFile, $gstCertCleared);
 
             return $c;
         });

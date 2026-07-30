@@ -20,6 +20,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/customer-master/{customer}/file/{type}', CustomerDocumentController::class)
         ->middleware('can:customer_master.view')
-        ->whereIn('type', ['aadhar', 'pan'])
+        ->whereIn('type', ['aadhar', 'pan', 'gst_certificate'])
         ->name('customer-master.file');
 });

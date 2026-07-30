@@ -2,12 +2,19 @@
 @php($ITEM = \App\Modules\InternalPartsInquiry\Models\InternalPartsInquiryItem::class)
 <div>
     <form wire:submit="save" class="max-w-4xl">
-        <div class="mb-8">
-            <flux:link :href="route('internal-parts-inquiry.index')" variant="ghost" class="text-xs">
-                <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Internal Parts Inquiries
-            </flux:link>
-            <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($ipi_no ?: 'Edit Inquiry') : 'New Internal Parts Inquiry' }}</flux:heading>
-            <flux:text size="sm" class="mt-1 text-zinc-500">Advisor asks the store for part rate, availability and brand.</flux:text>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <flux:link :href="route('internal-parts-inquiry.index')" variant="ghost" class="text-xs">
+                    <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Internal Parts Inquiries
+                </flux:link>
+                <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($ipi_no ?: 'Edit Inquiry') : 'New Internal Parts Inquiry' }}</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Advisor asks the store for part rate, availability and brand.</flux:text>
+            </div>
+            @if ($editingId)
+                @can('vendor_purchase_inquiry.create')
+                    <flux:button :href="route('vendor-purchase-inquiry.create', ['from-ipi' => $editingId])" wire:navigate size="sm" variant="ghost" icon="arrow-right-circle">Carry forward to Vendor Inquiry</flux:button>
+                @endcan
+            @endif
         </div>
 
         <flux:separator />
@@ -170,11 +177,19 @@
                                 <flux:input.group.prefix>₹</flux:input.group.prefix>
                                 <flux:input wire:model="items.{{ $i }}.rate_before_tax" type="number" step="0.01" min="0" size="sm" placeholder="Store quote" class:input="text-right font-mono" />
                             </flux:input.group>
-                            <flux:select wire:model="items.{{ $i }}.stock_status" variant="listbox" size="sm" clearable label="Stock Status" placeholder="Availability…">
-                                @foreach ($ITEM::stockStatuses() as $key => $label)
-                                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                                @endforeach
-                            </flux:select>
+                            <div>
+                                <flux:select wire:model="items.{{ $i }}.stock_status" variant="listbox" size="sm" clearable label="Stock Status" placeholder="Availability…">
+                                    @foreach ($ITEM::stockStatuses() as $key => $label)
+                                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                @if (! empty($item['spare_id']))
+                                    @php($onHand = $this->onHandQty($i))
+                                    <flux:text size="sm" class="mt-1 {{ $onHand > 0 ? 'text-lime-600 dark:text-lime-400' : 'text-red-600 dark:text-red-400' }}">
+                                        On hand: {{ rtrim(rtrim(number_format($onHand, 2), '0'), '.') }}
+                                    </flux:text>
+                                @endif
+                            </div>
                             <flux:select wire:model="items.{{ $i }}.alternative_option" variant="listbox" size="sm" clearable label="Option" placeholder="Primary…">
                                 @foreach ($ITEM::alternativeOptions() as $key => $label)
                                     <flux:select.option :value="$key">{{ $label }}</flux:select.option>
@@ -273,6 +288,18 @@
                         @endforeach
                     </flux:select>
                     <flux:error name="rejection_reason_id" />
+                </div>
+
+                {{-- Store response: who answered + when (auto-stamped on a responded status). --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                    <flux:select wire:model="responded_by_employee_id" variant="listbox" searchable clearable label="Responded By (Store)" placeholder="Store manager…">
+                        @foreach ($this->employees as $e)
+                            <flux:select.option :value="$e->id" wire:key="resp-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    @if ($responded_at)
+                        <flux:text size="sm" class="text-zinc-500 pb-2"><flux:icon.check-circle class="inline size-3.5 -mt-0.5 text-lime-500" /> Responded {{ $responded_at }}</flux:text>
+                    @endif
                 </div>
 
                 <flux:textarea wire:model="notes" label="Notes" placeholder="Anything the store/advisor should know." rows="2" />

@@ -9,6 +9,9 @@
             </flux:link>
             <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($vpi_no ?: 'Edit RFQ') : 'New Vendor Purchase Inquiry (RFQ)' }}</flux:heading>
             <flux:text size="sm" class="mt-1 text-zinc-500">Ask a vendor for part rate, brand, delivery time, warranty and payment terms.</flux:text>
+            @if ($sourceIpiNo)
+                <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceIpiNo }}</flux:badge>
+            @endif
         </div>
 
         <flux:separator />

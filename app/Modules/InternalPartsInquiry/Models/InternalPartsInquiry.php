@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class InternalPartsInquiry extends Model
 {
@@ -49,8 +50,20 @@ class InternalPartsInquiry extends Model
     protected $casts = [
         'requested_at' => 'datetime',
         'needed_by' => 'datetime',
+        'responded_at' => 'datetime',
         'tat_custom_days' => 'integer',
     ];
+
+    /** Statuses that mean the store has responded with an availability verdict. @return list<string> */
+    public static function respondedStatuses(): array
+    {
+        return [
+            self::STATUS_PARTIALLY_AVAILABLE,
+            self::STATUS_FULLY_AVAILABLE,
+            self::STATUS_NOT_AVAILABLE,
+            self::STATUS_ALTERNATIVE_SUGGESTED,
+        ];
+    }
 
     protected static array $searchableFields = ['ipi_no', 'notes'];
 
@@ -139,6 +152,26 @@ class InternalPartsInquiry extends Model
     public function target(): BelongsTo
     {
         return $this->belongsTo(EmployeeMaster::class, 'target_employee_id');
+    }
+
+    public function respondedBy(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeMaster::class, 'responded_by_employee_id');
+    }
+
+    /**
+     * Item lines to forward to a vendor RFQ — the ones the store cannot supply
+     * in-house (Not Available). Falls back to all lines when none are flagged,
+     * so a carry-forward always has something to quote.
+     *
+     * @return Collection<int, InternalPartsInquiryItem>
+     */
+    public function carryForwardItems(): Collection
+    {
+        $this->loadMissing('items');
+        $unavailable = $this->items->where('stock_status', 'not_available');
+
+        return $unavailable->isNotEmpty() ? $unavailable->values() : $this->items;
     }
 
     public function customer(): BelongsTo
