@@ -250,7 +250,7 @@
                         <flux:input wire:model="delivery_custom_days" type="number" min="1" max="365" label="Custom (days)" class:input="font-mono" />
                         <flux:error name="delivery_custom_days" />
                     </div>
-                    <flux:input wire:model="expected_delivery_date" type="date" label="Expected Delivery Date" />
+                    <flux:date-picker wire:model="expected_delivery_date" label="Expected Delivery Date" with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <flux:textarea wire:model="terms_conditions" label="T&Cs / SLA" placeholder="Delivery commitments, penalty rules, service-level terms…" rows="2" />
             </div>
@@ -283,7 +283,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <flux:input wire:model="courier_company" label="Courier Company" placeholder="Bluedart / DTDC…" />
                     <flux:input wire:model="consignment_no" label="Consignment No" placeholder="AWB / LR no" class:input="font-mono" />
-                    <flux:input wire:model="consignment_date" type="date" label="Consignment Date" />
+                    <flux:date-picker wire:model="consignment_date" label="Consignment Date" with-today selectable-header fixed-weeks type="input" />
                 </div>
             </div>
         </section>

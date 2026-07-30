@@ -70,7 +70,11 @@ class Edit extends Component
 
     public ?string $promised_from = null;
 
+    public ?string $promised_from_time = null;
+
     public ?string $promised_to = null;
+
+    public ?string $promised_to_time = null;
 
     public ?int $revision_reason_id = null;
 
@@ -133,8 +137,10 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $inquiry->{$k};
         }
-        $this->promised_from = $inquiry->promised_from?->format('Y-m-d\TH:i');
-        $this->promised_to = $inquiry->promised_to?->format('Y-m-d\TH:i');
+        $this->promised_from = $inquiry->promised_from?->format('Y-m-d');
+        $this->promised_from_time = $inquiry->promised_from?->format('H:i');
+        $this->promised_to = $inquiry->promised_to?->format('Y-m-d');
+        $this->promised_to_time = $inquiry->promised_to?->format('H:i');
 
         $this->scopes = $inquiry->scopes->map(fn ($s) => [
             'id' => $s->id,
@@ -181,7 +187,9 @@ class Edit extends Component
             'tat_option' => ['nullable', Rule::in(array_keys(OutsideLabourInquiry::tatOptions()))],
             'tat_custom_days' => ['nullable', 'integer', 'min:1', 'max:365', Rule::requiredIf(fn () => $this->tat_option === 'custom')],
             'promised_from' => ['nullable', 'date'],
+            'promised_from_time' => ['nullable', 'string'],
             'promised_to' => ['nullable', 'date', 'after_or_equal:promised_from'],
+            'promised_to_time' => ['nullable', 'string'],
             'revision_reason_id' => ['nullable', 'integer', Rule::exists('estimate_revision_reasons', 'id')],
             'rejection_reason_id' => ['nullable', 'integer', Rule::exists('outside_labour_rejection_reasons', 'id'), Rule::requiredIf(fn () => $this->status === OutsideLabourInquiry::STATUS_REJECTED)],
             'status' => ['required', Rule::in(array_keys(OutsideLabourInquiry::statuses()))],
@@ -384,6 +392,13 @@ class Edit extends Component
         $scopes = $data['scopes'] ?? [];
         $attachments = $data['attachments'] ?? [];
         unset($data['scopes'], $data['attachments'], $data['attachmentFiles']);
+
+        foreach (['promised_from', 'promised_to'] as $dtField) {
+            if (! empty($data[$dtField])) {
+                $data[$dtField] = trim($data[$dtField].' '.($this->{$dtField.'_time'} ?: '00:00'));
+            }
+            unset($data[$dtField.'_time']);
+        }
 
         if (isset($data['notes']) && is_string($data['notes'])) {
             $data['notes'] = strtoupper($data['notes']);

@@ -42,8 +42,8 @@
                     <flux:input wire:model="policy_number" label="Policy No" placeholder="Policy number" class:input="font-mono" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <flux:input wire:model="policy_start_date" type="date" label="Start Date" />
-                    <flux:input wire:model="policy_end_date" type="date" label="End Date (Expiry)" />
+                    <flux:date-picker wire:model="policy_start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker wire:model="policy_end_date" label="End Date (Expiry)" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="renewal_reference" label="Renewal Ref" placeholder="Ref" class:input="font-mono" />
                     <flux:input.group label="Renewal Premium">
                         <flux:input.group.prefix>₹</flux:input.group.prefix>

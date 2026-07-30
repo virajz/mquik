@@ -9,6 +9,8 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -282,4 +284,40 @@ it('switching slabs after typing MRP re-derives the rate, not the MRP', function
         ->set('tax_id', $gst28->id)
         ->assertSet('mrp', 118.0)           // still what the user typed
         ->assertSet('rate_before_tax', 92.19);
+});
+
+it('persists the inventory type', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'ENGINE OIL')
+        ->set('inventory_type', 'lubricants')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(SpareMaster::first()->inventory_type)->toBe('lubricants');
+});
+
+it('rejects an unknown inventory type', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'BAD TYPE')
+        ->set('inventory_type', 'not_a_type')
+        ->call('save')
+        ->assertHasErrors(['inventory_type']);
+});
+
+it('stores a spare image / application guide attachment', function () {
+    Storage::fake('public');
+
+    Livewire::test(Edit::class)
+        ->set('name', 'BRAKE DISC')
+        ->call('addAttachment')
+        ->set('attachments.0.attachment_type', 'spare_image')
+        ->set('attachmentFiles.0', UploadedFile::fake()->image('disc.jpg'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $spare = SpareMaster::first();
+    expect($spare->attachments)->toHaveCount(1)
+        ->and($spare->attachments->first()->attachment_type)->toBe('spare_image')
+        ->and($spare->attachments->first()->kind)->toBe('image');
+    Storage::disk('public')->assertExists($spare->attachments->first()->path);
 });

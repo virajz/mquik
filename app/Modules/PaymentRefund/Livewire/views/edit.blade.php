@@ -112,7 +112,7 @@
                 {{-- Cheque block --}}
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                     <flux:input wire:model="cheque_no" label="Cheque No" placeholder="If by cheque" class:input="font-mono" />
-                    <flux:input wire:model="cheque_date" type="date" label="Cheque Date" />
+                    <flux:date-picker wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:select wire:model.live="cheque_status" variant="listbox" clearable label="Cheque Status" placeholder="Cleared / Bounce">
                         @foreach ($PR::chequeStatuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>

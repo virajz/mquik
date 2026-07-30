@@ -67,7 +67,7 @@ class Edit extends Component
     /** @var array<int, TemporaryUploadedFile> */
     public array $itemDamageFiles = [];
 
-    /** @var list<array{id: ?int, paused_at: ?string, resumed_at: ?string, notes: ?string}> */
+    /** @var list<array{id: ?int, paused_date: ?string, paused_time: ?string, resumed_date: ?string, resumed_time: ?string, notes: ?string}> */
     public array $pauses = [];
 
     public function mount(?FinalInspection $finalInspection = null): void
@@ -114,8 +114,10 @@ class Edit extends Component
 
         $this->pauses = $f->pauses->map(fn ($p) => [
             'id' => $p->id,
-            'paused_at' => $p->paused_at?->format('Y-m-d\TH:i'),
-            'resumed_at' => $p->resumed_at?->format('Y-m-d\TH:i'),
+            'paused_date' => $p->paused_at?->format('Y-m-d'),
+            'paused_time' => $p->paused_at?->format('H:i'),
+            'resumed_date' => $p->resumed_at?->format('Y-m-d'),
+            'resumed_time' => $p->resumed_at?->format('H:i'),
             'notes' => $p->notes,
         ])->all();
     }
@@ -185,7 +187,7 @@ class Edit extends Component
 
     public function addPause(): void
     {
-        $this->pauses[] = ['id' => null, 'paused_at' => null, 'resumed_at' => null, 'notes' => null];
+        $this->pauses[] = ['id' => null, 'paused_date' => null, 'paused_time' => null, 'resumed_date' => null, 'resumed_time' => null, 'notes' => null];
     }
 
     public function removePause(int $index): void
@@ -220,8 +222,10 @@ class Edit extends Component
             'itemDamageFiles.*' => ['image', 'max:8192'],
 
             'pauses' => ['array'],
-            'pauses.*.paused_at' => ['nullable', 'date'],
-            'pauses.*.resumed_at' => ['nullable', 'date'],
+            'pauses.*.paused_date' => ['nullable', 'date'],
+            'pauses.*.paused_time' => ['nullable', 'string'],
+            'pauses.*.resumed_date' => ['nullable', 'date'],
+            'pauses.*.resumed_time' => ['nullable', 'string'],
             'pauses.*.notes' => ['nullable', 'string', 'max:500'],
         ];
     }
@@ -387,9 +391,11 @@ class Edit extends Component
 
         foreach (array_values($rows) as $i => $row) {
             $local = $this->pauses[$i] ?? [];
+            $pausedAt = ! empty($row['paused_date']) ? trim($row['paused_date'].' '.($row['paused_time'] ?: '00:00')) : null;
+            $resumedAt = ! empty($row['resumed_date']) ? trim($row['resumed_date'].' '.($row['resumed_time'] ?: '00:00')) : null;
             $payload = [
-                'paused_at' => $row['paused_at'] ?? null,
-                'resumed_at' => $row['resumed_at'] ?? null,
+                'paused_at' => $pausedAt,
+                'resumed_at' => $resumedAt,
                 'notes' => isset($row['notes']) && is_string($row['notes']) ? strtoupper($row['notes']) : null,
             ];
 

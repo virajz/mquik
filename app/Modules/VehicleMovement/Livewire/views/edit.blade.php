@@ -84,9 +84,15 @@
                     </flux:select>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:input wire:model="entry_at" type="datetime-local" label="Entry Date & Time" />
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="entry_at" label="Entry Date & Time" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="entry_at_time" label="Time" />
+                    </div>
                     <div>
-                        <flux:input wire:model="exit_at" type="datetime-local" label="Exit Date & Time" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <flux:date-picker wire:model="exit_at" label="Exit Date & Time" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                            <flux:time-picker wire:model="exit_at_time" label="Time" />
+                        </div>
                         <flux:error name="exit_at" />
                     </div>
                 </div>

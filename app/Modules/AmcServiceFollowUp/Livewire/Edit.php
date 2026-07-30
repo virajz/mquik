@@ -80,6 +80,8 @@ class Edit extends Component
 
     public ?string $appointment_at = null;
 
+    public ?string $appointment_at_time = null;
+
     public ?string $notes = null;
 
     public string $amcSearch = '';
@@ -118,7 +120,8 @@ class Edit extends Component
             $this->{$k} = $f->{$k};
         }
         $this->due_date = $f->due_date?->format('Y-m-d');
-        $this->appointment_at = $f->appointment_at?->format('Y-m-d\TH:i');
+        $this->appointment_at = $f->appointment_at?->format('Y-m-d');
+        $this->appointment_at_time = $f->appointment_at?->format('H:i');
 
         $this->attachments = $f->attachments->map(fn ($a) => [
             'id' => $a->id, 'attachment_type' => $a->attachment_type, 'path' => $a->path,
@@ -154,6 +157,7 @@ class Edit extends Component
             'due_date' => ['nullable', 'date'],
             'odometer' => ['nullable', 'integer', 'min:0'],
             'appointment_at' => ['nullable', 'date'],
+            'appointment_at_time' => ['nullable', 'string'],
             'notes' => ['nullable', 'string', 'max:2000'],
 
             'attachments' => ['array'],
@@ -218,6 +222,13 @@ class Edit extends Component
         $data = $this->validate();
         $attachments = $data['attachments'] ?? [];
         unset($data['attachments'], $data['attachmentFiles']);
+
+        foreach (['appointment_at'] as $dtField) {
+            if (! empty($data[$dtField])) {
+                $data[$dtField] = trim($data[$dtField].' '.($this->{$dtField.'_time'} ?: '00:00'));
+            }
+            unset($data[$dtField.'_time']);
+        }
 
         foreach (['vehicle_history_reference', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {

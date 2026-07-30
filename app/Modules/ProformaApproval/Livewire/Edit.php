@@ -131,9 +131,9 @@ class Edit extends Component
             $this->{$k} = $p->{$k};
         }
         $this->amount = $p->amount === null ? null : (float) $p->amount;
-        $this->store_approved_at = $p->store_approved_at?->format('Y-m-d\TH:i');
-        $this->advisor_approved_at = $p->advisor_approved_at?->format('Y-m-d\TH:i');
-        $this->admin_approved_at = $p->admin_approved_at?->format('Y-m-d\TH:i');
+        $this->store_approved_at = $p->store_approved_at?->format('Y-m-d');
+        $this->advisor_approved_at = $p->advisor_approved_at?->format('Y-m-d');
+        $this->admin_approved_at = $p->admin_approved_at?->format('Y-m-d');
 
         $this->checkpoints = $p->checkpoints->map(fn ($c) => [
             'id' => $c->id, 'role' => $c->role, 'checkpoint' => $c->checkpoint, 'status' => $c->status, 'note' => $c->note,

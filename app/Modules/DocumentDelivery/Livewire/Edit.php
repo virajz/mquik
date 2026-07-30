@@ -109,7 +109,7 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $d->{$k};
         }
-        $this->delivered_at = $d->delivered_at?->format('Y-m-d\TH:i');
+        $this->delivered_at = $d->delivered_at?->format('Y-m-d');
 
         $this->items = $d->items->map(fn (DocumentDeliveryItem $i) => [
             'id' => $i->id,

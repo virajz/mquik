@@ -34,7 +34,7 @@
             <div class="flex items-center gap-2 text-zinc-500"><flux:icon.calendar class="size-4" /><flux:text size="sm">Approved on Date</flux:text></div>
             <div class="mt-1 flex items-baseline gap-2">
                 <span class="text-2xl font-semibold tabular-nums">{{ $kpis['custom_approved'] }}</span>
-                <flux:input type="date" wire:model.live="approvedOnDate" size="sm" class="max-w-36" />
+                <flux:date-picker wire:model.live="approvedOnDate" size="sm" class="max-w-36" with-today selectable-header fixed-weeks type="input" />
             </div>
         </div>
     </div>

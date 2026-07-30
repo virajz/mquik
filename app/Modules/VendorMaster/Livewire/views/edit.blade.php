@@ -26,22 +26,20 @@
                         label="Vendor Code"
                         placeholder="VND-00001"
                         required
-                        class:input="font-mono uppercase tracking-wide"
-                    />
+                        class:input="font-mono uppercase tracking-wide" />
                     <div class="md:col-span-2">
                         <flux:input
                             wire:model="name"
                             label="Trade Name"
                             placeholder="Vendor trade name"
                             required
-                            autofocus
-                        />
+                            autofocus />
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <flux:input wire:model="legal_name" label="Legal Name" placeholder="Registered legal name" />
-                    <flux:input wire:model="registration_date" type="date" label="Date of Registration" />
+                    <flux:date-picker wire:model="registration_date" label="Date of Registration" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="reference" label="Reference" placeholder="Referred by / source" />
                 </div>
 
@@ -171,8 +169,7 @@
                                 mask="99999 99999"
                                 placeholder="98765 43210"
                                 inputmode="numeric"
-                                required
-                            />
+                                required />
                         </flux:input.group>
                         <flux:error name="phone" />
                     </flux:field>
@@ -185,8 +182,7 @@
                                 wire:model="alternate_phone"
                                 mask="99999 99999"
                                 placeholder="98765 43210"
-                                inputmode="numeric"
-                            />
+                                inputmode="numeric" />
                         </flux:input.group>
                         <flux:error name="alternate_phone" />
                     </flux:field>
@@ -198,15 +194,13 @@
                         type="email"
                         label="Email"
                         placeholder="vendor@example.com"
-                        icon="envelope"
-                    />
+                        icon="envelope" />
                     <flux:input
                         wire:model="secondary_email"
                         type="email"
                         label="Secondary Email"
                         placeholder="optional second contact"
-                        icon="envelope"
-                    />
+                        icon="envelope" />
                 </div>
             </div>
         </section>
@@ -281,8 +275,7 @@
                         label="GSTIN"
                         placeholder="22ABCDE1234F1Z5"
                         maxlength="15"
-                        class:input="font-mono uppercase tracking-wide"
-                    />
+                        class:input="font-mono uppercase tracking-wide" />
                     <flux:select wire:model="gst_type_id" variant="listbox" searchable clearable label="GST Type" placeholder="Regular / Composition…">
                         @foreach ($this->gstTypes as $gt)
                             <flux:select.option :value="$gt->id" wire:key="gt-{{ $gt->id }}">{{ $gt->name }}</flux:select.option>
@@ -312,8 +305,7 @@
                         mask="9999 9999 9999"
                         placeholder="0000 0000 0000"
                         class:input="font-mono uppercase tracking-wide"
-                        inputmode="numeric"
-                    />
+                        inputmode="numeric" />
                     @if ($aadhar_file)
                         <flux:file-item
                             :heading="$aadhar_file->getClientOriginalName()"
@@ -354,8 +346,7 @@
                         label="PAN Number"
                         placeholder="ABCDE1234F"
                         maxlength="10"
-                        class:input="font-mono uppercase tracking-wide"
-                    />
+                        class:input="font-mono uppercase tracking-wide" />
                     @if ($pan_file)
                         <flux:file-item
                             :heading="$pan_file->getClientOriginalName()"
@@ -459,19 +450,16 @@
                         label="IFSC"
                         placeholder="HDFC0000001"
                         maxlength="11"
-                        class:input="font-mono uppercase tracking-wide"
-                    />
+                        class:input="font-mono uppercase tracking-wide" />
                     <flux:input
                         wire:model="account_no"
                         label="Account No"
                         placeholder="Account number"
-                        class:input="font-mono tracking-wide"
-                    />
+                        class:input="font-mono tracking-wide" />
                     <flux:input
                         wire:model="account_holder"
                         label="Account Holder"
-                        placeholder="Name on account"
-                    />
+                        placeholder="Name on account" />
                 </div>
             </div>
         </section>
@@ -542,15 +530,13 @@
                                 wire:model="terms.{{ $i }}.name"
                                 label="Name"
                                 placeholder="e.g. Payment Term"
-                                maxlength="100"
-                            />
+                                maxlength="100" />
                             <div class="md:col-span-2">
                                 <flux:input
                                     wire:model="terms.{{ $i }}.value"
                                     label="Value"
                                     placeholder="e.g. Net 30 days"
-                                    maxlength="1000"
-                                />
+                                    maxlength="1000" />
                             </div>
                         </div>
                         <flux:error name="terms.{{ $i }}.name" />
@@ -694,8 +680,7 @@
                     label="Name"
                     placeholder="e.g. CORPORATE"
                     autofocus
-                    required
-                />
+                    required />
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:modal.close>
                         <flux:button variant="ghost" type="button">Cancel</flux:button>
@@ -718,8 +703,7 @@
                     label="Name"
                     placeholder="e.g. BOSCH"
                     autofocus
-                    required
-                />
+                    required />
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:modal.close>
                         <flux:button variant="ghost" type="button">Cancel</flux:button>

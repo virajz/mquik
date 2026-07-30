@@ -148,7 +148,7 @@
                         @endforeach
                     </flux:select>
                     <div x-show="$wire.status === 'delivered'" x-cloak>
-                        <flux:input wire:model="delivered_at" type="datetime-local" label="Delivered At" />
+                        <flux:date-picker wire:model="delivered_at" label="Delivered At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                         <flux:error name="delivered_at" />
                     </div>
                 </div>

@@ -149,7 +149,10 @@
                         @endforeach
                     </flux:select>
                     <div x-show="$wire.status === 'completed'" x-cloak>
-                        <flux:input wire:model="surveyed_at" type="datetime-local" label="Surveyed At" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <flux:date-picker wire:model="surveyed_at" label="Surveyed At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                            <flux:time-picker wire:model="surveyed_at_time" label="Time" />
+                        </div>
                         <flux:error name="surveyed_at" />
                     </div>
                 </div>

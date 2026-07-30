@@ -107,8 +107,8 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $a->{$k};
         }
-        $this->customer_approved_at = $a->customer_approved_at?->format('Y-m-d\TH:i');
-        $this->insurance_approved_at = $a->insurance_approved_at?->format('Y-m-d\TH:i');
+        $this->customer_approved_at = $a->customer_approved_at?->format('Y-m-d');
+        $this->insurance_approved_at = $a->insurance_approved_at?->format('Y-m-d');
 
         $this->items = $a->items->map(fn (SalesEstimateApprovalItem $i) => [
             'id' => $i->id,

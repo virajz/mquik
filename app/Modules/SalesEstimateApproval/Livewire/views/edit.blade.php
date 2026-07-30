@@ -216,8 +216,8 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:input wire:model="customer_approved_at" type="datetime-local" label="Customer Approved At" />
-                    <flux:input wire:model="insurance_approved_at" type="datetime-local" label="Insurance Approved At" />
+                    <flux:date-picker wire:model="customer_approved_at" label="Customer Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker wire:model="insurance_approved_at" label="Insurance Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">

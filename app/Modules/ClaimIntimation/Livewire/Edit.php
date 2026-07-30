@@ -86,7 +86,7 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $c->{$k};
         }
-        $this->intimated_at = $c->intimated_at?->format('Y-m-d\TH:i');
+        $this->intimated_at = $c->intimated_at?->format('Y-m-d');
     }
 
     protected function rules(): array

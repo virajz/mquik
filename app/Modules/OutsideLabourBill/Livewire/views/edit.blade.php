@@ -45,7 +45,7 @@
                         @endforeach
                     </flux:select>
                     <flux:input wire:model="vendor_bill_no" label="Vendor Bill No" placeholder="Invoice no" class:input="font-mono" />
-                    <flux:input wire:model="bill_date" type="date" label="Bill Date" />
+                    <flux:date-picker wire:model="bill_date" label="Bill Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:input.group label="Bill Amount">
                         <flux:input.group.prefix>₹</flux:input.group.prefix>
                         <flux:input wire:model="bill_amount" type="number" step="0.01" min="0" class:input="text-right font-mono" />

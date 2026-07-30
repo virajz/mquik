@@ -119,7 +119,7 @@
                 </div>
 
                 <div x-show="$wire.status === 'intimated'" x-cloak>
-                    <flux:input wire:model="intimated_at" type="datetime-local" label="Intimated At" class="md:max-w-xs" />
+                    <flux:date-picker wire:model="intimated_at" label="Intimated At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" class="md:max-w-xs" />
                     <flux:error name="intimated_at" />
                 </div>
 

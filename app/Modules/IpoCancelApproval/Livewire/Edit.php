@@ -107,7 +107,7 @@ class Edit extends Component
         }
         $this->quantity = $a->quantity === null ? null : (float) $a->quantity;
         $this->impacts = $a->impacts ?? [];
-        $this->decided_at = $a->decided_at?->format('Y-m-d\TH:i');
+        $this->decided_at = $a->decided_at?->format('Y-m-d');
 
         $this->attachments = $a->attachments->map(fn ($x) => [
             'id' => $x->id, 'path' => $x->path, 'original_name' => $x->original_name, 'notes' => $x->notes,

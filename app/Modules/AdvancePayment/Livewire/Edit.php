@@ -112,7 +112,7 @@ class Edit extends Component
             return;
         }
 
-        $this->paid_at = now()->format('Y-m-d\TH:i');
+        $this->paid_at = now()->format('Y-m-d');
         $this->advance_payment_type = 'against_request';
     }
 
@@ -131,7 +131,7 @@ class Edit extends Component
         }
         $this->amount = $p->amount === null ? null : (float) $p->amount;
         $this->cheque_date = $p->cheque_date?->format('Y-m-d');
-        $this->paid_at = $p->paid_at?->format('Y-m-d\TH:i');
+        $this->paid_at = $p->paid_at?->format('Y-m-d');
 
         $this->attachments = $p->attachments->map(fn ($a) => [
             'id' => $a->id, 'attachment_type' => $a->attachment_type, 'path' => $a->path,

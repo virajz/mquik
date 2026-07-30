@@ -56,7 +56,11 @@ class Edit extends Component
 
     public ?string $entry_at = null;
 
+    public ?string $entry_at_time = null;
+
     public ?string $exit_at = null;
+
+    public ?string $exit_at_time = null;
 
     public ?string $notes = null;
 
@@ -79,7 +83,8 @@ class Edit extends Component
             return;
         }
 
-        $this->entry_at = now()->format('Y-m-d\TH:i');
+        $this->entry_at = now()->format('Y-m-d');
+        $this->entry_at_time = now()->format('H:i');
     }
 
     protected function load(VehicleMovement $m): void
@@ -93,8 +98,10 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $m->{$k};
         }
-        $this->entry_at = $m->entry_at?->format('Y-m-d\TH:i');
-        $this->exit_at = $m->exit_at?->format('Y-m-d\TH:i');
+        $this->entry_at = $m->entry_at?->format('Y-m-d');
+        $this->entry_at_time = $m->entry_at?->format('H:i');
+        $this->exit_at = $m->exit_at?->format('Y-m-d');
+        $this->exit_at_time = $m->exit_at?->format('H:i');
 
         $this->attachments = $m->attachments->map(fn ($a) => [
             'id' => $a->id, 'attachment_type' => $a->attachment_type, 'path' => $a->path,
@@ -118,7 +125,9 @@ class Edit extends Component
             'job_status' => ['required', Rule::in(array_keys(VehicleMovement::jobStatuses()))],
             'number_plate' => ['nullable', 'string', 'max:20'],
             'entry_at' => ['nullable', 'date'],
+            'entry_at_time' => ['nullable', 'string'],
             'exit_at' => ['nullable', 'date', 'after_or_equal:entry_at'],
+            'exit_at_time' => ['nullable', 'string'],
             'notes' => ['nullable', 'string', 'max:2000'],
 
             'attachments' => ['array'],
@@ -196,6 +205,13 @@ class Edit extends Component
         $data = $this->validate();
         $attachments = $data['attachments'] ?? [];
         unset($data['attachments'], $data['attachmentFiles']);
+
+        foreach (['entry_at', 'exit_at'] as $dtField) {
+            if (! empty($data[$dtField])) {
+                $data[$dtField] = trim($data[$dtField].' '.($this->{$dtField.'_time'} ?: '00:00'));
+            }
+            unset($data[$dtField.'_time']);
+        }
 
         if (isset($data['number_plate']) && is_string($data['number_plate'])) {
             $data['number_plate'] = strtoupper($data['number_plate']);

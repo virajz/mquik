@@ -107,13 +107,13 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:input wire:model="reference_no" label="Reference / UTR No" placeholder="Transaction reference" class:input="font-mono" />
-                    <flux:input wire:model="paid_at" type="datetime-local" label="Paid At" />
+                    <flux:date-picker wire:model="paid_at" label="Paid At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 {{-- Cheque block --}}
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                     <flux:input wire:model="cheque_no" label="Cheque No" placeholder="If by cheque" class:input="font-mono" />
-                    <flux:input wire:model="cheque_date" type="date" label="Cheque Date" />
+                    <flux:date-picker wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:select wire:model.live="cheque_status" variant="listbox" clearable label="Cheque Status" placeholder="Issued / Cleared…">
                         @foreach ($AP::chequeStatuses() as $key => $label)
                             <flux:select.option :value="$key">{{ $label }}</flux:select.option>

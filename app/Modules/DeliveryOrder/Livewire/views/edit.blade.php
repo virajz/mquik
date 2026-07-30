@@ -66,7 +66,7 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0">
                 <flux:input wire:model="claim_number" label="Claim Number" placeholder="Claim no" class:input="font-mono" />
-                <flux:input wire:model="claim_date" type="date" label="Claim Date" />
+                <flux:date-picker wire:model="claim_date" label="Claim Date" with-today selectable-header fixed-weeks type="input" />
                 <flux:input wire:model="policy_number" label="Policy Number" placeholder="Policy no" class:input="font-mono" />
             </div>
         </section>
@@ -112,8 +112,8 @@
                     <flux:select wire:model="status" variant="listbox" label="DO Status" required>
                         @foreach ($DO::statuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>
-                    <flux:input wire:model="do_received_at" type="datetime-local" label="DO Received At" />
-                    <flux:input wire:model="do_entry_at" type="datetime-local" label="DO Entry At" />
+                    <flux:date-picker wire:model="do_received_at" label="DO Received At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker wire:model="do_entry_at" label="DO Entry At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end" x-data>
                     <flux:select wire:model.live="reminder_frequency" variant="listbox" clearable label="Reminder Frequency" placeholder="Config only — never sent">

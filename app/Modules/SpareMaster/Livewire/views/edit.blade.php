@@ -400,6 +400,37 @@
 
         <flux:separator />
 
+        {{-- DOCUMENTS --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Documents</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Spare image and application guide.</flux:text>
+            </div>
+            <div class="space-y-3 min-w-0">
+                <div class="flex items-center justify-between">
+                    <flux:text size="sm" class="font-medium">Attachments</flux:text>
+                    <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addAttachment">Add file</flux:button>
+                </div>
+                @forelse ($attachments as $i => $att)
+                    <div wire:key="spare-att-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
+                        <flux:select wire:model="attachments.{{ $i }}.attachment_type" variant="listbox" size="sm" clearable label="Type" placeholder="Type…">
+                            @foreach (\App\Modules\SpareMaster\Models\SpareAttachment::attachmentTypes() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
+                        </flux:select>
+                        <div>
+                            <flux:input type="file" wire:model="attachmentFiles.{{ $i }}" size="sm" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+                            @if (! empty($att['path']))<flux:text size="sm" class="text-zinc-500 mt-1">Current: {{ $att['original_name'] ?? basename($att['path']) }}</flux:text>@endif
+                            <flux:error name="attachmentFiles.{{ $i }}" />
+                        </div>
+                        <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removeAttachment({{ $i }})" class="h-9!" />
+                    </div>
+                @empty
+                    <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-4 text-center text-sm text-zinc-500">No documents yet — add a spare image or application guide.</div>
+                @endforelse
+            </div>
+        </section>
+
+        <flux:separator />
+
         {{-- META --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>

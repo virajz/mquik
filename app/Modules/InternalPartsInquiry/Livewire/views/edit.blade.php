@@ -196,8 +196,8 @@
             </div>
             <div class="space-y-4 min-w-0" x-data>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:input wire:model="requested_at" type="datetime-local" label="Requested At" required />
-                    <flux:input wire:model="needed_by" type="datetime-local" label="Needed By" />
+                    <flux:date-picker wire:model="requested_at" label="Requested At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" required />
+                    <flux:date-picker wire:model="needed_by" label="Needed By" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <flux:error name="needed_by" />
 

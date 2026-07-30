@@ -181,8 +181,14 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:input wire:model="promised_from" type="datetime-local" label="Promised From" />
-                    <flux:input wire:model="promised_to" type="datetime-local" label="Promised To" />
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="promised_from" label="Promised From" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="promised_from_time" label="Time" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="promised_to" label="Promised To" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="promised_to_time" label="Time" />
+                    </div>
                 </div>
                 <flux:error name="promised_to" />
 

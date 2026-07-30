@@ -62,7 +62,7 @@
                         <flux:error name="odometer_km" />
                     </flux:field>
 
-                    <flux:input type="date" wire:model="reported_on" label="Report Date" required />
+                    <flux:date-picker wire:model="reported_on" label="Report Date" required with-today selectable-header fixed-weeks type="input" />
                 </div>
             </div>
         </section>

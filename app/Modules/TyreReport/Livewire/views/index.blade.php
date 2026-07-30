@@ -11,8 +11,8 @@
 
     <div class="mb-4 flex items-center gap-3 flex-wrap">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by report no, customer or reg no…" icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:input type="date" wire:model.live="dateFrom" class="max-w-40" />
-        <flux:input type="date" wire:model.live="dateTo" class="max-w-40" />
+        <flux:date-picker wire:model.live="dateFrom" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker wire:model.live="dateTo" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
         @if ($search || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif

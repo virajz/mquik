@@ -31,7 +31,7 @@
                             <flux:select.option :value="$e['id']" wire:key="emp-{{ $e['id'] }}">{{ $e['label'] }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:input type="date" wire:model="effective_from" label="Effective From" required />
+                    <flux:date-picker wire:model="effective_from" label="Effective From" required with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <flux:error name="employee_id" />
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -37,7 +37,7 @@
                         @foreach ($SDF::intervalMethods() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>
                     <flux:input wire:model="service_interval" label="Service Interval" placeholder="10000 / 6_month" class:input="font-mono" />
-                    <flux:input wire:model="due_date" type="date" label="Due Date" />
+                    <flux:date-picker wire:model="due_date" label="Due Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="odometer" type="number" min="0" label="Odometer" class:input="text-right font-mono" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -74,7 +74,10 @@
                         @foreach ($SDF::statuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>
                     <div x-show="$wire.status === 'appointment_booked'" x-cloak>
-                        <flux:input wire:model="appointment_at" type="datetime-local" label="Appointment At" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <flux:date-picker wire:model="appointment_at" label="Appointment At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                            <flux:time-picker wire:model="appointment_at_time" label="Time" />
+                        </div>
                     </div>
                 </div>
                 <div x-show="$wire.status === 'lost_opportunity'" x-cloak>

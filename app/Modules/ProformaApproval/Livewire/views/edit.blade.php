@@ -161,9 +161,9 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <flux:input wire:model="store_approved_at" type="datetime-local" label="Store Approved At" />
-                    <flux:input wire:model="advisor_approved_at" type="datetime-local" label="Advisor Approved At" />
-                    <flux:input wire:model="admin_approved_at" type="datetime-local" label="Admin Approved At" />
+                    <flux:date-picker wire:model="store_approved_at" label="Store Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker wire:model="advisor_approved_at" label="Advisor Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker wire:model="admin_approved_at" label="Admin Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 {{-- Attachments --}}

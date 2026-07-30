@@ -17,8 +17,8 @@
                 <flux:select.option :value="(string) $t->id">{{ $t->name }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:input type="date" wire:model.live="fromDate" class="max-w-40" />
-        <flux:input type="date" wire:model.live="toDate" class="max-w-40" />
+        <flux:date-picker wire:model.live="fromDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker wire:model.live="toDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
         <flux:checkbox wire:model.live="completedOnly" label="Completed orders only" />
         @if ($technicianFilter !== 'all' || $fromDate || $toDate || ! $completedOnly)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>

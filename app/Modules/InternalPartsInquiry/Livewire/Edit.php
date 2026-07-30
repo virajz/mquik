@@ -100,7 +100,7 @@ class Edit extends Component
             return;
         }
 
-        $this->requested_at = now()->format('Y-m-d\TH:i');
+        $this->requested_at = now()->format('Y-m-d');
         $this->items = [$this->blankItem()];
     }
 
@@ -117,8 +117,8 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $inquiry->{$k};
         }
-        $this->requested_at = $inquiry->requested_at?->format('Y-m-d\TH:i');
-        $this->needed_by = $inquiry->needed_by?->format('Y-m-d\TH:i');
+        $this->requested_at = $inquiry->requested_at?->format('Y-m-d');
+        $this->needed_by = $inquiry->needed_by?->format('Y-m-d');
 
         $this->items = $inquiry->items->map(fn (InternalPartsInquiryItem $i) => [
             'id' => $i->id,

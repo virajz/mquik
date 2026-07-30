@@ -60,6 +60,8 @@ class Edit extends Component
 
     public ?string $surveyed_at = null;
 
+    public ?string $surveyed_at_time = null;
+
     public ?string $notes = null;
 
     public string $vehicleSearch = '';
@@ -94,7 +96,8 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $s->{$k};
         }
-        $this->surveyed_at = $s->surveyed_at?->format('Y-m-d\TH:i');
+        $this->surveyed_at = $s->surveyed_at?->format('Y-m-d');
+        $this->surveyed_at_time = $s->surveyed_at?->format('H:i');
 
         $this->items = $s->items->map(fn (SurveyorInspectionItem $i) => [
             'id' => $i->id,
@@ -133,6 +136,7 @@ class Edit extends Component
             'rejection_reason' => ['nullable', Rule::in(array_keys(SurveyorInspection::rejectionReasons()))],
             'status' => ['required', Rule::in(array_keys(SurveyorInspection::statuses()))],
             'surveyed_at' => ['nullable', 'date', Rule::requiredIf(fn () => $this->status === SurveyorInspection::STATUS_COMPLETED)],
+            'surveyed_at_time' => ['nullable', 'string'],
             'notes' => ['nullable', 'string', 'max:2000'],
 
             'items' => ['array'],
@@ -227,6 +231,13 @@ class Edit extends Component
         $items = $data['items'] ?? [];
         $attachments = $data['attachments'] ?? [];
         unset($data['items'], $data['attachments'], $data['attachmentFiles']);
+
+        foreach (['surveyed_at'] as $dtField) {
+            if (! empty($data[$dtField])) {
+                $data[$dtField] = trim($data[$dtField].' '.($this->{$dtField.'_time'} ?: '00:00'));
+            }
+            unset($data[$dtField.'_time']);
+        }
 
         foreach (['surveyor_name', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {

@@ -64,7 +64,7 @@
                     <flux:select wire:model.live="status" variant="listbox" label="IWO Status" required>
                         @foreach ($IWO::statuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>
-                    <flux:input wire:model="due_at" type="datetime-local" label="Due By" />
+                    <flux:date-picker wire:model="due_at" label="Due By" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

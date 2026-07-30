@@ -59,13 +59,23 @@ class Edit extends Component
 
     public ?string $promised_delivery_at = null;
 
+    public ?string $promised_delivery_at_time = null;
+
     public ?string $expected_completion_at = null;
+
+    public ?string $expected_completion_at_time = null;
 
     public ?string $kept_at = null;
 
+    public ?string $kept_at_time = null;
+
     public ?string $work_started_at = null;
 
+    public ?string $work_started_at_time = null;
+
     public ?string $work_ended_at = null;
+
+    public ?string $work_ended_at_time = null;
 
     public ?string $notes = null;
 
@@ -81,7 +91,8 @@ class Edit extends Component
             return;
         }
 
-        $this->kept_at = now()->format('Y-m-d\TH:i');
+        $this->kept_at = now()->format('Y-m-d');
+        $this->kept_at_time = now()->format('H:i');
     }
 
     protected function load(ServiceQueue $q): void
@@ -96,7 +107,8 @@ class Edit extends Component
             $this->{$k} = $q->{$k};
         }
         foreach (['promised_delivery_at', 'expected_completion_at', 'kept_at', 'work_started_at', 'work_ended_at'] as $k) {
-            $this->{$k} = $q->{$k}?->format('Y-m-d\TH:i');
+            $this->{$k} = $q->{$k}?->format('Y-m-d');
+            $this->{$k.'_time'} = $q->{$k}?->format('H:i');
         }
     }
 
@@ -120,10 +132,15 @@ class Edit extends Component
             'delay_reason' => ['nullable', Rule::in(array_keys(ServiceQueue::delayReasons()))],
             'pause_reason' => ['nullable', Rule::in(array_keys(ServiceQueue::pauseReasons())), Rule::requiredIf(fn () => $this->status === ServiceQueue::STATUS_ON_HOLD)],
             'promised_delivery_at' => ['nullable', 'date'],
+            'promised_delivery_at_time' => ['nullable', 'string'],
             'expected_completion_at' => ['nullable', 'date'],
+            'expected_completion_at_time' => ['nullable', 'string'],
             'kept_at' => ['nullable', 'date'],
+            'kept_at_time' => ['nullable', 'string'],
             'work_started_at' => ['nullable', 'date'],
+            'work_started_at_time' => ['nullable', 'string'],
             'work_ended_at' => ['nullable', 'date', 'after_or_equal:work_started_at'],
+            'work_ended_at_time' => ['nullable', 'string'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
@@ -171,6 +188,13 @@ class Edit extends Component
         $this->authorize($this->editingId ? 'queue_management.update' : 'queue_management.create');
 
         $data = $this->validate();
+
+        foreach (['promised_delivery_at', 'expected_completion_at', 'kept_at', 'work_started_at', 'work_ended_at'] as $dtField) {
+            if (! empty($data[$dtField])) {
+                $data[$dtField] = trim($data[$dtField].' '.($this->{$dtField.'_time'} ?: '00:00'));
+            }
+            unset($data[$dtField.'_time']);
+        }
 
         if (isset($data['job_description']) && is_string($data['job_description'])) {
             $data['job_description'] = strtoupper($data['job_description']);

@@ -71,7 +71,7 @@
                             <flux:heading size="sm">Cheque</flux:heading>
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <flux:input wire:model="cheque_no" label="Cheque No." placeholder="If cheque…" class:input="font-mono uppercase" />
-                                <flux:input type="date" wire:model="cheque_date" label="Cheque Date" />
+                                <flux:date-picker wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" />
                                 <flux:select wire:model="cheque_status" variant="listbox" clearable label="Cheque Status" placeholder="—">
                                     @foreach (ReceiptRefund::chequeStatuses() as $k => $l)
                                         <flux:select.option :value="$k">{{ $l }}</flux:select.option>

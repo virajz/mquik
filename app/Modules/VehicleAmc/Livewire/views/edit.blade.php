@@ -46,9 +46,9 @@
                     <flux:input wire:model="services_availed" type="number" min="0" label="Services Availed" class:input="text-right font-mono" required />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <flux:input wire:model="start_date" type="date" label="Start Date" />
+                    <flux:date-picker wire:model="start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
                     <div>
-                        <flux:input wire:model="end_date" type="date" label="End Date" />
+                        <flux:date-picker wire:model="end_date" label="End Date" with-today selectable-header fixed-weeks type="input" />
                         <flux:error name="end_date" />
                     </div>
                     <flux:input.group label="AMC Amount">

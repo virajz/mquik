@@ -113,8 +113,8 @@ class Edit extends Component
         $this->proforma_amount = $d->proforma_amount === null ? null : (float) $d->proforma_amount;
         $this->do_amount = $d->do_amount === null ? null : (float) $d->do_amount;
         $this->claim_date = $d->claim_date?->format('Y-m-d');
-        $this->do_received_at = $d->do_received_at?->format('Y-m-d\TH:i');
-        $this->do_entry_at = $d->do_entry_at?->format('Y-m-d\TH:i');
+        $this->do_received_at = $d->do_received_at?->format('Y-m-d');
+        $this->do_entry_at = $d->do_entry_at?->format('Y-m-d');
 
         $this->attachments = $d->attachments->map(fn ($a) => [
             'id' => $a->id, 'attachment_type' => $a->attachment_type, 'path' => $a->path,

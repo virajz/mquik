@@ -76,7 +76,7 @@ class Edit extends Component
             $this->{$k} = $a->{$k};
         }
         $this->impacts = $a->impacts ?? [];
-        $this->decided_at = $a->decided_at?->format('Y-m-d\TH:i');
+        $this->decided_at = $a->decided_at?->format('Y-m-d');
     }
 
     protected function rules(): array

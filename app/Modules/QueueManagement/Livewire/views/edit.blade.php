@@ -110,13 +110,28 @@
             </div>
             <div class="space-y-4 min-w-0" x-data>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:input wire:model="promised_delivery_at" type="datetime-local" label="Promised Delivery" />
-                    <flux:input wire:model="expected_completion_at" type="datetime-local" label="Expected Completion" />
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="promised_delivery_at" label="Promised Delivery" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="promised_delivery_at_time" label="Time" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="expected_completion_at" label="Expected Completion" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="expected_completion_at_time" label="Time" />
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <flux:input wire:model="kept_at" type="datetime-local" label="Kept for Service" />
-                    <flux:input wire:model="work_started_at" type="datetime-local" label="Work Start" />
-                    <flux:input wire:model="work_ended_at" type="datetime-local" label="Work End" />
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="kept_at" label="Kept for Service" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="kept_at_time" label="Time" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="work_started_at" label="Work Start" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="work_started_at_time" label="Time" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model="work_ended_at" label="Work End" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:time-picker wire:model="work_ended_at_time" label="Time" />
+                    </div>
                 </div>
                 <flux:error name="work_ended_at" />
 

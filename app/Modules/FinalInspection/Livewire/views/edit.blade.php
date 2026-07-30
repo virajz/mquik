@@ -157,9 +157,21 @@
                             @else
                                 <div class="space-y-2">
                                     @foreach ($pauses as $i => $pause)
-                                        <div wire:key="fi-pause-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1.5fr_auto] gap-2 items-end p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
-                                            <flux:input type="datetime-local" wire:model="pauses.{{ $i }}.paused_at" size="sm" label="Paused" />
-                                            <flux:input type="datetime-local" wire:model="pauses.{{ $i }}.resumed_at" size="sm" label="Resumed" />
+                                        <div wire:key="fi-pause-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1.4fr_1.4fr_1fr_auto] gap-2 items-end p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
+                                            <div>
+                                                <flux:label class="text-xs! mb-1">Paused</flux:label>
+                                                <div class="grid grid-cols-2 gap-1">
+                                                    <flux:date-picker wire:model="pauses.{{ $i }}.paused_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
+                                                    <flux:time-picker wire:model="pauses.{{ $i }}.paused_time" size="sm" placeholder="Time" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <flux:label class="text-xs! mb-1">Resumed</flux:label>
+                                                <div class="grid grid-cols-2 gap-1">
+                                                    <flux:date-picker wire:model="pauses.{{ $i }}.resumed_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
+                                                    <flux:time-picker wire:model="pauses.{{ $i }}.resumed_time" size="sm" placeholder="Time" />
+                                                </div>
+                                            </div>
                                             <flux:input wire:model="pauses.{{ $i }}.notes" size="sm" label="Reason / notes" />
                                             <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removePause({{ $i }})" />
                                         </div>

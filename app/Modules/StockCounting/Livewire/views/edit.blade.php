@@ -32,9 +32,9 @@
                     </flux:select>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <flux:input wire:model="count_start_date" type="date" label="Start Date" />
+                    <flux:date-picker wire:model="count_start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
                     <div>
-                        <flux:input wire:model="count_end_date" type="date" label="End Date" />
+                        <flux:date-picker wire:model="count_end_date" label="End Date" with-today selectable-header fixed-weeks type="input" />
                         <flux:error name="count_end_date" />
                     </div>
                     <flux:select wire:model="verification_status" variant="listbox" label="Verification Status" required>

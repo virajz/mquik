@@ -86,7 +86,7 @@ it('saves the pause/time log', function () {
 
     Livewire::test(Edit::class, ['finalInspection' => $fi])
         ->set('pauses', [
-            ['id' => null, 'paused_at' => '2026-06-21T11:00', 'resumed_at' => '2026-06-21T11:15', 'notes' => 'tea'],
+            ['id' => null, 'paused_date' => '2026-06-21', 'paused_time' => '11:00', 'resumed_date' => '2026-06-21', 'resumed_time' => '11:15', 'notes' => 'tea'],
         ])
         ->call('save')
         ->assertHasNoErrors();

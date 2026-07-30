@@ -82,7 +82,7 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $r->{$k};
         }
-        $this->due_at = $r->due_at?->format('Y-m-d\TH:i');
+        $this->due_at = $r->due_at?->format('Y-m-d');
 
         $this->attachments = $r->attachments->map(fn ($att) => [
             'id' => $att->id, 'attachment_type' => $att->attachment_type, 'path' => $att->path,

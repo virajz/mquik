@@ -139,7 +139,7 @@
                 </div>
 
                 <div x-show="['approved','rejected'].includes($wire.status)" x-cloak>
-                    <flux:input wire:model="decided_at" type="datetime-local" label="Decided At" class="md:max-w-xs" />
+                    <flux:date-picker wire:model="decided_at" label="Decided At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" class="md:max-w-xs" />
                     <flux:error name="decided_at" />
                 </div>
 
