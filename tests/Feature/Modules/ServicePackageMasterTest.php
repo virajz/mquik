@@ -5,7 +5,9 @@ use App\Modules\ServicePackageMaster\Livewire\Edit;
 use App\Modules\ServicePackageMaster\Livewire\Index;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageService;
+use App\Modules\ServicePackageMaster\Models\ServicePackageSpare;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\SpareMaster\Models\SpareMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -160,6 +162,61 @@ it('deleting a package cascades its line items', function () {
         ->call('delete', $package->id);
 
     expect(ServicePackageService::where('service_package_id', $package->id)->count())->toBe(0);
+});
+
+it('persists included spares with pricing and a usage rule', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'OIL FILTER']);
+
+    Livewire::test(Edit::class)
+        ->set('name', 'gold combo')
+        ->set('usage_rule', 'one_time_use')
+        ->set('net_price', 8000)
+        ->set('offer_price', 6500)
+        ->set('saving_price', 1500)
+        ->call('addSpare')
+        ->set('spares.0.spare_id', $spare->id)
+        ->set('spares.0.description', 'engine oil filter')
+        ->set('spares.0.rate', 450)
+        ->set('spares.0.quantity', 1)
+        ->set('spares.0.tax_percent', 18)
+        ->set('spares.0.offer_price', 400)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $package = ServicePackageMaster::with('spares')->first();
+    expect($package->usage_rule)->toBe('one_time_use')
+        ->and((float) $package->offer_price)->toBe(6500.0)
+        ->and($package->spares)->toHaveCount(1)
+        ->and($package->spares[0]->description)->toBe('ENGINE OIL FILTER')
+        ->and((float) $package->spares[0]->tax_percent)->toBe(18.0);
+});
+
+it('auto-fills a spare line from the picked spare', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'BRAKE PAD']);
+
+    Livewire::test(Edit::class)
+        ->call('addSpare')
+        ->set('spares.0.spare_id', $spare->id)
+        ->assertSet('spares.0.description', 'BRAKE PAD');
+});
+
+it('strips blank spare rows before validating', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'combo silver')
+        ->call('addSpare')                              // blank row, no spare/description
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(ServicePackageMaster::first()->spares)->toHaveCount(0);
+});
+
+it('cascades spares on package delete', function () {
+    $package = ServicePackageMaster::factory()->create();
+    $package->spares()->create(['description' => 'X', 'sequence_no' => 1]);
+
+    Livewire::test(Index::class)->call('delete', $package->id);
+
+    expect(ServicePackageSpare::where('service_package_id', $package->id)->count())->toBe(0);
 });
 
 it('requires authentication', function () {

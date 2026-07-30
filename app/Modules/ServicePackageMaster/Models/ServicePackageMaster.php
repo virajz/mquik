@@ -25,6 +25,10 @@ class ServicePackageMaster extends Model
         'is_active' => 'boolean',
         'is_amc' => 'boolean',
         'total_price' => 'decimal:2',
+        'net_price' => 'decimal:2',
+        'offer_price' => 'decimal:2',
+        'discount_percent' => 'decimal:2',
+        'saving_price' => 'decimal:2',
     ];
 
     protected static array $searchableFields = ['name', 'code', 'description'];
@@ -34,9 +38,29 @@ class ServicePackageMaster extends Model
         return ServicePackageMasterFactory::new();
     }
 
+    /** @return array<string, string> */
+    public static function usageRules(): array
+    {
+        return [
+            'one_time_use' => 'One-Time Use',
+            'one_vehicle_only' => 'One Vehicle Only',
+            'multi_use' => 'Multi Use',
+        ];
+    }
+
     public function services(): HasMany
     {
         return $this->hasMany(ServicePackageService::class, 'service_package_id')->orderBy('sequence_no');
+    }
+
+    public function spares(): HasMany
+    {
+        return $this->hasMany(ServicePackageSpare::class, 'service_package_id')->orderBy('sequence_no');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ServicePackageAttachment::class, 'service_package_id')->orderBy('sequence_no');
     }
 
     public function packageType(): BelongsTo
