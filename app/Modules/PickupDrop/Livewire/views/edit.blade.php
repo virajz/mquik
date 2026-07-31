@@ -105,7 +105,10 @@
                     @endforeach
                 </flux:select>
 
-                <flux:select wire:model="customer_vehicle_id" variant="listbox" searchable label="Vehicle" placeholder="Pick a vehicle…" required>
+                <flux:select wire:model.live="customer_vehicle_id" variant="listbox" searchable clearable :filter="false" label="Vehicle" placeholder="Search a vehicle (owner auto-fills)…" required>
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Registration no…" />
+                    </x-slot>
                     @foreach ($this->customerVehicles as $v)
                         <flux:select.option :value="$v['id']" wire:key="veh-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
                     @endforeach
@@ -123,9 +126,9 @@
             </div>
             <div class="space-y-4 min-w-0">
                 @if ($this->customerAddresses->isNotEmpty())
-                    <flux:select wire:model.live="address_choice" variant="listbox" label="Saved address">
+                    <flux:select wire:model.live="address_choice" variant="listbox" label="Pickup — saved address">
                         @foreach ($this->customerAddresses as $addr)
-                            <flux:select.option :value="(string) $addr['id']" wire:key="addr-{{ $addr['id'] }}">
+                            <flux:select.option :value="(string) $addr['id']" wire:key="paddr-{{ $addr['id'] }}">
                                 {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
                             </flux:select.option>
                         @endforeach
@@ -134,6 +137,18 @@
                 @endif
 
                 <flux:textarea wire:model="pickup_address" label="Pickup Address" placeholder="House / street / area / pincode" rows="2" />
+
+                @if ($this->customerAddresses->isNotEmpty())
+                    <flux:select wire:model.live="drop_address_choice" variant="listbox" label="Drop — saved address">
+                        @foreach ($this->customerAddresses as $addr)
+                            <flux:select.option :value="(string) $addr['id']" wire:key="daddr-{{ $addr['id'] }}">
+                                {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
+                            </flux:select.option>
+                        @endforeach
+                        <flux:select.option value="custom">Other / type a new address…</flux:select.option>
+                    </flux:select>
+                @endif
+
                 <flux:textarea wire:model="drop_address" label="Drop Address" placeholder="Leave blank if the same as pickup" rows="2" />
 
                 <flux:field>

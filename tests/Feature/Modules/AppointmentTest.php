@@ -6,6 +6,7 @@ use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
+use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
@@ -135,20 +136,16 @@ it('requires a booking channel and a pickup/drop option', function () {
         ->assertHasErrors(['booking_channel_id', 'pickup_drop_option_id']);
 });
 
-it('rejects a customer_vehicle that does not belong to the chosen customer', function () {
-    $customerA = CustomerMaster::factory()->create();
-    $customerB = CustomerMaster::factory()->create();
-    $vehicleOfB = CustomerVehicleMaster::factory()->create(['customer_id' => $customerB->id]);
+it('derives the customer from the picked vehicle (vehicle-first)', function () {
+    $owner = CustomerMaster::factory()->create();
+    $other = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $owner->id]);
 
+    // Picking a vehicle sets the customer to its owner, overriding any stale pick.
     Livewire::test(Edit::class)
-        ->set('customer_id', $customerA->id)
-        ->set('customer_vehicle_id', $vehicleOfB->id)
-        ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
-        ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
-        ->set('booking_channel_id', channel()->id)
-        ->set('pickup_drop_option_id', pickupOption()->id)
-        ->call('save')
-        ->assertHasErrors(['customer_vehicle_id']);
+        ->set('customer_id', $other->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->assertSet('customer_id', $owner->id);
 });
 
 it('clears customer_vehicle_id when the customer changes', function () {
@@ -347,4 +344,53 @@ it('stamps rescheduled_from_at when the appointment is moved', function () {
         ->assertHasNoErrors();
 
     expect($a->fresh()->rescheduled_from_at?->format('Y-m-d H:i'))->toBe('2026-08-01 10:00');
+});
+
+it('resolves the pickup address live from a linked saved address (edits propagate)', function () {
+    $customer = CustomerMaster::factory()->create();
+    $addr = CustomerAddress::factory()->create(['customer_id' => $customer->id, 'address_line' => '12 MG ROAD', 'region_id' => null]);
+    $appt = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'pickup_address_id' => $addr->id,
+        'pickup_address' => null,
+    ]);
+
+    expect($appt->resolvedPickupAddress())->toContain('12 MG ROAD');
+
+    $addr->update(['address_line' => '99 NEW ROAD']);           // editing the saved address…
+    expect($appt->fresh()->resolvedPickupAddress())->toContain('99 NEW ROAD'); // …propagates live
+});
+
+it('resolves the contact phone live from the customer when not overridden', function () {
+    $customer = CustomerMaster::factory()->create(['phone' => '9811122233']);
+    $appt = Appointment::factory()->create(['customer_id' => $customer->id, 'pickup_contact_phone' => null]);
+
+    expect($appt->resolvedContactPhone())->toBe('9811122233');
+
+    $customer->update(['phone' => '9800000000']);
+    expect($appt->fresh()->resolvedContactPhone())->toBe('9800000000');
+});
+
+it('forward-syncs identity to a not-yet-collected linked pickup/drop when the appointment changes', function () {
+    $appt = Appointment::factory()->create();
+    $pickup = PickupDrop::factory()->create(['appointment_id' => $appt->id, 'status' => PickupDrop::STATUS_PENDING]);
+    $newVehicle = CustomerVehicleMaster::factory()->create();
+
+    $appt->update(['customer_vehicle_id' => $newVehicle->id]);
+
+    expect($pickup->fresh()->customer_vehicle_id)->toBe($newVehicle->id);
+});
+
+it('does not forward-sync to a pickup/drop that is already collected', function () {
+    $original = CustomerVehicleMaster::factory()->create();
+    $appt = Appointment::factory()->create();
+    $collected = PickupDrop::factory()->create([
+        'appointment_id' => $appt->id,
+        'status' => PickupDrop::STATUS_VEHICLE_COLLECTED,
+        'customer_vehicle_id' => $original->id,
+    ]);
+
+    $appt->update(['customer_vehicle_id' => CustomerVehicleMaster::factory()->create()->id]);
+
+    expect($collected->fresh()->customer_vehicle_id)->toBe($original->id);
 });

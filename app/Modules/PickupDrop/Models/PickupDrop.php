@@ -8,10 +8,12 @@ use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
+use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Database\Factories\PickupDropFactory;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
@@ -92,6 +94,11 @@ class PickupDrop extends Model
         return $this->belongsTo(Appointment::class, 'appointment_id');
     }
 
+    public function jobCard(): BelongsTo
+    {
+        return $this->belongsTo(JobCard::class, 'job_card_id');
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(CustomerMaster::class, 'customer_id');
@@ -100,6 +107,34 @@ class PickupDrop extends Model
     public function customerVehicle(): BelongsTo
     {
         return $this->belongsTo(CustomerVehicleMaster::class, 'customer_vehicle_id');
+    }
+
+    public function pickupAddress(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAddress::class, 'pickup_address_id');
+    }
+
+    /** The pickup address resolved live from the linked saved address, else the free-text snapshot. */
+    public function resolvedPickupAddress(): ?string
+    {
+        return $this->pickup_address_id ? $this->pickupAddress?->fullAddress() : $this->pickup_address;
+    }
+
+    public function dropAddress(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAddress::class, 'drop_address_id');
+    }
+
+    /** The drop address resolved live from the linked saved address, else the free-text snapshot. */
+    public function resolvedDropAddress(): ?string
+    {
+        return $this->drop_address_id ? $this->dropAddress?->fullAddress() : $this->drop_address;
+    }
+
+    /** The pickup contact resolved live: an explicit override, else the customer's current phone. */
+    public function resolvedContactPhone(): ?string
+    {
+        return $this->contact_phone ?: $this->customer?->phone;
     }
 
     public function driver(): BelongsTo

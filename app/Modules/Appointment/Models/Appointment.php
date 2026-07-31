@@ -7,9 +7,11 @@ use App\Concerns\Searchable;
 use App\Modules\Appointment\Database\Factories\AppointmentFactory;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
+use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
@@ -69,6 +71,30 @@ class Appointment extends Model
                 ])->saveQuietly();
             }
         });
+
+        // Forward-sync identity + pickup address to linked pickup/drops that haven't
+        // been collected yet, so a correction to the appointment isn't stranded on an
+        // in-flight pickup. Schedule/status/direction stay the pickup's own.
+        static::updated(function (self $appointment) {
+            $syncKeys = ['customer_id', 'customer_vehicle_id', 'pickup_address_id', 'pickup_address'];
+            if (empty(array_intersect($syncKeys, array_keys($appointment->getChanges())))) {
+                return;
+            }
+
+            $appointment->pickupDrops()
+                ->whereNotIn('status', [
+                    PickupDrop::STATUS_VEHICLE_COLLECTED,
+                    PickupDrop::STATUS_VEHICLE_DELIVERED,
+                    PickupDrop::STATUS_COMPLETED,
+                    PickupDrop::STATUS_CANCELLED,
+                ])
+                ->update([
+                    'customer_id' => $appointment->customer_id,
+                    'customer_vehicle_id' => $appointment->customer_vehicle_id,
+                    'pickup_address_id' => $appointment->pickup_address_id,
+                    'pickup_address' => $appointment->pickup_address,
+                ]);
+        });
     }
 
     public function customer(): BelongsTo
@@ -79,6 +105,23 @@ class Appointment extends Model
     public function customerVehicle(): BelongsTo
     {
         return $this->belongsTo(CustomerVehicleMaster::class, 'customer_vehicle_id');
+    }
+
+    public function pickupAddress(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAddress::class, 'pickup_address_id');
+    }
+
+    /** The pickup address resolved live from the linked saved address, else the free-text snapshot. */
+    public function resolvedPickupAddress(): ?string
+    {
+        return $this->pickup_address_id ? $this->pickupAddress?->fullAddress() : $this->pickup_address;
+    }
+
+    /** The pickup contact resolved live: an explicit override, else the customer's current phone. */
+    public function resolvedContactPhone(): ?string
+    {
+        return $this->pickup_contact_phone ?: $this->customer?->phone;
     }
 
     public function serviceType(): BelongsTo
@@ -140,6 +183,11 @@ class Appointment extends Model
     public function pickupDrops(): HasMany
     {
         return $this->hasMany(PickupDrop::class, 'appointment_id');
+    }
+
+    public function jobCards(): HasMany
+    {
+        return $this->hasMany(JobCard::class, 'appointment_id');
     }
 
     /** True when the chosen option means the workshop must collect the vehicle. */

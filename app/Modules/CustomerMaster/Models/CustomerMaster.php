@@ -4,9 +4,12 @@ namespace App\Modules\CustomerMaster\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BusinessTypeMaster\Models\BusinessTypeMaster;
 use App\Modules\CustomerMaster\Database\Factories\CustomerMasterFactory;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\GstTypeMaster\Models\GstTypeMaster;
+use App\Modules\PickupDrop\Models\PickupDrop;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,6 +55,21 @@ class CustomerMaster extends Model
     public function primaryAddress(): HasOne
     {
         return $this->hasOne(CustomerAddress::class, 'customer_id')->where('is_primary', true);
+    }
+
+    public function vehicles(): HasMany
+    {
+        return $this->hasMany(CustomerVehicleMaster::class, 'customer_id');
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'customer_id');
+    }
+
+    public function pickupDrops(): HasMany
+    {
+        return $this->hasMany(PickupDrop::class, 'customer_id');
     }
 
     protected $casts = [

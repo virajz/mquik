@@ -150,14 +150,18 @@
                 </flux:field>
 
                 <flux:select
-                    wire:model="customer_vehicle_id"
+                    wire:model.live="customer_vehicle_id"
                     variant="listbox"
                     searchable
+                    clearable
+                    :filter="false"
                     label="Vehicle"
-                    :placeholder="$customer_id ? 'Pick a vehicle…' : 'Pick a customer first'"
-                    :disabled="! $customer_id"
+                    placeholder="Search a vehicle (owner auto-fills)…"
                     required
                 >
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Registration no…" />
+                    </x-slot>
                     @foreach ($this->customerVehicles as $v)
                         <flux:select.option :value="$v['id']" wire:key="cv-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
                     @endforeach

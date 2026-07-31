@@ -54,6 +54,12 @@ class CustomerAddress extends Model
         return implode(', ', $names);
     }
 
+    /** The flattened one-line address (street + region chain), resolved live. */
+    public function fullAddress(): string
+    {
+        return trim(($this->address_line ?? '').($this->regionChain() ? ', '.$this->regionChain() : ''));
+    }
+
     protected static function newFactory(): CustomerAddressFactory
     {
         return CustomerAddressFactory::new();

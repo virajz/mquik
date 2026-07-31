@@ -4,8 +4,11 @@ namespace App\Modules\CustomerVehicleMaster\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Database\Factories\CustomerVehicleMasterFactory;
+use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
@@ -13,6 +16,7 @@ use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CustomerVehicleMaster extends Model
 {
@@ -62,6 +66,21 @@ class CustomerVehicleMaster extends Model
     public function registrationType(): BelongsTo
     {
         return $this->belongsTo(RegistrationTypeMaster::class, 'registration_type_id');
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'customer_vehicle_id');
+    }
+
+    public function pickupDrops(): HasMany
+    {
+        return $this->hasMany(PickupDrop::class, 'customer_vehicle_id');
+    }
+
+    public function jobCards(): HasMany
+    {
+        return $this->hasMany(JobCard::class, 'customer_vehicle_id');
     }
 
     protected static function newFactory(): CustomerVehicleMasterFactory

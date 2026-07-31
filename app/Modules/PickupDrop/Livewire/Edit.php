@@ -2,6 +2,7 @@
 
 namespace App\Modules\PickupDrop\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
@@ -12,6 +13,7 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
@@ -35,6 +37,7 @@ use Livewire\WithFileUploads;
 #[Title('Pickup / Drop')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
     use WithFileUploads;
 
     public ?int $editingId = null;
@@ -47,9 +50,14 @@ class Edit extends Component
 
     public ?int $appointment_id = null;
 
+    public ?int $job_card_id = null;
+
     public ?int $customer_id = null;
 
     public ?int $customer_vehicle_id = null;
+
+    /** Search term for the server-backed vehicle picker (can pick vehicle-first). */
+    public string $vehicleSearch = '';
 
     public string $scheduled_date = '';
 
@@ -59,11 +67,19 @@ class Edit extends Component
 
     public string $address_choice = 'custom';
 
+    public string $drop_address_choice = 'custom';
+
     public ?string $pickup_address = null;
+
+    /** Set when the pickup address is a saved customer address (resolved live). */
+    public ?int $pickup_address_id = null;
 
     public ?int $pickup_region_id = null;
 
     public ?string $drop_address = null;
+
+    /** Set when the drop address is a saved customer address (resolved live). */
+    public ?int $drop_address_id = null;
 
     public ?int $drop_region_id = null;
 
@@ -119,6 +135,10 @@ class Edit extends Component
     #[Url(as: 'from-appointment')]
     public ?int $fromAppointment = null;
 
+    /** ?int — passed via ?from-job-card=ID for the "Create Pickup/Drop from Job Card" flow. */
+    #[Url(as: 'from-job-card')]
+    public ?int $fromJobCard = null;
+
     public function mount(?PickupDrop $pickupDrop = null): void
     {
         if ($pickupDrop && $pickupDrop->exists) {
@@ -133,7 +153,24 @@ class Edit extends Component
 
         if ($this->fromAppointment) {
             $this->prefillFromAppointment($this->fromAppointment);
+        } elseif ($this->fromJobCard) {
+            $this->prefillFromJobCard($this->fromJobCard);
         }
+    }
+
+    protected function prefillFromJobCard(int $jobCardId): void
+    {
+        $jobCard = JobCard::find($jobCardId);
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->job_card_id = $jobCard->id;
+        $this->customer_id = $jobCard->customer_id;
+        $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+        $this->workshop_department_id = $jobCard->workshop_department_id;
+        $this->service_type_id = $jobCard->service_type_id;
+        $this->advisor_employee_id = $jobCard->assigned_advisor_id;
     }
 
     protected function load(PickupDrop $p): void
@@ -143,16 +180,28 @@ class Edit extends Component
         $this->direction = $p->direction;
         $this->pickup_drop_option_id = $p->pickup_drop_option_id;
         $this->appointment_id = $p->appointment_id;
+        $this->job_card_id = $p->job_card_id;
         $this->customer_id = $p->customer_id;
         $this->customer_vehicle_id = $p->customer_vehicle_id;
         $this->scheduled_date = $p->scheduled_at?->format('Y-m-d') ?? '';
         $this->scheduled_time = $p->scheduled_at?->format('H:i') ?? '';
         $this->time_slot_id = $p->time_slot_id;
         $this->pickup_address = $p->pickup_address;
+        $this->pickup_address_id = $p->pickup_address_id;
         $this->pickup_region_id = $p->pickup_region_id;
         $this->drop_address = $p->drop_address;
+        $this->drop_address_id = $p->drop_address_id;
         $this->drop_region_id = $p->drop_region_id;
         $this->contact_phone = $p->contact_phone;
+        // Reflect a linked saved pickup / drop address in each picker.
+        if ($p->pickup_address_id) {
+            $this->address_choice = (string) $p->pickup_address_id;
+            $this->pickup_address = $p->pickupAddress?->fullAddress();
+        }
+        if ($p->drop_address_id) {
+            $this->drop_address_choice = (string) $p->drop_address_id;
+            $this->drop_address = $p->dropAddress?->fullAddress();
+        }
         $this->driver_employee_id = $p->driver_employee_id;
         $this->advisor_employee_id = $p->advisor_employee_id;
         $this->vendor_courier_id = $p->vendor_courier_id;
@@ -225,7 +274,14 @@ class Edit extends Component
             $this->direction = PickupDrop::DIRECTION_DROP;
         }
 
-        $this->pickup_address = $appointment->pickup_address;
+        // Carry the live address link when the appointment used a saved address;
+        // otherwise carry its custom text.
+        $this->pickup_address_id = $appointment->pickup_address_id;
+        $this->pickup_address = $appointment->pickup_address_id
+            ? $appointment->pickupAddress?->fullAddress()
+            : $appointment->pickup_address;
+        $this->address_choice = $appointment->pickup_address_id ? (string) $appointment->pickup_address_id : 'custom';
+        // Carry an explicit contact override; a null here means "use the customer's live phone".
         $this->contact_phone = $appointment->pickup_contact_phone;
     }
 
@@ -235,6 +291,7 @@ class Edit extends Component
             'direction' => ['required', Rule::in(array_keys(PickupDrop::directions()))],
             'pickup_drop_option_id' => ['nullable', 'integer', Rule::exists('pickup_drop_options', 'id')->where('is_active', true)],
             'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
+            'job_card_id' => ['nullable', 'integer', 'exists:job_cards,id'],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_vehicle_id' => [
                 'required', 'integer',
@@ -244,9 +301,11 @@ class Edit extends Component
             'scheduled_time' => ['required', 'date_format:H:i'],
             'time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
             // The leg being run decides which address is mandatory.
-            'pickup_address' => [Rule::requiredIf(fn () => $this->direction === PickupDrop::DIRECTION_PICKUP), 'nullable', 'string', 'max:1000'],
+            'pickup_address' => [Rule::requiredIf(fn () => $this->direction === PickupDrop::DIRECTION_PICKUP && $this->address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
+            'pickup_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
             'pickup_region_id' => ['nullable', 'integer', 'exists:regions,id'],
-            'drop_address' => [Rule::requiredIf(fn () => $this->direction === PickupDrop::DIRECTION_DROP), 'nullable', 'string', 'max:1000'],
+            'drop_address' => [Rule::requiredIf(fn () => $this->direction === PickupDrop::DIRECTION_DROP && $this->drop_address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
+            'drop_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
             'drop_region_id' => ['nullable', 'integer', 'exists:regions,id'],
             'contact_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'driver_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
@@ -303,15 +362,41 @@ class Edit extends Component
         $this->address_choice = 'custom';
     }
 
+    /** Vehicle-first: picking a vehicle auto-sets its owner (matches the Job Card flow). */
+    public function updatedCustomerVehicleId(): void
+    {
+        if ($this->customer_vehicle_id) {
+            $this->customer_id = CustomerVehicleMaster::whereKey($this->customer_vehicle_id)->value('customer_id');
+        }
+    }
+
     public function updatedAddressChoice(string $value): void
     {
         if ($value === 'custom') {
+            $this->pickup_address_id = null;
+
             return;
         }
 
         $picked = $this->customerAddresses->firstWhere('id', (int) $value);
         if ($picked) {
+            $this->pickup_address_id = (int) $value;
             $this->pickup_address = $picked['full'];
+        }
+    }
+
+    public function updatedDropAddressChoice(string $value): void
+    {
+        if ($value === 'custom') {
+            $this->drop_address_id = null;
+
+            return;
+        }
+
+        $picked = $this->customerAddresses->firstWhere('id', (int) $value);
+        if ($picked) {
+            $this->drop_address_id = (int) $value;
+            $this->drop_address = $picked['full'];
         }
     }
 
@@ -417,20 +502,25 @@ class Edit extends Component
     #[Computed]
     public function customerVehicles()
     {
-        if (! $this->customer_id) {
-            return collect();
-        }
-
-        return CustomerVehicleMaster::query()
+        // Scoped to the chosen customer when set; else a global, server-searchable
+        // list so a vehicle can be picked first (owner is then derived).
+        $query = CustomerVehicleMaster::query()
             ->with(['model.brand'])
-            ->where('customer_id', $this->customer_id)
             ->where('is_active', true)
-            ->orderBy('registration_no')
-            ->get(['id', 'registration_no', 'model_id'])
-            ->map(fn ($v) => [
-                'id' => $v->id,
-                'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no,
-            ]);
+            ->when($this->customer_id, fn ($q) => $q->where('customer_id', $this->customer_id))
+            ->orderBy('registration_no');
+
+        return $this->pickerOptions(
+            query: $query,
+            searchColumns: ['registration_no'],
+            term: $this->vehicleSearch,
+            selected: $this->customer_vehicle_id,
+            columns: ['id', 'registration_no', 'model_id', 'customer_id'],
+            limit: 30,
+        )->map(fn ($v) => [
+            'id' => $v->id,
+            'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no,
+        ]);
     }
 
     #[Computed]
@@ -548,6 +638,20 @@ class Edit extends Component
         $documents = $data['documents'] ?? [];
         $photos = $data['photos'] ?? [];
         unset($data['complaints'], $data['documents'], $data['photos'], $data['photoFiles']);
+
+        // A saved pickup / drop address is stored as a live link (FK); a custom one keeps the text.
+        if (is_numeric($this->address_choice)) {
+            $data['pickup_address_id'] = (int) $this->address_choice;
+            $data['pickup_address'] = null;
+        } else {
+            $data['pickup_address_id'] = null;
+        }
+        if (is_numeric($this->drop_address_choice)) {
+            $data['drop_address_id'] = (int) $this->drop_address_choice;
+            $data['drop_address'] = null;
+        } else {
+            $data['drop_address_id'] = null;
+        }
 
         foreach (['pickup_address', 'drop_address', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {

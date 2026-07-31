@@ -18,6 +18,7 @@ use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
+use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
@@ -242,6 +243,11 @@ class JobCard extends Model
     public function complaints(): HasMany
     {
         return $this->hasMany(JobCardComplaint::class, 'job_card_id')->orderBy('sequence_no');
+    }
+
+    public function pickupDrops(): HasMany
+    {
+        return $this->hasMany(PickupDrop::class, 'job_card_id');
     }
 
     public function inventoryItems(): HasMany

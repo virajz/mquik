@@ -111,6 +111,16 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
+                            @can('job_card.create')
+                                <flux:tooltip content="Create job card from this appointment">
+                                    <flux:button size="sm" variant="ghost" icon="clipboard-document-check" :href="route('job-card.create', ['from-appointment' => $row->id])" wire:navigate />
+                                </flux:tooltip>
+                            @endcan
+                            @can('pickup_drop.create')
+                                <flux:tooltip content="Create pickup / drop from this appointment">
+                                    <flux:button size="sm" variant="ghost" icon="truck" :href="route('pickup-drop.create', ['from-appointment' => $row->id])" wire:navigate />
+                                </flux:tooltip>
+                            @endcan
                             @can('appointment.update')
                                 <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('appointment.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan

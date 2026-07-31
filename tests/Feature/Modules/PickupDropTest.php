@@ -5,10 +5,12 @@ use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
+use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PickupDrop\Livewire\Edit;
 use App\Modules\PickupDrop\Livewire\Index;
@@ -106,19 +108,16 @@ it('rejects create when both driver AND vendor are assigned', function () {
     expect(PickupDrop::count())->toBe(0);
 });
 
-it('rejects vehicle that does not belong to the chosen customer', function () {
-    $customerA = CustomerMaster::factory()->create();
-    $customerB = CustomerMaster::factory()->create();
-    $vehicleOfB = CustomerVehicleMaster::factory()->create(['customer_id' => $customerB->id]);
-    $driver = EmployeeMaster::factory()->create();
+it('derives the customer from the picked vehicle (vehicle-first)', function () {
+    $owner = CustomerMaster::factory()->create();
+    $other = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $owner->id]);
 
+    // Picking a vehicle sets the customer to its owner, overriding any stale pick.
     Livewire::test(Edit::class)
-        ->set('customer_id', $customerA->id)
-        ->set('customer_vehicle_id', $vehicleOfB->id)
-        ->set('pickup_address', 'wherever')
-        ->set('driver_employee_id', $driver->id)
-        ->call('save')
-        ->assertHasErrors(['customer_vehicle_id']);
+        ->set('customer_id', $other->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->assertSet('customer_id', $owner->id);
 });
 
 it('prefills from an appointment when from-appointment query param is set', function () {
@@ -313,4 +312,41 @@ it('surfaces the driver stage on the linked appointment', function () {
     // The job's own non-driver states must not override the appointment.
     $job->update(['status' => PickupDrop::STATUS_COMPLETED]);
     expect($appointment->fresh()->effectiveStatusLabel())->toBe('Confirmed');
+});
+
+it('prefills and links from a job card (?from-job-card handoff)', function () {
+    $jobCard = JobCard::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['fromJobCard' => $jobCard->id]);
+
+    expect($component->get('job_card_id'))->toBe($jobCard->id)
+        ->and($component->get('customer_id'))->toBe($jobCard->customer_id)
+        ->and($component->get('customer_vehicle_id'))->toBe($jobCard->customer_vehicle_id);
+});
+
+it('persists the job_card link when saved', function () {
+    $jobCard = JobCard::factory()->create();
+
+    Livewire::test(Edit::class, ['fromJobCard' => $jobCard->id])
+        ->set('pickup_address', 'somewhere')
+        ->set('driver_employee_id', EmployeeMaster::factory()->create()->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(PickupDrop::latest('id')->first()->job_card_id)->toBe($jobCard->id);
+});
+
+it('resolves the drop address live from a linked saved address (edits propagate)', function () {
+    $customer = CustomerMaster::factory()->create();
+    $addr = CustomerAddress::factory()->create(['customer_id' => $customer->id, 'address_line' => '7 PARK LANE', 'region_id' => null]);
+    $pd = PickupDrop::factory()->create([
+        'customer_id' => $customer->id,
+        'drop_address_id' => $addr->id,
+        'drop_address' => null,
+    ]);
+
+    expect($pd->resolvedDropAddress())->toContain('7 PARK LANE');
+
+    $addr->update(['address_line' => '8 QUEEN ST']);
+    expect($pd->fresh()->resolvedDropAddress())->toContain('8 QUEEN ST');
 });

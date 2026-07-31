@@ -3,6 +3,7 @@
 namespace App\Modules\Appointment\Livewire;
 
 use App\Concerns\CanQuickAddCustomer;
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
@@ -34,6 +35,7 @@ use Livewire\Component;
 class Edit extends Component
 {
     use CanQuickAddCustomer;
+    use SearchesPickerOptions;
 
     public ?int $editingId = null;
 
@@ -56,6 +58,9 @@ class Edit extends Component
 
     public ?int $customer_vehicle_id = null;
 
+    /** Search term for the server-backed vehicle picker (can pick vehicle-first). */
+    public string $vehicleSearch = '';
+
     public ?int $service_type_id = null;
 
     public ?int $workshop_department_id = null;
@@ -70,6 +75,9 @@ class Edit extends Component
     public string $pickup_address_choice = 'custom';
 
     public ?string $pickup_address = null;
+
+    /** Set when the pickup address is a saved customer address (resolved live). */
+    public ?int $pickup_address_id = null;
 
     public ?string $pickup_contact_phone = null;
 
@@ -119,6 +127,7 @@ class Edit extends Component
         $this->assigned_technician_id = $a->assigned_technician_id;
         $this->pickup_drop_option_id = $a->pickup_drop_option_id;
         $this->pickup_address = $a->pickup_address;
+        $this->pickup_address_id = $a->pickup_address_id;
         $this->pickup_contact_phone = $a->pickup_contact_phone;
         $this->status = $a->status;
         $this->cancel_reason_id = $a->cancel_reason_id;
@@ -131,8 +140,11 @@ class Edit extends Component
             'job_description_id' => $c->job_description_id,
             'description' => $c->description,
         ])->all();
-        // After load, default the picker to "custom" — saved address pick is opt-in per session.
-        $this->pickup_address_choice = 'custom';
+        // Reflect a linked saved address in the picker; otherwise treat it as custom text.
+        $this->pickup_address_choice = $a->pickup_address_id ? (string) $a->pickup_address_id : 'custom';
+        if ($a->pickup_address_id) {
+            $this->pickup_address = $a->pickupAddress?->fullAddress();
+        }
     }
 
     protected function rules(): array
@@ -154,7 +166,8 @@ class Edit extends Component
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'pickup_drop_option_id' => ['required', 'integer', Rule::exists('pickup_drop_options', 'id')->where('is_active', true)],
             // Address only matters when the workshop is the one moving the vehicle.
-            'pickup_address' => [Rule::requiredIf(fn () => $this->optionInvolvesPickup()), 'nullable', 'string', 'max:1000'],
+            'pickup_address' => [Rule::requiredIf(fn () => $this->optionInvolvesPickup() && $this->pickup_address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
+            'pickup_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
             'pickup_contact_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'status' => ['required', Rule::in(array_keys(Appointment::statuses()))],
             'cancel_reason_id' => [
@@ -190,6 +203,14 @@ class Edit extends Component
         $this->pickup_address_choice = 'custom';
     }
 
+    /** Vehicle-first: picking a vehicle auto-sets its owner (matches the Job Card flow). */
+    public function updatedCustomerVehicleId(): void
+    {
+        if ($this->customer_vehicle_id) {
+            $this->customer_id = CustomerVehicleMaster::whereKey($this->customer_vehicle_id)->value('customer_id');
+        }
+    }
+
     /** True when the picked option means the workshop collects the vehicle. */
     public function optionInvolvesPickup(): bool
     {
@@ -204,34 +225,36 @@ class Edit extends Component
     {
         if (! $this->optionInvolvesPickup()) {
             $this->pickup_address = null;
+            $this->pickup_address_id = null;
             $this->pickup_contact_phone = null;
             $this->pickup_address_choice = 'custom';
 
             return;
         }
 
-        // Pre-fill the contact from the customer's phone if they're picked.
-        if ($this->customer_id && $this->pickup_contact_phone === null) {
-            $this->pickup_contact_phone = CustomerMaster::find($this->customer_id)?->phone;
-        }
-
-        // If the customer has saved addresses, default to the primary one.
+        // If the customer has saved addresses, default to the primary one (linked live).
         $primary = $this->customerAddresses->firstWhere('is_primary', true) ?? $this->customerAddresses->first();
         if ($primary) {
             $this->pickup_address_choice = (string) $primary['id'];
+            $this->pickup_address_id = (int) $primary['id'];
             $this->pickup_address = $primary['full'];
         }
+        // The contact phone defaults to the customer's live phone — no stale snapshot;
+        // leave it null and let resolvedContactPhone() supply it unless the user overrides.
     }
 
     public function updatedPickupAddressChoice(string $value): void
     {
         if ($value === 'custom') {
-            // Don't wipe what the user already typed — they may still want to edit.
+            // Switching to custom: unlink the saved address; keep any typed text.
+            $this->pickup_address_id = null;
+
             return;
         }
 
         $picked = $this->customerAddresses->firstWhere('id', (int) $value);
         if ($picked) {
+            $this->pickup_address_id = (int) $value;
             $this->pickup_address = $picked['full'];
         }
     }
@@ -255,20 +278,26 @@ class Edit extends Component
     #[Computed]
     public function customerVehicles()
     {
-        if (! $this->customer_id) {
-            return collect();
-        }
-
-        return CustomerVehicleMaster::query()
+        // Scoped to the chosen customer when one is set; otherwise a global,
+        // server-searchable list so a vehicle can be picked first (owner is then
+        // derived). Always includes the current selection.
+        $query = CustomerVehicleMaster::query()
             ->with(['model.brand'])
-            ->where('customer_id', $this->customer_id)
             ->where('is_active', true)
-            ->orderBy('registration_no')
-            ->get(['id', 'registration_no', 'model_id'])
-            ->map(fn ($v) => [
-                'id' => $v->id,
-                'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no,
-            ]);
+            ->when($this->customer_id, fn ($q) => $q->where('customer_id', $this->customer_id))
+            ->orderBy('registration_no');
+
+        return $this->pickerOptions(
+            query: $query,
+            searchColumns: ['registration_no'],
+            term: $this->vehicleSearch,
+            selected: $this->customer_vehicle_id,
+            columns: ['id', 'registration_no', 'model_id', 'customer_id'],
+            limit: 30,
+        )->map(fn ($v) => [
+            'id' => $v->id,
+            'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no,
+        ]);
     }
 
     #[Computed]
@@ -465,6 +494,15 @@ class Edit extends Component
         // Line items are written to their own table, never onto the parent row.
         $complaints = $data['complaints'] ?? [];
         unset($data['complaints']);
+
+        // A saved address is stored as a live link (FK), not a stale text snapshot;
+        // a custom one keeps the free text and no link.
+        if (is_numeric($this->pickup_address_choice)) {
+            $data['pickup_address_id'] = (int) $this->pickup_address_choice;
+            $data['pickup_address'] = null;
+        } else {
+            $data['pickup_address_id'] = null;
+        }
 
         foreach (['pickup_address', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {

@@ -4,6 +4,7 @@ namespace App\Modules\VehicleVariantMaster\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\FuelTypeMaster\Models\FuelTypeMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TransmissionTypeMaster\Models\TransmissionTypeMaster;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VehicleVariantMaster extends Model
 {
@@ -45,6 +47,11 @@ class VehicleVariantMaster extends Model
     public function transmissionType(): BelongsTo
     {
         return $this->belongsTo(TransmissionTypeMaster::class, 'transmission_type_id');
+    }
+
+    public function customerVehicles(): HasMany
+    {
+        return $this->hasMany(CustomerVehicleMaster::class, 'variant_id');
     }
 
     protected static function newFactory(): VehicleVariantMasterFactory
