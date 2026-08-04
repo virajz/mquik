@@ -48,3 +48,8 @@
 ## Inventory Search
 
 - provide a filter for non zero items
+
+## Internal Parts Inquiry
+
+- combine job card, customer name and vehicle number
+- remove Vendor

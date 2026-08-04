@@ -13,6 +13,7 @@ use App\Modules\VendorAdvanceRequest\Models\VendorAdvanceRequestAttachment;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
 use App\Modules\VpoApproval\Models\VpoApproval;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -279,7 +280,7 @@ class Edit extends Component
 
             $keptDocs = [];
             foreach (array_values($documents) as $i => $doc) {
-                $keptDocs[] = $row->documents()->updateOrCreate(['id' => $doc['id'] ?? null], [
+                $keptDocs[] = ChildRows::upsert($row->documents(), $doc['id'] ?? null, [
                     'document_name' => strtoupper(trim((string) $doc['document_name'])),
                     'is_provided' => (bool) ($doc['is_provided'] ?? false),
                     'sequence_no' => $i + 1,
@@ -318,7 +319,7 @@ class Edit extends Component
             if ($path === null) {
                 continue;
             }
-            $keptIds[] = $request->attachments()->updateOrCreate(['id' => $row['id'] ?? null], [
+            $keptIds[] = ChildRows::upsert($request->attachments(), $row['id'] ?? null, [
                 'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                 'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,
             ])->id;

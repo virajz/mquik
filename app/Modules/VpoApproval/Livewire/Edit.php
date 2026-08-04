@@ -17,6 +17,7 @@ use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
 use App\Modules\VpoApproval\Models\VpoApproval;
 use App\Modules\VpoApproval\Models\VpoApprovalAttachment;
 use App\Modules\VpoApproval\Models\VpoApprovalItem;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -364,7 +365,7 @@ class Edit extends Component
     {
         $keptIds = [];
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $approval->items()->updateOrCreate(['id' => $row['id'] ?? null], [
+            $keptIds[] = ChildRows::upsert($approval->items(), $row['id'] ?? null, [
                 'spare_id' => $row['spare_id'] ?: null,
                 'spare_brand_id' => $row['spare_brand_id'] ?: null,
                 'uom_id' => $row['uom_id'] ?: null,
@@ -390,7 +391,7 @@ class Edit extends Component
     {
         $keptIds = [];
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $approval->charges()->updateOrCreate(['id' => $row['id'] ?? null], [
+            $keptIds[] = ChildRows::upsert($approval->charges(), $row['id'] ?? null, [
                 'charge_type_id' => $row['charge_type_id'] ?: null,
                 'amount' => ($row['amount'] ?? '') !== '' ? $row['amount'] : 0,
                 'sequence_no' => $i + 1,
@@ -418,7 +419,7 @@ class Edit extends Component
             if ($path === null) {
                 continue;
             }
-            $keptIds[] = $approval->attachments()->updateOrCreate(['id' => $row['id'] ?? null], [
+            $keptIds[] = ChildRows::upsert($approval->attachments(), $row['id'] ?? null, [
                 'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                 'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,
             ])->id;

@@ -121,3 +121,43 @@ spare (a spare that already has an opening entry is skipped); `--replace` recoun
 - GoodsHandover and GoodsReceipt still post nothing.
 - `alertStatus()` keeps its `negative` state: reachable via count adjustments and via the allow-negative
   escape, so the stock report still needs to show it.
+
+---
+
+# Postgres-only child-row bug found alongside this work (2026-08-04)
+
+Hit during a demo on Internal Parts Inquiry:
+
+```
+SQLSTATE[23502]: null value in column "id" of relation "internal_parts_inquiry_items"
+violates not-null constraint
+```
+
+**Cause.** Every repeater form saved its child rows with:
+
+```php
+$parent->items()->updateOrCreate(['id' => $row['id'] ?? null], $payload);
+```
+
+`updateOrCreate` runs `firstOrNew($attributes)`, which *sets* `id = null` on the model. Because the models use
+`$guarded = []`, that null is a real dirty attribute and reaches the database as
+`insert into … ("id", …) values (NULL, …)`.
+
+**Why nothing caught it.** SQLite treats an explicit null primary key as "auto-assign"; Postgres rejects it.
+The suite runs on SQLite (`phpunit.xml`: `DB_CONNECTION=sqlite`), so every affected test passed while every
+new child row was broken against the real database.
+
+**Scope.** 78 call sites across 47 modules — Appointment, FinalWorkOrder, GoodsReceipt, GoodsHandover,
+StockCounting, VendorPurchaseOrder, VpoApproval, AdvancePayment, every follow-up and approval module.
+
+**Fix.** [`App\Support\ChildRows::upsert($relation, $id, $payload)`](../app/Support/ChildRows.php) — looks the
+row up by key only when there is one, and otherwise calls `create()`, so the primary key never appears in the
+insert.
+
+**Guard.** `tests/Feature/ChildRowUpsertAuditTest.php` asserts on the source (no `updateOrCreate` keyed on
+`['id' => …]` anywhere under `app/Modules/*/Livewire/`) plus three behavioural tests, one of which asserts the
+generated INSERT does not name `"id"`. The source assertion is the important one — it caught 6 sites the first
+mechanical rewrite missed because they wrote the key array on the same line.
+
+**Worth doing.** Run the suite against Postgres in CI. This class of divergence — SQLite being lenient where
+Postgres is strict — is invisible to the current setup, and this one sat across 47 modules undetected.
