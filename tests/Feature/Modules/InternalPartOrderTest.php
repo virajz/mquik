@@ -3,6 +3,9 @@
 use App\Modules\InternalPartOrder\Livewire\Edit;
 use App\Modules\InternalPartOrder\Livewire\Index;
 use App\Modules\InternalPartOrder\Models\InternalPartOrder;
+use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
+use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
@@ -99,3 +102,95 @@ it('deletes an IPO from the index', function () {
 
     expect(InternalPartOrder::find($ipo->id))->toBeNull();
 });
+
+it('deducts issued parts from stock and re-syncs on edit', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 20, 100, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('status', 'partially_issued')
+        ->set('items', [ipoLine($spare->id, issued: 5)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(15.0);
+
+    // Editing corrects the ledger rather than stacking onto it.
+    $component->set('items.0.qty_issued', 8)->call('save')->assertHasNoErrors();
+    expect(StockLedger::currentQty($spare->id))->toBe(12.0);
+});
+
+it('refuses to issue more than the store holds', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'BRAKE PAD SET']);
+    StockIssuer::receive($spare->id, 3, 100, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('status', 'fully_issued')
+        ->set('items', [ipoLine($spare->id, issued: 10)])
+        ->call('save')
+        ->assertHasErrors('items.0.qty_issued');
+
+    // Rolled back whole — no partial issue landed.
+    expect(StockLedger::currentQty($spare->id))->toBe(3.0)
+        ->and($ipo->fresh()->items)->toHaveCount(0);
+});
+
+it('puts returned parts back at the rate they left at', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 10, 250, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('status', 'fully_issued')
+        ->set('items', [ipoLine($spare->id, issued: 6, returned: 2)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(6.0); // 10 - 6 + 2
+
+    $return = StockEntry::where('entry_type', StockEntry::TYPE_IPO_RETURN)->sole();
+    expect((float) $return->rate_per_unit)->toBe(250.0);
+});
+
+it('holds no stock while the order is still a draft', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 10, 100, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('status', 'draft')
+        ->set('items', [ipoLine($spare->id, issued: 4)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(10.0);
+});
+
+it('returns the parts to stock when the order is cancelled', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 10, 100, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('status', 'fully_issued')
+        ->set('items', [ipoLine($spare->id, issued: 4)])
+        ->call('save');
+    expect(StockLedger::currentQty($spare->id))->toBe(6.0);
+
+    $component->set('status', 'cancelled')->call('save')->assertHasNoErrors();
+    expect(StockLedger::currentQty($spare->id))->toBe(10.0);
+});
+
+/** One IPO line in the component's array shape. */
+function ipoLine(int $spareId, float $issued = 0, float $returned = 0): array
+{
+    return [
+        'id' => null, 'spare_id' => $spareId, 'uom_id' => null, 'return_type_id' => null,
+        'description' => 'part', 'is_alternate' => false, 'qty_requested' => max($issued, 1),
+        'qty_issued' => $issued, 'qty_returned' => $returned, 'stock_status' => 'available',
+        'issue_status' => 'issued', 'return_status' => null, 'before_photo_path' => null,
+        'after_photo_path' => null, 'notes' => null, 'sequence_no' => 1,
+    ];
+}

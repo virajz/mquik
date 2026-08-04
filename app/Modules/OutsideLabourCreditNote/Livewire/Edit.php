@@ -15,6 +15,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -347,8 +348,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $note->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($note->items(), $row['id'] ?? null,
                 [
                     'outside_labour_bill_id' => $row['outside_labour_bill_id'] ?: null,
                     'uom_id' => $row['uom_id'] ?: null,
@@ -389,8 +389,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $note->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($note->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

@@ -1,5 +1,8 @@
 <?php
 
+use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
+use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\StockCounting\Livewire\Edit;
 use App\Modules\StockCounting\Livewire\Index;
@@ -97,3 +100,82 @@ it('downloads the stock counting report as a CSV stream', function () {
 
     Livewire::test(Index::class)->call('download')->assertFileDownloaded();
 });
+
+it('posts the counted variance to the ledger once the count is completed', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 10, 500, StockEntry::TYPE_OPENING);
+
+    $component = Livewire::test(Edit::class)
+        ->set('verification_status', StockCount::STATUS_IN_PROGRESS)
+        ->set('items', [countLine($spare->id, system: 10, physical: 7)])
+        ->call('save');
+
+    // Nothing posts while the count is still being done.
+    expect(StockLedger::currentQty($spare->id))->toBe(10.0);
+
+    $count = StockCount::firstOrFail();
+    Livewire::test(Edit::class, ['stockCount' => $count])
+        ->set('verification_status', StockCount::STATUS_COMPLETED)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(7.0)
+        ->and(StockEntry::where('entry_type', StockEntry::TYPE_ADJUSTMENT)->sum('qty'))->toEqual(-3);
+});
+
+it('tops stock up when the shelf holds more than the system', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 4, 200, StockEntry::TYPE_OPENING);
+
+    Livewire::test(Edit::class)
+        ->set('verification_status', StockCount::STATUS_COMPLETED)
+        ->set('items', [countLine($spare->id, system: 4, physical: 9)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(9.0);
+});
+
+it('lets a count write stock below zero — the shelf is the authority', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 2, 100, StockEntry::TYPE_OPENING);
+
+    Livewire::test(Edit::class)
+        ->set('verification_status', StockCount::STATUS_COMPLETED)
+        ->set('items', [countLine($spare->id, system: 8, physical: 0)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(-6.0);
+});
+
+it('reverses its adjustment when a completed count is cancelled', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 10, 100, StockEntry::TYPE_OPENING);
+
+    Livewire::test(Edit::class)
+        ->set('verification_status', StockCount::STATUS_COMPLETED)
+        ->set('items', [countLine($spare->id, system: 10, physical: 6)])
+        ->call('save');
+    expect(StockLedger::currentQty($spare->id))->toBe(6.0);
+
+    $count = StockCount::firstOrFail();
+    Livewire::test(Edit::class, ['stockCount' => $count])
+        ->set('verification_status', StockCount::STATUS_CANCELLED)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(StockLedger::currentQty($spare->id))->toBe(10.0);
+});
+
+/** One count line in the component's array shape. */
+function countLine(int $spareId, float $system, float $physical): array
+{
+    return [
+        'id' => null, 'spare_id' => $spareId, 'uom_id' => null, 'hsn_id' => null, 'tax_id' => null,
+        'barcode' => null, 'description' => 'COUNTED ROW', 'quantity' => $physical,
+        'system_stock' => $system, 'physical_stock' => $physical, 'mismatch_reason' => null,
+        'spares_condition' => null, 'purchase_invoice_no' => null, 'vendor_name' => null,
+        'remark' => null, 'spareSearch' => '',
+    ];
+}

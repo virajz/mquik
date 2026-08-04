@@ -9,6 +9,7 @@ use App\Modules\GatePassApproval\Models\GatePassApproval;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\VehicleMovement\Models\VehicleMovement;
 use App\Modules\VehicleMovement\Models\VehicleMovementAttachment;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -270,8 +271,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $movement->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($movement->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

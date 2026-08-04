@@ -11,6 +11,7 @@ use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -281,8 +282,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $approval->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($approval->attachments(), $row['id'] ?? null,
                 ['kind' => $kind, 'path' => $path, 'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1],
             )->id;
         }

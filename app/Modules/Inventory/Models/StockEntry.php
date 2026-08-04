@@ -8,6 +8,7 @@ use App\Modules\SpareMaster\Models\SpareMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class StockEntry extends Model
@@ -50,7 +51,20 @@ class StockEntry extends Model
         'qty' => 'decimal:2',
         'rate_per_unit' => 'decimal:2',
         'moved_at' => 'datetime',
+        'expiry_date' => 'date',
     ];
+
+    /** The IN entry this OUT entry drew from — null on an IN entry. */
+    public function layer(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'layer_id');
+    }
+
+    /** OUT entries that have consumed this layer. */
+    public function consumptions(): HasMany
+    {
+        return $this->hasMany(self::class, 'layer_id');
+    }
 
     public function spare(): BelongsTo
     {

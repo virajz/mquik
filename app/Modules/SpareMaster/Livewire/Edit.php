@@ -16,6 +16,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -60,6 +61,9 @@ class Edit extends Component
     public ?int $inventory_sub_group_id = null;
 
     public ?string $inventory_type = null;
+
+    /** Ask for batch no + expiry at receipt (oils, chemicals, paints). */
+    public bool $tracks_batch = false;
 
     public ?int $workshop_department_id = null;
 
@@ -121,6 +125,7 @@ class Edit extends Component
 
         $this->editingId = $spare->id;
         $this->inventory_type = $spare->inventory_type;
+        $this->tracks_batch = (bool) $spare->tracks_batch;
         $this->part_type_id = $spare->part_type_id;
         $this->hsn_id = $spare->hsn_id;
         $this->rack_id = $spare->rack_id;
@@ -161,6 +166,7 @@ class Edit extends Component
             'inventory_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)->whereNull('parent_id')],
             'inventory_sub_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)],
             'inventory_type' => ['nullable', Rule::in(array_keys(SpareMaster::inventoryTypes()))],
+            'tracks_batch' => ['boolean'],
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'uom_id' => ['nullable', 'integer', Rule::exists('units_of_measure', 'id')->where('is_active', true)],
             'rate_before_tax' => ['numeric', 'min:0', 'max:9999999.99'],
@@ -441,7 +447,7 @@ class Edit extends Component
         $attachments = $data['attachments'] ?? [];
         unset($data['variant_ids'], $data['attachments'], $data['attachmentFiles']);
 
-        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
+        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'tracks_batch', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -514,8 +520,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $spare->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($spare->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

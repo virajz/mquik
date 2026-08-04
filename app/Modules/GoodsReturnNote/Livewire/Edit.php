@@ -19,6 +19,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -468,8 +469,7 @@ class Edit extends Component
                 $afterPath = $after->store('goods-return-notes/'.$return->id, 'public');
             }
 
-            $keptIds[] = $return->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($return->items(), $row['id'] ?? null,
                 [
                     'outside_labour_bill_id' => $row['outside_labour_bill_id'] ?: null,
                     'spare_id' => $row['spare_id'] ?: null,
@@ -516,8 +516,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $return->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($return->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

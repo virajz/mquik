@@ -156,3 +156,39 @@ imports nothing twice, so an interrupted run is safe to repeat.
 
 Peak memory is ~82 MB for the CSV alone (it is grouped in memory, not streamed) — closer to ~200 MB with the
 framework booted, so raise `memory_limit` if the server default is 128 M. The run takes ~10 s.
+
+---
+
+# Search: multi-token across name + description (2026-08-04)
+
+The index page hand-rolled its own single-term `LIKE` over name / part no / HSN — it never looked at
+`description`, and a two-word query was treated as one literal string. It now uses the shared
+`Searchable::scopeSearch()` that Customers already uses:
+
+**each token must match somewhere across name / part no / description, and every token must match.**
+
+- `absorber laura` → **ABSORBER SHOCK RR** (`description`: PASSAT, JETTA, **LAURA**, SUPERB, YETI),
+  ABSORBER SHOCK RR L/R, SUPPORT SHOCK ABSORBER RR. This matters because the legacy import puts the
+  **applicable vehicles in `description`** — 27,015 spares carry one, 240 mention LAURA.
+- `absorber laura yeti` → drops rows where YETI appears nowhere.
+- Part no and HSN still work: HSN lives on a relation, so it is OR'd in alongside the token group.
+- On Postgres, tokens of 4+ chars also match by trigram similarity, so `absrober` still finds ABSORBER.
+
+`spares` had **no trigram indexes** — `auth:sync-search-indexes` had not been re-run since the module became
+searchable. Running it created `spares_name_trgm_idx`, `spares_spare_code_trgm_idx`,
+`spares_description_trgm_idx` (242 columns covered across all modules).
+
+**Run this on the server after deploying:**
+
+```bash
+php artisan auth:sync-search-indexes   # idempotent, Postgres-only, safe to re-run
+```
+
+Timings on the real 29,681-row table: `absorber laura` 3 matches / ~165 ms, `brake` 2,419 matches / ~100 ms,
+`bmw brake pad` 190 matches / ~4 ms. The fuzzy `word_similarity(...) > 0.4` clause is the slow part — it
+cannot use the GIN index (the index-accelerated form is the `<%` operator plus a session
+`pg_trgm.word_similarity_threshold`). Worth revisiting in `Searchable` if search ever feels sluggish; it
+would speed up every module, not just spares.
+
+Tests: 3 added to `SpareMasterTest.php` (multi-token across name+description, every-token-must-match, part
+no + HSN still resolve). **33 green** there, plus MasterSearch + the searchable-fields audit unaffected.

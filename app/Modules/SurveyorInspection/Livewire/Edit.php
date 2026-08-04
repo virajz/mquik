@@ -11,6 +11,7 @@ use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\SurveyorInspection\Models\SurveyorInspection;
 use App\Modules\SurveyorInspection\Models\SurveyorInspectionAttachment;
 use App\Modules\SurveyorInspection\Models\SurveyorInspectionItem;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -278,8 +279,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $inspection->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($inspection->items(), $row['id'] ?? null,
                 [
                     'line_type' => $row['line_type'],
                     'spare_id' => $row['line_type'] === 'spare' ? ($row['spare_id'] ?? null) : null,
@@ -320,8 +320,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $inspection->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($inspection->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null,
                     'kind' => $kind,

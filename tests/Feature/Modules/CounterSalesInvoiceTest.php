@@ -5,6 +5,7 @@ use App\Modules\CounterSalesInvoice\Livewire\Index;
 use App\Modules\CounterSalesInvoice\Models\CounterSalesInvoice;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Support\FinancialYear;
@@ -135,4 +136,41 @@ it('server-side searches customers by name and phone', function () {
 
     $ids = collect(Livewire::test(Edit::class)->set('customerSearch', '9876500042')->get('customers'))->pluck('id');
     expect($ids)->toContain($a->id)->not->toContain($b->id);
+});
+
+it('refuses to sell more than is in stock', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'OIL FILTER']);
+    StockEntry::create([
+        'spare_id' => $spare->id, 'entry_type' => StockEntry::TYPE_OPENING, 'qty' => 3, 'rate_per_unit' => 50, 'moved_at' => now(),
+    ]);
+    $inv = CounterSalesInvoice::factory()->create();
+
+    Livewire::test(Edit::class, ['counterSalesInvoice' => $inv])
+        ->set('items', [
+            ['id' => null, 'line_type' => 'spare', 'spare_id' => $spare->id, 'labour_id' => null, 'uom_id' => null, 'tax_id' => null, 'description' => 'filter', 'hsn_code' => null, 'qty' => 10, 'cost_rate' => 30, 'unit_rate' => 50, 'discount_value' => 0, 'tax_percent' => 0, 'sequence_no' => 1],
+        ])
+        ->call('save')
+        ->assertHasErrors('items.0.qty');
+
+    expect(StockLedger::currentQty($spare->id))->toBe(3.0)
+        ->and($inv->fresh()->items)->toHaveCount(0);
+});
+
+it('costs a sale at what the stock came in at, layer by layer', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 4, 100, StockEntry::TYPE_PURCHASE, null, ['moved_at' => now()->subDays(5)]);
+    StockIssuer::receive($spare->id, 6, 160, StockEntry::TYPE_PURCHASE, null, ['moved_at' => now()->subDay()]);
+    $inv = CounterSalesInvoice::factory()->create();
+
+    Livewire::test(Edit::class, ['counterSalesInvoice' => $inv])
+        ->set('items', [
+            ['id' => null, 'line_type' => 'spare', 'spare_id' => $spare->id, 'labour_id' => null, 'uom_id' => null, 'tax_id' => null, 'description' => 'filter', 'hsn_code' => null, 'qty' => 7, 'cost_rate' => 999, 'unit_rate' => 500, 'discount_value' => 0, 'tax_percent' => 0, 'sequence_no' => 1],
+        ])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    // 4 @ 100 + 3 @ 160 = 880 of cost left the ledger — not 7 × the line's cost_rate.
+    $out = StockEntry::where('source_id', $inv->id)->where('source_type', CounterSalesInvoice::class)->get();
+    expect($out)->toHaveCount(2)
+        ->and($out->sum(fn ($e) => abs((float) $e->qty) * (float) $e->rate_per_unit))->toBe(880.0);
 });

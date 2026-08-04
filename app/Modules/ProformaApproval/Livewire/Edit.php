@@ -15,6 +15,7 @@ use App\Modules\SalesEstimate\Models\SalesEstimate;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -362,8 +363,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $approval->checkpoints()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($approval->checkpoints(), $row['id'] ?? null,
                 [
                     'role' => $row['role'],
                     'checkpoint' => $row['checkpoint'],
@@ -400,8 +400,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $approval->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($approval->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

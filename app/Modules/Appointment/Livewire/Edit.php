@@ -20,6 +20,7 @@ use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -581,8 +582,7 @@ class Edit extends Component
                 'sequence_no' => $i + 1,
             ];
 
-            $row = $appointment->complaints()->updateOrCreate(
-                ['id' => $line['id'] ?? null],
+            $row = ChildRows::upsert($appointment->complaints(), $line['id'] ?? null,
                 $payload,
             );
 

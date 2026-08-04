@@ -42,6 +42,7 @@ class SpareMaster extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'tracks_batch' => 'boolean',
         'rate_before_tax' => 'decimal:2',
         'mrp' => 'decimal:2',
         'min_qty' => 'decimal:2',

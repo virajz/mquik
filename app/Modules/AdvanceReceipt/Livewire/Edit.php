@@ -17,6 +17,7 @@ use App\Modules\ReceiptDifferenceReasonMaster\Models\ReceiptDifferenceReasonMast
 use App\Modules\SalesEstimate\Models\SalesEstimate;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -348,8 +349,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $receipt->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($receipt->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null,
                     'kind' => $kind,

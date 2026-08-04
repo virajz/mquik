@@ -10,6 +10,7 @@ use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -396,8 +397,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $package->services()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($package->services(), $row['id'] ?? null,
                 [
                     'service_type_id' => (int) $row['service_type_id'],
                     'sequence_no' => (int) ($row['sequence_no'] ?? $i + 1),
@@ -428,8 +428,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $package->spares()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($package->spares(), $row['id'] ?? null,
                 [
                     'spare_id' => $row['spare_id'] ?: null,
                     'uom_id' => $row['uom_id'] ?: null,
@@ -477,8 +476,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $package->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($package->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

@@ -20,6 +20,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -497,8 +498,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $inquiry->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($inquiry->items(), $row['id'] ?? null,
                 [
                     'spare_id' => $row['spare_id'] ?: null,
                     'spare_brand_id' => $row['spare_brand_id'] ?: null,
@@ -546,8 +546,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $inquiry->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($inquiry->attachments(), $row['id'] ?? null,
                 [
                     'photo_type_id' => $row['photo_type_id'] ?: null,
                     'kind' => $kind,

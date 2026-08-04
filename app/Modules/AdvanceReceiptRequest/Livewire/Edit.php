@@ -12,6 +12,7 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\SalesEstimate\Models\SalesEstimate;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -291,8 +292,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $request->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($request->attachments(), $row['id'] ?? null,
                 [
                     'kind' => $kind,
                     'path' => $path,

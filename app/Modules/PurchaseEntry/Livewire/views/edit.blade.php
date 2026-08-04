@@ -90,6 +90,14 @@
                                         </flux:select>
                                     </div>
 
+                                    {{-- Batch & expiry ride onto the stock layer this line creates. --}}
+                                    @if (isset($this->batchTrackedSpareIds[$item['spare_id'] ?? 0]))
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                            <flux:input wire:model="items.{{ $i }}.batch_no" size="sm" label="Batch No." placeholder="As printed on the pack" class:input="font-mono" />
+                                            <flux:input type="date" wire:model="items.{{ $i }}.expiry_date" size="sm" label="Expiry Date" />
+                                        </div>
+                                    @endif
+
                                     <div class="grid grid-cols-1 md:grid-cols-[180px_1fr_auto] gap-2 items-end">
                                         <flux:select wire:model="items.{{ $i }}.invoice_status" variant="listbox" size="sm" label="Invoice">
                                             @foreach (PurchaseEntry::invoiceStatuses() as $k => $l)

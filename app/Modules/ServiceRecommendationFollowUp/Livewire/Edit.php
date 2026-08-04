@@ -9,6 +9,7 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\ServiceRecommendationFollowUp\Models\ServiceRecommendationFollowUp;
 use App\Modules\ServiceRecommendationFollowUp\Models\ServiceRecommendationFollowUpAttachment;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -282,8 +283,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $followUp->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($followUp->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

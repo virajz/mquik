@@ -17,6 +17,7 @@ use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrder;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -405,8 +406,7 @@ class Edit extends Component
                 $photoPath = $photo->store('goods-receipts/'.$receipt->id, 'public');
             }
 
-            $keptIds[] = $receipt->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($receipt->items(), $row['id'] ?? null,
                 [
                     'job_card_id' => $row['job_card_id'] ?: null,
                     'spare_id' => $row['spare_id'] ?: null,
@@ -464,8 +464,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $receipt->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($receipt->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

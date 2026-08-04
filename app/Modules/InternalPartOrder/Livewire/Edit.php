@@ -2,9 +2,12 @@
 
 namespace App\Modules\InternalPartOrder\Livewire;
 
+use App\Concerns\MovesStock;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InternalPartOrder\Models\InternalPartOrder;
+use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\IpoCancellationReasonMaster\Models\IpoCancellationReasonMaster;
 use App\Modules\IpoRejectionReasonMaster\Models\IpoRejectionReasonMaster;
@@ -32,6 +35,7 @@ use Livewire\WithFileUploads;
 #[Title('Internal Part Order')]
 class Edit extends Component
 {
+    use MovesStock;
     use WithFileUploads;
 
     public ?int $editingId = null;
@@ -359,7 +363,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $order = DB::transaction(function () use ($data, $items, $isCreate) {
+        $order = $this->runStockGuarded(fn () => DB::transaction(function () use ($data, $items, $isCreate) {
             if ($isCreate) {
                 $row = InternalPartOrder::create($data);
                 $this->editingId = $row->id;
@@ -371,9 +375,14 @@ class Edit extends Component
 
             $this->syncItems($row, $items);
             $this->syncAttachments($row);
+            $this->syncStockEntries($row);
 
             return $row;
-        });
+        }));
+
+        if ($order === null) {
+            return null;
+        }
 
         $this->itemBeforeFiles = [];
         $this->itemAfterFiles = [];
@@ -387,6 +396,80 @@ class Edit extends Component
         }
 
         return redirect()->route('internal-part-order.index');
+    }
+
+    /**
+     * Move the stock this order actually issued (and took back).
+     *
+     * Reverse-then-repost, so editing an issued order corrects the ledger
+     * instead of stacking onto it. Draft and cancelled orders hold no stock —
+     * parts are only committed once they leave the store.
+     */
+    protected function syncStockEntries(InternalPartOrder $order): void
+    {
+        StockIssuer::reverse($order);
+
+        if (in_array($order->status, ['draft', 'cancelled'], true)) {
+            return;
+        }
+
+        $movedAt = $order->issued_at ?? now();
+
+        foreach ($order->items()->whereNotNull('spare_id')->get() as $item) {
+            $issued = (float) $item->qty_issued;
+            $returned = (float) $item->qty_returned;
+
+            $issueEntries = $issued > 0
+                ? StockIssuer::issue($item->spare_id, $issued, StockEntry::TYPE_IPO_ISSUE, $order, [
+                    'moved_at' => $movedAt,
+                    'notes' => 'IPO '.$order->order_no,
+                ])
+                : [];
+
+            if ($returned <= 0) {
+                continue;
+            }
+
+            // A part coming back re-enters at what it left at, not at today's
+            // purchase price — otherwise an unused part would revalue stock.
+            StockIssuer::receive(
+                $item->spare_id,
+                $returned,
+                $this->averageIssueRate($issueEntries) ?: StockLedger::lastInwardRate($item->spare_id),
+                StockEntry::TYPE_IPO_RETURN,
+                $order,
+                ['moved_at' => $movedAt, 'notes' => 'IPO '.$order->order_no.' return'],
+            );
+        }
+    }
+
+    /**
+     * Weighted average rate of the entries an issue produced — an issue split
+     * across FIFO layers leaves at more than one rate.
+     *
+     * @param  list<StockEntry>  $entries
+     */
+    protected function averageIssueRate(array $entries): float
+    {
+        $qty = array_sum(array_map(fn ($e) => abs((float) $e->qty), $entries));
+        if ($qty <= 0) {
+            return 0.0;
+        }
+        $value = array_sum(array_map(fn ($e) => abs((float) $e->qty) * (float) $e->rate_per_unit, $entries));
+
+        return round($value / $qty, 2);
+    }
+
+    /** On an IPO the quantity leaving the store is `qty_issued`, not `qty`. */
+    protected function stockErrorKey(int $spareId): string
+    {
+        foreach ($this->items as $index => $item) {
+            if ((int) ($item['spare_id'] ?? 0) === $spareId) {
+                return 'items.'.$index.'.qty_issued';
+            }
+        }
+
+        return 'items';
     }
 
     /**

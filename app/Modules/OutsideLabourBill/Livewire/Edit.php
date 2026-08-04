@@ -14,6 +14,7 @@ use App\Modules\OutsideLabourOrder\Models\OutsideLabourOrder;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ServiceSpecialistMaster\Models\ServiceSpecialistMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -324,8 +325,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $bill->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($bill->items(), $row['id'] ?? null,
                 [
                     'job_card_id' => $row['job_card_id'] ?: null,
                     'customer_vehicle_id' => $row['customer_vehicle_id'] ?: null,
@@ -365,8 +365,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $bill->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($bill->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

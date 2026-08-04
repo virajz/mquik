@@ -22,6 +22,7 @@ use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -724,8 +725,7 @@ class Edit extends Component
         $kept = [];
 
         foreach (array_values($complaints) as $i => $line) {
-            $kept[] = $row->complaints()->updateOrCreate(
-                ['id' => $line['id'] ?? null],
+            $kept[] = ChildRows::upsert($row->complaints(), $line['id'] ?? null,
                 [
                     'complaint_type_id' => $line['complaint_type_id'] ?: null,
                     'job_description_id' => $line['job_description_id'] ?: null,
@@ -744,8 +744,7 @@ class Edit extends Component
         $kept = [];
 
         foreach (array_values($documents) as $i => $line) {
-            $kept[] = $row->documents()->updateOrCreate(
-                ['id' => $line['id'] ?? null],
+            $kept[] = ChildRows::upsert($row->documents(), $line['id'] ?? null,
                 [
                     'label' => strtoupper(trim($line['label'])),
                     'is_required' => (bool) ($line['is_required'] ?? false),
@@ -781,8 +780,7 @@ class Edit extends Component
                 continue;
             }
 
-            $kept[] = $row->photos()->updateOrCreate(
-                ['id' => $line['id'] ?? null],
+            $kept[] = ChildRows::upsert($row->photos(), $line['id'] ?? null,
                 [
                     'photo_type_id' => $line['photo_type_id'] ?: null,
                     'leg' => $line['leg'],

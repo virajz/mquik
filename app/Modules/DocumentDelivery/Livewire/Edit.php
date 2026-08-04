@@ -13,6 +13,7 @@ use App\Modules\FollowUpModeMaster\Models\FollowUpModeMaster;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\MissingDocumentReasonMaster\Models\MissingDocumentReasonMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -268,8 +269,7 @@ class Edit extends Component
 
             $keptIds = [];
             foreach (array_values($items) as $i => $doc) {
-                $keptIds[] = $row->items()->updateOrCreate(
-                    ['id' => $doc['id'] ?? null],
+                $keptIds[] = ChildRows::upsert($row->items(), $doc['id'] ?? null,
                     [
                         'document_name' => strtoupper(trim((string) $doc['document_name'])),
                         'is_delivered' => (bool) ($doc['is_delivered'] ?? false),

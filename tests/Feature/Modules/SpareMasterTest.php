@@ -363,3 +363,38 @@ it('hides the rate history section for a spare that has none', function () {
     Livewire::test(Edit::class, ['spare' => SpareMaster::factory()->create()])
         ->assertDontSee('Rate History');
 });
+
+it('matches multi-word searches across name and description together', function () {
+    // The legacy import puts the applicable vehicles in the description.
+    SpareMaster::factory()->create(['name' => 'ABSORBER SHOCK RR', 'description' => 'PASSAT, JETTA, LAURA, SUPERB, YETI']);
+    SpareMaster::factory()->create(['name' => 'ABSORBER SHOCK FR', 'description' => 'OCTAVIA, RAPID']);
+    SpareMaster::factory()->create(['name' => 'BRAKE PAD SET', 'description' => 'LAURA']);
+
+    Livewire::test(Index::class)
+        ->set('search', 'absorber laura')
+        ->assertSee('ABSORBER SHOCK RR')
+        ->assertDontSee('ABSORBER SHOCK FR')
+        ->assertDontSee('BRAKE PAD SET');
+});
+
+it('requires every search token to match somewhere', function () {
+    SpareMaster::factory()->create(['name' => 'ABSORBER SHOCK RR', 'description' => 'LAURA']);
+
+    Livewire::test(Index::class)
+        ->set('search', 'absorber laura')
+        ->assertSee('ABSORBER SHOCK RR')
+        // "yeti" appears in no field, so the row drops out.
+        ->set('search', 'absorber laura yeti')
+        ->assertDontSee('ABSORBER SHOCK RR');
+});
+
+it('still finds a spare by part no and by HSN code', function () {
+    $hsn = HsnMaster::factory()->create(['code' => '87088000']);
+    SpareMaster::factory()->create(['name' => 'ABSORBER SHOCK RR', 'spare_code' => '1K0513029HR', 'hsn_id' => $hsn->id]);
+
+    Livewire::test(Index::class)
+        ->set('search', '1K0513029')
+        ->assertSee('ABSORBER SHOCK RR')
+        ->set('search', '87088000')
+        ->assertSee('ABSORBER SHOCK RR');
+});

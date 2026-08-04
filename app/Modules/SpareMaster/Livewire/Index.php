@@ -106,11 +106,13 @@ class Index extends Component
 
         $rows = SpareMaster::query()
             ->with(['brand:id,name', 'uom:id,code,name', 'hsn:id,code'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('name', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('spare_code', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('hsn', fn ($h) => $h->whereLike('code', '%'.$search.'%', caseSensitive: false));
-            }))
+            // Shared multi-token scope: every token must land SOMEWHERE across
+            // name / part no / description, so "absorber laura" finds a shock
+            // absorber whose description lists LAURA among its vehicles. HSN
+            // lives on a relation, so it is OR'd in alongside.
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->search($search)
+                ->orWhereHas('hsn', fn ($h) => $h->whereLike('code', '%'.$search.'%', caseSensitive: false))))
             ->when($this->brandFilter !== 'all', fn ($q) => $q->where('spare_brand_id', (int) $this->brandFilter))
             ->when($this->categoryFilter === 'tyre', fn ($q) => $q->where('spare_type', SpareMaster::TYPE_TYRE))
             ->when($this->categoryFilter === 'general', fn ($q) => $q->where('spare_type', '!=', SpareMaster::TYPE_TYRE))

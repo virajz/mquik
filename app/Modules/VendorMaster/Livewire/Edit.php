@@ -14,6 +14,7 @@ use App\Modules\VendorMaster\Models\VendorAttachment;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorMaster\Models\VendorTerm;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -636,8 +637,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $vendor->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($vendor->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

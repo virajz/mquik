@@ -51,6 +51,48 @@
         <span class="font-mono font-semibold">₹ {{ number_format($this->totalValue, 2) }}</span>
     </div>
 
+    {{-- Batch expiry: only ever shown when there is something to act on. --}}
+    @if ($this->expiringBatches->isNotEmpty())
+        @php($lapsed = $this->expiringBatches->filter(fn ($b) => \Carbon\Carbon::parse($b->expiry_date)->isPast()))
+        <details class="mb-4 rounded-lg border {{ $lapsed->isNotEmpty() ? 'border-red-300 dark:border-red-800/70' : 'border-amber-300 dark:border-amber-800/70' }} px-4 py-3">
+            <summary class="cursor-pointer text-sm font-medium flex items-center gap-2">
+                <flux:icon.exclamation-triangle class="size-4 {{ $lapsed->isNotEmpty() ? 'text-red-500' : 'text-amber-500' }}" />
+                {{ $this->expiringBatches->count() }} {{ Str::plural('batch', $this->expiringBatches->count()) }} expiring within {{ config('inventory.expiry_warning_days', 90) }} days
+                @if ($lapsed->isNotEmpty())
+                    <flux:badge color="red" size="sm">{{ $lapsed->count() }} already lapsed</flux:badge>
+                @endif
+            </summary>
+            <div class="mt-3 overflow-x-auto">
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Spare</flux:table.column>
+                        <flux:table.column class="w-32">Batch</flux:table.column>
+                        <flux:table.column class="w-32">Expires</flux:table.column>
+                        <flux:table.column class="w-24 text-end">On Hand</flux:table.column>
+                        <flux:table.column class="w-28 text-end">Value at Risk</flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach ($this->expiringBatches as $b)
+                            @php($daysLeft = (int) \Carbon\Carbon::parse($b->expiry_date)->diffInDays(today(), false) * -1)
+                            <flux:table.row wire:key="exp-{{ $b->id }}">
+                                <flux:table.cell class="font-medium">{{ $b->spare_name }}</flux:table.cell>
+                                <flux:table.cell class="font-mono text-xs">{{ $b->batch_no ?? '—' }}</flux:table.cell>
+                                <flux:table.cell class="text-sm">
+                                    {{ \Carbon\Carbon::parse($b->expiry_date)->format('d M Y') }}
+                                    <flux:badge :color="$daysLeft < 0 ? 'red' : ($daysLeft <= 30 ? 'amber' : 'zinc')" size="sm" inset="top bottom">
+                                        {{ $daysLeft < 0 ? abs($daysLeft).'d ago' : $daysLeft.'d left' }}
+                                    </flux:badge>
+                                </flux:table.cell>
+                                <flux:table.cell class="text-end font-mono">{{ rtrim(rtrim(number_format((float) $b->remaining, 2), '0'), '.') }}</flux:table.cell>
+                                <flux:table.cell class="text-end font-mono text-sm">₹ {{ number_format((float) $b->remaining * (float) $b->rate_per_unit, 2) }}</flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            </div>
+        </details>
+    @endif
+
     <flux:table>
         <flux:table.columns>
             <flux:table.column class="w-28">Part No</flux:table.column>

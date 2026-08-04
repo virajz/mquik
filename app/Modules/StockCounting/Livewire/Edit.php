@@ -4,6 +4,7 @@ namespace App\Modules\StockCounting\Livewire;
 
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\RackMaster\Models\RackMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
@@ -12,6 +13,7 @@ use App\Modules\StockCounting\Models\StockCountAttachment;
 use App\Modules\StockCounting\Models\StockCountItem;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -294,6 +296,7 @@ class Edit extends Component
 
             $this->syncItems($row, $items);
             $this->syncAttachments($row, $attachments);
+            $this->syncStockEntries($row);
 
             return $row;
         });
@@ -305,6 +308,32 @@ class Edit extends Component
         return redirect()->route('stock-counting.index');
     }
 
+    /**
+     * Post the counted variance to the ledger once the count is completed.
+     *
+     * The shelf is the authority: a count that finds less than the system holds
+     * writes stock down even if that takes the balance negative. Nothing is
+     * posted while the count is still pending or in progress, and cancelling a
+     * completed count reverses what it posted.
+     */
+    protected function syncStockEntries(StockCount $count): void
+    {
+        StockIssuer::reverse($count);
+
+        if ($count->verification_status !== StockCount::STATUS_COMPLETED) {
+            return;
+        }
+
+        $movedAt = $count->count_end_date ?? now();
+
+        foreach ($count->items()->whereNotNull('spare_id')->get() as $item) {
+            StockIssuer::adjust($item->spare_id, (float) $item->diff_qty, $count, [
+                'moved_at' => $movedAt,
+                'notes' => 'Stock count '.$count->count_no.($item->mismatch_reason ? ' · '.$item->mismatch_reason : ''),
+            ]);
+        }
+    }
+
     /** @param  array<int, array<string, mixed>>  $rows */
     protected function syncItems(StockCount $count, array $rows): void
     {
@@ -314,8 +343,7 @@ class Edit extends Component
             $system = (float) ($row['system_stock'] ?? 0);
             $physical = (float) ($row['physical_stock'] ?? 0);
 
-            $keptIds[] = $count->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($count->items(), $row['id'] ?? null,
                 [
                     'spare_id' => $row['spare_id'] ?: null,
                     'uom_id' => $row['uom_id'] ?: null,
@@ -363,8 +391,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $count->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($count->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

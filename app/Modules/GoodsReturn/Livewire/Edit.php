@@ -2,12 +2,14 @@
 
 namespace App\Modules\GoodsReturn\Livewire;
 
+use App\Concerns\MovesStock;
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\ChallanEntry\Models\Challan;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
 use App\Modules\CreditNoteReasonMaster\Models\CreditNoteReasonMaster;
 use App\Modules\GoodsReturn\Models\GoodsReturn;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\PurchaseEntry\Models\PurchaseEntry;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
@@ -30,6 +32,7 @@ use Livewire\WithFileUploads;
 #[Title('Goods Return')]
 class Edit extends Component
 {
+    use MovesStock;
     use SearchesPickerOptions;
     use WithFileUploads;
 
@@ -289,7 +292,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $return = DB::transaction(function () use ($data, $items, $isCreate) {
+        $return = $this->runStockGuarded(fn () => DB::transaction(function () use ($data, $items, $isCreate) {
             if ($isCreate) {
                 $row = GoodsReturn::create($data);
                 $this->editingId = $row->id;
@@ -304,7 +307,11 @@ class Edit extends Component
             $this->syncAttachments($row);
 
             return $row;
-        });
+        }));
+
+        if ($return === null) {
+            return null;
+        }
 
         $this->attachmentFiles = [];
         $this->removedAttachmentIds = [];
@@ -368,26 +375,15 @@ class Edit extends Component
      */
     protected function syncStockReturns(GoodsReturn $return): void
     {
-        StockEntry::query()
-            ->where('source_type', GoodsReturn::class)
-            ->where('source_id', $return->id)
-            ->delete();
+        StockIssuer::reverse($return);
 
         $movedAt = $return->returned_at ?? now();
 
         foreach ($return->items()->whereNotNull('spare_id')->get() as $item) {
-            if ((float) $item->qty <= 0) {
-                continue;
-            }
-            StockEntry::create([
-                'spare_id' => $item->spare_id,
-                'entry_type' => StockEntry::TYPE_PURCHASE_RETURN,
-                'source_type' => GoodsReturn::class,
-                'source_id' => $return->id,
-                'qty' => -1 * (float) $item->qty,
-                'rate_per_unit' => (float) $item->unit_rate,
+            // Sending goods back to the vendor draws down the layers they came
+            // in on, so the batch being returned is the one that leaves.
+            StockIssuer::issue($item->spare_id, (float) $item->qty, StockEntry::TYPE_PURCHASE_RETURN, $return, [
                 'moved_at' => $movedAt,
-                'actor_user_id' => auth()->id(),
                 'notes' => 'Goods return '.$return->return_no,
             ]);
         }

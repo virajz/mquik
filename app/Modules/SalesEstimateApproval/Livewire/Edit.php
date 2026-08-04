@@ -19,6 +19,7 @@ use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -322,8 +323,7 @@ class Edit extends Component
 
             $keptIds = [];
             foreach (array_values($items) as $i => $row2) {
-                $keptIds[] = $row->items()->updateOrCreate(
-                    ['id' => $row2['id'] ?? null],
+                $keptIds[] = ChildRows::upsert($row->items(), $row2['id'] ?? null,
                     [
                         'line_type' => $row2['line_type'],
                         'spare_id' => $row2['line_type'] === 'spare' ? ($row2['spare_id'] ?? null) : null,

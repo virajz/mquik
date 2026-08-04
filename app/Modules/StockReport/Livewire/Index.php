@@ -110,6 +110,16 @@ class Index extends Component
         })->when($this->belowReorderOnly, fn ($rows) => $rows->whereIn('status', ['below_min', 'zero', 'negative'])->values());
     }
 
+    /**
+     * Batches with stock still on them that lapse inside the warning window —
+     * the banner above the table. Already-lapsed batches come first.
+     */
+    #[Computed]
+    public function expiringBatches()
+    {
+        return StockLedger::expiringBatches((int) config('inventory.expiry_warning_days', 90));
+    }
+
     #[Computed]
     public function brands()
     {

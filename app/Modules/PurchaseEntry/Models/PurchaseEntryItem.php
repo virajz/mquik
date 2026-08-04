@@ -21,6 +21,7 @@ class PurchaseEntryItem extends Model
         'discount_value' => 'decimal:2',
         'tax_percent' => 'decimal:2',
         'line_total' => 'decimal:2',
+        'expiry_date' => 'date',
     ];
 
     public function purchaseEntry(): BelongsTo

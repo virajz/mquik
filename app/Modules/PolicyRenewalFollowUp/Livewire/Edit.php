@@ -10,6 +10,7 @@ use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\InsurancePolicyTypeMaster\Models\InsurancePolicyTypeMaster;
 use App\Modules\PolicyRenewalFollowUp\Models\PolicyRenewalFollowUp;
 use App\Modules\PolicyRenewalFollowUp\Models\PolicyRenewalFollowUpAttachment;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -283,8 +284,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $followUp->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($followUp->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

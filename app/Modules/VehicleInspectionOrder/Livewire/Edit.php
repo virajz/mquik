@@ -21,6 +21,7 @@ use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrderScope;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -760,8 +761,7 @@ class Edit extends Component
             // Descriptive fields only — timer columns (work_status / run_started_at /
             // duration_seconds / completed_at) are owned by the start/pause/complete
             // actions and must never be overwritten by a form save.
-            $keptIds[] = $order->workScopes()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($order->workScopes(), $row['id'] ?? null,
                 [
                     'complaint_type_id' => $row['complaint_type_id'] ?: null,
                     'job_description_id' => $row['job_description_id'] ?: null,
@@ -803,8 +803,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $order->photos()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($order->photos(), $row['id'] ?? null,
                 [
                     'photo_type_id' => $row['photo_type_id'] ?: null,
                     'path' => $path,

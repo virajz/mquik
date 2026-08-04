@@ -9,6 +9,7 @@ use App\Modules\ChargeTypeMaster\Models\ChargeTypeMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\ItemRejectionReasonMaster\Models\ItemRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PurchaseEntry\Models\PurchaseEntry;
@@ -128,6 +129,8 @@ class Edit extends Component
             'hsn_code' => $i->hsn_code,
             'qty' => (float) $i->qty,
             'unit_rate' => (float) $i->unit_rate,
+            'batch_no' => $i->batch_no,
+            'expiry_date' => $i->expiry_date?->format('Y-m-d'),
             'discount_value' => (float) $i->discount_value,
             'tax_percent' => (float) $i->tax_percent,
             'material_condition' => $i->material_condition,
@@ -176,6 +179,8 @@ class Edit extends Component
             'hsn_code' => null,
             'qty' => 1,
             'unit_rate' => 0,
+            'batch_no' => null,
+            'expiry_date' => null,
             'discount_value' => 0,
             'tax_percent' => 0,
             'material_condition' => 'new',
@@ -265,6 +270,8 @@ class Edit extends Component
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['numeric', 'min:0.01'],
             'items.*.unit_rate' => ['numeric', 'min:0'],
+            'items.*.batch_no' => ['nullable', 'string', 'max:40'],
+            'items.*.expiry_date' => ['nullable', 'date'],
             'items.*.discount_value' => ['numeric', 'min:0'],
             'items.*.tax_percent' => ['numeric', 'min:0', 'max:100'],
             'items.*.material_condition' => ['required', Rule::in(array_keys(PurchaseEntry::materialConditions()))],
@@ -337,7 +344,24 @@ class Edit extends Component
     #[Computed]
     public function spares()
     {
-        return SpareMaster::query()->where('is_active', true)->orderBy('name')->limit(500)->get(['id', 'name']);
+        return SpareMaster::query()->where('is_active', true)->orderBy('name')->limit(500)->get(['id', 'name', 'tracks_batch']);
+    }
+
+    /**
+     * Spare ids that need a batch no / expiry captured on receipt — the view
+     * reveals those two fields only on those lines.
+     *
+     * @return array<int, bool>
+     */
+    #[Computed]
+    public function batchTrackedSpareIds(): array
+    {
+        return SpareMaster::query()
+            ->where('tracks_batch', true)
+            ->pluck('id')
+            ->flip()
+            ->map(fn () => true)
+            ->all();
     }
 
     #[Computed]
@@ -452,6 +476,8 @@ class Edit extends Component
                 'hsn_code' => $local['hsn_code'] ?? null,
                 'qty' => (float) ($row['qty'] ?? 1),
                 'unit_rate' => (float) ($row['unit_rate'] ?? 0),
+                'batch_no' => filled($row['batch_no'] ?? null) ? strtoupper(trim((string) $row['batch_no'])) : null,
+                'expiry_date' => $row['expiry_date'] ?? null,
                 'discount_value' => (float) ($row['discount_value'] ?? 0),
                 'tax_percent' => (float) ($row['tax_percent'] ?? 0),
                 'line_total' => $lineTotal,
@@ -519,28 +545,27 @@ class Edit extends Component
      */
     protected function syncStockEntries(PurchaseEntry $purchase): void
     {
-        StockEntry::query()
-            ->where('source_type', PurchaseEntry::class)
-            ->where('source_id', $purchase->id)
-            ->delete();
+        StockIssuer::reverse($purchase);
 
         $movedAt = $purchase->invoice_date ?? now();
 
         foreach ($purchase->items()->whereNotNull('spare_id')->get() as $item) {
-            if ((float) $item->qty <= 0) {
-                continue;
-            }
-            StockEntry::create([
-                'spare_id' => $item->spare_id,
-                'entry_type' => StockEntry::TYPE_PURCHASE,
-                'source_type' => PurchaseEntry::class,
-                'source_id' => $purchase->id,
-                'qty' => (float) $item->qty,
-                'rate_per_unit' => (float) $item->unit_rate,
-                'moved_at' => $movedAt,
-                'actor_user_id' => auth()->id(),
-                'notes' => 'Purchase '.$purchase->purchase_no,
-            ]);
+            // Each received line becomes a FIFO cost layer. A batch no / expiry
+            // on the line rides onto that layer, so what is issued later can be
+            // traced back to the invoice it arrived on.
+            StockIssuer::receive(
+                $item->spare_id,
+                (float) $item->qty,
+                (float) $item->unit_rate,
+                StockEntry::TYPE_PURCHASE,
+                $purchase,
+                [
+                    'batch_no' => $item->batch_no,
+                    'expiry_date' => $item->expiry_date,
+                    'moved_at' => $movedAt,
+                    'notes' => 'Purchase '.$purchase->purchase_no,
+                ],
+            );
         }
     }
 

@@ -13,6 +13,7 @@ use App\Modules\VehicleAmc\Models\VehicleAmc;
 use App\Modules\VehicleAmc\Models\VehicleAmcAttachment;
 use App\Modules\VehicleAmc\Models\VehicleAmcItem;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -315,8 +316,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $amc->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($amc->items(), $row['id'] ?? null,
                 [
                     'spare_id' => $row['spare_id'] ?: null,
                     'uom_id' => $row['uom_id'] ?: null,
@@ -357,8 +357,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $amc->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($amc->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

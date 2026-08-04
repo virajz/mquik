@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\StockReport\Livewire\Index;
@@ -86,4 +87,37 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('stock-report.index'))->assertRedirect(route('login'));
+});
+
+it('warns about batches expiring inside the window', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'ENGINE OIL 5W30', 'tracks_batch' => true]);
+    StockIssuer::receive($spare->id, 8, 500, StockEntry::TYPE_PURCHASE, null, [
+        'batch_no' => 'LOT-42', 'expiry_date' => today()->addDays(20)->toDateString(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('1 batch expiring within')
+        ->assertSee('LOT-42')
+        ->assertSee('20d left')
+        ->assertSee('4,000.00');   // 8 × ₹500 at risk
+});
+
+it('calls out batches that have already lapsed', function () {
+    $spare = SpareMaster::factory()->create(['tracks_batch' => true]);
+    StockIssuer::receive($spare->id, 2, 100, StockEntry::TYPE_PURCHASE, null, [
+        'batch_no' => 'OLD', 'expiry_date' => today()->subDays(7)->toDateString(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('1 already lapsed')
+        ->assertSee('7d ago');
+});
+
+it('stays quiet when nothing is near expiry', function () {
+    $spare = SpareMaster::factory()->create();
+    StockIssuer::receive($spare->id, 5, 100, StockEntry::TYPE_PURCHASE, null, [
+        'expiry_date' => today()->addYears(3)->toDateString(),
+    ]);
+
+    Livewire::test(Index::class)->assertDontSee('expiring within');
 });

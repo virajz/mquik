@@ -2,12 +2,14 @@
 
 namespace App\Modules\Consumable\Livewire;
 
+use App\Concerns\MovesStock;
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\ChallanEntry\Models\Challan;
 use App\Modules\Consumable\Models\Consumable;
 use App\Modules\ConsumableCategoryMaster\Models\ConsumableCategoryMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\LossReasonMaster\Models\LossReasonMaster;
@@ -31,6 +33,7 @@ use Livewire\Component;
 #[Title('Consumable')]
 class Edit extends Component
 {
+    use MovesStock;
     use SearchesPickerOptions;
 
     /** Search term for the server-backed vendors picker. */
@@ -323,7 +326,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $consumable = DB::transaction(function () use ($data, $items, $isCreate) {
+        $consumable = $this->runStockGuarded(fn () => DB::transaction(function () use ($data, $items, $isCreate) {
             if ($isCreate) {
                 $row = Consumable::create($data);
                 $this->editingId = $row->id;
@@ -337,7 +340,11 @@ class Edit extends Component
             $this->syncStockDeductions($row);
 
             return $row;
-        });
+        }));
+
+        if ($consumable === null) {
+            return null;
+        }
 
         Flux::toast(text: 'Consumable '.$consumable->fresh()->consumable_no.($isCreate ? ' recorded — stock deducted.' : ' updated — stock re-synced.'), variant: 'success');
 
@@ -399,26 +406,15 @@ class Edit extends Component
      */
     protected function syncStockDeductions(Consumable $consumable): void
     {
-        StockEntry::query()
-            ->where('source_type', Consumable::class)
-            ->where('source_id', $consumable->id)
-            ->delete();
+        StockIssuer::reverse($consumable);
 
         $movedAt = $consumable->consumed_at ?? now();
 
         foreach ($consumable->items()->where('line_type', 'spare')->whereNotNull('spare_id')->get() as $item) {
-            if ((float) $item->qty <= 0) {
-                continue;
-            }
-            StockEntry::create([
-                'spare_id' => $item->spare_id,
-                'entry_type' => StockEntry::TYPE_CONSUMPTION,
-                'source_type' => Consumable::class,
-                'source_id' => $consumable->id,
-                'qty' => -1 * (float) $item->qty,
-                'rate_per_unit' => (float) $item->unit_rate,
+            // Issued through the FIFO layers, so the consumption is costed at
+            // what the stock actually came in at rather than the line rate.
+            StockIssuer::issue($item->spare_id, (float) $item->qty, StockEntry::TYPE_CONSUMPTION, $consumable, [
                 'moved_at' => $movedAt,
-                'actor_user_id' => auth()->id(),
                 'notes' => 'Consumable '.$consumable->consumable_no,
             ]);
         }

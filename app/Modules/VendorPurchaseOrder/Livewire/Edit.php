@@ -21,6 +21,7 @@ use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrderAttachment;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrderItem;
 use App\Modules\VendorTypeMaster\Models\VendorTypeMaster;
 use App\Modules\VpoApproval\Models\VpoApproval;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -503,8 +504,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $order->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($order->items(), $row['id'] ?? null,
                 [
                     'spare_id' => $row['spare_id'] ?: null,
                     'spare_brand_id' => $row['spare_brand_id'] ?: null,
@@ -538,8 +538,7 @@ class Edit extends Component
         $keptIds = [];
 
         foreach (array_values($rows) as $i => $row) {
-            $keptIds[] = $order->charges()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($order->charges(), $row['id'] ?? null,
                 [
                     'charge_type_id' => $row['charge_type_id'] ?: null,
                     'amount' => $row['amount'] !== '' ? $row['amount'] : 0,
@@ -574,8 +573,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $order->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($order->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null,
                     'kind' => $kind,

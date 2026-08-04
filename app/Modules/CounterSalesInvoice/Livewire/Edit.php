@@ -2,12 +2,14 @@
 
 namespace App\Modules\CounterSalesInvoice\Livewire;
 
+use App\Concerns\MovesStock;
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\CounterSalesInvoice\Models\CounterSalesInvoice;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\InvoiceCancellationReasonMaster\Models\InvoiceCancellationReasonMaster;
 use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\LossTypeMaster\Models\LossTypeMaster;
@@ -31,6 +33,7 @@ use Livewire\Component;
 #[Title('Counter Sales Invoice')]
 class Edit extends Component
 {
+    use MovesStock;
     use SearchesPickerOptions;
 
     /** Search term for the server-backed vendors picker. */
@@ -389,7 +392,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $invoice = DB::transaction(function () use ($data, $items, $isCreate) {
+        $invoice = $this->runStockGuarded(fn () => DB::transaction(function () use ($data, $items, $isCreate) {
             if ($isCreate) {
                 $row = CounterSalesInvoice::create($data);
                 $this->editingId = $row->id;
@@ -403,7 +406,11 @@ class Edit extends Component
             $this->syncStockDeductions($row);
 
             return $row;
-        });
+        }));
+
+        if ($invoice === null) {
+            return null;
+        }
 
         $stockMsg = in_array($invoice->status, ['cancelled', 'credit_note'], true) ? '' : ' — stock deducted';
         Flux::toast(text: 'Counter invoice '.$invoice->fresh()->invoice_no.($isCreate ? ' created' : ' updated').$stockMsg.'.', variant: 'success');
@@ -482,18 +489,10 @@ class Edit extends Component
         $movedAt = $invoice->invoiced_at ?? now();
 
         foreach ($invoice->items()->where('line_type', 'spare')->whereNotNull('spare_id')->get() as $item) {
-            if ((float) $item->qty <= 0) {
-                continue;
-            }
-            StockEntry::create([
-                'spare_id' => $item->spare_id,
-                'entry_type' => StockEntry::TYPE_SALE,
-                'source_type' => CounterSalesInvoice::class,
-                'source_id' => $invoice->id,
-                'qty' => -1 * (float) $item->qty,
-                'rate_per_unit' => (float) $item->unit_rate,
+            // FIFO-costed: the OUT entries carry purchase cost, not sale price,
+            // which is what makes margin reporting possible later.
+            StockIssuer::issue($item->spare_id, (float) $item->qty, StockEntry::TYPE_SALE, $invoice, [
                 'moved_at' => $movedAt,
-                'actor_user_id' => auth()->id(),
                 'notes' => 'Counter Sales Invoice '.$invoice->invoice_no,
             ]);
         }

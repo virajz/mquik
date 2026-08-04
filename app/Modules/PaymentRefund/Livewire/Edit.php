@@ -14,6 +14,7 @@ use App\Modules\PaymentRefund\Models\PaymentRefund;
 use App\Modules\PaymentRefund\Models\PaymentRefundAttachment;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrder;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -353,8 +354,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $refund->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($refund->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,

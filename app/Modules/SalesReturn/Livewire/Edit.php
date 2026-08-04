@@ -9,6 +9,8 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
+use App\Modules\Inventory\Services\StockLedger;
 use App\Modules\InvoiceCancellationReasonMaster\Models\InvoiceCancellationReasonMaster;
 use App\Modules\LabourMaster\Models\LabourMaster;
 use App\Modules\RegularSalesInvoice\Models\RegularSalesInvoice;
@@ -591,20 +593,16 @@ class Edit extends Component
         $movedAt = $return->returned_at ?? now();
 
         foreach ($return->items()->where('line_type', 'spare')->whereNotNull('spare_id')->get() as $item) {
-            if ((float) $item->qty <= 0) {
-                continue;
-            }
-            StockEntry::create([
-                'spare_id' => $item->spare_id,
-                'entry_type' => StockEntry::TYPE_SALE_RETURN,
-                'source_type' => SalesReturn::class,
-                'source_id' => $return->id,
-                'qty' => (float) $item->qty,
-                'rate_per_unit' => (float) $item->unit_rate,
-                'moved_at' => $movedAt,
-                'actor_user_id' => auth()->id(),
-                'notes' => 'Sales Return '.$return->return_no,
-            ]);
+            // A customer return comes back as a fresh layer valued at what the
+            // part last cost us, not at what it was sold for.
+            StockIssuer::receive(
+                $item->spare_id,
+                (float) $item->qty,
+                StockLedger::lastInwardRate($item->spare_id) ?: (float) $item->unit_rate,
+                StockEntry::TYPE_SALE_RETURN,
+                $return,
+                ['moved_at' => $movedAt, 'notes' => 'Sales Return '.$return->return_no],
+            );
         }
     }
 

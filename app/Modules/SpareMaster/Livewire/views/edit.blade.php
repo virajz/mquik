@@ -352,6 +352,12 @@
                     @endforeach
                 </flux:select>
 
+                <flux:field variant="inline">
+                    <flux:checkbox wire:model="tracks_batch" />
+                    <flux:label>Track batch &amp; expiry</flux:label>
+                    <flux:description>Asks for a batch no and expiry date whenever this part is received, and warns before the stock lapses. Meant for oils, chemicals and paints.</flux:description>
+                </flux:field>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select
                         wire:model.live="inventory_group_id"

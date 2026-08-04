@@ -15,6 +15,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrder;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -355,8 +356,7 @@ class Edit extends Component
                 $photoPath = $photo->store('consumable-approvals/'.$request->id, 'public');
             }
 
-            $keptIds[] = $request->items()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($request->items(), $row['id'] ?? null,
                 [
                     'vendor_purchase_order_id' => $row['vendor_purchase_order_id'] ?: null,
                     'outside_labour_order_id' => $row['outside_labour_order_id'] ?: null,
@@ -403,8 +403,7 @@ class Edit extends Component
                 continue;
             }
 
-            $keptIds[] = $request->attachments()->updateOrCreate(
-                ['id' => $row['id'] ?? null],
+            $keptIds[] = ChildRows::upsert($request->attachments(), $row['id'] ?? null,
                 [
                     'attachment_type' => $row['attachment_type'] ?: null, 'kind' => $kind, 'path' => $path,
                     'original_name' => $originalName, 'size_bytes' => $size, 'notes' => $row['notes'] ?: null, 'sequence_no' => $i + 1,
