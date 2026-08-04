@@ -517,6 +517,28 @@ class Edit extends Component
         }
     }
 
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->department_id = $jobCard->workshop_department_id;
+        $this->advisor_id = $jobCard->assigned_advisor_id;
+        $this->technician_id = $jobCard->assigned_technician_id;
+    }
+
     public function render()
     {
         return view('challan-entry::edit');

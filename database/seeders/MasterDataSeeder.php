@@ -9,6 +9,7 @@ use App\Modules\ConsumableCategoryMaster\Models\ConsumableCategoryMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GstTypeMaster\Models\GstTypeMaster;
+use App\Modules\HsnMaster\Models\HsnMaster;
 use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
@@ -17,6 +18,8 @@ use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
+use App\Modules\TaxMaster\Models\TaxMaster;
+use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
@@ -24,6 +27,7 @@ use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleSegmentMaster\Models\VehicleSegmentMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -60,6 +64,7 @@ class MasterDataSeeder extends Seeder
         $this->seedInspection();
         $this->seedPeople();
         $this->seedCustomerVehicles();
+        $this->seedSpares();
     }
 
     /**
@@ -79,6 +84,8 @@ class MasterDataSeeder extends Seeder
         $header = fgetcsv($handle);
         if ($header !== false) {
             $header = array_map('trim', $header);
+            // Excel writes a UTF-8 BOM ahead of the first header cell.
+            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
             $width = count($header);
             while (($r = fgetcsv($handle)) !== false) {
                 $rows[] = array_combine($header, array_slice(array_pad($r, $width, ''), 0, $width));
@@ -509,5 +516,361 @@ class MasterDataSeeder extends Seeder
             '  · vehicles imported (+%d; skipped: %d no-customer, %d no-model, %d no-reg, %d dup-reg)',
             count($new), $skipped['no_customer'], $skipped['no_model'], $skipped['no_reg'], $skipped['dup_reg'],
         ));
+    }
+
+    // ── Tier 3: spares (Spare.csv) ────────────────────────────────────────────
+
+    /** Legacy `UOM` code → unit-of-measure master row to create when missing. */
+    protected const UOM_ALIASES = [
+        'PCS' => 'PIECES',
+        'SET' => 'SETS',
+        'LTR' => 'LITRES',
+        'KGS' => 'KILOGRAMS',
+        'KG' => 'KILOGRAMS',
+        'MTR' => 'METRES',
+        'NOS' => 'NUMBERS',
+        'SQF' => 'SQUARE FEET',
+        'SQM' => 'SQUARE METRES',
+        'ROL' => 'ROLLS',
+        'CYL' => 'CYLINDERS',
+    ];
+
+    /** Legacy `DepartmentName` → the spares master's fixed inventory type. */
+    protected const INVENTORY_TYPES = [
+        'MECHANICAL' => 'mechanical',
+        'BODY PARTS' => 'body_parts',
+        'ACCESSORIES' => 'accessories',
+        'CONSUMABLES' => 'consumables',
+        'TYRES' => 'tyres',
+        'WHEEL RIM & PARTS' => 'wheel_rim_parts',
+        'LUBRICANTS' => 'lubricants',
+    ];
+
+    /**
+     * Legacy `MainDepartmentName` → existing workshop department. The old ERP's
+     * "Mechanical" floor is this workshop's SERVICE department and its "Value
+     * Addition" work is DETAILING — mapped rather than duplicated as new rows.
+     */
+    protected const WORKSHOP_DEPARTMENTS = [
+        'MECHANICAL' => 'SERVICE',
+        'BODYSHOP' => 'BODYSHOP',
+        'ACCESSORIES' => 'ACCESSORIES',
+        'TYRE' => 'TYRE',
+        'VALUE ADDITION' => 'DETAILING',
+    ];
+
+    /**
+     * Legacy `Vat` is the half-rate (CGST only) — 9 means 9+9 = GST 18%.
+     * Verified against the data: TotalAmount is always Rate × 1.18 at Vat 9.
+     */
+    protected function taxNameForVat(string $vat): ?string
+    {
+        return match (trim($vat)) {
+            '9' => 'GST 18%',
+            '2.5' => 'GST 5%',
+            '0' => 'NIL RATED',
+            default => null,
+        };
+    }
+
+    /** Legacy `WEF` is d/m/y. Returns null for blanks and unparseable junk. */
+    protected function wef(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '' || $value === 'NULL') {
+            return null;
+        }
+        $date = \DateTime::createFromFormat('d/m/y', $value);
+        $errors = \DateTime::getLastErrors();
+
+        return $date && empty($errors['warning_count']) && empty($errors['error_count'])
+            ? $date->format('Y-m-d')
+            : null;
+    }
+
+    /** Legacy blank sentinels ('', NULL, undefined) collapse to null. */
+    protected function clean(?string $value): ?string
+    {
+        $value = $this->up($value);
+
+        return in_array($value, [null, 'NULL', 'UNDEFINED'], true) ? null : $value;
+    }
+
+    /**
+     * Import the previous ERP's spare master. Rows sharing a natural key are
+     * one spare: the newest `WEF` row supplies the spare's own rate, and every
+     * row (including the newest) is kept as a dated `spare_rate_history` entry,
+     * so price movement over the years survives the migration.
+     */
+    protected function seedSpares(): void
+    {
+        $rows = $this->csv('Spare');
+        if ($rows === []) {
+            return;
+        }
+
+        [$groups, $collisions] = $this->groupSpareRows($rows);
+
+        $lookups = $this->spareLookups($rows);
+        $existing = DB::table('spares')->whereNotNull('legacy_key')->pluck('id', 'legacy_key')->all();
+        $claimedCodes = array_flip(DB::table('spares')->whereNotNull('spare_code')->pluck('spare_code')->all());
+
+        $now = now();
+        $newSpares = [];
+        $skipped = 0;
+
+        foreach ($groups as $key => $group) {
+            if (isset($existing[$key])) {
+                $skipped++;
+
+                continue;
+            }
+
+            // Newest revision drives the spare; the rest is history.
+            $latest = $group['rows'][0];
+            $code = $group['code'];
+
+            // spare_code is UNIQUE and the legacy data reuses part numbers for
+            // unrelated parts — the first claimant keeps it, later ones keep
+            // the number in `remark` so nothing is lost.
+            $remarkParts = array_filter([$this->clean($latest['Remarks'] ?? '')]);
+            if ($code !== null && isset($claimedCodes[$code])) {
+                $remarkParts[] = 'LEGACY PART NO: '.$code;
+                $code = null;
+            } elseif ($code !== null) {
+                $claimedCodes[$code] = true;
+            }
+
+            $department = $this->clean($latest['DepartmentName'] ?? '');
+            $groupName = $this->clean($latest['InvGroupName'] ?? '');
+            $subGroupName = $this->clean($latest['InvSubGroupName'] ?? '');
+
+            $newSpares[] = [
+                'legacy_key' => $key,
+                'name' => $this->cap($latest['PartName'] ?? '', 255),
+                'spare_code' => $code,
+                'description' => $this->clean($latest['PartDescription'] ?? ''),
+                'spare_brand_id' => $lookups['brand'][$this->clean($latest['Company'] ?? '')] ?? null,
+                'hsn_id' => $lookups['hsn'][$this->hsnCode($latest['HSNACSNo'] ?? '')] ?? null,
+                'tax_id' => $lookups['tax'][$this->taxNameForVat($latest['Vat'] ?? '') ?? ''] ?? null,
+                'inventory_group_id' => $lookups['group'][$groupName] ?? null,
+                'inventory_sub_group_id' => $lookups['subGroup'][$subGroupName] ?? null,
+                'inventory_type' => self::INVENTORY_TYPES[$department] ?? null,
+                'workshop_department_id' => $lookups['department'][$this->clean($latest['MainDepartmentName'] ?? '')] ?? null,
+                'uom_id' => $lookups['uom'][$this->clean($latest['UOM'] ?? '')] ?? null,
+                'rate_before_tax' => (float) ($latest['Rate'] ?? 0),
+                'mrp' => is_numeric(trim((string) ($latest['TotalAmount'] ?? ''))) ? (float) $latest['TotalAmount'] : null,
+                'spare_type' => match ($department) {
+                    'TYRES' => 'tyre',
+                    'CONSUMABLES', 'LUBRICANTS' => 'common',
+                    default => 'vehicle_specific',
+                },
+                'min_qty' => 0,
+                'max_qty' => 0,
+                'remark' => $remarkParts ? implode(' · ', $remarkParts) : null,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($newSpares, 500) as $chunk) {
+            DB::table('spares')->insert($chunk);
+        }
+
+        $spareIds = DB::table('spares')->whereNotNull('legacy_key')->pluck('id', 'legacy_key')->all();
+        $historyRows = $this->spareRateHistoryRows($groups, $spareIds, $existing, $lookups, $now);
+        foreach (array_chunk($historyRows, 1000) as $chunk) {
+            DB::table('spare_rate_history')->insert($chunk);
+        }
+
+        $this->command?->info(sprintf(
+            '  · spares imported (+%d from %d rows; %d already present, %d rate revisions, %d part-no collisions)',
+            count($newSpares), count($rows), $skipped, count($historyRows), $collisions,
+        ));
+    }
+
+    /**
+     * Collapse the flat CSV into one entry per spare, newest `WEF` first.
+     *
+     * A spare is keyed on part no + name; rows with no part no fall back to
+     * name + brand + HSN + sub-group. Same key = the same part re-priced.
+     *
+     * @param  list<array<string, string>>  $rows
+     * @return array{0: array<string, array{code: ?string, rows: list<array<string, string>>}>, 1: int}
+     */
+    protected function groupSpareRows(array $rows): array
+    {
+        $groups = [];
+        $namesByCode = [];
+
+        foreach ($rows as $r) {
+            $name = $this->up($r['PartName'] ?? '');
+            if ($name === null) {
+                continue;
+            }
+            // Part numbers longer than the column are comma-joined vendor
+            // lists in the legacy data, not real part numbers.
+            $code = $this->clean($r['PartNo'] ?? '');
+            if ($code !== null && mb_strlen($code) > 64) {
+                $code = null;
+            }
+
+            if ($code !== null) {
+                $natural = 'P:'.$code.'|'.$name;
+                $namesByCode[$code][$name] = true;
+            } else {
+                $natural = implode('|', [
+                    'N:'.$name,
+                    $this->clean($r['Company'] ?? '') ?? '',
+                    $this->hsnCode($r['HSNACSNo'] ?? '') ?? '',
+                    $this->clean($r['InvSubGroupName'] ?? '') ?? '',
+                ]);
+            }
+
+            $key = substr(hash('sha1', $natural), 0, 40);
+            $groups[$key]['code'] ??= $code;
+            $groups[$key]['rows'][] = $r;
+        }
+
+        foreach ($groups as $key => $group) {
+            usort($groups[$key]['rows'], fn ($a, $b) => ($this->wef($b['WEF'] ?? '') ?? '') <=> ($this->wef($a['WEF'] ?? '') ?? ''));
+        }
+
+        $collisions = count(array_filter($namesByCode, fn ($names) => count($names) > 1));
+
+        return [$groups, $collisions];
+    }
+
+    /**
+     * Every dated revision in a group, including the one on the spare itself.
+     *
+     * @param  array<string, array{code: ?string, rows: list<array<string, string>>}>  $groups
+     * @param  array<string, int>  $spareIds
+     * @param  array<string, int>  $alreadyImported
+     * @param  array<string, array<string, int>>  $lookups
+     * @return list<array<string, mixed>>
+     */
+    protected function spareRateHistoryRows(array $groups, array $spareIds, array $alreadyImported, array $lookups, mixed $now): array
+    {
+        $history = [];
+
+        foreach ($groups as $key => $group) {
+            if (isset($alreadyImported[$key]) || ! isset($spareIds[$key])) {
+                continue;
+            }
+            foreach ($group['rows'] as $r) {
+                $history[] = [
+                    'spare_id' => $spareIds[$key],
+                    'spare_brand_id' => $lookups['brand'][$this->clean($r['Company'] ?? '')] ?? null,
+                    'rate_before_tax' => (float) ($r['Rate'] ?? 0),
+                    'mrp' => is_numeric(trim((string) ($r['TotalAmount'] ?? ''))) ? (float) $r['TotalAmount'] : null,
+                    'effective_from' => $this->wef($r['WEF'] ?? ''),
+                    'source' => 'legacy_import',
+                    'remark' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        return $history;
+    }
+
+    /** HSN/SAC digits only; the column holds 8 chars, longer values are typos. */
+    protected function hsnCode(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' && ctype_digit($value) && mb_strlen($value) <= 8 ? $value : null;
+    }
+
+    /**
+     * Resolve every named reference in the CSV to an id up front — creating the
+     * brands, HSN codes, UoMs and inventory groups the old ERP used but this
+     * database has not seen yet.
+     *
+     * @param  list<array<string, string>>  $rows
+     * @return array<string, array<string, int>>
+     */
+    protected function spareLookups(array $rows): array
+    {
+        /** @var array{brand: array<string, true>, hsn: array<string, int>, uom: array<string, true>, group: array<string, true>, subGroup: array<string, ?string>} */
+        $wanted = ['brand' => [], 'hsn' => [], 'uom' => [], 'group' => [], 'subGroup' => []];
+
+        foreach ($rows as $r) {
+            if ($name = $this->clean($r['Company'] ?? '')) {
+                $wanted['brand'][$name] = true;
+            }
+            if ($code = $this->hsnCode($r['HSNACSNo'] ?? '')) {
+                // First Vat wins — the same HSN is taxed consistently in the source.
+                $wanted['hsn'][$code] ??= $this->taxNameForVat($r['Vat'] ?? '') === 'GST 5%' ? 5 : 18;
+            }
+            if ($name = $this->clean($r['UOM'] ?? '')) {
+                $wanted['uom'][$name] = true;
+            }
+            if ($name = $this->clean($r['InvGroupName'] ?? '')) {
+                $wanted['group'][$name] = true;
+            }
+            if ($name = $this->clean($r['InvSubGroupName'] ?? '')) {
+                $wanted['subGroup'][$name] = $this->clean($r['InvGroupName'] ?? '');
+            }
+        }
+
+        DB::transaction(function () use ($wanted) {
+            foreach (array_keys($wanted['brand']) as $name) {
+                SpareBrandMaster::firstOrCreate(['name' => $name], ['is_active' => true]);
+            }
+            foreach ($wanted['hsn'] as $code => $gst) {
+                HsnMaster::firstOrCreate(['code' => $code], ['name' => $code, 'kind' => 'hsn', 'gst_percent' => $gst, 'is_active' => true]);
+            }
+            foreach (array_keys($wanted['uom']) as $legacy) {
+                if ($name = self::UOM_ALIASES[$legacy] ?? null) {
+                    UnitOfMeasureMaster::firstOrCreate(['name' => $name], ['code' => $legacy, 'is_active' => true]);
+                }
+            }
+            foreach (array_keys($wanted['group']) as $name) {
+                InventoryGroupMaster::firstOrCreate(['name' => $name], ['parent_id' => null, 'is_active' => true]);
+            }
+        });
+
+        $groupIds = InventoryGroupMaster::whereNull('parent_id')->pluck('id', 'name')->all();
+
+        DB::transaction(function () use ($wanted, $groupIds) {
+            foreach ($wanted['subGroup'] as $name => $parentName) {
+                InventoryGroupMaster::firstOrCreate(['name' => $name], [
+                    'parent_id' => $groupIds[$parentName] ?? null,
+                    'is_active' => true,
+                ]);
+            }
+        });
+
+        // Legacy UoM codes map onto master names; anything unmapped ("Please
+        // select UOM") resolves to null and the spare simply carries no unit.
+        $uomIds = UnitOfMeasureMaster::pluck('id', 'name')->all();
+        $uom = [];
+        foreach (self::UOM_ALIASES as $legacy => $name) {
+            if (isset($uomIds[$name])) {
+                $uom[$legacy] = $uomIds[$name];
+            }
+        }
+
+        $departmentIds = WorkshopDepartmentMaster::pluck('id', 'name')->all();
+        $departments = [];
+        foreach (self::WORKSHOP_DEPARTMENTS as $legacy => $name) {
+            if (isset($departmentIds[$name])) {
+                $departments[$legacy] = $departmentIds[$name];
+            }
+        }
+
+        return [
+            'brand' => SpareBrandMaster::pluck('id', 'name')->all(),
+            'hsn' => HsnMaster::pluck('id', 'code')->all(),
+            'tax' => TaxMaster::pluck('id', 'name')->all(),
+            'group' => InventoryGroupMaster::whereNull('parent_id')->pluck('id', 'name')->all(),
+            'subGroup' => InventoryGroupMaster::whereNotNull('parent_id')->pluck('id', 'name')->all(),
+            'uom' => $uom,
+            'department' => $departments,
+        ];
     }
 }

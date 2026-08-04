@@ -262,6 +262,52 @@
             </div>
         </section>
 
+        @if ($this->rateHistory->isNotEmpty())
+        <flux:separator />
+
+        {{-- Rate History --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Rate History</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Every dated rate revision for this part. Read-only &mdash; the newest one is what the fields above hold.</flux:text>
+            </div>
+            <div class="min-w-0">
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Effective From</flux:table.column>
+                        <flux:table.column align="end">Rate (Before Tax)</flux:table.column>
+                        <flux:table.column align="end">MRP</flux:table.column>
+                        <flux:table.column align="end">Change</flux:table.column>
+                        <flux:table.column>Brand</flux:table.column>
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @foreach ($this->rateHistory as $i => $revision)
+                            @php($previous = $this->rateHistory[$i + 1] ?? null)
+                            @php($delta = $previous && (float) $previous->rate_before_tax > 0
+                                ? round(((float) $revision->rate_before_tax - (float) $previous->rate_before_tax) / (float) $previous->rate_before_tax * 100, 1)
+                                : null)
+                            <flux:table.row wire:key="rate-{{ $revision->id }}">
+                                <flux:table.cell>{{ $revision->effective_from?->format('d M Y') ?? '—' }}</flux:table.cell>
+                                <flux:table.cell align="end" class="font-mono">₹{{ number_format((float) $revision->rate_before_tax, 2) }}</flux:table.cell>
+                                <flux:table.cell align="end" class="font-mono">{{ $revision->mrp === null ? '—' : '₹'.number_format((float) $revision->mrp, 2) }}</flux:table.cell>
+                                <flux:table.cell align="end">
+                                    @if ($delta === null)
+                                        <flux:text size="sm" class="text-zinc-400">—</flux:text>
+                                    @else
+                                        <flux:badge size="sm" :color="$delta > 0 ? 'red' : ($delta < 0 ? 'green' : 'zinc')" inset="top bottom">
+                                            {{ $delta > 0 ? '+' : '' }}{{ number_format($delta, 1) }}%
+                                        </flux:badge>
+                                    @endif
+                                </flux:table.cell>
+                                <flux:table.cell>{{ $revision->brand?->name ?? '—' }}</flux:table.cell>
+                            </flux:table.row>
+                        @endforeach
+                    </flux:table.rows>
+                </flux:table>
+            </div>
+        </section>
+        @endif
+
         <flux:separator />
 
         {{-- INVENTORY PLACEMENT --}}

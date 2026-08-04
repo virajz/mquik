@@ -5,7 +5,10 @@
         <flux:text size="sm" class="mt-1 text-zinc-500">Walk-in customer, delivery, warranty and staff for this over-the-counter parts sale.</flux:text>
     </div>
     <div class="space-y-4 min-w-0">
-        <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Search name or mobile…" required>
+        <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Search name or mobile…" required :filter="false">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                </x-slot>
             @foreach ($this->customers as $c)
                 <flux:select.option :value="$c['id']" wire:key="cust-{{ $c['id'] }}">{{ $c['label'] }}</flux:select.option>
             @endforeach

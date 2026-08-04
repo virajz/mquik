@@ -5,6 +5,7 @@ use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Livewire\Edit;
 use App\Modules\SpareMaster\Livewire\Index;
 use App\Modules\SpareMaster\Models\SpareMaster;
+use App\Modules\SpareMaster\Models\SpareRateHistory;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
@@ -320,4 +321,45 @@ it('stores a spare image / application guide attachment', function () {
         ->and($spare->attachments->first()->attachment_type)->toBe('spare_image')
         ->and($spare->attachments->first()->kind)->toBe('image');
     Storage::disk('public')->assertExists($spare->attachments->first()->path);
+});
+
+it('records a dated rate revision when the rate changes', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'BRAKE PAD', 'rate_before_tax' => 1000]);
+
+    Livewire::test(Edit::class, ['spare' => $spare])
+        ->set('rate_before_tax', 1250)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $revision = $spare->fresh()->rateHistory->first();
+    expect((float) $revision->rate_before_tax)->toBe(1250.0)
+        ->and($revision->source)->toBe(SpareRateHistory::SOURCE_MANUAL)
+        ->and($revision->effective_from->isToday())->toBeTrue();
+
+    // Saving again without touching the rate must not pile up duplicates.
+    Livewire::test(Edit::class, ['spare' => $spare->fresh()])
+        ->set('description', 'FRONT AXLE')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($spare->fresh()->rateHistory)->toHaveCount(1);
+});
+
+it('shows the rate history newest-first on the edit page', function () {
+    $spare = SpareMaster::factory()->create(['rate_before_tax' => 1773.44]);
+    $spare->rateHistory()->createMany([
+        ['rate_before_tax' => 1540.62, 'mrp' => 1817.93, 'effective_from' => '2021-02-01'],
+        ['rate_before_tax' => 1773.44, 'mrp' => 2092.66, 'effective_from' => '2025-07-07'],
+    ]);
+
+    Livewire::test(Edit::class, ['spare' => $spare])
+        ->assertSee('Rate History')
+        ->assertSeeInOrder(['07 Jul 2025', '01 Feb 2021'])
+        // Change vs. the previous revision; the oldest row has nothing to compare to.
+        ->assertSee('+15.1%');
+});
+
+it('hides the rate history section for a spare that has none', function () {
+    Livewire::test(Edit::class, ['spare' => SpareMaster::factory()->create()])
+        ->assertDontSee('Rate History');
 });

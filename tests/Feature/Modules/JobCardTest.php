@@ -795,3 +795,17 @@ it('stamps technician_assigned_at when a technician is assigned and clears it wh
     $card->update(['assigned_technician_id' => null]);
     expect($card->fresh()->technician_assigned_at)->toBeNull();
 });
+
+it('server-side searches the vehicle picker by registration and owner name', function () {
+    $owner = CustomerMaster::factory()->create(['is_active' => true, 'first_name' => 'Zoravar', 'last_name' => 'Singh']);
+    $veh = CustomerVehicleMaster::factory()->create(['is_active' => true, 'customer_id' => $owner->id, 'registration_no' => 'GJ01ZZ9999']);
+    $other = CustomerVehicleMaster::factory()->create(['is_active' => true, 'registration_no' => 'GJ01AA1111']);
+
+    // Owner name reaches the vehicle via the relation whereHas path.
+    $ids = collect(Livewire::test(Edit::class)->set('vehicleSearch', 'Zoravar')->get('vehiclePickerOptions'))->pluck('id');
+    expect($ids)->toContain($veh->id)->not->toContain($other->id);
+
+    // Registration number reaches it too.
+    $ids = collect(Livewire::test(Edit::class)->set('vehicleSearch', 'GJ01ZZ9999')->get('vehiclePickerOptions'))->pluck('id');
+    expect($ids)->toContain($veh->id)->not->toContain($other->id);
+});

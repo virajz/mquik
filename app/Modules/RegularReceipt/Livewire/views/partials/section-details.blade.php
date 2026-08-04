@@ -6,7 +6,10 @@
     </div>
     <div class="space-y-4 min-w-0">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Search name or mobile…" required>
+            <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Search name or mobile…" required :filter="false">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                </x-slot>
                 @foreach ($this->customers as $c)
                     <flux:select.option :value="$c['id']" wire:key="cust-{{ $c['id'] }}">{{ $c['label'] }}</flux:select.option>
                 @endforeach

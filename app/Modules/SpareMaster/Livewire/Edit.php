@@ -9,7 +9,9 @@ use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\RackMaster\Models\RackMaster;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
+use App\Modules\SpareMaster\Models\SpareAttachment;
 use App\Modules\SpareMaster\Models\SpareMaster;
+use App\Modules\SpareMaster\Models\SpareRateHistory;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
@@ -17,7 +19,6 @@ use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use App\Modules\SpareMaster\Models\SpareAttachment;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -273,6 +274,25 @@ class Edit extends Component
         );
     }
 
+    /**
+     * Dated purchase-rate revisions, newest first — carried over from the old
+     * ERP and grown by later rate changes. Read-only here.
+     */
+    #[Computed]
+    public function rateHistory()
+    {
+        if (! $this->editingId) {
+            return collect();
+        }
+
+        return SpareRateHistory::query()
+            ->with('brand:id,name')
+            ->where('spare_id', $this->editingId)
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->get();
+    }
+
     #[Computed]
     public function taxes()
     {
@@ -433,10 +453,24 @@ class Edit extends Component
         $spare = DB::transaction(function () use ($data, $variants, $attachments) {
             if ($this->editingId) {
                 $s = SpareMaster::findOrFail($this->editingId);
+                $rateChanged = (float) $s->rate_before_tax !== (float) ($data['rate_before_tax'] ?? 0);
                 $s->update($data);
             } else {
                 $s = SpareMaster::create($data);
                 $this->editingId = $s->id;
+                $rateChanged = true;
+            }
+
+            // Every rate the part has ever carried stays on record, so price
+            // movement remains visible after the legacy import stops feeding it.
+            if ($rateChanged) {
+                $s->rateHistory()->create([
+                    'spare_brand_id' => $s->spare_brand_id,
+                    'rate_before_tax' => $s->rate_before_tax,
+                    'mrp' => $s->mrp,
+                    'effective_from' => today(),
+                    'source' => SpareRateHistory::SOURCE_MANUAL,
+                ]);
             }
 
             $s->vehicleVariants()->sync(array_map('intval', $variants));
@@ -444,6 +478,8 @@ class Edit extends Component
 
             return $s;
         });
+
+        unset($this->rateHistory);
 
         $this->attachmentFiles = [];
 

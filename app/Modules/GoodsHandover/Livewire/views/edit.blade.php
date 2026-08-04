@@ -43,7 +43,7 @@
                         <x-slot name="search"><flux:select.search wire:model.live.debounce.250ms="fwoSearch" placeholder="Search FWO…" /></x-slot>
                         @foreach ($this->workOrders as $w)<flux:select.option :value="$w->id" wire:key="fwo-{{ $w->id }}">{{ $w->order_no }}</flux:select.option>@endforeach
                     </flux:select>
-                    <flux:select wire:model="job_card_id" variant="listbox" searchable clearable :filter="false" label="Job Card" placeholder="JC…">
+                    <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable :filter="false" label="Job Card" placeholder="JC…">
                         <x-slot name="search"><flux:select.search wire:model.live.debounce.250ms="jobCardSearch" placeholder="Search job card…" /></x-slot>
                         @foreach ($this->jobCards as $jc)<flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">{{ $jc->job_card_no }}</flux:select.option>@endforeach
                     </flux:select>

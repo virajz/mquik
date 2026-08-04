@@ -584,6 +584,34 @@ class Edit extends Component
         return redirect()->route('sales-estimate.edit', $new->id);
     }
 
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->customer_id = $jobCard->customer_id;
+        $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+        $this->department_id = $jobCard->workshop_department_id;
+        $this->service_type_id = $jobCard->service_type_id;
+        $this->advisor_id = $jobCard->assigned_advisor_id;
+        $this->technician_id = $jobCard->assigned_technician_id;
+        $this->insurance_company_id = $jobCard->insurance_company_id;
+        $this->policy_no = $jobCard->policy_no;
+        $this->service_package_id = $jobCard->service_package_id;
+    }
+
     public function render()
     {
         return view('sales-estimate::edit');

@@ -2,6 +2,7 @@
 
 namespace App\Modules\DocumentCollection\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use App\Modules\ClaimTypeMaster\Models\ClaimTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
@@ -34,6 +35,7 @@ use Livewire\WithFileUploads;
 #[Title('Document Collection')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
     use WithFileUploads;
 
     public ?int $editingId = null;
@@ -41,6 +43,9 @@ class Edit extends Component
     public ?string $doc_collection_no = null;
 
     public ?int $customer_id = null;
+
+    /** Search term for the server-backed customer picker (~9.7k rows). */
+    public string $customerSearch = '';
 
     public ?int $customer_vehicle_id = null;
 
@@ -328,7 +333,19 @@ class Edit extends Component
     #[Computed]
     public function customers()
     {
-        return CustomerMaster::query()->where('is_active', true)->orderBy('first_name')->limit(200)->get(['id', 'first_name', 'last_name', 'phone']);
+        // Server-side search: the customer master is ~9.7k rows, so a fixed
+        // client-side slice would hide everyone past the first page. The
+        // selected customer is always retained so an edit form keeps its label.
+        return $this->pickerOptions(
+            query: CustomerMaster::query()
+                ->where('is_active', true)
+                ->orderBy('first_name'),
+            searchColumns: ['first_name', 'last_name', 'phone'],
+            term: $this->customerSearch,
+            selected: $this->customer_id,
+            columns: ['id', 'first_name', 'last_name', 'phone'],
+            limit: 30,
+        );
     }
 
     #[Computed]

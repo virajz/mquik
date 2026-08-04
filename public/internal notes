@@ -231,3 +231,61 @@ Users:
 ## Customer Vehicle:
 
 - remove km, it is not required here, it will be fetched from the first job card created, not required when creating a new vehicle
+
+# 1 Aug 2026:
+
+## Document Collection
+
+- Select job card and then fetch the customer details. In rare case Job card is not there, we can do manual selection
+- job card may have insurance related details, in that we
+- customer list is only filtering the first few which are shown (have noticed this on other places as well)
+- only advisor should be shown, not all the
+- remove insurance section while creating job card, it should be fetched from the job card, and manually when only editing
+- delete document files, once the job card completes a year.
+- time should be auto captured, not a manual edit of time.
+- multiple follow up dates for a document collection, right now it's single only.
+- advisor can select the reminder time, we need to send message, we will log that entry as auto followup, advisors can add manual followup of call / whatsapp only if the need be
+- change status automatically based on the document received, or follow up sent etc
+- Change Open label: Open -> Edit
+
+## Employee
+
+- provide a combined list of Designation and Department, right now they are not linked
+
+## General
+
+- When car arrives and job card is created, we want to capture all the times and see it on a vehicle level. For example, inward happened today at 10:00, job card created 11:00, assigned for inspection at 12:00, part ordered, document collection delay etc, so a complete timeline for a vehicle for a complete inquiry to job card to outward. Anything happens in between should map to a complete timeline.
+- allow fuzzy searching everywhere like customers
+- many modules are missing the export import
+- when job card is selected, things are not getting auto populated
+- customer, vehicles, and job cards have many actions associated with them, can we provide a side panel or smart way to directly jump to that area. For example, in the customer I'd like a side panel, which opens all the actions and area available for a customer, I can click on job cards or documents, it will bring me to that section of the app, or open in in new link with filtered only for that customer.
+
+## Vehicle Inspection Order
+
+- all list item should come from job card, right now, we are manually selecting inspection list on both places
+- which ever items are provided in the check list should be shown in the VIO
+- allow to assign multiple technician to a single work order
+- check possibility to send this to queue management directly, if everything can be seen via the queue management, we can track and commit as per the workload, need the improved UI
+
+## Inward (Very Important)
+
+- vehicle inward
+- create job card based on inward
+- vehicle inspection order based on job card (we need to provide timer for individual technician)
+    - insepction & report
+    - direct job
+- findings
+- need to generate a report which will be sent to advisor of what needs to be done
+- store inquiry or Internal Parts Inquiry
+- if store doesn't have the parts, generate Vendor Parts Iqnuiry - send parts inquiry message to vendor, need to send VIN number with Image, multiple vendors
+- Vendor responds, check price warranty etc
+- customer approval
+- Convert VPI to VPO or IPI to IPO
+- IPO to VPO if parts are not available
+- Vendor sends parts
+- Store Executive - Goods received and verification (should be very simple checklist)
+- Service Advisor gets notification, store incharge should get notification
+- Handover (carry forward from Goods received)
+- Both way verification of good given and received
+- Continue Vehicle inspection and work (time to be measured here as well)
+- Advisor will receive notification

@@ -125,3 +125,14 @@ it('deletes a counter invoice from the index', function () {
 
     expect(CounterSalesInvoice::find($inv->id))->toBeNull();
 });
+
+it('server-side searches customers by name and phone', function () {
+    $a = CustomerMaster::factory()->create(['is_active' => true, 'first_name' => 'Zoravar', 'phone' => '9876500042']);
+    $b = CustomerMaster::factory()->create(['is_active' => true, 'first_name' => 'Bhavesh', 'phone' => '9000000001']);
+
+    $ids = collect(Livewire::test(Edit::class)->set('customerSearch', 'Zoravar')->get('customers'))->pluck('id');
+    expect($ids)->toContain($a->id)->not->toContain($b->id);
+
+    $ids = collect(Livewire::test(Edit::class)->set('customerSearch', '9876500042')->get('customers'))->pluck('id');
+    expect($ids)->toContain($a->id)->not->toContain($b->id);
+});

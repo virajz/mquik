@@ -20,7 +20,10 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Search name or mobile…" required>
+            <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Search name or mobile…" required :filter="false">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                </x-slot>
                 @foreach ($this->customers as $c)
                     <flux:select.option :value="$c['id']" wire:key="cust-{{ $c['id'] }}">{{ $c['label'] }}</flux:select.option>
                 @endforeach
@@ -64,7 +67,7 @@
                         <flux:select.option :value="$r->id" wire:key="rr-{{ $r->id }}">{{ $r->receipt_no }}</flux:select.option>
                     @endforeach
                 </flux:select>
-                <flux:select wire:model="job_card_id" variant="listbox" searchable clearable label="Job Card" placeholder="—">
+                <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable label="Job Card" placeholder="—">
                     @foreach ($this->jobCards as $jc)
                         <flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">{{ $jc->job_card_no }}</flux:select.option>
                     @endforeach

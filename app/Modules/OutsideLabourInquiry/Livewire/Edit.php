@@ -504,6 +504,28 @@ class Edit extends Component
         $inquiry->attachments()->whereKeyNot($keptIds)->delete();
     }
 
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->workshop_department_id = $jobCard->workshop_department_id;
+        $this->customer_id = $jobCard->customer_id;
+        $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+    }
+
     public function render()
     {
         return view('outside-labour-inquiry::edit');

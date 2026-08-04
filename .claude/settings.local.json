@@ -8,7 +8,9 @@
       "Bash(php artisan *)",
       "Bash(composer dump-autoload *)",
       "Bash(vendor/bin/pint --dirty --format agent)",
-      "Bash(composer require *)"
+      "Bash(composer require *)",
+      "mcp__laravel-boost__database-schema",
+      "mcp__laravel-boost__database-query"
     ]
   }
 }

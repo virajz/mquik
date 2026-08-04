@@ -426,6 +426,26 @@ class Edit extends Component
         $handover->attachments()->whereKeyNot($keptIds)->delete();
     }
 
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->workshop_department_id = $jobCard->workshop_department_id;
+    }
+
     public function render()
     {
         return view('goods-handover::edit');

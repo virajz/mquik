@@ -14,7 +14,7 @@
         <flux:error name="customer_id" />
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <flux:select wire:model="job_card_id" variant="listbox" searchable clearable label="Job Card" placeholder="Link…">
+            <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable label="Job Card" placeholder="Link…">
                 @foreach ($this->jobCards as $jc)
                     <flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">{{ $jc->job_card_no }}</flux:select.option>
                 @endforeach

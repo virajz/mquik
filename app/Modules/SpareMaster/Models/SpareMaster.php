@@ -90,6 +90,14 @@ class SpareMaster extends Model
         return $this->hasMany(SpareAttachment::class, 'spare_id')->orderBy('sequence_no');
     }
 
+    /** Dated purchase-rate revisions, newest first. */
+    public function rateHistory(): HasMany
+    {
+        return $this->hasMany(SpareRateHistory::class, 'spare_id')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id');
+    }
+
     public function hsn(): BelongsTo
     {
         return $this->belongsTo(HsnMaster::class, 'hsn_id');

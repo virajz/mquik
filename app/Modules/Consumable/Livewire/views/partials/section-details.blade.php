@@ -11,7 +11,7 @@
                     <flux:select.option :value="$c->id" wire:key="cat-{{ $c->id }}">{{ $c->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="job_card_id" variant="listbox" searchable clearable label="Job Card" placeholder="Link…">
+            <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable label="Job Card" placeholder="Link…">
                 @foreach ($this->jobCards as $jc)
                     <flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">{{ $jc->job_card_no }}</flux:select.option>
                 @endforeach

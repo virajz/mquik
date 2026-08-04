@@ -5,7 +5,10 @@
         <flux:text size="sm" class="mt-1 text-zinc-500">Whose documents are being collected, and for which vehicle.</flux:text>
     </div>
     <div class="space-y-4 min-w-0">
-        <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Pick a customer…" required>
+        <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Pick a customer…" required :filter="false">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                </x-slot>
             @foreach ($this->customers as $c)
                 <flux:select.option :value="$c->id" wire:key="dc-cust-{{ $c->id }}">{{ trim($c->first_name.' '.($c->last_name ?? '')) }}{{ $c->phone ? ' · '.$c->phone : '' }}</flux:select.option>
             @endforeach

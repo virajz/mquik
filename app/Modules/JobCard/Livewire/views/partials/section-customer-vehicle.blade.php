@@ -8,10 +8,14 @@
             wire:model.live="customer_vehicle_id"
             variant="listbox"
             searchable
+            :filter="false"
             label="Customer & Vehicle"
             placeholder="Search reg no or customer…"
             required
         >
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Registration no or customer name…" />
+            </x-slot>
             @foreach ($this->vehiclePickerOptions as $v)
                 <flux:select.option :value="$v['id']" wire:key="cv-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
             @endforeach

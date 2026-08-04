@@ -299,4 +299,15 @@ class JobCard extends Model
             'full' => 'Full',
         ];
     }
+
+    /** How the vehicle arrived at the workshop. @return array<string, string> */
+    public static function broughtByOptions(): array
+    {
+        return [
+            'owner' => 'Owner',
+            'driver' => 'Driver',
+            'pickup' => 'Pickup',
+            'towing' => 'Towing',
+        ];
+    }
 }

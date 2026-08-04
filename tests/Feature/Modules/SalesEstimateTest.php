@@ -2,9 +2,11 @@
 
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\SalesEstimate\Livewire\Edit;
 use App\Modules\SalesEstimate\Livewire\Index;
 use App\Modules\SalesEstimate\Models\SalesEstimate;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -98,4 +100,18 @@ it('deletes an estimate from the index', function () {
     Livewire::test(Index::class)->call('delete', $est->id);
 
     expect(SalesEstimate::find($est->id))->toBeNull();
+});
+
+it('derives customer, vehicle, department and service context from the picked job card', function () {
+    $jc = JobCard::factory()->create([
+        'service_type_id' => ServiceTypeMaster::factory(),
+    ]);
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jc->id)
+        ->assertSet('customer_id', $jc->customer_id)
+        ->assertSet('customer_vehicle_id', $jc->customer_vehicle_id)
+        ->assertSet('department_id', $jc->workshop_department_id)
+        ->assertSet('service_type_id', $jc->service_type_id)
+        ->assertSet('advisor_id', $jc->assigned_advisor_id);
 });

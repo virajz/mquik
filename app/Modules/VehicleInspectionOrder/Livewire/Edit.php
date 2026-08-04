@@ -109,7 +109,29 @@ class Edit extends Component
 
         if ($this->fromJobCard) {
             $this->job_card_id = $this->fromJobCard;
+            $this->prefillFromJobCard();
         }
+    }
+
+    /** Populate department / service / advisor / technician from the picked job card. */
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+        $jc = JobCard::find($this->job_card_id);
+        if (! $jc) {
+            return;
+        }
+        $this->department_id = $jc->workshop_department_id;
+        $this->service_type_id = $jc->service_type_id;
+        $this->advisor_id = $jc->assigned_advisor_id;
+        $this->technician_id = $jc->assigned_technician_id;
     }
 
     protected function load(VehicleInspectionOrder $order): void

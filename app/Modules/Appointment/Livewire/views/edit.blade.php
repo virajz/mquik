@@ -126,8 +126,12 @@
                                 wire:model.live="customer_id"
                                 variant="listbox"
                                 searchable
+                                :filter="false"
                                 placeholder="Pick a customer…"
                             >
+                                <x-slot name="search">
+                                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                                </x-slot>
                                 @foreach ($this->customers as $c)
                                     <flux:select.option :value="$c->id" wire:key="cust-{{ $c->id }}">
                                         {{ trim($c->first_name.' '.($c->last_name ?? '')) }}{{ $c->phone ? ' · '.$c->phone : '' }}

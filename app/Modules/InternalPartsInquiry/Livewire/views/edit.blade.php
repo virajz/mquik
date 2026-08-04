@@ -77,7 +77,7 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="job_card_id" variant="listbox" searchable clearable :filter="false" label="Job Card" placeholder="Link a job card…">
+                    <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable :filter="false" label="Job Card" placeholder="Link a job card…">
                         <x-slot name="search">
                             <flux:select.search wire:model.live.debounce.250ms="jobCardSearch" placeholder="Search job card…" />
                         </x-slot>

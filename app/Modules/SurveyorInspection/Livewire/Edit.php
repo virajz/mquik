@@ -337,6 +337,28 @@ class Edit extends Component
         $inspection->attachments()->whereKeyNot($keptIds)->delete();
     }
 
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->customer_id = $jobCard->customer_id;
+        $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+        $this->insurance_company_id = $jobCard->insurance_company_id;
+    }
+
     public function render()
     {
         return view('surveyor-inspection::edit');

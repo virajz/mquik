@@ -332,6 +332,26 @@ class Edit extends Component
         $di->items()->whereNotIn('id', $keptIds)->delete();
     }
 
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->assigned_technician_id = $jobCard->assigned_technician_id;
+    }
+
     public function render()
     {
         return view('digital-inspection::edit');

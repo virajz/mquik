@@ -28,7 +28,7 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Pick the job card and template, assign a technician.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:select wire:model="job_card_id" variant="listbox" searchable label="Job Card" placeholder="Pick an open job card…" required>
+                <flux:select wire:model.live="job_card_id" variant="listbox" searchable label="Job Card" placeholder="Pick an open job card…" required>
                     @foreach ($this->jobCards as $jc)
                         <flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">
                             {{ $jc->job_card_no }} — {{ trim($jc->customer?->first_name.' '.($jc->customer?->last_name ?? '')) }}

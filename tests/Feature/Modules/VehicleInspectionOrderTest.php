@@ -14,6 +14,7 @@ use App\Modules\VehicleInspectionOrder\Livewire\Edit;
 use App\Modules\VehicleInspectionOrder\Livewire\Index;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -312,4 +313,22 @@ it('does not reset a running timer when the order form is saved', function () {
     $scope->refresh();
     expect($scope->work_status)->toBe('in_progress')
         ->and($scope->run_started_at)->not->toBeNull();
+});
+
+it('populates department, service type, advisor and technician when a job card is picked', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+    $tech = EmployeeMaster::factory()->create();
+    $jobCard = JobCard::factory()->create([
+        'workshop_department_id' => $dept->id,
+        'assigned_advisor_id' => $advisor->id,
+        'assigned_technician_id' => $tech->id,
+    ]);
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jobCard->id)
+        ->assertSet('department_id', $dept->id)
+        ->assertSet('advisor_id', $advisor->id)
+        ->assertSet('technician_id', $tech->id)
+        ->assertSet('service_type_id', $jobCard->service_type_id);
 });

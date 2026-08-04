@@ -128,9 +128,13 @@
                             <flux:text size="sm" class="mt-1 text-zinc-500">Snapshot of the vehicle's odometer and fuel level when received.</flux:text>
                         </div>
                         <div class="space-y-4 min-w-0">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <flux:input.group label="Odometer (km)">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <flux:input.group label="Odometer In (km)">
                                     <flux:input wire:model="km_at_service" type="number" min="0" placeholder="45000" class:input="text-right font-mono" />
+                                    <flux:input.group.suffix>km</flux:input.group.suffix>
+                                </flux:input.group>
+                                <flux:input.group label="Odometer Out (km)">
+                                    <flux:input wire:model="odometer_out" type="number" min="0" placeholder="—" class:input="text-right font-mono" />
                                     <flux:input.group.suffix>km</flux:input.group.suffix>
                                 </flux:input.group>
                                 <flux:select wire:model="fuel_level" variant="listbox" clearable label="Fuel Level" placeholder="—">
@@ -138,6 +142,20 @@
                                         <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                                     @endforeach
                                 </flux:select>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <flux:select wire:model="brought_by" variant="listbox" clearable label="Brought By" placeholder="Owner / Driver…">
+                                    @foreach (\App\Modules\JobCard\Models\JobCard::broughtByOptions() as $key => $label)
+                                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:input.group label="Avg. Mileage">
+                                    <flux:input wire:model="avg_mileage" type="number" min="0" placeholder="—" class:input="text-right font-mono" />
+                                    <flux:input.group.suffix>km/l</flux:input.group.suffix>
+                                </flux:input.group>
+                                @if ($legacy_bill_no)
+                                    <flux:input label="Billed Under (legacy)" wire:model="legacy_bill_no" readonly class:input="font-mono" />
+                                @endif
                             </div>
                         </div>
                     </section>
@@ -371,6 +389,12 @@
                                 label="Suggested Services"
                                 placeholder="e.g. Recommended brake fluid change due to age + alignment check."
                                 rows="3"
+                            />
+                            <flux:textarea
+                                wire:model="additional_work"
+                                label="Additional / Other Work"
+                                placeholder="Extra repairs beyond the standard list (e.g. wheel balancing 17&quot; alloy, gum removing)."
+                                rows="2"
                             />
                             <flux:textarea
                                 wire:model="notes"

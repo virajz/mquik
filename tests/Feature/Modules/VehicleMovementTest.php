@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\VehicleMovement\Livewire\Edit;
 use App\Modules\VehicleMovement\Livewire\Index;
 use App\Modules\VehicleMovement\Models\VehicleMovement;
@@ -95,4 +97,14 @@ it('downloads the inward/outward register as a CSV stream', function () {
     VehicleMovement::factory()->count(2)->create();
 
     Livewire::test(Index::class)->call('download')->assertFileDownloaded();
+});
+
+it('derives the vehicle and number plate from the picked job card', function () {
+    $jc = JobCard::factory()->create();
+    $vehicle = CustomerVehicleMaster::find($jc->customer_vehicle_id);
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jc->id)
+        ->assertSet('customer_vehicle_id', $jc->customer_vehicle_id)
+        ->assertSet('number_plate', $vehicle->registration_no);
 });

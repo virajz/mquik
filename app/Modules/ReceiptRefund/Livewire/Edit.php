@@ -2,6 +2,7 @@
 
 namespace App\Modules\ReceiptRefund\Livewire;
 
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\BankMaster\Models\BankMaster;
 use App\Modules\ChequeBounceReasonMaster\Models\ChequeBounceReasonMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
@@ -35,6 +36,7 @@ use Livewire\WithFileUploads;
 #[Title('Receipt Refund')]
 class Edit extends Component
 {
+    use SearchesPickerOptions;
     use WithFileUploads;
 
     public ?int $editingId = null;
@@ -46,6 +48,9 @@ class Edit extends Component
     public string $refund_status = 'requested';
 
     public ?int $customer_id = null;
+
+    /** Search term for the server-backed customer picker (~9.7k rows). */
+    public string $customerSearch = '';
 
     public ?int $customer_vehicle_id = null;
 
@@ -197,17 +202,19 @@ class Edit extends Component
     #[Computed]
     public function customers()
     {
-        $rows = CustomerMaster::query()->where('is_active', true)->orderByDesc('id')->limit(300)
-            ->get(['id', 'first_name', 'last_name', 'phone']);
-
-        if ($this->customer_id && ! $rows->contains('id', $this->customer_id)) {
-            $sel = CustomerMaster::find($this->customer_id);
-            if ($sel) {
-                $rows->prepend($sel);
-            }
-        }
-
-        return $rows->map(fn ($c) => [
+        // Server-side search: the customer master is ~9.7k rows, so a fixed
+        // client-side slice would hide everyone past the first page. The
+        // selected customer is always retained so an edit form keeps its label.
+        return $this->pickerOptions(
+            query: CustomerMaster::query()
+                ->where('is_active', true)
+                ->orderByDesc('id'),
+            searchColumns: ['first_name', 'last_name', 'phone'],
+            term: $this->customerSearch,
+            selected: $this->customer_id,
+            columns: ['id', 'first_name', 'last_name', 'phone'],
+            limit: 30,
+        )->map(fn ($c) => [
             'id' => $c->id,
             'label' => trim($c->first_name.' '.($c->last_name ?? '')).($c->phone ? ' · '.$c->phone : ''),
         ]);
@@ -401,6 +408,31 @@ class Edit extends Component
                 'size_bytes' => $file->getSize(),
             ]);
         }
+    }
+
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->customer_id = $jobCard->customer_id;
+        $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+        $this->insurance_company_id = $jobCard->insurance_company_id;
+        $this->department_id = $jobCard->workshop_department_id;
+        $this->service_type_id = $jobCard->service_type_id;
+        $this->advisor_id = $jobCard->assigned_advisor_id;
     }
 
     public function render()

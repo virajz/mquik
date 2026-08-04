@@ -59,6 +59,9 @@ class Edit extends Component
 
     public ?int $customer_id = null;
 
+    /** Search term for the server-backed customer+vehicle picker (~10k rows). */
+    public string $vehicleSearch = '';
+
     public ?int $customer_vehicle_id = null;
 
     public ?int $workshop_department_id = null;
@@ -98,9 +101,20 @@ class Edit extends Component
 
     public ?int $km_at_service = null;
 
+    public ?int $odometer_out = null;
+
+    public ?int $avg_mileage = null;
+
+    public ?string $brought_by = null;
+
     public ?string $fuel_level = null;
 
     public ?string $suggested_services = null;
+
+    public ?string $additional_work = null;
+
+    /** Read-only: the old-ERP bill number this card was billed under (links to the imported invoice). */
+    public ?string $legacy_bill_no = null;
 
     public bool $terms_accepted = false;
 
@@ -200,6 +214,11 @@ class Edit extends Component
         $this->expected_completion_time = $jc->expected_completion_at?->format('H:i') ?? '';
         $this->km_at_service = $jc->km_at_service;
         $this->fuel_level = $jc->fuel_level;
+        $this->odometer_out = $jc->odometer_out;
+        $this->avg_mileage = $jc->avg_mileage;
+        $this->brought_by = $jc->brought_by;
+        $this->additional_work = $jc->additional_work;
+        $this->legacy_bill_no = $jc->legacy_bill_no;
         $this->suggested_services = $jc->suggested_services;
         $this->terms_accepted = (bool) $jc->terms_accepted;
         $this->status = $jc->status;
@@ -303,6 +322,10 @@ class Edit extends Component
             'expected_completion_time' => ['nullable', 'date_format:H:i'],
             'km_at_service' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'fuel_level' => ['nullable', Rule::in(array_keys(JobCard::fuelLevels()))],
+            'odometer_out' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'avg_mileage' => ['nullable', 'integer', 'min:0', 'max:32767'],
+            'brought_by' => ['nullable', Rule::in(array_keys(JobCard::broughtByOptions()))],
+            'additional_work' => ['nullable', 'string', 'max:2000'],
             'suggested_services' => ['nullable', 'string', 'max:2000'],
             'terms_accepted' => ['boolean'],
             'status' => ['required', Rule::in(array_keys(JobCard::statuses()))],
@@ -429,23 +452,20 @@ class Edit extends Component
     #[Computed]
     public function vehiclePickerOptions()
     {
-        $rows = CustomerVehicleMaster::query()
-            ->with(['model.brand:id,name', 'customer:id,first_name,last_name'])
-            ->where('is_active', true)
-            ->orderByDesc('id')
-            ->limit(300)
-            ->get(['id', 'registration_no', 'model_id', 'customer_id']);
-
-        if ($this->customer_vehicle_id && ! $rows->contains('id', $this->customer_vehicle_id)) {
-            $selected = CustomerVehicleMaster::query()
+        // Server-side search: ~10k vehicles, so a fixed client-side slice would
+        // hide everyone past the first page. Searchable by registration number
+        // or the owner's name; the selected vehicle is always retained.
+        return $this->pickerOptions(
+            query: CustomerVehicleMaster::query()
                 ->with(['model.brand:id,name', 'customer:id,first_name,last_name'])
-                ->find($this->customer_vehicle_id);
-            if ($selected) {
-                $rows->prepend($selected);
-            }
-        }
-
-        return $rows->map(fn ($v) => [
+                ->where('is_active', true)
+                ->orderByDesc('id'),
+            searchColumns: ['registration_no', 'customer.first_name', 'customer.last_name'],
+            term: $this->vehicleSearch,
+            selected: $this->customer_vehicle_id,
+            columns: ['id', 'registration_no', 'model_id', 'customer_id'],
+            limit: 30,
+        )->map(fn ($v) => [
             'id' => $v->id,
             'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no
                 .' · '.trim($v->customer?->first_name.' '.($v->customer?->last_name ?? '')),

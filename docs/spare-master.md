@@ -56,3 +56,89 @@ table. Existing spares, the vehicle-compatibility pivot and the price/tax logic 
 - Attachments allow multiple files per type; the importer/exporter were not extended to carry the new
   `inventory_type` column or attachments (add to `SpareImporter`/`SpareExporter` if bulk round-tripping them
   matters).
+
+---
+
+# Legacy spare-master import (2026-08-04)
+
+The client's previous-ERP spare export (`Spare Master data upload.csv`, 30,635 rows) is now imported by
+`MasterDataSeeder::seedSpares()` from `database/seeders/data/master-data/Spare.csv`.
+
+## Result
+
+**29,680 spares + 30,635 dated rate revisions.** Coverage: 29,661 have an HSN, 29,680 a tax slab, 29,667 a
+UoM, 29,681 an inventory group, 29,673 a workshop department, 23,914 a part number.
+
+Masters auto-created from the data: **948 HSN codes** (965 total), **4 UoMs** (SQF/SQM/ROL/CYL), **4 spare
+brands** (773 total). Inventory groups/sub-groups were already seeded from `InvGroup`/`InvSubGroup`.
+
+## Rate history — new
+
+The old ERP stored one row per price revision (its `WEF` "with effect from" column), all sharing a part
+number. That can't live on `spares`, which holds a single current rate — so:
+
+- **`spare_rate_history`** (migration `2026_08_04_090000`) — `spare_id`, `spare_brand_id`, `rate_before_tax`,
+  `mrp`, `effective_from`, `source` (`legacy_import` / `manual`), `remark`.
+- Rows sharing a natural key collapse into **one spare carrying the newest revision**; every revision
+  (including the newest) is kept as history. e.g. part `48068-0D081` — ₹1,540.62 (Feb 2021) → ₹1,568.36
+  (Feb 2022) → ₹1,773.44 (Jul 2025).
+- The Spare edit page gained a read-only **Rate History** section (date, rate, MRP, % change vs. the previous
+  revision, brand), shown only when history exists.
+- Saving a spare with a changed rate now writes a `manual` revision dated today, so the trail keeps growing.
+- **`spares.legacy_key`** (migration `2026_08_04_090100`) — sha1 of the natural key; makes the import
+  idempotent and matches history rows back to their spare without relying on insert order.
+
+## Column mapping
+
+| CSV | → | Note |
+|---|---|---|
+| PartName / PartDescription / PartNo | name / description / spare_code | uppercased |
+| HSNACSNo | hsn_id | digits ≤ 8 only; created if missing, GST% from `Vat` |
+| Company | spare_brand_id | created if missing |
+| UOM | uom_id | code match (PCS→PIECES, SET→SETS, LTR→LITRES, KGS/KG→KILOGRAMS…) |
+| Rate / TotalAmount | rate_before_tax / mrp | verified: TotalAmount = Rate × 1.18 at Vat 9 |
+| Vat | tax_id | half-rate: 9→GST 18%, 2.5→GST 5%, 0→NIL RATED |
+| InvGroupName / InvSubGroupName | inventory_group_id / inventory_sub_group_id | |
+| DepartmentName | **inventory_type** | exact 7-for-7 match with the enum |
+| MainDepartmentName | workshop_department_id | Mechanical→SERVICE, Value Addition→DETAILING (mapped, not duplicated) |
+| DepartmentName | spare_type | TYRES→tyre; CONSUMABLES/LUBRICANTS→common; else vehicle_specific |
+| WEF | spare_rate_history.effective_from | d/m/y; 30,444 parsed, 191 blank |
+| Remarks | remark | |
+
+**Dropped** (no column / junk): MadeIn (98% blank), VINNo, InventoryName (concatenated display string),
+Service (duplicates Vat), AVat (all 0), IsMultiBarCode, SpareCategory, SPCategory (FAST/NON MOVING — no
+column exists), VendorBarcode (all NULL), Location (10 non-blank, all `undefined`/`0`/`'`), Ref_PartNo (99%
+NULL), ReorderQty/MaxQty (all 0).
+
+## Dirty-data handling
+
+- **585 part numbers are reused for unrelated parts** (`F002H50028` = both ADBLUE and BATTERY DIN-60 S5).
+  `spare_code` is UNIQUE, so the first claimant keeps it and the rest import with `spare_code = null` plus
+  `LEGACY PART NO: <x>` in `remark`. No spare is dropped.
+- **5,727 rows have no part number** — keyed on name + brand + HSN + sub-group instead.
+- 2 part numbers over 64 chars are comma-joined vendor lists → dropped to null.
+- 19 HSN values are 9–10 digits or stray prices → `hsn_id` null, and no junk HSN master row created.
+- `NULL` / `undefined` string sentinels collapse to null everywhere.
+
+## How to visually test on the UI
+
+1. **Inventory → Spares** — 29,681 rows; search `48068-0D081`.
+2. Open it: rate ₹1,773.44, Inventory Type *Mechanical*, group SUSPENSION / LOWER ARM, dept SERVICE.
+3. Scroll to **Rate History** — three revisions newest-first with +13.1% / +1.8% change badges.
+4. Change the rate and save, reopen — a new revision dated today appears on top.
+
+## Related modules impacted
+
+- **Masters grown by the import:** HsnMaster (+948), UnitOfMeasureMaster (+4), SpareBrandMaster (+4).
+- **Reused unchanged:** InventoryGroupMaster, WorkshopDepartmentMaster, TaxMaster.
+- **Not touched:** `SpareImporter` / `SpareExporter` (the CSV wizard) — they carry neither `inventory_type`
+  nor rate history. Extend them if bulk round-tripping either matters.
+- `part_type_id`, `rack_id`, `location`, barcode and vehicle-compatibility stay null — the source has no
+  such data. ~28,700 vehicle-specific spares therefore show an empty compatibility list until it's filled in.
+
+## Tests
+
+`tests/Feature/Modules/SpareMasterLegacyImportTest.php` — 7 tests over a fixture CSV (collapse + newest-wins,
+part-no collision, blank-part-no keying, classification mapping, master auto-creation, junk rejection,
+idempotency). `SpareMasterTest.php` grew 3 (manual revision on rate change, history rendered newest-first,
+section hidden when empty). **37 green.**

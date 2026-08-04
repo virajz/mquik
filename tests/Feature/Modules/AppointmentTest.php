@@ -394,3 +394,28 @@ it('does not forward-sync to a pickup/drop that is already collected', function 
 
     expect($collected->fresh()->customer_vehicle_id)->toBe($original->id);
 });
+
+it('finds a customer beyond the first page via server-side search', function () {
+    // A customer whose name sorts last and sits far past any fixed slice.
+    CustomerMaster::factory()->count(40)->create(['is_active' => true, 'first_name' => 'Aaron']);
+    $target = CustomerMaster::factory()->create([
+        'is_active' => true,
+        'first_name' => 'Zoravar',
+        'last_name' => 'Singh',
+        'phone' => '9876500042',
+    ]);
+
+    $component = Livewire::test(Edit::class);
+
+    // Default list is a small server-side slice ordered by first_name — the
+    // target (a 'Z' name) is not in it.
+    expect(collect($component->get('customers'))->pluck('id'))->not->toContain($target->id);
+
+    // Searching by phone reaches it.
+    $component->set('customerSearch', '9876500042');
+    expect(collect($component->get('customers'))->pluck('id'))->toContain($target->id);
+
+    // Searching by name reaches it too.
+    $component->set('customerSearch', 'Zoravar');
+    expect(collect($component->get('customers'))->pluck('id'))->toContain($target->id);
+});

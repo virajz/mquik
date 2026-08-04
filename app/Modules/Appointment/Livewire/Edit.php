@@ -58,6 +58,9 @@ class Edit extends Component
 
     public ?int $customer_vehicle_id = null;
 
+    /** Search term for the server-backed customer picker (~9.7k rows). */
+    public string $customerSearch = '';
+
     /** Search term for the server-backed vehicle picker (can pick vehicle-first). */
     public string $vehicleSearch = '';
 
@@ -268,11 +271,20 @@ class Edit extends Component
     #[Computed]
     public function customers()
     {
-        return CustomerMaster::query()
-            ->where('is_active', true)
-            ->orderBy('first_name')
-            ->limit(200)
-            ->get(['id', 'first_name', 'last_name', 'phone']);
+        // Server-side search: the customer master is ~9.7k rows, so a fixed
+        // client-side slice would hide everyone past the first page. The
+        // currently selected customer is always retained so the edit form
+        // renders its label even when it falls outside the search results.
+        return $this->pickerOptions(
+            query: CustomerMaster::query()
+                ->where('is_active', true)
+                ->orderBy('first_name'),
+            searchColumns: ['first_name', 'last_name', 'phone'],
+            term: $this->customerSearch,
+            selected: $this->customer_id,
+            columns: ['id', 'first_name', 'last_name', 'phone'],
+            limit: 30,
+        );
     }
 
     #[Computed]

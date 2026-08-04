@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\FinalWorkOrder\Livewire\Edit;
 use App\Modules\FinalWorkOrder\Livewire\Index;
 use App\Modules\FinalWorkOrder\Models\FinalWorkOrder;
@@ -11,8 +12,10 @@ use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -273,4 +276,20 @@ it('exports the work order analysis CSV', function () {
     Livewire::test(Index::class)
         ->call('download')
         ->assertFileDownloaded();
+});
+
+it('derives department, service type, advisor and technician from the picked job card', function () {
+    $jc = JobCard::factory()->create([
+        'workshop_department_id' => WorkshopDepartmentMaster::factory(),
+        'service_type_id' => ServiceTypeMaster::factory(),
+        'assigned_advisor_id' => EmployeeMaster::factory(),
+        'assigned_technician_id' => EmployeeMaster::factory(),
+    ]);
+
+    Livewire::test(Edit::class)
+        ->set('job_card_id', $jc->id)
+        ->assertSet('department_id', $jc->workshop_department_id)
+        ->assertSet('service_type_id', $jc->service_type_id)
+        ->assertSet('advisor_id', $jc->assigned_advisor_id)
+        ->assertSet('technician_id', $jc->assigned_technician_id);
 });

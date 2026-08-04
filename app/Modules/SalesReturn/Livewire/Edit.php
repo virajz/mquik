@@ -54,6 +54,9 @@ class Edit extends Component
 
     public ?int $customer_id = null;
 
+    /** Search term for the server-backed customer picker (~9.7k rows). */
+    public string $customerSearch = '';
+
     public ?int $customer_vehicle_id = null;
 
     public ?int $regular_sales_invoice_id = null;
@@ -332,17 +335,19 @@ class Edit extends Component
     #[Computed]
     public function customers()
     {
-        $rows = CustomerMaster::query()->where('is_active', true)->orderByDesc('id')->limit(300)
-            ->get(['id', 'first_name', 'last_name', 'phone']);
-
-        if ($this->customer_id && ! $rows->contains('id', $this->customer_id)) {
-            $sel = CustomerMaster::find($this->customer_id);
-            if ($sel) {
-                $rows->prepend($sel);
-            }
-        }
-
-        return $rows->map(fn ($c) => [
+        // Server-side search: the customer master is ~9.7k rows, so a fixed
+        // client-side slice would hide everyone past the first page. The
+        // selected customer is always retained so an edit form keeps its label.
+        return $this->pickerOptions(
+            query: CustomerMaster::query()
+                ->where('is_active', true)
+                ->orderByDesc('id'),
+            searchColumns: ['first_name', 'last_name', 'phone'],
+            term: $this->customerSearch,
+            selected: $this->customer_id,
+            columns: ['id', 'first_name', 'last_name', 'phone'],
+            limit: 30,
+        )->map(fn ($c) => [
             'id' => $c->id,
             'label' => trim($c->first_name.' '.($c->last_name ?? '')).($c->phone ? ' · '.$c->phone : ''),
         ]);
