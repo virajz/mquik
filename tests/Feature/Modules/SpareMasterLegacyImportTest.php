@@ -52,15 +52,7 @@ function importSpares(array $rows): void
     File::ensureDirectoryExists($dir);
     File::put($dir.'/Spare.csv', SPARE_HEADER."\n".implode("\n", $rows)."\n");
 
-    $seeder = new class extends MasterDataSeeder
-    {
-        public function importFrom(string $path): void
-        {
-            $this->path = $path;
-            $this->seedSpares();
-        }
-    };
-    $seeder->importFrom($dir);
+    (new MasterDataSeeder)->importSpares($dir);
 
     File::deleteDirectory($dir);
 }
@@ -171,6 +163,19 @@ it('drops legacy junk instead of importing it', function () {
         ->and($spare->remark)->toBeNull()
         ->and($spare->rateHistory->first()->effective_from)->toBeNull()
         ->and(HsnMaster::where('code', '870883000')->exists())->toBeFalse();
+});
+
+it('imports via the import:spares command and fails loudly on a bad path', function () {
+    $dir = storage_path('framework/testing/master-data-'.uniqid());
+    File::ensureDirectoryExists($dir);
+    File::put($dir.'/Spare.csv', SPARE_HEADER."\n".spareRow()."\n");
+
+    $this->artisan('import:spares', ['--path' => $dir])->assertSuccessful();
+    expect(SpareMaster::where('spare_code', '48068-0D081')->exists())->toBeTrue();
+
+    $this->artisan('import:spares', ['--path' => $dir.'/nope'])->assertFailed();
+
+    File::deleteDirectory($dir);
 });
 
 it('is idempotent — re-running imports nothing twice', function () {

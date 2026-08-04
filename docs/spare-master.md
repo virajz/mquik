@@ -142,3 +142,17 @@ NULL), ReorderQty/MaxQty (all 0).
 part-no collision, blank-part-no keying, classification mapping, master auto-creation, junk rejection,
 idempotency). `SpareMasterTest.php` grew 3 (manual revision on rate change, history rendered newest-first,
 section hidden when empty). **37 green.**
+
+## Running it on a server
+
+```bash
+php artisan migrate --force                     # spare_rate_history + spares.legacy_key
+php -d memory_limit=512M artisan import:spares  # CSV ships in the repo
+```
+
+`import:spares` runs only this step — no need for the full `MasterDataSeeder` chain. Pass `--path=/some/dir`
+when the CSV was uploaded outside the repo (the file must be named `Spare.csv`). Idempotent: re-running
+imports nothing twice, so an interrupted run is safe to repeat.
+
+Peak memory is ~82 MB for the CSV alone (it is grouped in memory, not streamed) — closer to ~200 MB with the
+framework booted, so raise `memory_limit` if the server default is 128 M. The run takes ~10 s.

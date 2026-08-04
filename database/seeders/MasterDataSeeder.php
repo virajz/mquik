@@ -520,6 +520,19 @@ class MasterDataSeeder extends Seeder
 
     // ── Tier 3: spares (Spare.csv) ────────────────────────────────────────────
 
+    /**
+     * Run only the spare-master step — what `import:spares` calls on a live
+     * server, where re-running the whole tier chain is needless work.
+     *
+     * @param  string|null  $path  directory holding Spare.csv; defaults to the seeder data dir
+     */
+    public function importSpares(?string $path = null): void
+    {
+        $this->path = $path ?? database_path('seeders/data/master-data');
+
+        $this->seedSpares();
+    }
+
     /** Legacy `UOM` code → unit-of-measure master row to create when missing. */
     protected const UOM_ALIASES = [
         'PCS' => 'PIECES',
@@ -733,7 +746,7 @@ class MasterDataSeeder extends Seeder
             $groups[$key]['rows'][] = $r;
         }
 
-        foreach ($groups as $key => $group) {
+        foreach (array_keys($groups) as $key) {
             usort($groups[$key]['rows'], fn ($a, $b) => ($this->wef($b['WEF'] ?? '') ?? '') <=> ($this->wef($a['WEF'] ?? '') ?? ''));
         }
 
