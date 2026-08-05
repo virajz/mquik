@@ -92,9 +92,16 @@
 
                                     {{-- Batch & expiry ride onto the stock layer this line creates. --}}
                                     @if (isset($this->batchTrackedSpareIds[$item['spare_id'] ?? 0]))
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                                             <flux:input wire:model="items.{{ $i }}.batch_no" size="sm" label="Batch No." placeholder="As printed on the pack" class:input="font-mono" />
-                                            <flux:input type="date" wire:model="items.{{ $i }}.expiry_date" size="sm" label="Expiry Date" />
+                                            <flux:input type="date" wire:model.live="items.{{ $i }}.manufacturing_date" size="sm" label="Mfg. Date" />
+                                            <flux:input
+                                                type="date"
+                                                wire:model="items.{{ $i }}.expiry_date"
+                                                size="sm"
+                                                label="Expiry Date"
+                                                :description="$this->shelfLifeHint($item['spare_id'] ?? null)"
+                                            />
                                         </div>
                                     @endif
 

@@ -43,6 +43,47 @@
             <flux:select.option value="active">Active</flux:select.option>
             <flux:select.option value="inactive">Inactive</flux:select.option>
         </flux:select>
+
+        <flux:select wire:model.live="departmentFilter" variant="listbox" searchable clearable class="max-w-44">
+            <flux:select.option value="all">All departments</flux:select.option>
+            @foreach ($this->departments as $d)
+                <flux:select.option :value="(string) $d->id" wire:key="dept-{{ $d->id }}">{{ $d->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        <flux:select wire:model.live="groupFilter" variant="listbox" searchable clearable class="max-w-44">
+            <flux:select.option value="all">All groups</flux:select.option>
+            @foreach ($this->inventoryGroups as $g)
+                <flux:select.option :value="(string) $g->id" wire:key="grp-{{ $g->id }}">{{ $g->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        {{-- Fits-this-vehicle: model narrows the list, variant narrows it further. --}}
+        <flux:select wire:model.live="modelFilter" variant="listbox" searchable clearable :filter="false" class="max-w-52">
+            <x-slot name="search">
+                <flux:select.search wire:model.live.debounce.250ms="modelSearch" placeholder="Type a brand or model…" />
+            </x-slot>
+            <flux:select.option value="all">Fits any vehicle</flux:select.option>
+            @foreach ($this->models as $m)
+                <flux:select.option :value="(string) $m->id" wire:key="mdl-{{ $m->id }}">{{ $m->brand?->name }} {{ $m->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        @if ($modelFilter !== 'all')
+            <flux:select wire:model.live="variantFilter" variant="listbox" searchable clearable :filter="false" class="max-w-44">
+                <x-slot name="search">
+                    <flux:select.search wire:model.live.debounce.250ms="variantSearch" placeholder="Type a variant…" />
+                </x-slot>
+                <flux:select.option value="all">All variants</flux:select.option>
+                @foreach ($this->variants as $v)
+                    <flux:select.option :value="(string) $v->id" wire:key="vrt-{{ $v->id }}">{{ $v->name }}{{ $v->year ? ' · '.$v->year : '' }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        @endif
+
+        @if ($this->hasActiveFilters())
+            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
+        @endif
     </div>
 
     <flux:table>

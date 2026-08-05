@@ -50,6 +50,25 @@
                         <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addItem">Add part</flux:button>
                     </div>
 
+                    {{-- Scan to issue: resolves the part, previews which FIFO batch
+                         would leave and what's left, and waits for confirmation. --}}
+                    <div class="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/60 dark:bg-zinc-800/30 p-3">
+                        <div class="flex items-end gap-2">
+                            <div class="flex-1 min-w-0">
+                                <flux:input
+                                    wire:model="scanCode"
+                                    wire:keydown.enter.prevent="scan"
+                                    label="Scan to issue"
+                                    placeholder="Scan a barcode or type a part no…"
+                                    icon="qr-code"
+                                    class:input="font-mono uppercase"
+                                />
+                            </div>
+                            <flux:button type="button" variant="filled" icon="magnifying-glass" wire:click="scan">Look up</flux:button>
+                        </div>
+                        <flux:error name="scanCode" />
+                    </div>
+
                     @if (count($items) === 0)
                         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
                             Add the parts being requested from the store.
@@ -227,4 +246,65 @@
             </div>
         @endif
     </form>
+
+    {{-- FIFO confirmation. Nothing has moved yet — this shows what *would*
+         leave and what is left, and waits for a deliberate confirm. --}}
+    <flux:modal name="scan-confirm" class="max-w-lg" :dismissible="false">
+        @if ($pendingScan)
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">{{ $pendingScan['name'] }}</flux:heading>
+                    @if ($pendingScan['code'])
+                        <flux:text class="mt-1 font-mono text-xs">{{ $pendingScan['code'] }}</flux:text>
+                    @endif
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <flux:text size="sm" class="text-zinc-500">Issue qty</flux:text>
+                    <flux:button size="sm" variant="ghost" icon="minus" type="button" wire:click="setScanQty({{ max(1, $pendingScan['qty'] - 1) }})" />
+                    <span class="font-mono text-lg tabular-nums">{{ rtrim(rtrim(number_format($pendingScan['qty'], 2), '0'), '.') }}</span>
+                    <flux:button size="sm" variant="ghost" icon="plus" type="button" wire:click="setScanQty({{ $pendingScan['qty'] + 1 }})" />
+                </div>
+
+                {{-- What FIFO picked, and why. --}}
+                @if (count($pendingScan['layers']))
+                    <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800">
+                        @foreach ($pendingScan['layers'] as $layer)
+                            <div class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                                <div class="min-w-0">
+                                    <span class="font-mono">{{ $layer['batch_no'] ?? 'No batch' }}</span>
+                                    @if ($layer['expiry_date'])
+                                        <flux:badge :color="$layer['expired'] ? 'red' : 'zinc'" size="sm" inset="top bottom">
+                                            {{ $layer['expired'] ? 'Expired' : 'Expires' }} {{ \Carbon\Carbon::parse($layer['expiry_date'])->format('d M Y') }}
+                                        </flux:badge>
+                                    @endif
+                                </div>
+                                <span class="font-mono whitespace-nowrap">
+                                    {{ rtrim(rtrim(number_format($layer['qty'], 2), '0'), '.') }} @ ₹{{ number_format($layer['rate'], 2) }}
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                {{-- The headline number: what's left after this issue. --}}
+                <div class="rounded-lg px-3 py-2 text-sm {{ $pendingScan['short'] || $pendingScan['remaining'] < 0 ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' : 'bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300' }}">
+                    @if ($pendingScan['short'])
+                        <span class="font-medium">Not enough stock.</span>
+                        Only {{ rtrim(rtrim(number_format($pendingScan['on_hand'], 2), '0'), '.') }} on hand — saving will be rejected unless you lower the quantity.
+                    @else
+                        On hand {{ rtrim(rtrim(number_format($pendingScan['on_hand'], 2), '0'), '.') }}
+                        → <span class="font-medium">{{ rtrim(rtrim(number_format($pendingScan['remaining'], 2), '0'), '.') }} left</span> after this issue.
+                    @endif
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <flux:button variant="ghost" type="button" wire:click="cancelScan">Cancel</flux:button>
+                    <flux:button variant="primary" type="button" icon="check" wire:click="confirmScan" :disabled="$pendingScan['short']">
+                        Confirm issue
+                    </flux:button>
+                </div>
+            </div>
+        @endif
+    </flux:modal>
 </div>

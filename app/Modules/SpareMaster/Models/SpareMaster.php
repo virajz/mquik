@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 class SpareMaster extends Model
@@ -43,6 +44,7 @@ class SpareMaster extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'tracks_batch' => 'boolean',
+        'shelf_life_value' => 'integer',
         'rate_before_tax' => 'decimal:2',
         'mrp' => 'decimal:2',
         'min_qty' => 'decimal:2',
@@ -89,6 +91,57 @@ class SpareMaster extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(SpareAttachment::class, 'spare_id')->orderBy('sequence_no');
+    }
+
+    /**
+     * How a shelf life is expressed. Months is the common case on lubricants
+     * and chemicals; days and years cover the extremes.
+     *
+     * @return array<string, string>
+     */
+    public static function shelfLifeUnits(): array
+    {
+        return [
+            'days' => 'Days',
+            'months' => 'Months',
+            'years' => 'Years',
+        ];
+    }
+
+    /**
+     * Expiry for a batch made on `$manufacturedOn`, from this part's shelf
+     * life. Null when no shelf life is configured — the date is then typed.
+     */
+    public function expiryFor(?string $manufacturedOn): ?string
+    {
+        if (! $manufacturedOn || ! $this->shelf_life_value || ! $this->shelf_life_unit) {
+            return null;
+        }
+
+        try {
+            $made = Carbon::parse($manufacturedOn);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $expires = match ($this->shelf_life_unit) {
+            'days' => $made->addDays($this->shelf_life_value),
+            'months' => $made->addMonths($this->shelf_life_value),
+            'years' => $made->addYears($this->shelf_life_value),
+            default => null,
+        };
+
+        return $expires?->format('Y-m-d');
+    }
+
+    /** Human form of the configured shelf life, e.g. "24 Months". */
+    public function shelfLifeLabel(): ?string
+    {
+        if (! $this->shelf_life_value || ! $this->shelf_life_unit) {
+            return null;
+        }
+
+        return $this->shelf_life_value.' '.(self::shelfLifeUnits()[$this->shelf_life_unit] ?? $this->shelf_life_unit);
     }
 
     /** Dated purchase-rate revisions, newest first. */

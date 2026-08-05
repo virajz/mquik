@@ -130,6 +130,7 @@ class Edit extends Component
             'qty' => (float) $i->qty,
             'unit_rate' => (float) $i->unit_rate,
             'batch_no' => $i->batch_no,
+            'manufacturing_date' => $i->manufacturing_date?->format('Y-m-d'),
             'expiry_date' => $i->expiry_date?->format('Y-m-d'),
             'discount_value' => (float) $i->discount_value,
             'tax_percent' => (float) $i->tax_percent,
@@ -150,6 +151,37 @@ class Edit extends Component
     {
         if (preg_match('/^items\.(\d+)\.spare_id$/', $name, $m) && $value) {
             $this->prefillSpare((int) $m[1], (int) $value);
+        }
+
+        // Expiry is derived, not typed: manufacturing date + the part's shelf
+        // life. Still editable afterwards — what's printed on the pack wins.
+        if (preg_match('/^items\.(\d+)\.manufacturing_date$/', $name, $m) && $value) {
+            $this->deriveExpiry((int) $m[1]);
+        }
+    }
+
+    /** "Shelf life 24 Months" under the expiry field, when the part has one. */
+    public function shelfLifeHint(?int $spareId): ?string
+    {
+        if (! $spareId) {
+            return null;
+        }
+
+        $label = SpareMaster::find($spareId)?->shelfLifeLabel();
+
+        return $label ? 'Shelf life '.$label.' — derived from the mfg. date.' : null;
+    }
+
+    protected function deriveExpiry(int $i): void
+    {
+        $spareId = $this->items[$i]['spare_id'] ?? null;
+        if (! $spareId) {
+            return;
+        }
+
+        $expiry = SpareMaster::find($spareId)?->expiryFor($this->items[$i]['manufacturing_date'] ?? null);
+        if ($expiry) {
+            $this->items[$i]['expiry_date'] = $expiry;
         }
     }
 
@@ -180,6 +212,7 @@ class Edit extends Component
             'qty' => 1,
             'unit_rate' => 0,
             'batch_no' => null,
+            'manufacturing_date' => null,
             'expiry_date' => null,
             'discount_value' => 0,
             'tax_percent' => 0,
@@ -271,6 +304,7 @@ class Edit extends Component
             'items.*.qty' => ['numeric', 'min:0.01'],
             'items.*.unit_rate' => ['numeric', 'min:0'],
             'items.*.batch_no' => ['nullable', 'string', 'max:40'],
+            'items.*.manufacturing_date' => ['nullable', 'date', 'before_or_equal:today'],
             'items.*.expiry_date' => ['nullable', 'date'],
             'items.*.discount_value' => ['numeric', 'min:0'],
             'items.*.tax_percent' => ['numeric', 'min:0', 'max:100'],
@@ -477,6 +511,7 @@ class Edit extends Component
                 'qty' => (float) ($row['qty'] ?? 1),
                 'unit_rate' => (float) ($row['unit_rate'] ?? 0),
                 'batch_no' => filled($row['batch_no'] ?? null) ? strtoupper(trim((string) $row['batch_no'])) : null,
+                'manufacturing_date' => $row['manufacturing_date'] ?? null,
                 'expiry_date' => $row['expiry_date'] ?? null,
                 'discount_value' => (float) ($row['discount_value'] ?? 0),
                 'tax_percent' => (float) ($row['tax_percent'] ?? 0),
@@ -561,6 +596,7 @@ class Edit extends Component
                 $purchase,
                 [
                     'batch_no' => $item->batch_no,
+                    'manufacturing_date' => $item->manufacturing_date,
                     'expiry_date' => $item->expiry_date,
                     'moved_at' => $movedAt,
                     'notes' => 'Purchase '.$purchase->purchase_no,

@@ -10,6 +10,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -397,4 +398,235 @@ it('still finds a spare by part no and by HSN code', function () {
         ->assertSee('ABSORBER SHOCK RR')
         ->set('search', '87088000')
         ->assertSee('ABSORBER SHOCK RR');
+});
+
+it('filters spares by the vehicle model they fit, and by exact variant', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'SKODA']);
+    $model = VehicleModelMaster::factory()->create(['name' => 'LAURA', 'brand_id' => $brand->id]);
+    $other = VehicleModelMaster::factory()->create(['name' => 'OCTAVIA', 'brand_id' => $brand->id]);
+    $vxi = VehicleVariantMaster::factory()->create(['name' => 'AMBITION', 'model_id' => $model->id]);
+    $zxi = VehicleVariantMaster::factory()->create(['name' => 'ELEGANCE', 'model_id' => $model->id]);
+    $octaviaVariant = VehicleVariantMaster::factory()->create(['name' => 'STYLE', 'model_id' => $other->id]);
+
+    $fitsLaura = SpareMaster::factory()->create(['name' => 'LAURA SHOCK AB']);
+    $fitsLaura->vehicleVariants()->sync([$vxi->id]);
+    $fitsElegance = SpareMaster::factory()->create(['name' => 'ELEGANCE ONLY PART']);
+    $fitsElegance->vehicleVariants()->sync([$zxi->id]);
+    $fitsOctavia = SpareMaster::factory()->create(['name' => 'OCTAVIA SHOCK AB']);
+    $fitsOctavia->vehicleVariants()->sync([$octaviaVariant->id]);
+
+    Livewire::test(Index::class)
+        ->set('modelFilter', (string) $model->id)
+        ->assertSee('LAURA SHOCK AB')
+        ->assertSee('ELEGANCE ONLY PART')
+        ->assertDontSee('OCTAVIA SHOCK AB')
+        // Narrowing to one variant drops the sibling variant's part.
+        ->set('variantFilter', (string) $zxi->id)
+        ->assertSee('ELEGANCE ONLY PART')
+        ->assertDontSee('LAURA SHOCK AB');
+});
+
+it('filters spares by workshop department', function () {
+    $service = WorkshopDepartmentMaster::factory()->create(['name' => 'SERVICE']);
+    $body = WorkshopDepartmentMaster::factory()->create(['name' => 'BODYSHOP']);
+    SpareMaster::factory()->create(['name' => 'SERVICE PART AAA', 'workshop_department_id' => $service->id]);
+    SpareMaster::factory()->create(['name' => 'BODY PART BBB', 'workshop_department_id' => $body->id]);
+
+    Livewire::test(Index::class)
+        ->set('departmentFilter', (string) $service->id)
+        ->assertSee('SERVICE PART AAA')
+        ->assertDontSee('BODY PART BBB');
+});
+
+it('clears every filter at once', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create();
+
+    $component = Livewire::test(Index::class)
+        ->set('search', 'brake')
+        ->set('departmentFilter', (string) $dept->id);
+
+    expect($component->instance()->hasActiveFilters())->toBeTrue();
+
+    $component->call('clearFilters')
+        ->assertSet('search', '')
+        ->assertSet('departmentFilter', 'all');
+});
+
+it('derives expiry from the manufacturing date and the shelf life', function () {
+    $spare = SpareMaster::factory()->create([
+        'tracks_batch' => true, 'shelf_life_value' => 24, 'shelf_life_unit' => 'months',
+    ]);
+
+    expect($spare->expiryFor('2026-01-15'))->toBe('2028-01-15')
+        ->and($spare->shelfLifeLabel())->toBe('24 Months');
+
+    // No shelf life configured — the date has to be typed instead.
+    $plain = SpareMaster::factory()->create();
+    expect($plain->expiryFor('2026-01-15'))->toBeNull()
+        ->and($plain->shelfLifeLabel())->toBeNull();
+});
+
+it('persists the shelf life and requires a unit alongside a value', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'ENGINE OIL')
+        ->set('tracks_batch', true)
+        ->set('shelf_life_value', 18)
+        ->call('save')
+        ->assertHasErrors(['shelf_life_unit']);
+
+    Livewire::test(Edit::class)
+        ->set('name', 'ENGINE OIL')
+        ->set('tracks_batch', true)
+        ->set('shelf_life_value', 18)
+        ->set('shelf_life_unit', 'months')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(SpareMaster::firstOrFail()->shelfLifeLabel())->toBe('18 Months');
+});
+
+it('adds an HSN code from the spare form and selects it', function () {
+    Livewire::test(Edit::class)
+        ->set('hsnQuickCode', '87085000')
+        ->set('hsnQuickName', 'drive axles with differential')
+        ->set('hsnQuickGst', 28)
+        ->call('createHsn')
+        ->assertHasNoErrors();
+
+    $hsn = HsnMaster::where('code', '87085000')->sole();
+    expect($hsn->name)->toBe('DRIVE AXLES WITH DIFFERENTIAL')
+        ->and((float) $hsn->gst_percent)->toBe(28.0)
+        ->and($hsn->kind)->toBe(HsnMaster::KIND_HSN);
+});
+
+it('rejects a non-numeric or duplicate HSN code from the quick-add', function () {
+    HsnMaster::factory()->create(['code' => '87089900']);
+
+    Livewire::test(Edit::class)
+        ->set('hsnQuickCode', 'ABCD')
+        ->set('hsnQuickName', 'nope')
+        ->call('createHsn')
+        ->assertHasErrors(['hsnQuickCode']);
+
+    Livewire::test(Edit::class)
+        ->set('hsnQuickCode', '87089900')
+        ->set('hsnQuickName', 'duplicate')
+        ->call('createHsn')
+        ->assertHasErrors(['hsnQuickCode']);
+});
+
+it('flags a duplicate part number while it is being typed', function () {
+    SpareMaster::factory()->create(['spare_code' => 'BP-DUP']);
+
+    Livewire::test(Edit::class)
+        ->set('spare_code', 'bp-dup')
+        ->assertHasErrors(['spare_code'])
+        // Uppercased as typed, and clearing it clears the error.
+        ->assertSet('spare_code', 'BP-DUP')
+        ->set('spare_code', '')
+        ->assertHasNoErrors();
+});
+
+it('bulk-selects every listed variant in the vehicle picker', function () {
+    $brand = VehicleBrandMaster::factory()->create();
+    $model = VehicleModelMaster::factory()->create(['brand_id' => $brand->id]);
+    $variants = VehicleVariantMaster::factory()->count(4)->create(['model_id' => $model->id]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('pickerBrandId', $brand->id)
+        ->set('pickerModelId', $model->id)
+        ->call('selectAllListedVariants');
+
+    expect($component->get('variant_ids'))->toHaveCount(4);
+
+    // Toggling one off, then clearing everything.
+    $component->call('toggleVariant', $variants->first()->id);
+    expect($component->get('variant_ids'))->toHaveCount(3);
+
+    $component->call('clearAllVariants');
+    expect($component->get('variant_ids'))->toBe([]);
+});
+
+it('renders the tick against variants that are selected', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'AUDI']);
+    $model = VehicleModelMaster::factory()->create(['name' => 'A3', 'brand_id' => $brand->id]);
+    $variants = VehicleVariantMaster::factory()->count(5)->create(['model_id' => $model->id]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('pickerBrandId', $brand->id)
+        ->set('pickerModelId', $model->id);
+
+    // Nothing ticked yet — no ticked rows in the markup.
+    expect(substr_count($component->html(), 'bg-lime-600'))->toBe(0);
+
+    $component->call('selectAllListedVariants');
+
+    // Every listed row now carries the ticked marker, and each row's key
+    // encodes its state so the browser repaints it.
+    $html = $component->html();
+    expect(substr_count($html, 'bg-lime-600'))->toBeGreaterThanOrEqual(5)
+        ->and($html)->toContain('pv-'.$variants->first()->id.'-1');
+
+    $component->call('toggleVariant', $variants->first()->id);
+    expect($component->html())->toContain('pv-'.$variants->first()->id.'-0');
+});
+
+it('selects an entire brand, and every variant of one model', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'AUDI']);
+    $a3 = VehicleModelMaster::factory()->create(['name' => 'A3', 'brand_id' => $brand->id]);
+    $a4 = VehicleModelMaster::factory()->create(['name' => 'A4', 'brand_id' => $brand->id]);
+    VehicleVariantMaster::factory()->count(3)->create(['model_id' => $a3->id]);
+    VehicleVariantMaster::factory()->count(2)->create(['model_id' => $a4->id]);
+
+    $component = Livewire::test(Edit::class)->set('pickerBrandId', $brand->id);
+
+    $component->call('toggleModel', $a3->id);
+    expect($component->get('variant_ids'))->toHaveCount(3);
+
+    $component->call('toggleBrand');
+    expect($component->get('variant_ids'))->toHaveCount(5);
+
+    // Toggling the brand again when everything is on clears it.
+    $component->call('toggleBrand');
+    expect($component->get('variant_ids'))->toBe([]);
+});
+
+it('shows how much of each model is selected in the brand view', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'AUDI']);
+    $a3 = VehicleModelMaster::factory()->create(['name' => 'A3', 'brand_id' => $brand->id]);
+    $variants = VehicleVariantMaster::factory()->count(4)->create(['model_id' => $a3->id]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('pickerBrandId', $brand->id)
+        ->call('toggleVariant', $variants->first()->id);
+
+    $summary = collect($component->instance()->pickerModelSummary())->firstWhere('id', $a3->id);
+    expect($summary['selected'])->toBe(1)
+        ->and($summary['total'])->toBe(4);
+});
+
+it('summarises the selection by model instead of one chip per variant', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'AUDI']);
+    $a3 = VehicleModelMaster::factory()->create(['name' => 'A3', 'brand_id' => $brand->id]);
+    VehicleVariantMaster::factory()->count(5)->create(['model_id' => $a3->id]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('pickerBrandId', $brand->id)
+        ->call('toggleModel', $a3->id);
+
+    expect($component->instance()->selectionSummary())->toBe([
+        ['label' => 'AUDI A3', 'count' => 5],
+    ]);
+});
+
+it('does not let the variant filter empty the model dropdown', function () {
+    $brand = VehicleBrandMaster::factory()->create(['name' => 'AUDI']);
+    VehicleModelMaster::factory()->create(['name' => 'A3', 'brand_id' => $brand->id]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('pickerBrandId', $brand->id)
+        ->set('pickerSearch', 'zzz-matches-nothing');
+
+    // The models list is independent of the variant filter box.
+    expect($component->instance()->pickerModels())->toHaveCount(1);
 });

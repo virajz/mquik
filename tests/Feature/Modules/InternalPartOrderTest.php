@@ -194,3 +194,96 @@ function ipoLine(int $spareId, float $issued = 0, float $returned = 0): array
         'after_photo_path' => null, 'notes' => null, 'sequence_no' => 1,
     ];
 }
+
+it('previews the FIFO batch and remaining stock when a part is scanned', function () {
+    $spare = SpareMaster::factory()->create(['name' => 'ENGINE OIL 5W30', 'spare_code' => 'OIL-5W30']);
+    StockIssuer::receive($spare->id, 4, 400, StockEntry::TYPE_OPENING, null, [
+        'batch_no' => 'B-SOON', 'expiry_date' => today()->addDays(20)->toDateString(),
+    ]);
+    StockIssuer::receive($spare->id, 6, 460, StockEntry::TYPE_PURCHASE, null, [
+        'batch_no' => 'B-LATE', 'expiry_date' => today()->addYear()->toDateString(),
+    ]);
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => InternalPartOrder::factory()->create()])
+        ->set('scanCode', 'oil-5w30')
+        ->call('scan')
+        ->assertHasNoErrors();
+
+    $scan = $component->get('pendingScan');
+    expect($scan['spare_id'])->toBe($spare->id)
+        ->and($scan['on_hand'])->toBe(10.0)
+        ->and($scan['remaining'])->toBe(9.0)
+        ->and($scan['short'])->toBeFalse()
+        // Soonest expiry leaves first, and nothing has moved yet.
+        ->and($scan['layers'][0]['batch_no'])->toBe('B-SOON')
+        ->and(StockLedger::currentQty($spare->id))->toBe(10.0);
+});
+
+it('splits the preview across layers as the scanned quantity grows', function () {
+    $spare = SpareMaster::factory()->create(['spare_code' => 'BP-1']);
+    StockIssuer::receive($spare->id, 4, 100, StockEntry::TYPE_OPENING, null, ['batch_no' => 'A']);
+    StockIssuer::receive($spare->id, 6, 160, StockEntry::TYPE_PURCHASE, null, ['batch_no' => 'B']);
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => InternalPartOrder::factory()->create()])
+        ->set('scanCode', 'BP-1')
+        ->call('scan')
+        ->call('setScanQty', 7);
+
+    $scan = $component->get('pendingScan');
+    expect($scan['layers'])->toHaveCount(2)
+        ->and($scan['layers'][0]['qty'])->toBe(4.0)
+        ->and($scan['layers'][1]['qty'])->toBe(3.0)
+        ->and($scan['remaining'])->toBe(3.0);
+});
+
+it('flags a scan that asks for more than is on hand and blocks confirming', function () {
+    $spare = SpareMaster::factory()->create(['spare_code' => 'BP-2']);
+    StockIssuer::receive($spare->id, 2, 100, StockEntry::TYPE_OPENING);
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => InternalPartOrder::factory()->create()])
+        ->set('scanCode', 'BP-2')
+        ->call('scan')
+        ->call('setScanQty', 5);
+
+    expect($component->get('pendingScan')['short'])->toBeTrue();
+});
+
+it('rejects a scan that matches no spare', function () {
+    Livewire::test(Edit::class, ['internalPartOrder' => InternalPartOrder::factory()->create()])
+        ->set('scanCode', 'NOSUCHPART')
+        ->call('scan')
+        ->assertHasErrors('scanCode');
+});
+
+it('adds a line on confirm and tops up the same line on a second scan', function () {
+    $spare = SpareMaster::factory()->create(['spare_code' => 'BP-3']);
+    StockIssuer::receive($spare->id, 20, 100, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('scanCode', 'BP-3')->call('scan')->call('confirmScan');
+
+    expect($component->get('items'))->toHaveCount(1)
+        ->and($component->get('items')[0]['qty_issued'])->toBe(1.0)
+        ->and($component->get('pendingScan'))->toBeNull()
+        ->and($component->get('scanCode'))->toBe('');
+
+    // Same part again: tops up rather than adding a duplicate line.
+    $component->set('scanCode', 'BP-3')->call('scan')->call('confirmScan');
+    expect($component->get('items'))->toHaveCount(1)
+        ->and($component->get('items')[0]['qty_issued'])->toBe(2.0);
+});
+
+it('moves the stock only when the order is saved, not when scanned', function () {
+    $spare = SpareMaster::factory()->create(['spare_code' => 'BP-4']);
+    StockIssuer::receive($spare->id, 10, 100, StockEntry::TYPE_OPENING);
+    $ipo = InternalPartOrder::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['internalPartOrder' => $ipo])
+        ->set('scanCode', 'BP-4')->call('scan')->call('setScanQty', 3)->call('confirmScan');
+
+    expect(StockLedger::currentQty($spare->id))->toBe(10.0);   // nothing yet
+
+    $component->set('status', 'fully_issued')->call('save')->assertHasNoErrors();
+    expect(StockLedger::currentQty($spare->id))->toBe(7.0);
+});

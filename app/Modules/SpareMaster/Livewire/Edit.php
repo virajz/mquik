@@ -14,6 +14,8 @@ use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\SpareMaster\Models\SpareRateHistory;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
+use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
+use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use App\Support\ChildRows;
@@ -64,6 +66,10 @@ class Edit extends Component
 
     /** Ask for batch no + expiry at receipt (oils, chemicals, paints). */
     public bool $tracks_batch = false;
+
+    public ?int $shelf_life_value = null;
+
+    public ?string $shelf_life_unit = null;
 
     public ?int $workshop_department_id = null;
 
@@ -126,6 +132,8 @@ class Edit extends Component
         $this->editingId = $spare->id;
         $this->inventory_type = $spare->inventory_type;
         $this->tracks_batch = (bool) $spare->tracks_batch;
+        $this->shelf_life_value = $spare->shelf_life_value;
+        $this->shelf_life_unit = $spare->shelf_life_unit;
         $this->part_type_id = $spare->part_type_id;
         $this->hsn_id = $spare->hsn_id;
         $this->rack_id = $spare->rack_id;
@@ -167,6 +175,8 @@ class Edit extends Component
             'inventory_sub_group_id' => ['nullable', 'integer', Rule::exists('inventory_groups', 'id')->where('is_active', true)],
             'inventory_type' => ['nullable', Rule::in(array_keys(SpareMaster::inventoryTypes()))],
             'tracks_batch' => ['boolean'],
+            'shelf_life_value' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'shelf_life_unit' => ['nullable', Rule::in(array_keys(SpareMaster::shelfLifeUnits())), 'required_with:shelf_life_value'],
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'uom_id' => ['nullable', 'integer', Rule::exists('units_of_measure', 'id')->where('is_active', true)],
             'rate_before_tax' => ['numeric', 'min:0', 'max:9999999.99'],
@@ -232,6 +242,66 @@ class Edit extends Component
     public function needsVehicleCompatibility(): bool
     {
         return $this->spare_type === SpareMaster::TYPE_VEHICLE_SPECIFIC;
+    }
+
+    /** Quick-add HSN — code, description and GST%, so the master stays useful. */
+    public string $hsnQuickCode = '';
+
+    public string $hsnQuickName = '';
+
+    public ?float $hsnQuickGst = null;
+
+    /**
+     * Create an HSN code without leaving the spare form.
+     *
+     * Not the inline create-option used for Brand / UoM: those masters are
+     * name-only, whereas an HSN needs a code *and* a description *and* a rate —
+     * creating one from a single typed string would leave the master junk.
+     */
+    public function createHsn(): void
+    {
+        $this->authorize('hsn_master.create');
+
+        $data = $this->validate([
+            'hsnQuickCode' => ['required', 'string', 'max:8', 'regex:/^[0-9]+$/', Rule::unique('hsn_codes', 'code')],
+            'hsnQuickName' => ['required', 'string', 'max:255'],
+            'hsnQuickGst' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], [
+            'hsnQuickCode.regex' => 'An HSN code is digits only (4, 6 or 8 of them).',
+            'hsnQuickCode.unique' => 'That HSN code already exists — pick it from the list instead.',
+        ]);
+
+        $hsn = HsnMaster::create([
+            'code' => trim($data['hsnQuickCode']),
+            'name' => strtoupper(trim($data['hsnQuickName'])),
+            'kind' => HsnMaster::KIND_HSN,
+            'gst_percent' => $data['hsnQuickGst'],
+            'is_active' => true,
+        ]);
+
+        $this->hsn_id = $hsn->id;
+        $this->reset(['hsnQuickCode', 'hsnQuickName', 'hsnQuickGst']);
+        unset($this->hsnCodes);
+
+        Flux::modal('hsn-quick-add')->close();
+        Flux::toast(text: 'HSN '.$hsn->code.' added and selected.', variant: 'success');
+    }
+
+    /**
+     * Check the part number as it is typed rather than at submit, so a
+     * duplicate surfaces while the user is still looking at the field.
+     */
+    public function updatedSpareCode(): void
+    {
+        $this->spare_code = strtoupper(trim((string) $this->spare_code)) ?: null;
+
+        if ($this->spare_code === null) {
+            $this->resetErrorBag('spare_code');
+
+            return;
+        }
+
+        $this->validateOnly('spare_code');
     }
 
     public function createSpareBrand(): void
@@ -374,6 +444,245 @@ class Edit extends Component
             ]);
     }
 
+    // ── Vehicle picker modal ──────────────────────────────────────────────────
+    //
+    // The old select let you add one variant at a time from a 30-row window,
+    // which is unusable when a part fits forty variants. This drills
+    // brand → model → variants with checkboxes and whole-model bulk actions.
+
+    public ?int $pickerBrandId = null;
+
+    public ?int $pickerModelId = null;
+
+    public string $pickerSearch = '';
+
+    #[Computed]
+    public function pickerBrands()
+    {
+        return VehicleBrandMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Models of the picked brand.
+     *
+     * Deliberately NOT filtered by `pickerSearch` — that box filters the
+     * variant list. Filtering both made the model dropdown report
+     * "No results found" while still showing the selected model.
+     */
+    #[Computed]
+    public function pickerModels()
+    {
+        if (! $this->pickerBrandId) {
+            return collect();
+        }
+
+        return VehicleModelMaster::query()
+            ->where('is_active', true)
+            ->where('brand_id', $this->pickerBrandId)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /**
+     * Every model of the picked brand with how much of it is already selected —
+     * lets a whole model (or the whole brand) be ticked without drilling in.
+     *
+     * @return list<array{id:int, name:string, total:int, selected:int}>
+     */
+    #[Computed]
+    public function pickerModelSummary(): array
+    {
+        if (! $this->pickerBrandId) {
+            return [];
+        }
+
+        $models = $this->pickerModels;
+        if ($models->isEmpty()) {
+            return [];
+        }
+
+        $variants = VehicleVariantMaster::query()
+            ->where('is_active', true)
+            ->whereIn('model_id', $models->pluck('id'))
+            ->get(['id', 'model_id'])
+            ->groupBy('model_id');
+
+        $selected = array_flip(array_map('intval', $this->variant_ids));
+
+        return $models->map(function ($m) use ($variants, $selected) {
+            $ids = ($variants[$m->id] ?? collect())->pluck('id');
+
+            return [
+                'id' => $m->id,
+                'name' => $m->name,
+                'total' => $ids->count(),
+                'selected' => $ids->filter(fn ($id) => isset($selected[(int) $id]))->count(),
+            ];
+        })->values()->all();
+    }
+
+    /** Tick (or untick) every variant of one model in a single click. */
+    public function toggleModel(int $modelId): void
+    {
+        $ids = VehicleVariantMaster::query()
+            ->where('is_active', true)
+            ->where('model_id', $modelId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $current = array_map('intval', $this->variant_ids);
+        $allOn = $ids !== [] && count(array_diff($ids, $current)) === 0;
+
+        $this->variant_ids = $allOn
+            ? array_values(array_diff($current, $ids))
+            : array_values(array_unique([...$current, ...$ids]));
+
+        unset($this->selectedVariants, $this->selectionSummary, $this->pickerModelSummary);
+    }
+
+    /** The whole brand — every variant of every one of its models. */
+    public function toggleBrand(): void
+    {
+        if (! $this->pickerBrandId) {
+            return;
+        }
+
+        $ids = VehicleVariantMaster::query()
+            ->where('is_active', true)
+            ->whereHas('model', fn ($m) => $m->where('brand_id', $this->pickerBrandId))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $current = array_map('intval', $this->variant_ids);
+        $allOn = $ids !== [] && count(array_diff($ids, $current)) === 0;
+
+        $this->variant_ids = $allOn
+            ? array_values(array_diff($current, $ids))
+            : array_values(array_unique([...$current, ...$ids]));
+
+        unset($this->selectedVariants, $this->selectionSummary, $this->pickerModelSummary);
+    }
+
+    /**
+     * Selection grouped as "AUDI A3 (5 of 5)" — the form shows this instead of
+     * one chip per variant, which is unreadable once a part fits forty.
+     *
+     * @return list<array{label:string, count:int}>
+     */
+    #[Computed]
+    public function selectionSummary(): array
+    {
+        if ($this->variant_ids === []) {
+            return [];
+        }
+
+        return VehicleVariantMaster::query()
+            ->with('model.brand:id,name')
+            ->whereIn('id', $this->variant_ids)
+            ->get(['id', 'name', 'model_id'])
+            ->groupBy(fn ($v) => trim(($v->model?->brand?->name ?? '—').' '.($v->model?->name ?? '')))
+            ->map(fn ($group, $label) => ['label' => $label, 'count' => $group->count()])
+            ->sortBy('label')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Variants of the picked model. With no model picked but a search typed,
+     * searches variants across the brand instead — so a known variant name can
+     * be reached without drilling.
+     */
+    #[Computed]
+    public function pickerVariants()
+    {
+        if (! $this->pickerModelId && ($this->pickerSearch === '' || ! $this->pickerBrandId)) {
+            return collect();
+        }
+
+        return VehicleVariantMaster::query()
+            ->with('model:id,name')
+            ->where('is_active', true)
+            ->when($this->pickerModelId, fn ($q) => $q->where('model_id', $this->pickerModelId))
+            ->when(
+                ! $this->pickerModelId,
+                fn ($q) => $q->whereHas('model', fn ($m) => $m->where('brand_id', $this->pickerBrandId))
+                    ->whereLike('name', '%'.$this->pickerSearch.'%', caseSensitive: false),
+            )
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'year', 'model_id']);
+    }
+
+    /** The current selection, resolved for the chips on the form. */
+    #[Computed]
+    public function selectedVariants()
+    {
+        if ($this->variant_ids === []) {
+            return collect();
+        }
+
+        return VehicleVariantMaster::query()
+            ->with('model.brand:id,name')
+            ->whereIn('id', $this->variant_ids)
+            ->orderBy('name')
+            ->get(['id', 'name', 'model_id'])
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '').' '.$v->name),
+            ]);
+    }
+
+    public function updatedPickerBrandId(): void
+    {
+        $this->pickerModelId = null;
+        unset($this->pickerModels, $this->pickerVariants);
+    }
+
+    public function updatedPickerModelId(): void
+    {
+        unset($this->pickerVariants);
+    }
+
+    public function toggleVariant(int $id): void
+    {
+        $current = array_map('intval', $this->variant_ids);
+
+        $this->variant_ids = in_array($id, $current, true)
+            ? array_values(array_diff($current, [$id]))
+            : [...$current, $id];
+
+        unset($this->selectedVariants, $this->selectionSummary, $this->pickerModelSummary);
+    }
+
+    /** Tick every variant currently listed — the whole model in one click. */
+    public function selectAllListedVariants(): void
+    {
+        $this->variant_ids = array_values(array_unique([
+            ...array_map('intval', $this->variant_ids),
+            ...$this->pickerVariants->pluck('id')->map(fn ($id) => (int) $id)->all(),
+        ]));
+
+        unset($this->selectedVariants, $this->selectionSummary, $this->pickerModelSummary);
+    }
+
+    public function clearListedVariants(): void
+    {
+        $this->variant_ids = array_values(array_diff(
+            array_map('intval', $this->variant_ids),
+            $this->pickerVariants->pluck('id')->map(fn ($id) => (int) $id)->all(),
+        ));
+
+        unset($this->selectedVariants, $this->selectionSummary, $this->pickerModelSummary);
+    }
+
+    public function clearAllVariants(): void
+    {
+        $this->variant_ids = [];
+        unset($this->selectedVariants, $this->selectionSummary, $this->pickerModelSummary);
+    }
+
     /**
      * Live tax computation for the rate-with-tax hint shown next to the input.
      */
@@ -447,7 +756,7 @@ class Edit extends Component
         $attachments = $data['attachments'] ?? [];
         unset($data['variant_ids'], $data['attachments'], $data['attachmentFiles']);
 
-        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'tracks_batch', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
+        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'tracks_batch', 'shelf_life_value', 'shelf_life_unit', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);

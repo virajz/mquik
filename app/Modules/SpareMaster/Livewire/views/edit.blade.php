@@ -13,40 +13,6 @@
 
         <flux:separator />
 
-        {{-- IDENTITY --}}
-        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
-            <div>
-                <flux:heading size="lg">Identity</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Spare name, part number, and a short description.</flux:text>
-            </div>
-            <div class="space-y-4 min-w-0">
-                <div class="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
-                    <flux:input
-                        wire:model="name"
-                        label="Spare Name"
-                        placeholder="BRAKE PAD - FRONT"
-                        required
-                        autofocus
-                    />
-                    <flux:input
-                        wire:model="spare_code"
-                        label="Part No."
-                        placeholder="SP-00001"
-                        class:input="font-mono uppercase tracking-wide"
-                    />
-                </div>
-
-                <flux:textarea
-                    wire:model="description"
-                    label="Description"
-                    placeholder="Vehicle / fitment notes — e.g. 'Brake pad set front, Maruti Swift Petrol 2018+'"
-                    rows="2"
-                />
-            </div>
-        </section>
-
-        <flux:separator />
-
         {{-- TYPE — drives the rest of the form, so it comes first --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
@@ -110,29 +76,74 @@
                 <flux:heading size="lg">Vehicle Compatibility</flux:heading>
                 <flux:text size="sm" class="mt-1 text-zinc-500">Variants this spare fits. Shown only for vehicle-specific parts.</flux:text>
             </div>
-            <div class="space-y-4 min-w-0">
-                <flux:select
-                    wire:model="variant_ids"
-                    variant="listbox"
-                    multiple
-                    searchable
-                    clear="close"
-                    :filter="false"
-                    placeholder="Pick one or more variants…"
-                >
-                    <x-slot name="search">
-                        <flux:select.search wire:model.live.debounce.250ms="variantSearch" placeholder="Type a brand, model or variant…" />
-                    </x-slot>
-                    @foreach ($this->variants as $v)
-                        <flux:select.option :value="$v['id']" wire:key="var-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+            <div class="space-y-3 min-w-0">
+                <div class="flex items-center gap-2">
+                    <flux:button type="button" icon="truck" variant="filled" x-on:click="$flux.modal('vehicle-picker').show()">
+                        Choose vehicles
+                    </flux:button>
+                    @if (count($variant_ids))
+                        <flux:badge color="lime" size="sm">{{ count($variant_ids) }} selected</flux:badge>
+                        <flux:button size="sm" variant="ghost" type="button" wire:click="clearAllVariants">Clear</flux:button>
+                    @endif
+                </div>
+
+                {{-- Grouped as "AUDI A3 (5)" rather than one chip per variant —
+                     a part fitting forty variants would otherwise bury the form. --}}
+                @if (count($this->selectionSummary))
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach ($this->selectionSummary as $group)
+                            <flux:badge size="sm" wire:key="grp-{{ Str::slug($group['label']) }}">
+                                {{ $group['label'] }}
+                                <span class="ml-1 text-zinc-400">({{ $group['count'] }})</span>
+                            </flux:badge>
+                        @endforeach
+                    </div>
+                @else
+                    <flux:text size="sm" class="text-zinc-500">No vehicles picked yet — this part will show for every vehicle.</flux:text>
+                @endif
+
                 <flux:error name="variant_ids" />
             </div>
         </section>
 
         <flux:separator />
         @endif
+
+        {{-- IDENTITY --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Identity</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Spare name, part number, and a short description.</flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <div class="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
+                    <flux:input
+                        wire:model="name"
+                        label="Spare Name"
+                        placeholder="BRAKE PAD - FRONT"
+                        required
+                        autofocus
+                    />
+                    {{-- Live-checked: a duplicate part no shows while typing, not at submit. --}}
+                    <flux:input
+                        wire:model.live.debounce.400ms="spare_code"
+                        label="Part No."
+                        placeholder="SP-00001"
+                        class:input="font-mono uppercase tracking-wide"
+                        x-on:input="$event.target.value = $event.target.value.toUpperCase()"
+                    />
+                </div>
+
+                <flux:textarea
+                    wire:model="description"
+                    label="Description"
+                    placeholder="Vehicle / fitment notes — e.g. 'Brake pad set front, Maruti Swift Petrol 2018+'"
+                    rows="2"
+                />
+            </div>
+        </section>
+
+        <flux:separator />
 
         {{-- CLASSIFICATION --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
@@ -159,18 +170,35 @@
                         @endcan
                     </flux:select>
 
-                    <flux:select
-                        wire:model="hsn_id"
-                        variant="listbox"
-                        searchable
-                        clearable
-                        label="HSN Code"
-                        placeholder="Pick an HSN code…"
-                    >
-                        @foreach ($this->hsnCodes as $h)
-                            <flux:select.option :value="$h->id" wire:key="hsn-{{ $h->id }}">{{ $h->code }} — {{ $h->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+                    <flux:field>
+                        <flux:label>HSN Code</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex-1 min-w-0">
+                                <flux:select
+                                    wire:model="hsn_id"
+                                    variant="listbox"
+                                    searchable
+                                    clearable
+                                    placeholder="Pick an HSN code…"
+                                >
+                                    @foreach ($this->hsnCodes as $h)
+                                        <flux:select.option :value="$h->id" wire:key="hsn-{{ $h->id }}">{{ $h->code }} — {{ $h->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                            @can('hsn_master.create')
+                                <flux:tooltip content="Add a new HSN code">
+                                    <flux:button
+                                        icon="plus"
+                                        variant="ghost"
+                                        type="button"
+                                        x-on:click="$flux.modal('hsn-quick-add').show()"
+                                    />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                        <flux:error name="hsn_id" />
+                    </flux:field>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -353,10 +381,34 @@
                 </flux:select>
 
                 <flux:field variant="inline">
-                    <flux:checkbox wire:model="tracks_batch" />
+                    <flux:checkbox wire:model.live="tracks_batch" />
                     <flux:label>Track batch &amp; expiry</flux:label>
-                    <flux:description>Asks for a batch no and expiry date whenever this part is received, and warns before the stock lapses. Meant for oils, chemicals and paints.</flux:description>
+                    <flux:description>Asks for a batch no, manufacturing date and expiry whenever this part is received, and warns before the stock lapses. Meant for oils, chemicals and paints.</flux:description>
                 </flux:field>
+
+                {{-- Shelf life belongs to the part; the manufacturing date belongs
+                     to each batch. Together they derive expiry at receipt. --}}
+                @if ($tracks_batch)
+                    <div class="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-4">
+                        <flux:input
+                            wire:model="shelf_life_value"
+                            type="number"
+                            min="1"
+                            max="9999"
+                            label="Shelf Life"
+                            placeholder="24"
+                            class:input="text-right font-mono"
+                        />
+                        <flux:select wire:model="shelf_life_unit" variant="listbox" clearable label="Unit" placeholder="Months / Years…">
+                            @foreach (\App\Modules\SpareMaster\Models\SpareMaster::shelfLifeUnits() as $key => $label)
+                                <flux:select.option :value="$key" wire:key="sl-{{ $key }}">{{ $label }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </div>
+                    <flux:text size="sm" class="text-zinc-500">
+                        Expiry is worked out from the manufacturing date entered on each purchase line — you can still override it there if the pack says otherwise.
+                    </flux:text>
+                @endif
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select
@@ -517,4 +569,52 @@
             </flux:button>
         </div>
     </form>
+
+    {{-- Add an HSN code without leaving the form. A modal rather than the inline
+         create-option used for Brand / UoM, because an HSN needs a code, a
+         description and a rate — one typed string would leave the master junk. --}}
+    @can('hsn_master.create')
+        <flux:modal name="hsn-quick-add" class="max-w-md">
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">New HSN Code</flux:heading>
+                    <flux:text class="mt-1">It'll be selected on this spare once saved.</flux:text>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-4">
+                    <flux:input
+                        wire:model="hsnQuickCode"
+                        label="Code"
+                        placeholder="87089900"
+                        maxlength="8"
+                        class:input="font-mono tracking-wide"
+                    />
+                    <flux:input
+                        wire:model="hsnQuickGst"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        label="GST %"
+                        placeholder="18"
+                        class:input="text-right font-mono"
+                    />
+                </div>
+
+                <flux:input
+                    wire:model="hsnQuickName"
+                    label="Description"
+                    placeholder="PARTS AND ACCESSORIES OF MOTOR VEHICLES"
+                    class:input="uppercase"
+                />
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close><flux:button variant="ghost" type="button">Cancel</flux:button></flux:modal.close>
+                    <flux:button variant="primary" type="button" icon="check" wire:click="createHsn">Add HSN</flux:button>
+                </div>
+            </div>
+        </flux:modal>
+    @endcan
+
+    @include('spare-master::_vehicle_picker_modal')
 </div>

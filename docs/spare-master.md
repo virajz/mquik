@@ -192,3 +192,86 @@ would speed up every module, not just spares.
 
 Tests: 3 added to `SpareMasterTest.php` (multi-token across name+description, every-token-must-match, part
 no + HSN still resolve). **33 green** there, plus MasterSearch + the searchable-fields audit unaffected.
+
+---
+
+# Spare Master improvements (2026-08-05)
+
+Ten changes across Spare Master, Purchase Entry and Internal Part Order.
+
+## Index
+
+- **Vehicle filter** — Model, then Variant. Picking a model shows spares whose compatibility list contains any
+  of its variants; picking a variant narrows to that exact one. Changing model resets the variant. Both are
+  server-searched pickers (~394 models, ~1,800 variants).
+- **Department filter** and **Inventory group filter** (matches parent *or* sub-group, since spares carry both).
+- **Clear** button, shown only while something is actually filtering.
+- Search was already multi-token across name / part no / description + HSN (see the search section above).
+
+Measured on the real 29,681-row table: department filter 16,489 rows in ~97 ms, variant filter ~15 ms.
+
+## Edit form
+
+- **Section order is now Type → Vehicle Compatibility → Identity → Classification → …** Type drives what the
+  rest of the form shows, so it leads; compatibility sits directly under it so switching type has a visible
+  effect; identity follows.
+- **Bulk vehicle picker** (`_vehicle_picker_modal.blade.php`). The old control added one variant at a time from
+  a 30-row window — unusable for a part that fits forty variants. Now: **Choose vehicles** opens a modal that
+  drills Brand → Model → variants with checkboxes, plus **Select all listed** / **Unselect listed** / **Clear
+  all**, and a name filter that searches variants across the brand when no model is picked. The selection shows
+  as removable chips on the form.
+- **Quick-add HSN** — a `+` beside the HSN picker opens a modal for code + description + GST%, creates it and
+  selects it. A modal rather than the inline create-option used for Brand / UoM: those masters are name-only,
+  whereas an HSN needs three fields, and creating one from a single typed string would leave the master junk.
+  Code is validated as digits-only and unique.
+- **Live part-number check** — a duplicate part no now surfaces while typing (uppercased as you go), instead of
+  at submit.
+- **Shelf life** — `shelf_life_value` + `shelf_life_unit` (Days / Months / Years), revealed under **Track batch
+  & expiry**. A unit is required alongside a value.
+
+## Expiry is derived, not typed
+
+Expiry belongs to a *batch*, not to a part. So:
+
+- the **spare** carries how long the part keeps (e.g. 24 months),
+- each **purchase line** carries `manufacturing_date` (new),
+- entering that date fills the line's expiry from the shelf life — **still editable**, because what is printed
+  on the pack wins.
+
+The field shows "Shelf life 24 Months — derived from the mfg. date." when the part has one configured.
+`manufacturing_date` also rides onto the stock layer, so a batch's age travels with it.
+
+Migration `2026_08_05_140000`: `spares.shelf_life_value` / `.shelf_life_unit`,
+`purchase_entry_items.manufacturing_date`, `stock_entries.manufacturing_date`.
+
+## Scan to issue, with FIFO confirmation
+
+A **Scan to issue** box now sits above the parts list on Internal Part Order. Scanning (or typing) a part no —
+Enter submits — resolves the spare and opens a confirmation showing:
+
+- **which batch FIFO would consume**, with its expiry, and a red *Expired* badge if it has lapsed,
+- the quantity, adjustable with −/+ (the preview re-splits across layers as it changes),
+- **what's left after the issue**: `On hand 10 → 9 left`.
+
+Confirming adds (or tops up) the line. **Nothing moves at scan time** — the ledger write still happens on save,
+through the same guarded `StockIssuer` path as a typed line, so the preview cannot diverge from what actually
+posts. If the scan asks for more than is on hand, the panel turns red and **Confirm** is disabled.
+
+The preview walks the same `StockLedger::openLayers()` the issuer does, so the batch shown is the batch that
+leaves.
+
+## Tests
+
+`SpareMasterTest.php` **42 green** (+9: model/variant filter, department filter, clear-all, shelf-life
+derivation, shelf-life persistence + unit requirement, HSN quick-add, HSN rejection, live part-no check, bulk
+variant select). `InternalPartOrderTest.php` **18 green** (+6: scan preview, multi-layer split, short-stock
+flag, unknown code, line top-up, stock moves only on save). 113 across every affected suite.
+
+Verified on Postgres in a rolled-back transaction: shelf-life derivation, and both new filters at full scale.
+
+## Still open
+
+- The scan box matches on part no or exact name. If you start printing barcodes with a different payload
+  (e.g. an EAN), the lookup needs to learn that format.
+- `spares.barcode_type` exists but nothing generates or reads a barcode value yet — the Barcode module prints
+  labels only.

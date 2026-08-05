@@ -20,6 +20,7 @@ use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -174,6 +175,148 @@ class Edit extends Component
         $this->items[$i]['uom_id'] = $spare->uom_id;
         $qty = StockLedger::currentQty($spareId);
         $this->items[$i]['stock_status'] = $qty > 0 ? 'available' : 'out_of_stock';
+    }
+
+    // ── Scan to issue ─────────────────────────────────────────────────────────
+
+    /** Part no / barcode typed or scanned into the issue box. */
+    public string $scanCode = '';
+
+    /**
+     * What the pending scan would do, once confirmed.
+     *
+     * @var array{spare_id:int, name:string, code:?string, qty:float, on_hand:float, remaining:float, layers:list<array{batch_no:?string, expiry_date:?string, qty:float, rate:float, expired:bool}>, short:bool}|null
+     */
+    public ?array $pendingScan = null;
+
+    /**
+     * Resolve a scanned code and stage the issue for confirmation.
+     *
+     * Nothing moves here — the FIFO allocation is *previewed* so the store
+     * person sees which batch is about to leave and what will be left before
+     * committing. Confirming adds the line; the actual ledger write still
+     * happens on save, through the same guarded path as a typed line.
+     */
+    public function scan(): void
+    {
+        $code = strtoupper(trim($this->scanCode));
+        if ($code === '') {
+            return;
+        }
+
+        $spare = SpareMaster::query()
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereLike('spare_code', $code, caseSensitive: false)
+                ->orWhereLike('name', $code, caseSensitive: false))
+            ->first();
+
+        if (! $spare) {
+            $this->addError('scanCode', 'No active spare matches "'.$code.'".');
+
+            return;
+        }
+
+        $this->resetErrorBag('scanCode');
+        $this->pendingScan = $this->previewIssue($spare, 1.0);
+
+        Flux::modal('scan-confirm')->show();
+    }
+
+    /** Nudge the pending quantity up or down before confirming. */
+    public function setScanQty(float $qty): void
+    {
+        if (! $this->pendingScan || $qty < 1) {
+            return;
+        }
+
+        $spare = SpareMaster::find($this->pendingScan['spare_id']);
+        if ($spare) {
+            $this->pendingScan = $this->previewIssue($spare, $qty);
+        }
+    }
+
+    /**
+     * Walk the same layers `StockIssuer` would, so the preview cannot drift
+     * from what actually happens on save.
+     *
+     * @return array<string, mixed>
+     */
+    protected function previewIssue(SpareMaster $spare, float $qty): array
+    {
+        $onHand = StockLedger::currentQty($spare->id);
+
+        $outstanding = $qty;
+        $layers = [];
+        foreach (StockLedger::openLayers($spare->id) as $layer) {
+            if ($outstanding <= 0.0001) {
+                break;
+            }
+            $take = min($outstanding, $layer['remaining']);
+            $outstanding -= $take;
+            $layers[] = [
+                'batch_no' => $layer['batch_no'],
+                'expiry_date' => $layer['expiry_date'] ? (string) $layer['expiry_date'] : null,
+                'qty' => $take,
+                'rate' => $layer['rate_per_unit'],
+                'expired' => $layer['expiry_date'] !== null && Carbon::parse($layer['expiry_date'])->isPast(),
+            ];
+        }
+
+        return [
+            'spare_id' => $spare->id,
+            'name' => $spare->name,
+            'code' => $spare->spare_code,
+            'qty' => $qty,
+            'on_hand' => $onHand,
+            'remaining' => $onHand - $qty,
+            'layers' => $layers,
+            'short' => $outstanding > 0.0001,
+        ];
+    }
+
+    /** Confirmed: add (or top up) the line for the scanned spare. */
+    public function confirmScan(): void
+    {
+        if (! $this->pendingScan) {
+            return;
+        }
+
+        $spareId = $this->pendingScan['spare_id'];
+        $qty = (float) $this->pendingScan['qty'];
+
+        $existing = null;
+        foreach ($this->items as $i => $item) {
+            if ((int) ($item['spare_id'] ?? 0) === $spareId) {
+                $existing = $i;
+                break;
+            }
+        }
+
+        if ($existing !== null) {
+            $this->items[$existing]['qty_issued'] = (float) ($this->items[$existing]['qty_issued'] ?? 0) + $qty;
+            $this->items[$existing]['qty_requested'] = max(
+                (float) ($this->items[$existing]['qty_requested'] ?? 0),
+                (float) $this->items[$existing]['qty_issued'],
+            );
+        } else {
+            $this->addItem();
+            $last = count($this->items) - 1;
+            $this->items[$last]['spare_id'] = $spareId;
+            $this->items[$last]['qty_requested'] = $qty;
+            $this->items[$last]['qty_issued'] = $qty;
+            $this->items[$last]['issue_status'] = 'issued';
+            $this->prefillSpare($last, $spareId);
+        }
+
+        $this->cancelScan();
+        Flux::toast(text: 'Added '.rtrim(rtrim(number_format($qty, 2), '0'), '.').' to the issue list.', variant: 'success');
+    }
+
+    public function cancelScan(): void
+    {
+        $this->pendingScan = null;
+        $this->scanCode = '';
+        Flux::modal('scan-confirm')->close();
     }
 
     public function addItem(): void
