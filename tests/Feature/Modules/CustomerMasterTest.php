@@ -5,6 +5,7 @@ use App\Modules\CustomerMaster\Livewire\Edit;
 use App\Modules\CustomerMaster\Livewire\Index;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
+use App\Modules\GstTypeMaster\Models\GstTypeMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -98,7 +99,9 @@ it('creates a customer with full details', function () {
         ->set('date_of_birth', '1990-05-15')
         ->call('save')
         ->assertHasNoErrors()
-        ->assertRedirect(route('customer-master.index'));
+        // A create now stays put and offers the add-vehicle prompt.
+        ->assertNoRedirect()
+        ->assertSet('justCreatedId', fn ($id) => $id !== null);
 
     $r = CustomerMaster::firstOrFail();
     expect($r->name)->toBe('RAVI SHARMA')
@@ -118,6 +121,7 @@ it('saves a valid GST number and rejects a malformed one', function () {
         ->set('last_name', 'customer')
         ->set('business_type_id', $this->loyal->id)
         ->set('phone', '9876543211')
+        ->set('company_name', 'gst traders')
         ->set('gstin', '24ABCDE1234F1Z5')
         ->call('save')
         ->assertHasNoErrors();
@@ -149,6 +153,7 @@ it('uppercases PAN and GSTIN before validation', function () {
         ->set('business_type_id', $this->loyal->id)
         ->set('phone', '9876543214')
         ->set('pan', 'abcde1234f')
+        ->set('company_name', 'case traders')
         ->set('gstin', '24abcde1234f1z5')
         ->call('save')
         ->assertHasNoErrors();
@@ -601,4 +606,108 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('customer-master.index'))->assertRedirect(route('login'));
+});
+
+it('requires a company name once a GST number is entered', function () {
+    Livewire::test(Edit::class)
+        ->set('first_name', 'no company')
+        ->set('business_type_id', $this->loyal->id)
+        ->set('phone', '9800000001')
+        ->set('gstin', '24ABCDE1234F1Z5')
+        ->call('save')
+        ->assertHasErrors(['company_name' => 'required']);
+});
+
+it('requires a company name once a registered GST type is picked', function () {
+    $regular = GstTypeMaster::firstOrCreate(['name' => 'REGULAR'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'no company')
+        ->set('business_type_id', $this->loyal->id)
+        ->set('phone', '9800000002')
+        ->set('gst_type_id', $regular->id)
+        ->call('save')
+        ->assertHasErrors(['company_name' => 'required']);
+});
+
+it('leaves company name optional for an unregistered customer', function () {
+    $unregistered = GstTypeMaster::firstOrCreate(['name' => 'UNREGISTERED'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'walk in')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9800000003')
+        ->set('gst_type_id', $unregistered->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(CustomerMaster::firstOrFail()->company_name)->toBeNull();
+});
+
+it('stores the company name uppercased like the other name fields', function () {
+    $regular = GstTypeMaster::firstOrCreate(['name' => 'REGULAR'], ['is_active' => true]);
+
+    Livewire::test(Edit::class)
+        ->set('first_name', 'ravi')
+        ->set('business_type_id', $this->corporate->id)
+        ->set('phone', '9800000004')
+        ->set('gst_type_id', $regular->id)
+        ->set('company_name', 'shah auto works pvt ltd')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(CustomerMaster::firstOrFail()->company_name)->toBe('SHAH AUTO WORKS PVT LTD');
+});
+
+it('clears any GST number when the type switches to unregistered', function () {
+    $unregistered = GstTypeMaster::firstOrCreate(['name' => 'UNREGISTERED'], ['is_active' => true]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('gstin', '24ABCDE1234F1Z5')
+        ->set('gst_type_id', $unregistered->id);
+
+    expect($component->get('gstin'))->toBeNull()
+        ->and($component->instance()->isUnregistered())->toBeTrue();
+});
+
+it('finds a customer by company name', function () {
+    CustomerMaster::factory()->create([
+        'first_name' => 'RAVI', 'last_name' => 'SHARMA', 'company_name' => 'SHAH AUTO WORKS',
+    ]);
+    CustomerMaster::factory()->create([
+        'first_name' => 'AMIT', 'last_name' => 'PATEL', 'company_name' => 'PATEL MOTORS',
+    ]);
+
+    Livewire::test(Index::class)
+        ->set('search', 'shah auto')
+        ->assertSee('RAVI')
+        ->assertDontSee('AMIT');
+});
+
+it('offers to add a vehicle after creating a customer, and links it to them', function () {
+    $component = Livewire::test(Edit::class)
+        ->set('first_name', 'new')
+        ->set('last_name', 'customer')
+        ->set('business_type_id', $this->walking->id)
+        ->set('phone', '9800000005')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertNoRedirect();
+
+    $customer = CustomerMaster::firstOrFail();
+    expect($component->get('justCreatedId'))->toBe($customer->id);
+
+    $component->call('addVehicle')
+        ->assertRedirect(route('customer-vehicle-master.create', ['for-customer' => $customer->id]));
+});
+
+it('does not re-offer the vehicle prompt when editing an existing customer', function () {
+    $customer = CustomerMaster::factory()->create(['business_type_id' => $this->walking->id]);
+
+    Livewire::test(Edit::class, ['customer' => $customer])
+        ->set('first_name', 'renamed')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('customer-master.index'))
+        ->assertSet('justCreatedId', null);
 });

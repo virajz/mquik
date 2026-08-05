@@ -35,6 +35,9 @@ class Edit extends Component
 
     public ?string $last_name = null;
 
+    /** Trading name — required once the customer is GST-registered. */
+    public ?string $company_name = null;
+
     public ?int $business_type_id = null;
 
     public ?int $gst_type_id = null;
@@ -88,6 +91,9 @@ class Edit extends Component
     /** @var list<array{id: ?int, label: ?string, address_line: ?string, region_id: ?int, is_primary: bool}> */
     public array $addresses = [];
 
+    /** Id of the customer just created — the add-vehicle prompt links to it. */
+    public ?int $justCreatedId = null;
+
     public function mount(?CustomerMaster $customer = null): void
     {
         if ($customer && $customer->exists) {
@@ -107,6 +113,7 @@ class Edit extends Component
         $this->first_name = (string) $customer->first_name;
         $this->middle_name = $customer->middle_name;
         $this->last_name = $customer->last_name;
+        $this->company_name = $customer->company_name;
         $this->business_type_id = $customer->business_type_id;
         $this->gst_type_id = $customer->gst_type_id;
         $this->gstin = $customer->gstin;
@@ -151,6 +158,11 @@ class Edit extends Component
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['nullable', 'string', 'max:255'],
+            // A GST-registered customer bills under a company name, so it stops
+            // being optional the moment a GSTIN or a registered GST type is set.
+            // Unregistered is excluded: it means "no GST", which is the normal
+            // state for a walk-in individual.
+            'company_name' => [Rule::requiredIf(fn () => $this->requiresCompanyName()), 'nullable', 'string', 'max:255'],
             'business_type_id' => ['required', 'integer', Rule::exists('business_types', 'id')->where('is_active', true)],
             'gst_type_id' => ['nullable', 'integer', Rule::exists('gst_types', 'id')->where('is_active', true)],
             'gstin' => [
@@ -197,7 +209,54 @@ class Edit extends Component
         return [
             'addresses.*.region_id.exists' => 'Selected region is invalid or inactive.',
             'referred_by_customer_id.exists' => 'Selected referrer is invalid (cannot self-refer).',
+            'company_name.required' => 'Company name is required for a GST-registered customer.',
         ];
+    }
+
+    /**
+     * The Unregistered GST type, if the master holds one — used to keep the
+     * GSTIN field and the company-name rule off individual walk-ins.
+     */
+    #[Computed]
+    public function unregisteredGstTypeId(): ?int
+    {
+        return GstTypeMaster::query()
+            ->whereLike('name', CustomerMaster::GST_TYPE_UNREGISTERED, caseSensitive: false)
+            ->value('id');
+    }
+
+    /** True while the form has the Unregistered GST type selected. */
+    #[Computed]
+    public function isUnregistered(): bool
+    {
+        return $this->gst_type_id !== null && $this->gst_type_id === $this->unregisteredGstTypeId();
+    }
+
+    /** A GSTIN, or any GST type other than Unregistered, makes it a company. */
+    protected function requiresCompanyName(): bool
+    {
+        return filled($this->gstin) || ($this->gst_type_id !== null && ! $this->isUnregistered());
+    }
+
+    /** Same rule, exposed so the form can mark the field required as you type. */
+    #[Computed]
+    public function requiresCompanyNameForDisplay(): bool
+    {
+        return $this->requiresCompanyName();
+    }
+
+    /**
+     * Unregistered customers hold no GSTIN — drop anything already typed so a
+     * stale number cannot survive a change of type.
+     */
+    public function updatedGstTypeId(): void
+    {
+        unset($this->isUnregistered);
+
+        if ($this->isUnregistered()) {
+            $this->gstin = null;
+            $this->resetErrorBag('gstin');
+        }
     }
 
     /** Customer quick-add (CanQuickAddCustomer trait) writes the new id back to the referrer picker. */
@@ -377,7 +436,22 @@ class Edit extends Component
             variant: 'success',
         );
 
+        // A new customer almost always arrives with a vehicle, so offer to add
+        // it straight away rather than making them find the customer again.
+        if ($isCreate) {
+            $this->justCreatedId = $customer->id;
+            Flux::modal('add-vehicle-prompt')->show();
+
+            return null;
+        }
+
         return redirect()->route('customer-master.index');
+    }
+
+    /** Straight into the vehicle form with this customer already picked. */
+    public function addVehicle()
+    {
+        return redirect()->route('customer-vehicle-master.create', ['for-customer' => $this->justCreatedId]);
     }
 
     /**

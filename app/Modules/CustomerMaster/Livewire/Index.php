@@ -87,7 +87,7 @@ class Index extends Component
         $status = $this->statusFilter;
 
         $rows = CustomerMaster::query()
-            ->with(['businessType:id,name', 'primaryAddress.region.parent.parent.parent'])
+            ->with(['businessType:id,name', 'gstType:id,name', 'primaryAddress.region.parent.parent.parent'])
             ->when($search !== '', fn ($q) => $q->search($search))
             ->when($type !== 'all', fn ($q) => $q->where('business_type_id', $type))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))

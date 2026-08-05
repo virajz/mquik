@@ -46,7 +46,13 @@
             @forelse ($rows as $row)
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs text-zinc-500">#{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}</flux:table.cell>
-                    <flux:table.cell class="font-mono font-medium tracking-wide">{{ $row->registration_no }}</flux:table.cell>
+                    <flux:table.cell class="font-mono font-medium tracking-wide">
+                        @if ($row->registration_no)
+                            {{ $row->registration_no }}
+                        @else
+                            <flux:badge color="zinc" size="sm">{{ $row->isUnregistered() ? 'Unregistered' : 'No plate' }}</flux:badge>
+                        @endif
+                    </flux:table.cell>
                     <flux:table.cell>
                         <div class="font-medium">{{ $row->model?->brand?->name }} {{ $row->model?->name }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5 flex items-center gap-2">
@@ -84,7 +90,7 @@
                                 </flux:modal.trigger>
                                 <flux:modal :name="'customer-vehicle-master-delete-' . $row->id">
                                     <div class="space-y-4">
-                                        <flux:heading size="lg">Delete {{ $row->registration_no }}?</flux:heading>
+                                        <flux:heading size="lg">Delete {{ $row->plateLabel() }}?</flux:heading>
                                         <flux:text>Cannot be undone. If this vehicle has any job cards or invoices the delete will fail.</flux:text>
                                         <div class="flex gap-2 justify-end">
                                             <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>

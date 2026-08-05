@@ -16,7 +16,7 @@ class CustomerExporter implements Exportable
     public function headers(): array
     {
         return [
-            'ID', 'First Name', 'Middle Name', 'Last Name', 'Type',
+            'ID', 'First Name', 'Middle Name', 'Last Name', 'Company Name', 'Type',
             'Phone', 'Alternate Phone', 'Email', 'Secondary Email',
             'Primary Address', 'Primary Region', 'Primary Pincode', 'Address Count',
             'Referred By (Phone)',
@@ -60,6 +60,7 @@ class CustomerExporter implements Exportable
             $model->first_name,
             $model->middle_name,
             $model->last_name,
+            $model->company_name,
             $model->businessType?->name,
             $model->phone,
             $model->alternate_phone,

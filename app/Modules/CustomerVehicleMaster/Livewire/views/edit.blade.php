@@ -7,7 +7,7 @@
                 Customer Vehicles
             </flux:link>
             <flux:heading size="xl" level="1" class="mt-1">
-                {{ $editingId ? ($registration_no ?: 'Vehicle #'.$editingId) : 'New Customer Vehicle' }}
+                {{ $editingId ? ($registration_no ?: ($this->isUnregisteredPlate ? 'Unregistered vehicle' : 'Vehicle #'.$editingId)) : 'New Customer Vehicle' }}
             </flux:heading>
         </div>
 
@@ -152,21 +152,31 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select wire:model="registration_type_id" label="Plate Type" variant="listbox" placeholder="Select…" clearable searchable>
+                    <flux:select wire:model.live="registration_type_id" label="Plate Type" variant="listbox" placeholder="Select…" clearable searchable>
                         @foreach ($this->registrationTypes as $rt)
                             <flux:select.option :value="$rt->id" wire:key="rt-{{ $rt->id }}">{{ $rt->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <div class="md:col-span-2">
-                        <flux:input
-                            wire:model.live.debounce.400ms="registration_no"
-                            label="Registration No."
-                            placeholder="GJ05RH4816 / 24BH1234AA"
-                            maxlength="20"
-                            class:input="font-mono uppercase tracking-wide"
-                            required
-                            x-on:input="$event.target.value = $event.target.value.toUpperCase().replace(/\s+/g, '')"
-                        />
+                        {{-- An unregistered vehicle has no plate yet, so the number
+                             is neither asked for nor pattern-checked. --}}
+                        @if ($this->isUnregisteredPlate)
+                            <flux:field>
+                                <flux:label>Registration No.</flux:label>
+                                <flux:input value="UNREGISTERED" readonly class:input="font-mono tracking-wide text-zinc-500" />
+                                <flux:description>Not required — add the plate here once the vehicle is registered.</flux:description>
+                            </flux:field>
+                        @else
+                            <flux:input
+                                wire:model.live.debounce.400ms="registration_no"
+                                label="Registration No."
+                                placeholder="GJ05RH4816 / 24BH1234AA"
+                                maxlength="20"
+                                class:input="font-mono uppercase tracking-wide"
+                                required
+                                x-on:input="$event.target.value = $event.target.value.toUpperCase().replace(/\s+/g, '')"
+                            />
+                        @endif
                     </div>
                 </div>
 

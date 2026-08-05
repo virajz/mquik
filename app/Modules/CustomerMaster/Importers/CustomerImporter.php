@@ -18,9 +18,10 @@ class CustomerImporter implements Importable
     public function columns(): array
     {
         return [
-            'first_name' => ['label' => 'First Name', 'required' => true, 'type' => 'string', 'help' => 'For company customers, put the full company name here.'],
+            'first_name' => ['label' => 'First Name', 'required' => true, 'type' => 'string'],
             'middle_name' => ['label' => 'Middle Name', 'required' => false, 'type' => 'string'],
             'last_name' => ['label' => 'Last Name', 'required' => false, 'type' => 'string'],
+            'company_name' => ['label' => 'Company Name', 'required' => false, 'type' => 'string', 'help' => 'Trading name. Expected whenever the customer is GST-registered.'],
             'business_type' => ['label' => 'Business Type', 'required' => false, 'type' => 'string', 'help' => 'Walking | Loyal | Corporate | Government — match by name (case-insensitive). Defaults to Walking.'],
             'referred_by_phone' => ['label' => 'Referred By (Phone)', 'required' => false, 'type' => 'string', 'help' => 'Phone of an existing customer who referred this one.'],
             'phone' => ['label' => 'Phone', 'required' => true, 'type' => 'string'],
@@ -50,6 +51,7 @@ class CustomerImporter implements Importable
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['nullable', 'string', 'max:255'],
+            'company_name' => ['nullable', 'string', 'max:255'],
             'business_type' => ['nullable', 'string'],
             'referred_by_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'phone' => ['required', 'string', 'min:10', 'max:20'],

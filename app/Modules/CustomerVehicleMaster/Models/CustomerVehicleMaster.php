@@ -34,6 +34,20 @@ class CustomerVehicleMaster extends Model
 
     protected static array $searchableFields = ['registration_no', 'vin', 'engine_no'];
 
+    /** Plate type for a vehicle that has no registration number yet. */
+    public const PLATE_UNREGISTERED = 'UNREGISTERED';
+
+    public function isUnregistered(): bool
+    {
+        return mb_strtoupper((string) $this->registrationType?->name) === self::PLATE_UNREGISTERED;
+    }
+
+    /** What to print where a plate is expected. */
+    public function plateLabel(): string
+    {
+        return $this->registration_no ?: ($this->isUnregistered() ? 'Unregistered' : '—');
+    }
+
     public function toSearchResult(): array
     {
         return [

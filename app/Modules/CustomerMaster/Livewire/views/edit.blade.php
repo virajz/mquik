@@ -20,7 +20,7 @@
             <div>
                 <flux:heading size="lg">Identity</flux:heading>
                 <flux:text size="sm" class="mt-1 text-zinc-500">
-                    Who they are. For company customers, put the full company name in First Name.
+                    Who they are. Company name is required once a GST type or number is set.
                 </flux:text>
             </div>
             <div class="space-y-4 min-w-0">
@@ -28,7 +28,7 @@
                     <flux:input
                         wire:model="first_name"
                         label="First Name"
-                        placeholder="First or company name"
+                        placeholder="First name"
                         required
                         autofocus
                     />
@@ -43,6 +43,17 @@
                         placeholder="Optional"
                     />
                 </div>
+
+                <flux:input
+                    wire:model="company_name"
+                    label="Company Name"
+                    placeholder="Trading name as it appears on the GST certificate"
+                    icon="building-office-2"
+                    :required="$this->requiresCompanyNameForDisplay"
+                    :description="$this->requiresCompanyNameForDisplay
+                        ? 'Required — this customer is GST-registered.'
+                        : 'Optional for individuals. Becomes required once a GST type or number is set.'"
+                />
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select wire:model="business_type_id" variant="combobox" label="Customer Type" required>
@@ -59,19 +70,29 @@
                         @endcan
                     </flux:select>
 
-                    <flux:select wire:model="gst_type_id" variant="listbox" label="GST Type" placeholder="Select GST type…" clearable searchable>
+                    <flux:select wire:model.live="gst_type_id" variant="listbox" label="GST Type" placeholder="Select GST type…" clearable searchable>
                         @foreach ($gstTypes as $gt)
                             <flux:select.option :value="$gt->id" wire:key="gst-{{ $gt->id }}">{{ $gt->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:input
-                        wire:model="gstin"
-                        label="GST Number"
-                        placeholder="22ABCDE1234F1Z5"
-                        maxlength="15"
-                        class:input="font-mono uppercase tracking-wide"
-                    />
+                    {{-- An unregistered customer holds no GSTIN by definition, so
+                         the field states that rather than sitting empty. --}}
+                    @if ($this->isUnregistered)
+                        <flux:field>
+                            <flux:label>GST Number</flux:label>
+                            <flux:input value="UNREGISTERED" readonly class:input="font-mono tracking-wide text-zinc-500" />
+                            <flux:description>This customer is not GST-registered.</flux:description>
+                        </flux:field>
+                    @else
+                        <flux:input
+                            wire:model.blur="gstin"
+                            label="GST Number"
+                            placeholder="22ABCDE1234F1Z5"
+                            maxlength="15"
+                            class:input="font-mono uppercase tracking-wide"
+                        />
+                    @endif
 
                     <flux:field>
                         <flux:label>Referred by</flux:label>
@@ -442,4 +463,34 @@
     @can('customer_master.create')
         @include('customer-master::_quick_add_modal')
     @endcan
+
+    {{-- Offered right after a create: a new customer nearly always brings a car. --}}
+    <flux:modal name="add-vehicle-prompt" class="max-w-md" :dismissible="false">
+        <div class="space-y-6">
+            <div class="flex items-start gap-3">
+                <div class="rounded-full bg-lime-100 dark:bg-lime-900/40 p-2">
+                    <flux:icon.check class="size-5 text-lime-600 dark:text-lime-400" />
+                </div>
+                <div>
+                    <flux:heading size="lg">Customer created</flux:heading>
+                    <flux:text class="mt-1">
+                        Add a vehicle for
+                        <span class="font-medium text-zinc-800 dark:text-zinc-200">{{ trim(implode(' ', array_filter([$first_name, $middle_name, $last_name]))) }}</span>{{ $company_name ? ' ('.$company_name.')' : '' }}?
+                        They'll already be selected.
+                    </flux:text>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <flux:button variant="ghost" :href="route('customer-master.index')" wire:navigate>
+                    Not now
+                </flux:button>
+                @can('customer_vehicle_master.create')
+                    <flux:button variant="primary" icon="truck" wire:click="addVehicle">
+                        Add vehicle
+                    </flux:button>
+                @endcan
+            </div>
+        </div>
+    </flux:modal>
 </div>

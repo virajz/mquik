@@ -85,6 +85,17 @@
 
                     <flux:table.cell>
                         <div class="font-medium">{{ $row->name }}</div>
+                        @if ($row->company_name)
+                            <div class="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
+                                <flux:icon.building-office-2 class="size-3" />
+                                {{ $row->company_name }}
+                                @if ($row->gstin)
+                                    <span class="font-mono">· {{ $row->gstin }}</span>
+                                @elseif ($row->isGstUnregistered())
+                                    <span>· Unregistered</span>
+                                @endif
+                            </div>
+                        @endif
                         @if ($row->phone)
                             <div class="text-xs text-zinc-500 mt-0.5 font-mono">+91 {{ $row->phone }}</div>
                         @endif

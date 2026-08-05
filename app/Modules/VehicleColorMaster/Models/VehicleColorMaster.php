@@ -24,7 +24,7 @@ class VehicleColorMaster extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['name'];
+    protected static array $searchableFields = ['name', 'notes'];
 
     public function customerVehicles(): HasMany
     {

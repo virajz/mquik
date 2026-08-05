@@ -77,7 +77,30 @@ class CustomerMaster extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['first_name', 'middle_name', 'last_name', 'phone', 'email', 'aadhar', 'pan', 'gstin'];
+    protected static array $searchableFields = ['first_name', 'middle_name', 'last_name', 'company_name', 'phone', 'email', 'aadhar', 'pan', 'gstin'];
+
+    /** GST type name for a customer who is explicitly not GST-registered. */
+    public const GST_TYPE_UNREGISTERED = 'UNREGISTERED';
+
+    /**
+     * True when the customer is on the Unregistered GST type — they hold no
+     * GSTIN by definition, so the number is shown as "Unregistered" rather
+     * than left blank as if it were merely missing.
+     */
+    public function isGstUnregistered(): bool
+    {
+        return mb_strtoupper((string) $this->gstType?->name) === self::GST_TYPE_UNREGISTERED;
+    }
+
+    /** What to print where a GST number is expected. */
+    public function gstinLabel(): string
+    {
+        if ($this->gstin) {
+            return $this->gstin;
+        }
+
+        return $this->isGstUnregistered() ? 'Unregistered' : '—';
+    }
 
     /**
      * Virtual `name` attribute — joins first/middle/last for display.

@@ -16,6 +16,9 @@ class RegistrationTypeMasterSeeder extends Seeder
             ['name' => 'GOVERNMENT', 'code' => 'GOV'],
             ['name' => 'BH SERIES',  'code' => 'BH'],
             ['name' => 'MILITARY',   'code' => 'MIL'],
+            // A vehicle that has no plate yet — brand new, or in for pre-delivery
+            // work. Carries no registration number by definition.
+            ['name' => 'UNREGISTERED', 'code' => 'UNREG'],
             ['name' => 'OTHER',      'code' => 'OTH'],
         ];
 

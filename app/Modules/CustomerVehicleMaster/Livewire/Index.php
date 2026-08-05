@@ -69,7 +69,7 @@ class Index extends Component
     public function render()
     {
         $rows = CustomerVehicleMaster::query()
-            ->with(['customer:id,first_name,middle_name,last_name,phone', 'model:id,name,brand_id', 'model.brand:id,name', 'variant:id,name', 'color:id,name,hex_code'])
+            ->with(['customer:id,first_name,middle_name,last_name,phone', 'model:id,name,brand_id', 'model.brand:id,name', 'variant:id,name', 'color:id,name,hex_code', 'registrationType:id,name'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $rawTerm = $this->search;

@@ -23,7 +23,7 @@
     </div>
 
     <div class="mb-4 flex items-center gap-3">
-        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name..." icon="magnifying-glass" clearable class="max-w-sm" />
+        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or notes…" icon="magnifying-glass" clearable class="max-w-sm" />
         <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-40">
             <flux:select.option value="all">All</flux:select.option>
             <flux:select.option value="active">Active</flux:select.option>
@@ -37,6 +37,7 @@
             <flux:table.column class="w-12">Swatch</flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">Name</flux:table.column>
             <flux:table.column class="w-32">Hex</flux:table.column>
+            <flux:table.column>Notes</flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
@@ -50,6 +51,9 @@
                     </flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $row->name }}</flux:table.cell>
                     <flux:table.cell class="font-mono text-xs text-zinc-500">{{ $row->hex_code ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-zinc-500 max-w-md truncate">
+                        {{ $row->notes ?? '' }}
+                    </flux:table.cell>
                     <flux:table.cell>
                         @if ($row->is_active)
                             <flux:badge color="lime" size="sm">Active</flux:badge>
@@ -82,7 +86,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
                         <flux:icon.swatch class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No colors yet</div>
                         <flux:text class="mt-1">Add colors like Pearl White, Metallic Black.</flux:text>

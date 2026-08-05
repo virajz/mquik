@@ -356,3 +356,81 @@ it('validates the registration number as it is typed', function () {
         ->assertSet('registration_no', 'GJ05RH4817')
         ->assertHasNoErrors(['registration_no']);
 });
+
+it('does not require a registration number on the unregistered plate type', function () {
+    $unregistered = RegistrationTypeMaster::firstOrCreate(['name' => 'UNREGISTERED'], ['code' => 'UNREG', 'is_active' => true]);
+    $customer = CustomerMaster::factory()->create();
+    $variant = VehicleVariantMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('variant_id', $variant->id)
+        ->set('registration_type_id', $unregistered->id)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('customer-vehicle-master.index'));
+
+    // Stored as NULL, not '' — the column is unique, so blanks would collide.
+    expect(CustomerVehicleMaster::firstOrFail()->registration_no)->toBeNull();
+});
+
+it('lets two unregistered vehicles coexist without colliding on the unique plate', function () {
+    $unregistered = RegistrationTypeMaster::firstOrCreate(['name' => 'UNREGISTERED'], ['code' => 'UNREG', 'is_active' => true]);
+    $customer = CustomerMaster::factory()->create();
+
+    foreach ([VehicleVariantMaster::factory()->create(), VehicleVariantMaster::factory()->create()] as $variant) {
+        Livewire::test(Edit::class)
+            ->set('customer_id', $customer->id)
+            ->set('variant_id', $variant->id)
+            ->set('registration_type_id', $unregistered->id)
+            ->call('save')
+            ->assertHasNoErrors();
+    }
+
+    expect(CustomerVehicleMaster::whereNull('registration_no')->count())->toBe(2);
+});
+
+it('drops a typed plate when the type switches to unregistered', function () {
+    $unregistered = RegistrationTypeMaster::firstOrCreate(['name' => 'UNREGISTERED'], ['code' => 'UNREG', 'is_active' => true]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('registration_no', 'GJ05AA1234')
+        ->set('registration_type_id', $unregistered->id);
+
+    expect($component->get('registration_no'))->toBeNull()
+        ->and($component->instance()->isUnregisteredPlate())->toBeTrue();
+});
+
+it('still demands a valid plate on every other type', function () {
+    $private = RegistrationTypeMaster::firstOrCreate(['name' => 'PRIVATE'], ['code' => 'PVT', 'is_active' => true]);
+    $customer = CustomerMaster::factory()->create();
+    $variant = VehicleVariantMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('customer_id', $customer->id)
+        ->set('variant_id', $variant->id)
+        ->set('registration_type_id', $private->id)
+        ->call('save')
+        ->assertHasErrors(['registration_no']);
+});
+
+it('shows unregistered instead of a blank plate in the list', function () {
+    $unregistered = RegistrationTypeMaster::firstOrCreate(['name' => 'UNREGISTERED'], ['code' => 'UNREG', 'is_active' => true]);
+    CustomerVehicleMaster::factory()->create([
+        'registration_no' => null, 'registration_type_id' => $unregistered->id,
+    ]);
+
+    Livewire::test(Index::class)->assertSee('Unregistered');
+});
+
+it('preselects the customer when arriving from the customer form', function () {
+    $customer = CustomerMaster::factory()->create();
+
+    Livewire::test(Edit::class, ['for-customer' => $customer->id])
+        ->assertSet('customer_id', $customer->id);
+});
+
+it('ignores a for-customer id that does not exist', function () {
+    Livewire::test(Edit::class, ['for-customer' => 999999])
+        ->assertSet('customer_id', null);
+});

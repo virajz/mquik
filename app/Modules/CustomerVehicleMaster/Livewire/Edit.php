@@ -17,6 +17,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -45,7 +46,7 @@ class Edit extends Component
 
     public string $vehicleSearch = '';
 
-    public string $registration_no = '';
+    public ?string $registration_no = '';
 
     public ?int $registration_type_id = null;
 
@@ -61,10 +62,22 @@ class Edit extends Component
 
     public ?string $notes = null;
 
+    /** Arrives from the customer form's "add a vehicle" prompt. */
+    #[Url(as: 'for-customer')]
+    public ?int $forCustomer = null;
+
     public function mount(?CustomerVehicleMaster $customer_vehicle = null): void
     {
         if ($customer_vehicle && $customer_vehicle->exists) {
             $this->load($customer_vehicle);
+
+            return;
+        }
+
+        // Only preselect a customer that actually exists, so a hand-edited URL
+        // cannot leave the picker pointing at nothing.
+        if ($this->forCustomer && CustomerMaster::whereKey($this->forCustomer)->exists()) {
+            $this->customer_id = $this->forCustomer;
         }
     }
 
@@ -93,6 +106,12 @@ class Edit extends Component
     {
         $this->registration_no = strtoupper(preg_replace('/\s+/', '', (string) $this->registration_no) ?? '');
 
+        if ($this->isUnregisteredPlate()) {
+            $this->resetErrorBag('registration_no');
+
+            return;
+        }
+
         // Don't nag while the plate is still obviously half-typed.
         if (strlen($this->registration_no) < 8) {
             $this->resetErrorBag('registration_no');
@@ -109,12 +128,15 @@ class Edit extends Component
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'variant_id' => ['required', 'integer', Rule::exists('vehicle_variants', 'id')->where('is_active', true)],
             'color_id' => ['nullable', 'integer', Rule::exists('vehicle_colors', 'id')->where('is_active', true)],
-            'registration_no' => [
-                'required', 'string', 'max:20',
-                // Indian plates: AB12CD1234 (1-3 mid letters) OR 12BH1234AA.
-                'regex:/^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[0-9]{2}BH[0-9]{4}[A-Z]{2})$/',
-                Rule::unique('customer_vehicles', 'registration_no')->ignore($this->editingId),
-            ],
+            'registration_no' => $this->isUnregisteredPlate()
+                // No plate yet — nothing to require, nothing to pattern-match.
+                ? ['nullable', 'string', 'max:20']
+                : [
+                    'required', 'string', 'max:20',
+                    // Indian plates: AB12CD1234 (1-3 mid letters) OR 12BH1234AA.
+                    'regex:/^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[0-9]{2}BH[0-9]{4}[A-Z]{2})$/',
+                    Rule::unique('customer_vehicles', 'registration_no')->ignore($this->editingId),
+                ],
             'registration_type_id' => ['nullable', 'integer', Rule::exists('registration_types', 'id')->where('is_active', true)],
             'year_of_manufacture' => ['nullable', 'integer', 'min:1980', 'max:'.((int) date('Y') + 1)],
             'vin' => [
@@ -133,6 +155,30 @@ class Edit extends Component
         return [
             'registration_no.regex' => 'Registration must look like GJ05RH4816 (state series) or 24BH1234AA (BH series).',
         ];
+    }
+
+    /**
+     * True while the Unregistered plate type is selected — a vehicle with no
+     * number yet (brand new, or in for pre-delivery work).
+     */
+    #[Computed]
+    public function isUnregisteredPlate(): bool
+    {
+        return $this->registration_type_id !== null
+            && $this->registration_type_id === RegistrationTypeMaster::query()
+                ->whereLike('name', CustomerVehicleMaster::PLATE_UNREGISTERED, caseSensitive: false)
+                ->value('id');
+    }
+
+    /** Selecting Unregistered drops whatever plate had been typed. */
+    public function updatedRegistrationTypeId(): void
+    {
+        unset($this->isUnregisteredPlate);
+
+        if ($this->isUnregisteredPlate()) {
+            $this->registration_no = null;
+            $this->resetErrorBag('registration_no');
+        }
     }
 
     /**
@@ -233,7 +279,9 @@ class Edit extends Component
         $this->authorize($this->editingId ? 'customer_vehicle_master.update' : 'customer_vehicle_master.create');
 
         // Strip whitespace from plate before validation so paste-with-spaces doesn't trip the regex.
-        $this->registration_no = strtoupper(preg_replace('/\s+/', '', (string) $this->registration_no) ?? '');
+        // An unregistered vehicle must land as NULL, not '' — the column is unique,
+        // and two empty strings would collide where two nulls do not.
+        $this->registration_no = strtoupper(preg_replace('/\s+/', '', (string) $this->registration_no) ?? '') ?: null;
 
         $data = $this->validate();
 
@@ -243,7 +291,7 @@ class Edit extends Component
 
         foreach (['registration_no', 'vin', 'engine_no', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
-                $data[$k] = strtoupper($data[$k]);
+                $data[$k] = strtoupper($data[$k]) ?: null;
             }
         }
 
