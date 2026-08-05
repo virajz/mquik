@@ -1,6 +1,6 @@
 # 3 Aug 2026
 
-## Customer
+## Customer (Done)
 
 - Need to add company name in the identity block of customer
 - If the GST type or number is added, company name should be mandatory
@@ -8,7 +8,7 @@
 - After saving the customer, show the popup to redirect to add vehicle, with that customer selected.
 - When unregistered type is selected, show unregistered.
 
-## Vehcile Colors
+## Vehcile Colors (Done)
 
 - Show the notes outside
 
@@ -31,7 +31,7 @@
 
 # 4 Aug 2026
 
-## Spare Master
+## Spare Master (Done)
 
 - Improve search features
 - Vehcile and Variant search filter
@@ -45,11 +45,11 @@
 - Live validation of part number
 - Need a smarter and fast way to select multiple cars using a popup, right now we are allowing to select onlt a few cars to select, one at a time
 
-## Inventory Search
+## Inventory Search (Done)
 
 - provide a filter for non zero items
 
-## Internal Parts Inquiry
+## Internal Parts Inquiry (Done)
 
 - combine job card, customer name and vehicle number
 - remove Vendor

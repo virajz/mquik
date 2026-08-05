@@ -380,36 +380,6 @@
                     @endforeach
                 </flux:select>
 
-                <flux:field variant="inline">
-                    <flux:checkbox wire:model.live="tracks_batch" />
-                    <flux:label>Track batch &amp; expiry</flux:label>
-                    <flux:description>Asks for a batch no, manufacturing date and expiry whenever this part is received, and warns before the stock lapses. Meant for oils, chemicals and paints.</flux:description>
-                </flux:field>
-
-                {{-- Shelf life belongs to the part; the manufacturing date belongs
-                     to each batch. Together they derive expiry at receipt. --}}
-                @if ($tracks_batch)
-                    <div class="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-4">
-                        <flux:input
-                            wire:model="shelf_life_value"
-                            type="number"
-                            min="1"
-                            max="9999"
-                            label="Shelf Life"
-                            placeholder="24"
-                            class:input="text-right font-mono"
-                        />
-                        <flux:select wire:model="shelf_life_unit" variant="listbox" clearable label="Unit" placeholder="Months / Years…">
-                            @foreach (\App\Modules\SpareMaster\Models\SpareMaster::shelfLifeUnits() as $key => $label)
-                                <flux:select.option :value="$key" wire:key="sl-{{ $key }}">{{ $label }}</flux:select.option>
-                            @endforeach
-                        </flux:select>
-                    </div>
-                    <flux:text size="sm" class="text-zinc-500">
-                        Expiry is worked out from the manufacturing date entered on each purchase line — you can still override it there if the pack says otherwise.
-                    </flux:text>
-                @endif
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select
                         wire:model.live="inventory_group_id"
@@ -467,6 +437,88 @@
                     </flux:select>
                 </div>
 
+            </div>
+        </section>
+
+        <flux:separator />
+
+        {{-- SHELF LIFE & EXPIRY --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Shelf Life &amp; Expiry</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    All optional. Set a shelf life and the expiry follows from the manufacturing date.
+                </flux:text>
+            </div>
+            <div class="space-y-5 min-w-0">
+                {{-- Shelf life on its own row: the unit label needs real width,
+                     and no field here carries an inline description, because a
+                     description above a date-picker knocks the row out of line. --}}
+                <flux:field>
+                    <flux:label>Shelf Life</flux:label>
+                    <div class="flex items-stretch gap-2 max-w-xs">
+                        <div class="w-20 shrink-0">
+                            <flux:input
+                                wire:model.live.debounce.500ms="shelf_life_value"
+                                type="number"
+                                min="1"
+                                max="9999"
+                                placeholder="24"
+                                class:input="text-right font-mono"
+                            />
+                        </div>
+                        <div class="flex-1 min-w-32">
+                            <flux:select wire:model.live="shelf_life_unit" variant="listbox" placeholder="Unit">
+                                @foreach (\App\Modules\SpareMaster\Models\SpareMaster::shelfLifeUnits() as $key => $label)
+                                    <flux:select.option :value="$key" wire:key="sl-{{ $key }}">{{ $label }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+                    </div>
+                    <flux:error name="shelf_life_value" />
+                    <flux:error name="shelf_life_unit" />
+                </flux:field>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <flux:date-picker
+                        wire:model.live="manufacturing_date"
+                        label="Manufacturing Date"
+                        placeholder="Select a date"
+                        with-today
+                        selectable-header
+                        fixed-weeks
+                        type="input"
+                        clearable
+                    />
+
+                    <flux:date-picker
+                        wire:model="expiry_date"
+                        label="Expiry Date"
+                        placeholder="Select a date"
+                        with-today
+                        selectable-header
+                        fixed-weeks
+                        type="input"
+                        clearable
+                    />
+                </div>
+
+                @if ($manufacturing_date && $shelf_life_value && $shelf_life_unit)
+                    <flux:text size="sm" class="text-zinc-500">
+                        Expiry derived from the manufacturing date — edit it if the pack differs.
+                    </flux:text>
+                @endif
+
+                <flux:error name="manufacturing_date" />
+                <flux:error name="expiry_date" />
+
+                <flux:separator variant="subtle" />
+
+                <flux:field variant="inline">
+                    <flux:checkbox wire:model.live="tracks_batch" />
+                    <flux:label>Track batch &amp; expiry per receipt</flux:label>
+                    <flux:description>For parts bought in dated lots — each purchase line captures its own batch and dates.</flux:description>
+                </flux:field>
             </div>
         </section>
 

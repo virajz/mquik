@@ -71,6 +71,11 @@ class Edit extends Component
 
     public ?string $shelf_life_unit = null;
 
+    /** The part's own dates — optional, and independent of batch tracking. */
+    public ?string $manufacturing_date = null;
+
+    public ?string $expiry_date = null;
+
     public ?int $workshop_department_id = null;
 
     public ?int $uom_id = null;
@@ -134,6 +139,8 @@ class Edit extends Component
         $this->tracks_batch = (bool) $spare->tracks_batch;
         $this->shelf_life_value = $spare->shelf_life_value;
         $this->shelf_life_unit = $spare->shelf_life_unit;
+        $this->manufacturing_date = $spare->manufacturing_date?->format('Y-m-d');
+        $this->expiry_date = $spare->expiry_date?->format('Y-m-d');
         $this->part_type_id = $spare->part_type_id;
         $this->hsn_id = $spare->hsn_id;
         $this->rack_id = $spare->rack_id;
@@ -177,6 +184,8 @@ class Edit extends Component
             'tracks_batch' => ['boolean'],
             'shelf_life_value' => ['nullable', 'integer', 'min:1', 'max:9999'],
             'shelf_life_unit' => ['nullable', Rule::in(array_keys(SpareMaster::shelfLifeUnits())), 'required_with:shelf_life_value'],
+            'manufacturing_date' => ['nullable', 'date', 'before_or_equal:today'],
+            'expiry_date' => ['nullable', 'date', 'after:manufacturing_date'],
             'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'uom_id' => ['nullable', 'integer', Rule::exists('units_of_measure', 'id')->where('is_active', true)],
             'rate_before_tax' => ['numeric', 'min:0', 'max:9999999.99'],
@@ -285,6 +294,54 @@ class Edit extends Component
 
         Flux::modal('hsn-quick-add')->close();
         Flux::toast(text: 'HSN '.$hsn->code.' added and selected.', variant: 'success');
+    }
+
+    /**
+     * Fill the expiry from manufacturing date + shelf life as either changes.
+     * Never overwrites a date the user typed themselves after the fact — they
+     * can always edit the derived value, and editing it wins.
+     */
+    public function updatedManufacturingDate(): void
+    {
+        $this->deriveExpiry();
+    }
+
+    public function updatedShelfLifeValue(): void
+    {
+        // Months is what a shelf life is almost always quoted in, so typing a
+        // number alone is enough — no half-filled "24 <blank>" state.
+        if ($this->shelf_life_value && ! $this->shelf_life_unit) {
+            $this->shelf_life_unit = 'months';
+        }
+
+        // Clearing the number clears the unit with it, rather than leaving a
+        // stray unit behind on the record.
+        if (! $this->shelf_life_value) {
+            $this->shelf_life_unit = null;
+        }
+
+        $this->deriveExpiry();
+    }
+
+    public function updatedShelfLifeUnit(): void
+    {
+        $this->deriveExpiry();
+    }
+
+    protected function deriveExpiry(): void
+    {
+        if (! $this->manufacturing_date || ! $this->shelf_life_value || ! $this->shelf_life_unit) {
+            return;
+        }
+
+        $spare = new SpareMaster([
+            'shelf_life_value' => $this->shelf_life_value,
+            'shelf_life_unit' => $this->shelf_life_unit,
+        ]);
+
+        if ($derived = $spare->expiryFor($this->manufacturing_date)) {
+            $this->expiry_date = $derived;
+        }
     }
 
     /**
@@ -756,7 +813,7 @@ class Edit extends Component
         $attachments = $data['attachments'] ?? [];
         unset($data['variant_ids'], $data['attachments'], $data['attachmentFiles']);
 
-        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'tracks_batch', 'shelf_life_value', 'shelf_life_unit', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
+        $skip = ['rate_before_tax', 'mrp', 'min_qty', 'max_qty', 'is_active', 'spare_type', 'inventory_type', 'tracks_batch', 'shelf_life_value', 'shelf_life_unit', 'manufacturing_date', 'expiry_date', 'spare_brand_id', 'tax_id', 'inventory_group_id', 'inventory_sub_group_id', 'workshop_department_id', 'uom_id', 'part_type_id', 'rack_id'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);

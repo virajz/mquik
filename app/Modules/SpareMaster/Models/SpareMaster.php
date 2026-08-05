@@ -45,6 +45,8 @@ class SpareMaster extends Model
         'is_active' => 'boolean',
         'tracks_batch' => 'boolean',
         'shelf_life_value' => 'integer',
+        'manufacturing_date' => 'date',
+        'expiry_date' => 'date',
         'rate_before_tax' => 'decimal:2',
         'mrp' => 'decimal:2',
         'min_qty' => 'decimal:2',

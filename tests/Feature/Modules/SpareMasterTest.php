@@ -466,23 +466,26 @@ it('derives expiry from the manufacturing date and the shelf life', function () 
         ->and($plain->shelfLifeLabel())->toBeNull();
 });
 
-it('persists the shelf life and requires a unit alongside a value', function () {
+it('persists the shelf life, defaulting the unit so it is never half-filled', function () {
+    // Typing a value alone now fills the unit, so the form cannot reach the
+    // "value without unit" state — the rule still guards the model.
     Livewire::test(Edit::class)
         ->set('name', 'ENGINE OIL')
-        ->set('tracks_batch', true)
         ->set('shelf_life_value', 18)
-        ->call('save')
-        ->assertHasErrors(['shelf_life_unit']);
-
-    Livewire::test(Edit::class)
-        ->set('name', 'ENGINE OIL')
-        ->set('tracks_batch', true)
-        ->set('shelf_life_value', 18)
-        ->set('shelf_life_unit', 'months')
         ->call('save')
         ->assertHasNoErrors();
 
     expect(SpareMaster::firstOrFail()->shelfLifeLabel())->toBe('18 Months');
+});
+
+it('still rejects a shelf-life value submitted with no unit', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'ENGINE OIL')
+        ->set('shelf_life_value', 18)
+        // Force the half-filled state the UI prevents, to prove the rule holds.
+        ->set('shelf_life_unit', null)
+        ->call('save')
+        ->assertHasErrors(['shelf_life_unit']);
 });
 
 it('adds an HSN code from the spare form and selects it', function () {
@@ -629,4 +632,82 @@ it('does not let the variant filter empty the model dropdown', function () {
 
     // The models list is independent of the variant filter box.
     expect($component->instance()->pickerModels())->toHaveCount(1);
+});
+
+it('shows the shelf life section without needing batch tracking switched on', function () {
+    // The whole block used to hide behind "Track batch & expiry", which is off
+    // on all 29,681 imported spares — so nobody ever saw it.
+    $html = Livewire::test(Edit::class)->assertSet('tracks_batch', false)->html();
+
+    expect($html)->toContain('Shelf Life')
+        ->and($html)->toContain('Manufacturing Date')
+        ->and($html)->toContain('Expiry Date')
+        // Real Flux date-pickers, not native date inputs.
+        ->and($html)->not->toContain('type="date"');
+});
+
+it('stores an optional manufacturing and expiry date on the spare', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'ENGINE OIL 5W30')
+        ->set('manufacturing_date', '2026-01-15')
+        ->set('expiry_date', '2028-01-15')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $spare = SpareMaster::firstOrFail();
+    expect($spare->manufacturing_date->format('Y-m-d'))->toBe('2026-01-15')
+        ->and($spare->expiry_date->format('Y-m-d'))->toBe('2028-01-15');
+});
+
+it('fills the expiry on the spare form as the shelf life is set', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'ENGINE OIL')
+        ->set('manufacturing_date', '2026-01-15')
+        ->set('shelf_life_value', 24)
+        ->set('shelf_life_unit', 'months')
+        ->assertSet('expiry_date', '2028-01-15')
+        // Changing the shelf life re-derives it.
+        ->set('shelf_life_unit', 'years')
+        ->assertSet('expiry_date', '2050-01-15');
+});
+
+it('keeps both dates optional and rejects an expiry before manufacture', function () {
+    Livewire::test(Edit::class)
+        ->set('name', 'PLAIN PART')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    Livewire::test(Edit::class)
+        ->set('name', 'BAD DATES')
+        ->set('manufacturing_date', '2026-06-01')
+        ->set('expiry_date', '2026-01-01')
+        ->call('save')
+        ->assertHasErrors(['expiry_date']);
+});
+
+it('reveals the purchase-line batch fields for a part with a shelf life, not only a batch-tracked one', function () {
+    $withShelfLife = SpareMaster::factory()->create(['tracks_batch' => false, 'shelf_life_value' => 12, 'shelf_life_unit' => 'months']);
+    $plain = SpareMaster::factory()->create();
+
+    $component = Livewire::test(App\Modules\PurchaseEntry\Livewire\Edit::class);
+
+    expect($component->instance()->needsBatchFields($withShelfLife->id))->toBeTrue()
+        ->and($component->instance()->needsBatchFields($plain->id))->toBeFalse()
+        ->and($component->instance()->needsBatchFields(null))->toBeFalse();
+});
+
+it('defaults the shelf-life unit to months and clears it with the value', function () {
+    Livewire::test(Edit::class)
+        ->set('shelf_life_value', 24)
+        // Typing a number alone is enough — no half-filled "24 <blank>".
+        ->assertSet('shelf_life_unit', 'months')
+        ->set('shelf_life_value', null)
+        ->assertSet('shelf_life_unit', null);
+});
+
+it('does not override a unit that was chosen deliberately', function () {
+    Livewire::test(Edit::class)
+        ->set('shelf_life_unit', 'years')
+        ->set('shelf_life_value', 3)
+        ->assertSet('shelf_life_unit', 'years');
 });

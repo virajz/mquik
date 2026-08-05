@@ -197,6 +197,11 @@ class Edit extends Component
         $this->items[$i]['unit_rate'] = (float) $spare->rate_before_tax;
         $this->items[$i]['tax_id'] = $spare->tax_id;
         $this->items[$i]['tax_percent'] = (float) (($spare->tax?->gst_percent ?? 0) + ($spare->tax?->cess_percent ?? 0));
+
+        // Seed the line from the part's own dates, so a workshop stocking a
+        // single lot doesn't retype them on every invoice.
+        $this->items[$i]['manufacturing_date'] ??= $spare->manufacturing_date?->format('Y-m-d');
+        $this->items[$i]['expiry_date'] ??= $spare->expiry_date?->format('Y-m-d');
     }
 
     public function addLine(): void
@@ -382,8 +387,12 @@ class Edit extends Component
     }
 
     /**
-     * Spare ids that need a batch no / expiry captured on receipt — the view
-     * reveals those two fields only on those lines.
+     * Spare ids whose lines should capture batch / mfg / expiry.
+     *
+     * Not just the batch-tracked ones: a part with a shelf life or its own
+     * dates clearly has an expiry worth recording, and gating purely on
+     * `tracks_batch` meant the fields never appeared for anyone who had not
+     * found that checkbox.
      *
      * @return array<int, bool>
      */
@@ -391,11 +400,19 @@ class Edit extends Component
     public function batchTrackedSpareIds(): array
     {
         return SpareMaster::query()
-            ->where('tracks_batch', true)
+            ->where(fn ($q) => $q->where('tracks_batch', true)
+                ->orWhereNotNull('shelf_life_value')
+                ->orWhereNotNull('expiry_date')
+                ->orWhereNotNull('manufacturing_date'))
             ->pluck('id')
             ->flip()
             ->map(fn () => true)
             ->all();
+    }
+
+    public function needsBatchFields(?int $spareId): bool
+    {
+        return $spareId !== null && isset($this->batchTrackedSpareIds[$spareId]);
     }
 
     #[Computed]

@@ -91,15 +91,30 @@
                                     </div>
 
                                     {{-- Batch & expiry ride onto the stock layer this line creates. --}}
-                                    @if (isset($this->batchTrackedSpareIds[$item['spare_id'] ?? 0]))
+                                    @if ($this->needsBatchFields($item['spare_id'] ?? null))
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                                             <flux:input wire:model="items.{{ $i }}.batch_no" size="sm" label="Batch No." placeholder="As printed on the pack" class:input="font-mono" />
-                                            <flux:input type="date" wire:model.live="items.{{ $i }}.manufacturing_date" size="sm" label="Mfg. Date" />
-                                            <flux:input
-                                                type="date"
+                                            <flux:date-picker
+                                                wire:model.live="items.{{ $i }}.manufacturing_date"
+                                                size="sm"
+                                                label="Mfg. Date"
+                                                placeholder="Select a date"
+                                                with-today
+                                                selectable-header
+                                                fixed-weeks
+                                                type="input"
+                                                clearable
+                                            />
+                                            <flux:date-picker
                                                 wire:model="items.{{ $i }}.expiry_date"
                                                 size="sm"
                                                 label="Expiry Date"
+                                                placeholder="Select a date"
+                                                with-today
+                                                selectable-header
+                                                fixed-weeks
+                                                type="input"
+                                                clearable
                                                 :description="$this->shelfLifeHint($item['spare_id'] ?? null)"
                                             />
                                         </div>
