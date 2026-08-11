@@ -10,6 +10,8 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\LabourMaster\Models\LabourMaster;
+use App\Modules\NotificationCenter\Models\AppNotification;
+use App\Modules\NotificationCenter\Support\Notifier;
 use App\Modules\OutsideLabourOrder\Models\OutsideLabourOrder;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TechnicianFinding\Database\Factories\TechnicianFindingFactory;
@@ -66,6 +68,19 @@ class TechnicianFinding extends Model
                 JobCardHistoryEvent::TYPE_FINDING_RECORDED,
                 'Technician finding '.($row->finding_no ?? 'TF-'.$row->id).': '.$row->description,
                 ['finding_id' => $row->id, 'type' => $row->finding_type],
+            );
+
+            // A finding is a decision the advisor has to take back to the
+            // customer, so it is pushed rather than waiting to be noticed.
+            Notifier::toEmployee(
+                $row->jobCard?->assigned_advisor_id,
+                AppNotification::TYPE_FINDING_RECORDED,
+                [
+                    'title' => 'New finding on '.($row->jobCard?->job_card_no ?? 'job card'),
+                    'body' => $row->description,
+                    'url' => route('technician-finding.edit', $row->id),
+                    'subject' => $row,
+                ],
             );
         });
     }

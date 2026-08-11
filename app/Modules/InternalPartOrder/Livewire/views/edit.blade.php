@@ -6,12 +6,22 @@
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Internal Part Orders
             </flux:link>
             <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? 'IPO '.$order_no : 'New Internal Part Order' }}</flux:heading>
+            @if ($sourceIpiNo)
+                <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceIpiNo }}</flux:badge>
+            @endif
         </div>
         @if ($editingId)
-            <flux:badge :color="match ($status) {
-                'fully_issued' => 'lime', 'partially_issued' => 'amber', 'cancelled' => 'red',
-                'closed' => 'green', 'approved' => 'blue', default => 'zinc',
-            }" size="lg">{{ InternalPartOrder::statuses()[$status] }}</flux:badge>
+            <div class="flex shrink-0 items-center gap-2">
+                @can('vendor_purchase_order.create')
+                    <flux:button :href="route('vendor-purchase-order.create', ['from-ipo' => $editingId])" wire:navigate size="sm" variant="ghost" icon="arrow-right-circle">
+                        Escalate to Vendor PO
+                    </flux:button>
+                @endcan
+                <flux:badge :color="match ($status) {
+                    'fully_issued' => 'lime', 'partially_issued' => 'amber', 'cancelled' => 'red',
+                    'closed' => 'green', 'approved' => 'blue', default => 'zinc',
+                }" size="lg">{{ InternalPartOrder::statuses()[$status] }}</flux:badge>
+            </div>
         @endif
     </div>
 

@@ -11,6 +11,7 @@ use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One requested part on an RFQ, carrying the vendor's quote for that line
@@ -78,6 +79,23 @@ class VendorPurchaseInquiryItem extends Model
             'alternate_part' => 'Alternate Part',
             'alternate_brand' => 'Alternate Brand',
         ];
+    }
+
+    /**
+     * Competing offers for this part — across vendors and part grades.
+     *
+     * @return HasMany<VendorPurchaseInquiryQuote>
+     */
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(VendorPurchaseInquiryQuote::class, 'vendor_purchase_inquiry_item_id')
+            ->orderBy('id');
+    }
+
+    /** The quote the purchase order should use, if one has been picked. */
+    public function selectedQuote(): ?VendorPurchaseInquiryQuote
+    {
+        return $this->quotes->firstWhere('is_selected', true);
     }
 
     public function inquiry(): BelongsTo

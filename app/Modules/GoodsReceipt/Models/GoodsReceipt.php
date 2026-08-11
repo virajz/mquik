@@ -7,6 +7,8 @@ use App\Concerns\Searchable;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\FollowUpModeMaster\Models\FollowUpModeMaster;
 use App\Modules\GoodsReceipt\Database\Factories\GoodsReceiptFactory;
+use App\Modules\NotificationCenter\Models\AppNotification;
+use App\Modules\NotificationCenter\Support\Notifier;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrder;
@@ -46,6 +48,46 @@ class GoodsReceipt extends Model
             if ($row->grn_no === null) {
                 $row->forceFill(['grn_no' => 'GRN-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT)])->saveQuietly();
             }
+
+            // The store side is known at creation; tell them to verify.
+            Notifier::toEmployees(
+                [$row->received_by_id, $row->verified_by_id],
+                AppNotification::TYPE_GOODS_RECEIVED,
+                [
+                    'title' => 'Goods received — '.$row->fresh()->grn_no,
+                    'body' => 'Parts received from '.($row->vendor?->name ?? 'vendor').'. Verify each line.',
+                    'url' => route('goods-receipt.edit', $row->id),
+                    'subject' => $row,
+                ],
+            );
+        });
+
+        // The advisor is told once the receipt is verified, not when the empty
+        // shell is created — at create time the lines (and so the job card the
+        // advisor owns) do not exist yet.
+        static::updated(function (self $row) {
+            if (! array_key_exists('status', $row->getChanges()) || $row->status !== self::STATUS_VERIFIED) {
+                return;
+            }
+
+            $advisorIds = $row->items()
+                ->with('jobCard:id,assigned_advisor_id,job_card_no')
+                ->get()
+                ->map(fn ($i) => $i->jobCard?->assigned_advisor_id)
+                ->filter()
+                ->unique()
+                ->all();
+
+            Notifier::toEmployees(
+                $advisorIds,
+                AppNotification::TYPE_GOODS_RECEIVED,
+                [
+                    'title' => 'Parts verified — '.$row->grn_no,
+                    'body' => 'The parts you were waiting on are in and verified.',
+                    'url' => route('goods-receipt.edit', $row->id),
+                    'subject' => $row,
+                ],
+            );
         });
     }
 

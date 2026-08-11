@@ -10,6 +10,7 @@ use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
+use App\Modules\SalesEstimateApproval\Models\SalesEstimateApproval;
 use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
@@ -18,6 +19,9 @@ use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryAttachment;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryItem;
+use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryQuote;
+use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryVendor;
+use App\Modules\VendorPurchaseInquiry\Support\InquiryDispatchPayload;
 use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +56,9 @@ class Edit extends Component
     public ?int $fromIpi = null;
 
     public ?int $internal_parts_inquiry_id = null;
+
+    /** The customer's authorisation for this spend, if obtained. */
+    public ?int $customer_approval_id = null;
 
     /** Display-only: source IPI number when carried forward. */
     public ?string $sourceIpiNo = null;
@@ -91,6 +98,24 @@ class Edit extends Component
 
     /** @var array<int, array{id:?int, charge_type_id:?int, amount:mixed}> */
     public array $charges = [];
+
+    /**
+     * Vendors this RFQ goes to. An inquiry is normally shopped around several
+     * suppliers; each row tracks that vendor's dispatch and reply.
+     *
+     * @var array<int, array{id:?int, vendor_id:?int, dispatch_channel:?string, response_status:string, quoted_total:mixed, lead_time_days:mixed, warranty_summary:?string, is_selected:bool, sent_at:?string, notes:?string, vendorSearch:string}>
+     */
+    public array $recipients = [];
+
+    /**
+     * Competing offers per line, keyed by the item's index in $items.
+     *
+     * Two rates on one part is the normal case, not the exception: a vendor
+     * quotes genuine and aftermarket, or two vendors quote the same part.
+     *
+     * @var array<int, array<int, array<string, mixed>>>
+     */
+    public array $quotes = [];
 
     /** @var array<int, array{id:?int, attachment_type:?string, kind:string, path:?string, original_name:?string, notes:?string}> */
     public array $attachments = [];
@@ -146,13 +171,13 @@ class Edit extends Component
 
     protected function load(VendorPurchaseInquiry $inquiry): void
     {
-        $inquiry->load(['items', 'charges', 'attachments']);
+        $inquiry->load(['items.quotes', 'charges', 'attachments', 'vendors']);
 
         $this->editingId = $inquiry->id;
         foreach ([
             'vpi_no', 'inquiry_type', 'vendor_id', 'job_card_id', 'internal_parts_inquiry_id', 'employee_id', 'priority_id',
             'revision_reason_id', 'vendor_category', 'vendor_rating_type', 'payment_term',
-            'comparison_parameter', 'approval_authority', 'tat_option', 'tat_custom_days',
+            'comparison_parameter', 'approval_authority', 'tat_option', 'tat_custom_days', 'customer_approval_id',
             'status', 'terms_conditions', 'notes',
         ] as $k) {
             $this->{$k} = $inquiry->{$k};
@@ -160,6 +185,38 @@ class Edit extends Component
         $this->sourceIpiNo = $inquiry->internal_parts_inquiry_id
             ? InternalPartsInquiry::whereKey($inquiry->internal_parts_inquiry_id)->value('ipi_no')
             : null;
+
+        $this->recipients = $inquiry->vendors->map(fn (VendorPurchaseInquiryVendor $v) => [
+            'id' => $v->id,
+            'vendor_id' => $v->vendor_id,
+            'dispatch_channel' => $v->dispatch_channel,
+            'response_status' => $v->response_status,
+            'quoted_total' => $v->quoted_total,
+            'lead_time_days' => $v->lead_time_days,
+            'warranty_summary' => $v->warranty_summary,
+            'is_selected' => (bool) $v->is_selected,
+            'sent_at' => $v->sent_at?->format('Y-m-d H:i'),
+            'notes' => $v->notes,
+            'vendorSearch' => '',
+        ])->all();
+
+        $this->quotes = $inquiry->items->values()
+            ->mapWithKeys(fn (VendorPurchaseInquiryItem $i, int $idx) => [$idx => $i->quotes->map(fn ($q) => [
+                'id' => $q->id,
+                'vendor_id' => $q->vendor_id,
+                'part_type_id' => $q->part_type_id,
+                'spare_brand_id' => $q->spare_brand_id,
+                'rate' => $q->rate,
+                'discount_value' => $q->discount_value,
+                'warranty_type' => $q->warranty_type,
+                'warranty_period_value' => $q->warranty_period_value,
+                'warranty_period_unit' => $q->warranty_period_unit ?: 'month',
+                'lead_time_days' => $q->lead_time_days,
+                'availability' => $q->availability,
+                'is_selected' => (bool) $q->is_selected,
+                'notes' => $q->notes,
+            ])->values()->all()])
+            ->all();
 
         $this->items = $inquiry->items->map(fn (VendorPurchaseInquiryItem $i) => [
             'id' => $i->id,
@@ -206,6 +263,138 @@ class Edit extends Component
     }
 
     /** @return array<string, mixed> */
+    /** @return array<string, mixed> */
+    /** Customer approvals available to attach — scoped to this RFQ's job card. */
+    #[Computed]
+    public function customerApprovals()
+    {
+        return SalesEstimateApproval::query()
+            ->when($this->job_card_id, fn ($q) => $q->where('job_card_id', $this->job_card_id))
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get(['id', 'approval_no', 'status', 'customer_approved_at']);
+    }
+
+    /** True once the linked approval carries a customer sign-off. */
+    #[Computed]
+    public function isCustomerApproved(): bool
+    {
+        if (! $this->customer_approval_id) {
+            return false;
+        }
+
+        return SalesEstimateApproval::whereKey($this->customer_approval_id)
+            ->whereNotNull('customer_approved_at')
+            ->exists();
+    }
+
+    protected function blankRecipient(): array
+    {
+        return [
+            'id' => null, 'vendor_id' => null, 'dispatch_channel' => 'whatsapp',
+            'response_status' => VendorPurchaseInquiryVendor::STATUS_AWAITING,
+            'quoted_total' => null, 'lead_time_days' => null, 'warranty_summary' => null,
+            'is_selected' => false, 'sent_at' => null, 'notes' => null, 'vendorSearch' => '',
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    protected function blankQuote(): array
+    {
+        return [
+            'id' => null, 'vendor_id' => null, 'part_type_id' => null, 'spare_brand_id' => null,
+            'rate' => null, 'discount_value' => null,
+            'warranty_type' => null, 'warranty_period_value' => null, 'warranty_period_unit' => 'month',
+            'lead_time_days' => null, 'availability' => null, 'is_selected' => false, 'notes' => null,
+        ];
+    }
+
+    public function addQuote(int $itemIndex): void
+    {
+        $this->quotes[$itemIndex][] = $this->blankQuote();
+    }
+
+    public function removeQuote(int $itemIndex, int $quoteIndex): void
+    {
+        unset($this->quotes[$itemIndex][$quoteIndex]);
+        $this->quotes[$itemIndex] = array_values($this->quotes[$itemIndex] ?? []);
+    }
+
+    /**
+     * Exactly one quote per line wins. Picking one unpicks the rest and copies
+     * its price onto the line, which is what the purchase order reads.
+     */
+    public function selectQuote(int $itemIndex, int $quoteIndex): void
+    {
+        foreach ($this->quotes[$itemIndex] ?? [] as $q => $row) {
+            $this->quotes[$itemIndex][$q]['is_selected'] = ($q === $quoteIndex);
+        }
+
+        $picked = $this->quotes[$itemIndex][$quoteIndex] ?? null;
+        if (! $picked) {
+            return;
+        }
+
+        $this->items[$itemIndex]['quoted_rate'] = $picked['rate'];
+        $this->items[$itemIndex]['part_type_id'] = $picked['part_type_id'];
+        $this->items[$itemIndex]['spare_brand_id'] = $picked['spare_brand_id'];
+        $this->items[$itemIndex]['warranty_type'] = $picked['warranty_type'];
+        $this->items[$itemIndex]['warranty_period_value'] = $picked['warranty_period_value'];
+        $this->items[$itemIndex]['warranty_period_unit'] = $picked['warranty_period_unit'];
+        $this->items[$itemIndex]['lead_time_days'] = $picked['lead_time_days'];
+    }
+
+    /**
+     * Cheapest net rate on a line, so the UI can flag the best offer.
+     */
+    public function bestQuoteIndex(int $itemIndex): ?int
+    {
+        $rows = collect($this->quotes[$itemIndex] ?? [])
+            ->filter(fn ($q) => filled($q['rate'] ?? null));
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        return (int) $rows->sortBy(fn ($q) => (float) $q['rate'] - (float) ($q['discount_value'] ?? 0))
+            ->keys()
+            ->first();
+    }
+
+    public function addRecipient(): void
+    {
+        $this->recipients[] = $this->blankRecipient();
+    }
+
+    public function removeRecipient(int $index): void
+    {
+        unset($this->recipients[$index]);
+        $this->recipients = array_values($this->recipients);
+    }
+
+    /** Stamp a vendor as sent — the human does the sending, this records it. */
+    public function markSent(int $index): void
+    {
+        if (isset($this->recipients[$index])) {
+            $this->recipients[$index]['sent_at'] = now()->format('Y-m-d H:i');
+        }
+    }
+
+    /**
+     * The message to send a vendor: parts, VIN and any photos on the inquiry.
+     *
+     * @return array{message: string, vin: ?string, registration_no: ?string, images: list<array{path: string, url: ?string, label: string}>}
+     */
+    #[Computed]
+    public function dispatchPayload(): array
+    {
+        if (! $this->editingId) {
+            return ['message' => '', 'vin' => null, 'registration_no' => null, 'images' => []];
+        }
+
+        return InquiryDispatchPayload::for(VendorPurchaseInquiry::findOrFail($this->editingId));
+    }
+
     protected function blankItem(): array
     {
         return [
@@ -223,9 +412,39 @@ class Edit extends Component
     {
         return [
             'inquiry_type' => ['required', Rule::in(array_keys(VendorPurchaseInquiry::inquiryTypes()))],
-            'vendor_id' => ['required', 'integer', Rule::exists('vendors', 'id')],
+            // The header vendor is the chosen supplier. It is only demanded when
+            // no recipient rows exist — once the RFQ is shopped around, the choice
+            // comes from whichever recipient is ticked (see syncRecipients).
+            'vendor_id' => [Rule::requiredIf(fn () => empty($this->recipients)), 'nullable', 'integer', Rule::exists('vendors', 'id')],
             'job_card_id' => ['nullable', 'integer', Rule::exists('job_cards', 'id')],
             'internal_parts_inquiry_id' => ['nullable', 'integer', Rule::exists('internal_parts_inquiries', 'id')],
+            'customer_approval_id' => ['nullable', 'integer', Rule::exists('sales_estimate_approvals', 'id')],
+            'quotes' => ['array'],
+            'quotes.*' => ['array'],
+            'quotes.*.*.id' => ['nullable', 'integer'],
+            'quotes.*.*.vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')],
+            'quotes.*.*.part_type_id' => ['nullable', 'integer', Rule::exists('part_types', 'id')],
+            'quotes.*.*.spare_brand_id' => ['nullable', 'integer', Rule::exists('spare_brands', 'id')],
+            'quotes.*.*.rate' => ['nullable', 'numeric', 'min:0'],
+            'quotes.*.*.discount_value' => ['nullable', 'numeric', 'min:0'],
+            'quotes.*.*.warranty_type' => ['nullable', 'string', 'max:20'],
+            'quotes.*.*.warranty_period_value' => ['nullable', 'integer', 'min:0'],
+            'quotes.*.*.warranty_period_unit' => ['nullable', 'string', 'max:10'],
+            'quotes.*.*.lead_time_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'quotes.*.*.availability' => ['nullable', Rule::in(array_keys(VendorPurchaseInquiryQuote::availabilities()))],
+            'quotes.*.*.is_selected' => ['boolean'],
+            'quotes.*.*.notes' => ['nullable', 'string', 'max:500'],
+            'recipients' => ['array'],
+            'recipients.*.id' => ['nullable', 'integer'],
+            'recipients.*.vendor_id' => ['required', 'integer', Rule::exists('vendors', 'id')],
+            'recipients.*.dispatch_channel' => ['nullable', Rule::in(array_keys(VendorPurchaseInquiryVendor::dispatchChannels()))],
+            'recipients.*.response_status' => ['required', Rule::in(array_keys(VendorPurchaseInquiryVendor::responseStatuses()))],
+            'recipients.*.quoted_total' => ['nullable', 'numeric', 'min:0'],
+            'recipients.*.lead_time_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'recipients.*.warranty_summary' => ['nullable', 'string', 'max:120'],
+            'recipients.*.is_selected' => ['boolean'],
+            'recipients.*.sent_at' => ['nullable', 'string'],
+            'recipients.*.notes' => ['nullable', 'string', 'max:1000'],
             'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')],
             'revision_reason_id' => ['nullable', 'integer', Rule::exists('estimate_revision_reasons', 'id')],
@@ -275,6 +494,7 @@ class Edit extends Component
     public function addItem(): void
     {
         $this->items[] = $this->blankItem();
+        $this->quotes[array_key_last($this->items)] = [];
     }
 
     public function removeItem(int $index): void
@@ -448,11 +668,19 @@ class Edit extends Component
             fn ($c) => filled($c['charge_type_id'] ?? null),
         ));
 
+        // A recipient row without a vendor is just an empty picker.
+        $this->recipients = array_values(array_filter(
+            $this->recipients,
+            fn ($r) => filled($r['vendor_id'] ?? null),
+        ));
+
         $data = $this->validate();
         $items = $data['items'] ?? [];
         $charges = $data['charges'] ?? [];
         $attachments = $data['attachments'] ?? [];
-        unset($data['items'], $data['charges'], $data['attachments'], $data['attachmentFiles']);
+        $recipients = $data['recipients'] ?? [];
+        $quotes = $data['quotes'] ?? [];
+        unset($data['items'], $data['charges'], $data['attachments'], $data['attachmentFiles'], $data['recipients'], $data['quotes']);
 
         foreach (['terms_conditions', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
@@ -465,7 +693,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $inquiry = DB::transaction(function () use ($data, $items, $charges, $attachments, $isCreate) {
+        $inquiry = DB::transaction(function () use ($data, $items, $charges, $attachments, $recipients, $quotes, $isCreate) {
             if ($isCreate) {
                 $row = VendorPurchaseInquiry::create($data);
                 $this->editingId = $row->id;
@@ -475,7 +703,9 @@ class Edit extends Component
                 $row->update($data);
             }
 
+            $this->syncRecipients($row, $recipients);
             $this->syncItems($row, $items);
+            $this->syncQuotes($row, $quotes);
             $this->syncCharges($row, $charges);
             $this->syncAttachments($row, $attachments);
 
@@ -527,6 +757,76 @@ class Edit extends Component
         }
 
         $inquiry->items()->whereKeyNot($keptIds)->delete();
+    }
+
+    /**
+     * Persist the competing offers, keyed to the saved line at the same index.
+     *
+     * @param  array<int, array<int, array<string, mixed>>>  $rowsByItem
+     */
+    protected function syncQuotes(VendorPurchaseInquiry $inquiry, array $rowsByItem): void
+    {
+        $lines = $inquiry->items()->orderBy('sequence_no')->orderBy('id')->get()->values();
+
+        foreach ($lines as $index => $line) {
+            $rows = $rowsByItem[$index] ?? [];
+            $keptIds = [];
+
+            foreach ($rows as $row) {
+                if (blank($row['rate'] ?? null) && blank($row['vendor_id'] ?? null)) {
+                    continue;   // an untouched blank row
+                }
+
+                $keptIds[] = ChildRows::upsert($line->quotes(), $row['id'] ?? null, [
+                    'vendor_id' => $row['vendor_id'] ?: null,
+                    'part_type_id' => $row['part_type_id'] ?: null,
+                    'spare_brand_id' => $row['spare_brand_id'] ?: null,
+                    'rate' => $row['rate'] !== '' ? $row['rate'] : null,
+                    'discount_value' => $row['discount_value'] !== '' ? $row['discount_value'] : null,
+                    'warranty_type' => $row['warranty_type'] ?: null,
+                    'warranty_period_value' => $row['warranty_period_value'] !== '' ? $row['warranty_period_value'] : null,
+                    'warranty_period_unit' => $row['warranty_period_unit'] ?: null,
+                    'lead_time_days' => $row['lead_time_days'] !== '' ? $row['lead_time_days'] : null,
+                    'availability' => $row['availability'] ?: null,
+                    'is_selected' => (bool) ($row['is_selected'] ?? false),
+                    'notes' => $row['notes'] ?: null,
+                ])->id;
+            }
+
+            $line->quotes()->whereKeyNot($keptIds)->delete();
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    protected function syncRecipients(VendorPurchaseInquiry $inquiry, array $rows): void
+    {
+        $keptIds = [];
+
+        foreach (array_values($rows) as $row) {
+            $keptIds[] = ChildRows::upsert($inquiry->vendors(), $row['id'] ?? null,
+                [
+                    'vendor_id' => $row['vendor_id'],
+                    'dispatch_channel' => $row['dispatch_channel'] ?: null,
+                    'response_status' => $row['response_status'],
+                    'quoted_total' => $row['quoted_total'] !== '' ? $row['quoted_total'] : null,
+                    'lead_time_days' => $row['lead_time_days'] !== '' ? $row['lead_time_days'] : null,
+                    'warranty_summary' => $row['warranty_summary'] ?: null,
+                    'is_selected' => (bool) ($row['is_selected'] ?? false),
+                    'sent_at' => $row['sent_at'] ?: null,
+                    'notes' => $row['notes'] ?: null,
+                ],
+            )->id;
+        }
+
+        $inquiry->vendors()->whereKeyNot($keptIds)->delete();
+
+        // The chosen vendor is what the VPI → VPO carry-forward reads.
+        $selected = collect($rows)->firstWhere('is_selected', true);
+        if ($selected) {
+            $inquiry->forceFill(['vendor_id' => $selected['vendor_id']])->saveQuietly();
+        }
     }
 
     /**
@@ -588,6 +888,30 @@ class Edit extends Component
         }
 
         $inquiry->attachments()->whereKeyNot($keptIds)->delete();
+    }
+
+    /**
+     * Whether to show who supplies a part.
+     *
+     * Procurement picks vendors; an advisor reads the same RFQ for price and
+     * part grade only, so the vendor identity is hidden from them rather than
+     * being noise they must scroll past.
+     */
+    /** Read-only for anyone who may view the RFQ but not change it. */
+    #[Computed]
+    public function canEdit(): bool
+    {
+        $user = auth()->user();
+
+        return $this->editingId
+            ? (bool) $user?->can('vendor_purchase_inquiry.update')
+            : (bool) $user?->can('vendor_purchase_inquiry.create');
+    }
+
+    #[Computed]
+    public function showsVendors(): bool
+    {
+        return auth()->user()?->can('vendor_purchase_inquiry.manage_vendors') ?? false;
     }
 
     public function render()

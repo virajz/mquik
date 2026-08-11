@@ -54,6 +54,11 @@
                                     </flux:menu.item>
                                 @endcan
                             @endif
+                            @can('technician_finding.view')
+                                <flux:menu.item icon="clipboard-document-check" :href="route('technician-finding.report', $editingId)" wire:navigate>
+                                    Findings report
+                                </flux:menu.item>
+                            @endcan
                             <flux:menu.item icon="wrench-screwdriver" x-on:click="$flux.modal('vehicle-history').show()">
                                 Service history @if ($this->vehicleJobCards->isNotEmpty())({{ $this->vehicleJobCards->count() }})@endif
                             </flux:menu.item>

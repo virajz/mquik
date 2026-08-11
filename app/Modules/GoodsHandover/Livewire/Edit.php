@@ -23,6 +23,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -51,6 +52,13 @@ class Edit extends Component
     public ?int $vendor_id = null;
 
     public ?int $goods_receipt_id = null;
+
+    /** ?int — passed via ?from-grn=ID for the Goods Receipt → Handover carry-forward. */
+    #[Url(as: 'from-grn')]
+    public ?int $fromGrn = null;
+
+    /** Display-only: source GRN number when carried forward. */
+    public ?string $sourceGrnNo = null;
 
     public ?int $final_work_order_id = null;
 
@@ -92,6 +100,41 @@ class Edit extends Component
         }
 
         $this->items = [$this->blankItem()];
+
+        // Carry-forward from a Goods Receipt (?from-grn=ID): the parts the store
+        // just received are the parts being handed to the floor, so the received
+        // lines and their verified condition come across.
+        if ($this->fromGrn) {
+            $grn = GoodsReceipt::with('items')->find($this->fromGrn);
+            if ($grn) {
+                $this->goods_receipt_id = $grn->id;
+                $this->sourceGrnNo = $grn->grn_no;
+                $this->vendor_id = $grn->vendor_id;
+                $this->handover_by_id = $grn->received_by_id;
+
+                $first = $grn->items->first();
+                $this->job_card_id = $first?->job_card_id;
+                $this->workshop_department_id = $first?->workshop_department_id;
+
+                $lines = $grn->items->map(fn ($it) => array_merge($this->blankItem(), [
+                    'spare_id' => $it->spare_id,
+                    'spare_brand_id' => $it->spare_brand_id,
+                    'uom_id' => $it->uom_id,
+                    'customer_vehicle_id' => $it->customer_vehicle_id,
+                    'description' => $it->description,
+                    'quantity' => (float) $it->quantity,
+                    'material_condition' => $it->material_condition ?: 'new',
+                    // The floor re-verifies on receipt — this is the other half
+                    // of the two-way check, so it starts blank on purpose.
+                    'physical_verification' => null,
+                    'notes' => $it->notes,
+                ]))->values()->all();
+
+                if (! empty($lines)) {
+                    $this->items = $lines;
+                }
+            }
+        }
     }
 
     protected function load(GoodsHandover $h): void
@@ -105,6 +148,10 @@ class Edit extends Component
         ] as $k) {
             $this->{$k} = $h->{$k};
         }
+
+        $this->sourceGrnNo = $h->goods_receipt_id
+            ? GoodsReceipt::whereKey($h->goods_receipt_id)->value('grn_no')
+            : null;
 
         $this->items = $h->items->map(fn (GoodsHandoverItem $i) => [
             'id' => $i->id,

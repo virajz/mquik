@@ -7,6 +7,7 @@ use App\Modules\AdvancePayment\Models\AdvancePayment;
 use App\Modules\ChargeTypeMaster\Models\ChargeTypeMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\EstimateRevisionReasonMaster\Models\EstimateRevisionReasonMaster;
+use App\Modules\InternalPartOrder\Models\InternalPartOrder;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
@@ -60,6 +61,15 @@ class Edit extends Component
     /** ?int — passed via ?from-vpi=ID for the VPI → VPO carry-forward. */
     #[Url(as: 'from-vpi')]
     public ?int $fromVpi = null;
+
+    /** ?int — passed via ?from-ipo=ID when the store could not supply after all. */
+    #[Url(as: 'from-ipo')]
+    public ?int $fromIpo = null;
+
+    public ?int $internal_part_order_id = null;
+
+    /** Display-only: source IPO number when escalated from the store. */
+    public ?string $sourceIpoNo = null;
 
     public ?int $vendor_purchase_inquiry_id = null;
 
@@ -178,6 +188,36 @@ class Edit extends Component
                 }
             }
         }
+
+        // Escalation from an Internal Part Order (?from-ipo=ID): the store took
+        // the order but cannot supply, so the unfulfilled lines go to a vendor.
+        if ($this->fromIpo) {
+            $ipo = InternalPartOrder::with('items')->find($this->fromIpo);
+            if ($ipo) {
+                $this->internal_part_order_id = $ipo->id;
+                $this->sourceIpoNo = $ipo->order_no;
+                $this->job_card_id = $ipo->job_card_id;
+                $this->po_type = $ipo->job_card_id ? 'against_job_card' : 'stock_replenishment';
+
+                // Only what the store did not issue needs buying in.
+                $shortfall = $ipo->items->filter(
+                    fn ($it) => (float) $it->qty_requested > (float) $it->qty_issued
+                );
+                $source = $shortfall->isNotEmpty() ? $shortfall : $ipo->items;
+
+                $lines = $source->map(fn ($it) => array_merge($this->blankItem(), [
+                    'spare_id' => $it->spare_id,
+                    'uom_id' => $it->uom_id,
+                    'description' => $it->description,
+                    'quantity' => max(0, (float) $it->qty_requested - (float) $it->qty_issued) ?: (float) $it->qty_requested,
+                    'notes' => $it->notes,
+                ]))->values()->all();
+
+                if (! empty($lines)) {
+                    $this->items = $lines;
+                }
+            }
+        }
     }
 
     protected function load(VendorPurchaseOrder $order): void
@@ -187,7 +227,7 @@ class Edit extends Component
         $this->editingId = $order->id;
         foreach ([
             'po_no', 'po_type', 'vendor_id', 'vendor_type_id', 'job_card_id', 'employee_id', 'priority_id',
-            'vendor_purchase_inquiry_id', 'vpo_approval_id', 'advance_payment_id', 'transport_company_id',
+            'vendor_purchase_inquiry_id', 'internal_part_order_id', 'vpo_approval_id', 'advance_payment_id', 'transport_company_id',
             'cancellation_reason_id', 'vendor_category', 'vendor_rating_type', 'payment_term', 'delivery_mode',
             'delivery_commitment', 'delivery_custom_days', 'status', 'rejection_reason', 'cancellation_note',
             'acknowledgement_status', 'courier_company', 'consignment_no', 'terms_conditions', 'notes',
@@ -198,6 +238,10 @@ class Edit extends Component
         $this->consignment_date = $order->consignment_date?->format('Y-m-d');
         $this->sourceVpiNo = $order->vendor_purchase_inquiry_id
             ? VendorPurchaseInquiry::whereKey($order->vendor_purchase_inquiry_id)->value('vpi_no')
+            : null;
+        $this->internal_part_order_id = $order->internal_part_order_id;
+        $this->sourceIpoNo = $order->internal_part_order_id
+            ? InternalPartOrder::whereKey($order->internal_part_order_id)->value('order_no')
             : null;
 
         $this->items = $order->items->map(fn (VendorPurchaseOrderItem $i) => [
@@ -261,6 +305,7 @@ class Edit extends Component
             'employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')],
             'vendor_purchase_inquiry_id' => ['nullable', 'integer', Rule::exists('vendor_purchase_inquiries', 'id')],
+            'internal_part_order_id' => ['nullable', 'integer', Rule::exists('internal_part_orders', 'id')],
             'vpo_approval_id' => ['nullable', 'integer', Rule::exists('vpo_approvals', 'id')],
             'advance_payment_id' => ['nullable', 'integer', Rule::exists('advance_payments', 'id')],
             'transport_company_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')],

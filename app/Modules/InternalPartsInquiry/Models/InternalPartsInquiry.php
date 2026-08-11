@@ -12,6 +12,8 @@ use App\Modules\IpiRejectionReasonMaster\Models\IpiRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\NotificationCenter\Models\AppNotification;
+use App\Modules\NotificationCenter\Support\Notifier;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -91,6 +93,40 @@ class InternalPartsInquiry extends Model
                 'Parts inquiry '.$row->fresh()->ipi_no.' raised',
                 ['ipi_id' => $row->id],
                 $row->job_card_id,
+            );
+
+            // Ask the store — the person the inquiry is aimed at.
+            Notifier::toEmployee(
+                $row->target_employee_id,
+                AppNotification::TYPE_PARTS_INQUIRY_RAISED,
+                [
+                    'title' => 'Parts inquiry '.$row->fresh()->ipi_no,
+                    'body' => 'An advisor is asking whether these parts are in stock.',
+                    'url' => route('internal-parts-inquiry.edit', $row->id),
+                    'subject' => $row,
+                ],
+            );
+        });
+
+        // The store's verdict is what the advisor is waiting on.
+        static::updated(function (self $row) {
+            if (! array_key_exists('status', $row->getChanges())) {
+                return;
+            }
+
+            if (! in_array($row->status, self::respondedStatuses(), true)) {
+                return;
+            }
+
+            Notifier::toEmployee(
+                $row->requested_by_employee_id,
+                AppNotification::TYPE_PARTS_RESPONSE,
+                [
+                    'title' => 'Store responded on '.$row->ipi_no,
+                    'body' => 'Availability: '.(self::statuses()[$row->status] ?? $row->status),
+                    'url' => route('internal-parts-inquiry.edit', $row->id),
+                    'subject' => $row,
+                ],
             );
         });
     }
@@ -184,6 +220,35 @@ class InternalPartsInquiry extends Model
         $unavailable = $this->items->where('stock_status', 'not_available');
 
         return $unavailable->isNotEmpty() ? $unavailable->values() : $this->items;
+    }
+
+    /**
+     * The other half of the split: lines the store CAN supply, which become an
+     * internal part order. Falls back to all lines when the store has not
+     * answered yet, so an un-responded inquiry can still be ordered in full.
+     *
+     * @return Collection<int, InternalPartsInquiryItem>
+     */
+    public function storeOrderItems(): Collection
+    {
+        $this->loadMissing('items');
+        $available = $this->items->where('stock_status', '!=', 'not_available')
+            ->filter(fn (InternalPartsInquiryItem $i) => $i->stock_status !== null);
+
+        return $available->isNotEmpty() ? $available->values() : $this->items;
+    }
+
+    /** Line counts behind the carry-forward choices, for the UI. */
+    public function splitCounts(): array
+    {
+        $this->loadMissing('items');
+
+        return [
+            'available' => $this->items->where('stock_status', '!=', 'not_available')
+                ->filter(fn (InternalPartsInquiryItem $i) => $i->stock_status !== null)->count(),
+            'not_available' => $this->items->where('stock_status', 'not_available')->count(),
+            'unanswered' => $this->items->whereNull('stock_status')->count(),
+        ];
     }
 
     public function customer(): BelongsTo

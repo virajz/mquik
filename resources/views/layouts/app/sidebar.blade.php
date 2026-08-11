@@ -85,14 +85,21 @@
                     <kbd class="ml-2 px-1.5 py-0.5 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded">⌘K</kbd>
                 </button>
             </flux:modal.trigger>
+
+            <livewire:notification-bell />
         </flux:navbar>
     </flux:header>
 
     <livewire:master-search />
 
+    {{-- Standing alerts sit above the page and stay until acted on. --}}
+    <livewire:action-banner />
+
     <flux:main class="px-6 py-6 lg:px-8 lg:py-8">
         {{ $slot }}
     </flux:main>
+
+    <livewire:role-preview-switcher />
 
     @persist('toast')
         <flux:toast.group>

@@ -9,6 +9,8 @@ use App\Modules\FinalWorkOrder\Models\FinalWorkOrder;
 use App\Modules\GoodsHandover\Database\Factories\GoodsHandoverFactory;
 use App\Modules\GoodsReceipt\Models\GoodsReceipt;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\NotificationCenter\Models\AppNotification;
+use App\Modules\NotificationCenter\Support\Notifier;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -49,6 +51,19 @@ class GoodsHandover extends Model
             if ($row->handover_no === null) {
                 $row->forceFill(['handover_no' => 'GHO-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT)])->saveQuietly();
             }
+
+            // Both ends of the handover get told: the person giving and the
+            // person receiving, plus the advisor whose job it unblocks.
+            Notifier::toEmployees(
+                [$row->handover_by_id, $row->received_by_id, $row->jobCard?->assigned_advisor_id],
+                AppNotification::TYPE_GOODS_HANDED_OVER,
+                [
+                    'title' => 'Parts handed over — '.$row->fresh()->handover_no,
+                    'body' => 'Confirm what was given and received against this handover.',
+                    'url' => route('goods-handover.edit', $row->id),
+                    'subject' => $row,
+                ],
+            );
         });
     }
 

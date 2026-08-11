@@ -207,6 +207,19 @@ class Edit extends Component
         return redirect()->route('gate-in-out.index');
     }
 
+    /** The job card already raised off this visit, if any. */
+    #[Computed]
+    public function linkedJobCard()
+    {
+        if (! $this->editingId) {
+            return null;
+        }
+
+        return JobCard::query()
+            ->where('gate_event_id', $this->editingId)
+            ->first(['id', 'job_card_no']);
+    }
+
     public function render()
     {
         return view('gate-in-out::edit');

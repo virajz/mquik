@@ -5,6 +5,7 @@ namespace App\Modules\TechnicianBench\Livewire;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\VehicleInspectionOrder\Concerns\ManagesScopeTimers;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrderScope;
+use App\Support\ActingEmployee;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -33,6 +34,11 @@ class Index extends Component
     /** Hide lines already finished — the usual view when working a shift. */
     #[Url(as: 'open')]
     public bool $openOnly = true;
+
+    public function mount(): void
+    {
+        $this->technicianId ??= ActingEmployee::id();
+    }
 
     #[Computed]
     public function technicians()
@@ -159,6 +165,7 @@ class Index extends Component
 
     public function updatedTechnicianId(): void
     {
+        ActingEmployee::set($this->technicianId);
         $this->refreshLists();
     }
 

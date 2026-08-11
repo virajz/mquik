@@ -1,12 +1,29 @@
 @php($G = \App\Modules\GateInOut\Models\GateInOut::class)
 <div>
     <form wire:submit="save" class="max-w-3xl">
-        <div class="mb-8">
-            <flux:link :href="route('gate-in-out.index')" variant="ghost" class="text-xs">
-                <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Inward / Outward
-            </flux:link>
-            <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? 'Edit Visit' : 'Record Inward' }}</flux:heading>
-            <flux:text size="sm" class="mt-1 text-zinc-500">One record covers the whole visit. Fill the outward half when the vehicle leaves — TAT is calculated from the two.</flux:text>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <flux:link :href="route('gate-in-out.index')" variant="ghost" class="text-xs">
+                    <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Inward / Outward
+                </flux:link>
+                <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? 'Edit Visit' : 'Record Inward' }}</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">One record covers the whole visit. Fill the outward half when the vehicle leaves — TAT is calculated from the two.</flux:text>
+            </div>
+            @if ($editingId)
+                <div class="flex shrink-0 items-center gap-2">
+                    @if ($this->linkedJobCard)
+                        <flux:button :href="route('job-card.edit', $this->linkedJobCard->id)" wire:navigate size="sm" variant="ghost" icon="clipboard-document-list">
+                            {{ $this->linkedJobCard->job_card_no }}
+                        </flux:button>
+                    @else
+                        @can('job_card.create')
+                            <flux:button :href="route('job-card.create', ['from-gate-event' => $editingId])" wire:navigate size="sm" variant="primary" icon="plus">
+                                Create Job Card
+                            </flux:button>
+                        @endcan
+                    @endif
+                </div>
+            @endif
         </div>
 
         <flux:separator />

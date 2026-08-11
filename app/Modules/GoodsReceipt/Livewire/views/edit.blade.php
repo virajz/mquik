@@ -3,12 +3,21 @@
 @php($ATT = \App\Modules\GoodsReceipt\Models\GoodsReceiptAttachment::class)
 <div>
     <form wire:submit="save" class="max-w-4xl">
-        <div class="mb-8">
-            <flux:link :href="route('goods-receipt.index')" variant="ghost" class="text-xs">
-                <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Goods Receive & Verification
-            </flux:link>
-            <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($grn_no ?: 'Edit GRN') : 'Receive Goods' }}</flux:heading>
-            <flux:text size="sm" class="mt-1 text-zinc-500">Receive vendor parts and verify each line against the order.</flux:text>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <flux:link :href="route('goods-receipt.index')" variant="ghost" class="text-xs">
+                    <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Goods Receive & Verification
+                </flux:link>
+                <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($grn_no ?: 'Edit GRN') : 'Receive Goods' }}</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Receive vendor parts and verify each line against the order.</flux:text>
+            </div>
+            @if ($editingId)
+                @can('goods_handover.create')
+                    <flux:button :href="route('goods-handover.create', ['from-grn' => $editingId])" wire:navigate size="sm" variant="ghost" icon="arrow-right-circle" class="shrink-0">
+                        Hand over to floor
+                    </flux:button>
+                @endcan
+            @endif
         </div>
 
         <flux:separator />
@@ -62,14 +71,43 @@
         <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Received Lines</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Per line: condition, physical verification, storage bin, per-line approval and a photo.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    {{ $fullDetail
+                        ? 'Full detail: rates, approvals, storage bin and photos.'
+                        : 'Tick off what arrived. Switch to full detail for rates, approvals and bins.' }}
+                </flux:text>
             </div>
             <div class="space-y-3 min-w-0">
-                <div class="flex justify-end">
+                <div class="flex items-center justify-between gap-3">
+                    <flux:switch wire:model.live="fullDetail" label="Full detail" />
                     <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addItem">Add part</flux:button>
                 </div>
 
                 @foreach ($items as $i => $item)
+                    @if (! $fullDetail)
+                        {{-- CHECKLIST: the four things checked at the counter. --}}
+                        <div wire:key="chk-{{ $i }}" class="flex flex-wrap items-end gap-3 rounded-md border border-zinc-200 dark:border-zinc-800 p-3">
+                            <div class="min-w-0 flex-1">
+                                <flux:input wire:model="items.{{ $i }}.description" size="sm" label="Part" placeholder="Part description" required />
+                            </div>
+                            <flux:input wire:model="items.{{ $i }}.quantity" type="number" step="0.01" min="0.01" size="sm"
+                                label="Qty" class="w-24" class:input="text-right font-mono" required />
+                            <flux:select wire:model="items.{{ $i }}.material_condition" variant="listbox" size="sm" label="Condition" class="w-36">
+                                @foreach ($ITEM::materialConditions() as $key => $label)
+                                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:select wire:model="items.{{ $i }}.physical_verification" variant="listbox" size="sm" clearable label="Checked" class="w-36" placeholder="Not yet">
+                                @foreach ($ITEM::physicalVerifications() as $key => $label)
+                                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:button type="button" variant="ghost" icon="trash" wire:click="removeItem({{ $i }})" class="h-9!" />
+                            <div class="w-full">
+                                <flux:error name="items.{{ $i }}.description" />
+                            </div>
+                        </div>
+                    @else
                     <div wire:key="item-{{ $i }}" class="space-y-2 p-3 rounded-md border border-zinc-200 dark:border-zinc-800" x-data>
                         <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
                             <flux:select wire:model.live="items.{{ $i }}.spare_id" variant="listbox" size="sm" searchable clearable :filter="false" label="Spare" placeholder="Pick from catalogue…">
@@ -154,6 +192,7 @@
                             <flux:checkbox wire:model="items.{{ $i }}.part_approved" label="Part Approved" />
                         </div>
                     </div>
+                    @endif
                 @endforeach
             </div>
         </section>

@@ -592,6 +592,24 @@ class Edit extends Component
         $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
     }
 
+    /**
+     * How the current lines divide between the store and a vendor — shown on the
+     * carry-forward menu so the split is visible before it happens.
+     *
+     * @return array{available: int, not_available: int, unanswered: int}
+     */
+    #[Computed]
+    public function splitCounts(): array
+    {
+        $rows = collect($this->items);
+
+        return [
+            'available' => $rows->filter(fn ($i) => filled($i['stock_status'] ?? null) && $i['stock_status'] !== 'not_available')->count(),
+            'not_available' => $rows->where('stock_status', 'not_available')->count(),
+            'unanswered' => $rows->filter(fn ($i) => blank($i['stock_status'] ?? null))->count(),
+        ];
+    }
+
     public function render()
     {
         return view('internal-parts-inquiry::edit');

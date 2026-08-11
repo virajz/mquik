@@ -11,6 +11,7 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\JobCard\Concerns\ShowsServiceHistory;
 use App\Modules\JobCard\Models\JobCard;
@@ -167,6 +168,12 @@ class Edit extends Component
     #[Url(as: 'from-appointment')]
     public ?int $fromAppointment = null;
 
+    /** The gate visit this card was raised from (?from-gate-event=ID). */
+    #[Url(as: 'from-gate-event')]
+    public ?int $fromGateEvent = null;
+
+    public ?int $gate_event_id = null;
+
     public function mount(?JobCard $jobCard = null): void
     {
         if ($jobCard && $jobCard->exists) {
@@ -186,6 +193,10 @@ class Edit extends Component
             $this->prefillFromAppointment($this->fromAppointment);
         }
 
+        if ($this->fromGateEvent) {
+            $this->prefillFromGateEvent($this->fromGateEvent);
+        }
+
         $this->seedInventoryChecklist();
     }
 
@@ -196,6 +207,7 @@ class Edit extends Component
         $this->editingId = $jc->id;
         $this->job_card_no = $jc->job_card_no;
         $this->appointment_id = $jc->appointment_id;
+        $this->gate_event_id = $jc->gate_event_id;
         $this->customer_id = $jc->customer_id;
         $this->customer_vehicle_id = $jc->customer_vehicle_id;
         $this->workshop_department_id = $jc->workshop_department_id;
@@ -299,9 +311,30 @@ class Edit extends Component
         $this->assigned_technician_id = $appointment->assigned_technician_id;
     }
 
+    /**
+     * Raise the card straight off the gate visit — the vehicle is physically
+     * here, so the inward record already knows who and what.
+     */
+    protected function prefillFromGateEvent(int $gateEventId): void
+    {
+        $gate = GateInOut::find($gateEventId);
+        if (! $gate) {
+            return;
+        }
+
+        $this->gate_event_id = $gate->id;
+        $this->customer_id = $gate->customer_id;
+        $this->customer_vehicle_id = $gate->customer_vehicle_id;
+    }
+
     protected function rules(): array
     {
         return [
+            // Source links. Without rules these never reach save() — validate()
+            // is what builds the persisted payload — so the card would lose the
+            // appointment or gate visit it was raised from.
+            'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')],
+            'gate_event_id' => ['nullable', 'integer', Rule::exists('gate_visits', 'id')],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_vehicle_id' => [
                 'required', 'integer',

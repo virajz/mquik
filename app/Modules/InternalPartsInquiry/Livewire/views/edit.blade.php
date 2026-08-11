@@ -11,9 +11,41 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Advisor asks the store for part rate, availability and brand.</flux:text>
             </div>
             @if ($editingId)
-                @can('vendor_purchase_inquiry.create')
-                    <flux:button :href="route('vendor-purchase-inquiry.create', ['from-ipi' => $editingId])" wire:navigate size="sm" variant="ghost" icon="arrow-right-circle">Carry forward to Vendor Inquiry</flux:button>
-                @endcan
+                {{-- Two ways out of an inquiry: the store supplies it, or it goes
+                     to a vendor. Both carry the lines forward. --}}
+                <flux:dropdown align="end">
+                    <flux:button size="sm" variant="primary" icon="arrow-right-circle" icon:trailing="chevron-down" class="shrink-0">Carry forward</flux:button>
+                    <flux:menu class="w-72">
+                        {{-- A part-available inquiry splits: the store supplies what it
+                             has, a vendor is asked for the rest. Both can be raised. --}}
+                        @can('internal_part_order.create')
+                            <flux:menu.item icon="cube" :href="route('internal-part-order.create', ['from-ipi' => $editingId])" wire:navigate>
+                                <div class="min-w-0">
+                                    <div>Store order (IPO)</div>
+                                    <div class="text-xs text-zinc-500">
+                                        {{ $this->splitCounts['available'] }} available line(s)
+                                    </div>
+                                </div>
+                            </flux:menu.item>
+                        @endcan
+                        @can('vendor_purchase_inquiry.create')
+                            <flux:menu.item icon="building-storefront" :href="route('vendor-purchase-inquiry.create', ['from-ipi' => $editingId])" wire:navigate>
+                                <div class="min-w-0">
+                                    <div>Vendor inquiry (VPI)</div>
+                                    <div class="text-xs text-zinc-500">
+                                        {{ $this->splitCounts['not_available'] }} not-available line(s)
+                                    </div>
+                                </div>
+                            </flux:menu.item>
+                        @endcan
+                        @if ($this->splitCounts['unanswered'] > 0)
+                            <flux:menu.separator />
+                            <div class="px-3 py-2 text-xs text-zinc-500">
+                                {{ $this->splitCounts['unanswered'] }} line(s) have no availability set yet.
+                            </div>
+                        @endif
+                    </flux:menu>
+                </flux:dropdown>
             @endif
         </div>
 

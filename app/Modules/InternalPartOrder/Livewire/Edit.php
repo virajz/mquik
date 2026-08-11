@@ -6,6 +6,7 @@ use App\Concerns\MovesStock;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InternalPartOrder\Models\InternalPartOrder;
+use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\Inventory\Models\StockEntry;
 use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\Inventory\Services\StockLedger;
@@ -82,6 +83,15 @@ class Edit extends Component
     #[Url(as: 'tab')]
     public string $activeTab = 'details';
 
+    /** ?int — passed via ?from-ipi=ID for the IPI → IPO carry-forward. */
+    #[Url(as: 'from-ipi')]
+    public ?int $fromIpi = null;
+
+    public ?int $internal_parts_inquiry_id = null;
+
+    /** Display-only: source IPI number when carried forward. */
+    public ?string $sourceIpiNo = null;
+
     #[Url(as: 'from-job-card')]
     public ?int $fromJobCard = null;
 
@@ -116,6 +126,47 @@ class Edit extends Component
                 $this->customer_vehicle_id = $jc->customer_vehicle_id;
             }
         }
+
+        // Carry-forward from an Internal Parts Inquiry (?from-ipi=ID): the store
+        // confirmed it can supply, so the inquiry becomes an order on the store.
+        if ($this->fromIpi) {
+            $ipi = InternalPartsInquiry::with('items')->find($this->fromIpi);
+            if ($ipi) {
+                $this->internal_parts_inquiry_id = $ipi->id;
+                $this->sourceIpiNo = $ipi->ipi_no;
+                $this->job_card_id = $ipi->job_card_id;
+                $this->customer_id = $ipi->customer_id;
+                $this->customer_vehicle_id = $ipi->customer_vehicle_id;
+                $this->department_id = $ipi->workshop_department_id;
+                $this->requested_by_id = $ipi->requested_by_employee_id;
+                $this->store_incharge_id = $ipi->target_employee_id;
+                $this->ipo_type = $ipi->job_card_id ? 'against_job_card' : 'stock_replenishment';
+
+                // Only what the store said it can supply — the rest goes to a vendor.
+                $lines = $ipi->storeOrderItems()->map(fn ($it) => [
+                    'id' => null,
+                    'spare_id' => $it->spare_id,
+                    'uom_id' => $it->uom_id,
+                    'return_type_id' => null,
+                    'description' => $it->description,
+                    'is_alternate' => ($it->alternative_option ?? 'primary') !== 'primary',
+                    'qty_requested' => (float) $it->quantity,
+                    'qty_issued' => 0,
+                    'qty_returned' => 0,
+                    'stock_status' => $it->stock_status === 'not_available' ? 'not_available' : 'available',
+                    'issue_status' => 'pending',
+                    'return_status' => null,
+                    'before_photo_path' => null,
+                    'after_photo_path' => null,
+                    'notes' => $it->notes,
+                    'sequence_no' => (int) $it->sequence_no,
+                ])->values()->all();
+
+                if (! empty($lines)) {
+                    $this->items = $lines;
+                }
+            }
+        }
     }
 
     protected function load(InternalPartOrder $o): void
@@ -127,10 +178,14 @@ class Edit extends Component
             'order_no', 'ipo_type', 'priority_id', 'status', 'job_card_id', 'sales_estimate_id', 'customer_id',
             'customer_vehicle_id', 'department_id', 'service_type_id', 'requested_by_id', 'technician_id',
             'store_incharge_id', 'approval_authority', 'approval_status', 'approved_by_id', 'rejection_reason_id',
-            'cancellation_reason_id', 'notes',
+            'cancellation_reason_id', 'notes', 'internal_parts_inquiry_id',
         ] as $k) {
             $this->{$k} = $o->{$k};
         }
+
+        $this->sourceIpiNo = $o->internal_parts_inquiry_id
+            ? InternalPartsInquiry::whereKey($o->internal_parts_inquiry_id)->value('ipi_no')
+            : null;
 
         $this->items = $o->items->map(fn ($i) => [
             'id' => $i->id,
@@ -367,6 +422,7 @@ class Edit extends Component
     protected function rules(): array
     {
         return [
+            'internal_parts_inquiry_id' => ['nullable', 'integer', Rule::exists('internal_parts_inquiries', 'id')],
             'ipo_type' => ['required', Rule::in(array_keys(InternalPartOrder::ipoTypes()))],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'status' => ['required', Rule::in(array_keys(InternalPartOrder::statuses()))],

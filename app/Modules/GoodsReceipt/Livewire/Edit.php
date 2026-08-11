@@ -24,6 +24,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -81,6 +82,14 @@ class Edit extends Component
     public array $attachments = [];
 
     public array $attachmentFiles = [];
+
+    /**
+     * Receiving is a fast, physical job: is it here, is it the right amount, is
+     * it undamaged. The full form stays available for the office work (rates,
+     * approvals, bins) but is not what the person at the counter starts with.
+     */
+    #[Url(as: 'full')]
+    public bool $fullDetail = false;
 
     public function mount(?GoodsReceipt $goodsReceipt = null): void
     {

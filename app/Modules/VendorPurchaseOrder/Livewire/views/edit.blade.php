@@ -12,6 +12,9 @@
             @if ($sourceVpiNo)
                 <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceVpiNo }}</flux:badge>
             @endif
+            @if ($sourceIpoNo)
+                <flux:badge color="amber" size="sm" icon="arrow-right-circle" class="mt-2">Escalated from {{ $sourceIpoNo }}</flux:badge>
+            @endif
         </div>
 
         <flux:separator />

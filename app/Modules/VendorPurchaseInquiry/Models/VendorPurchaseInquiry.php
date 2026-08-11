@@ -179,6 +179,12 @@ class VendorPurchaseInquiry extends Model
         return $this->belongsTo(EstimateRevisionReasonMaster::class, 'revision_reason_id');
     }
 
+    /** Every vendor this RFQ was sent to. */
+    public function vendors(): HasMany
+    {
+        return $this->hasMany(VendorPurchaseInquiryVendor::class, 'vendor_purchase_inquiry_id')->orderBy('id');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(VendorPurchaseInquiryItem::class, 'vendor_purchase_inquiry_id')->orderBy('sequence_no');

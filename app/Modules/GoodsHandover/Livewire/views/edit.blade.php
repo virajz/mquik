@@ -8,6 +8,9 @@
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Goods Handover / Parts Return
             </flux:link>
             <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($handover_no ?: 'Edit Handover') : 'New Goods Handover' }}</flux:heading>
+            @if ($sourceGrnNo)
+                <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceGrnNo }}</flux:badge>
+            @endif
             <flux:text size="sm" class="mt-1 text-zinc-500">Hand parts to a technician and capture any returns.</flux:text>
         </div>
 

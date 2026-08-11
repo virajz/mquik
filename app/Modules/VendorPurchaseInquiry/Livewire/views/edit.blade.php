@@ -1,8 +1,18 @@
 @php($VPI = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry::class)
 @php($ITEM = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryItem::class)
 @php($ATT = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryAttachment::class)
+@php($VENDOR = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryVendor::class)
+@php($QUOTE = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryQuote::class)
 <div>
     <form wire:submit="save" class="max-w-4xl">
+        {{-- A disabled fieldset turns off every control inside it natively, so a
+             read-only viewer cannot edit anything without duplicating the form. --}}
+        <fieldset @disabled(! $this->canEdit) class="min-w-0">
+        @unless ($this->canEdit)
+            <flux:callout variant="secondary" icon="eye" heading="View only" class="mb-6">
+                You can see the quotes and prices on this inquiry. Changing it is the store's job.
+            </flux:callout>
+        @endunless
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('vendor-purchase-inquiry.index')" variant="ghost" class="text-xs">
@@ -16,7 +26,12 @@
             </div>
             @if ($editingId)
                 @can('vendor_purchase_order.create')
-                    <flux:button :href="route('vendor-purchase-order.create', ['from-vpi' => $editingId])" wire:navigate size="sm" variant="ghost" icon="arrow-right-circle">Raise Purchase Order</flux:button>
+                    <flux:tooltip :content="$this->isCustomerApproved ? 'Create the order from the chosen vendor' : 'Record the customer approval first'">
+                        <flux:button :href="route('vendor-purchase-order.create', ['from-vpi' => $editingId])" wire:navigate
+                            size="sm" :variant="$this->isCustomerApproved ? 'primary' : 'ghost'" icon="arrow-right-circle">
+                            Raise Purchase Order
+                        </flux:button>
+                    </flux:tooltip>
                 @endcan
             @endif
         </div>
@@ -81,6 +96,102 @@
                 </div>
             </div>
         </section>
+
+        <flux:separator />
+
+        {{-- VENDORS THIS RFQ GOES TO — procurement only. An advisor cares what a
+             part costs and what grade it is, not who supplies it. --}}
+        @if ($this->showsVendors)
+        <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Vendors</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    Send the same inquiry to several suppliers and compare what comes back. Tick the one you order from.
+                </flux:text>
+                @if ($editingId)
+                    <flux:modal.trigger name="vpi-dispatch">
+                        <flux:button type="button" size="sm" variant="ghost" icon="paper-airplane" class="mt-3">
+                            Message to send
+                        </flux:button>
+                    </flux:modal.trigger>
+                @endif
+            </div>
+            <div class="space-y-3 min-w-0">
+                {{-- The customer's yes, before any money is committed. --}}
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="min-w-0 flex-1">
+                        <flux:select wire:model.live="customer_approval_id" variant="listbox" clearable size="sm"
+                            label="Customer Approval" placeholder="Not approved yet…">
+                            @foreach ($this->customerApprovals as $ap)
+                                <flux:select.option :value="$ap->id" wire:key="ca-{{ $ap->id }}">
+                                    {{ $ap->approval_no }}{{ $ap->customer_approved_at ? ' · approved '.$ap->customer_approved_at->format('d M Y') : ' · pending' }}
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </div>
+                    @if ($this->isCustomerApproved)
+                        <flux:badge color="lime" size="sm" icon="check-circle">Customer approved</flux:badge>
+                    @else
+                        <flux:badge color="amber" size="sm">Awaiting customer approval</flux:badge>
+                    @endif
+                </div>
+
+                <div class="flex justify-end">
+                    <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addRecipient">Add vendor</flux:button>
+                </div>
+
+                @forelse ($recipients as $r => $rec)
+                    <div wire:key="rec-{{ $r }}" class="space-y-2 rounded-md border border-zinc-200 dark:border-zinc-800 p-3">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <flux:select wire:model="recipients.{{ $r }}.vendor_id" variant="listbox" searchable clearable size="sm" label="Vendor" placeholder="Pick a supplier…">
+                                @foreach ($this->vendors as $v)
+                                    <flux:select.option :value="$v->id" wire:key="rv-{{ $r }}-{{ $v->id }}">{{ $v->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:select wire:model="recipients.{{ $r }}.dispatch_channel" variant="listbox" size="sm" clearable label="Send via">
+                                @foreach ($VENDOR::dispatchChannels() as $key => $label)
+                                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:select wire:model="recipients.{{ $r }}.response_status" variant="listbox" size="sm" label="Reply">
+                                @foreach ($VENDOR::responseStatuses() as $key => $label)
+                                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <flux:input wire:model="recipients.{{ $r }}.quoted_total" size="sm" type="number" step="0.01" label="Quoted Total" placeholder="0.00" />
+                            <flux:input wire:model="recipients.{{ $r }}.lead_time_days" size="sm" type="number" label="Lead Time (days)" placeholder="0" />
+                            <flux:input wire:model="recipients.{{ $r }}.warranty_summary" size="sm" label="Warranty" placeholder="e.g. 12 months" />
+                            <div class="flex items-end gap-2">
+                                <flux:switch wire:model="recipients.{{ $r }}.is_selected" label="Chosen" />
+                                <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeRecipient({{ $r }})" />
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2">
+                            <flux:text size="sm" class="text-zinc-500">
+                                @if ($rec['sent_at'])
+                                    <flux:icon.check-circle class="inline size-3.5 -mt-0.5 text-lime-500" /> Sent {{ $rec['sent_at'] }}
+                                @else
+                                    Not sent yet
+                                @endif
+                            </flux:text>
+                            @unless ($rec['sent_at'])
+                                <flux:button type="button" size="xs" variant="ghost" icon="paper-airplane" wire:click="markSent({{ $r }})">Mark sent</flux:button>
+                            @endunless
+                        </div>
+                    </div>
+                @empty
+                    <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
+                        No vendors added yet — add at least one to send this inquiry to.
+                    </div>
+                @endforelse
+            </div>
+        </section>
+
+        @endif
 
         <flux:separator />
 
@@ -176,6 +287,69 @@
                                 <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                             @endforeach
                         </flux:select>
+
+                        {{-- COMPETING QUOTES: several rates for this one part —
+                             different vendors, or genuine vs aftermarket. --}}
+                        @php($best = $this->bestQuoteIndex($i))
+                        <div class="mt-2 rounded-md bg-zinc-50 dark:bg-zinc-900/40 p-2">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <flux:text size="sm" class="font-medium">
+                                    Quotes @if (! empty($quotes[$i]))({{ count($quotes[$i]) }})@endif
+                                </flux:text>
+                                <flux:button type="button" size="xs" variant="ghost" icon="plus" wire:click="addQuote({{ $i }})">Add quote</flux:button>
+                            </div>
+
+                            @forelse ($quotes[$i] ?? [] as $q => $quote)
+                                <div wire:key="q-{{ $i }}-{{ $q }}"
+                                    class="mb-2 rounded-md border p-2 {{ ($quote['is_selected'] ?? false) ? 'border-mq-orange-500 bg-white dark:bg-zinc-900' : 'border-zinc-200 dark:border-zinc-800' }}">
+                                    <div class="grid gap-2 {{ $this->showsVendors ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-3' }}">
+                                        @if ($this->showsVendors)
+                                            <flux:select wire:model="quotes.{{ $i }}.{{ $q }}.vendor_id" variant="listbox" size="sm" searchable clearable label="Vendor" placeholder="Which vendor…">
+                                                @foreach ($this->vendors as $v)
+                                                    <flux:select.option :value="$v->id" wire:key="qv-{{ $i }}-{{ $q }}-{{ $v->id }}">{{ $v->name }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                        @endif
+                                        <flux:select wire:model="quotes.{{ $i }}.{{ $q }}.part_type_id" variant="listbox" size="sm" clearable label="Grade" placeholder="Genuine / Aftermarket…">
+                                            @foreach ($this->partTypes as $pt)
+                                                <flux:select.option :value="$pt->id" wire:key="qp-{{ $i }}-{{ $q }}-{{ $pt->id }}">{{ $pt->name }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                        <flux:select wire:model="quotes.{{ $i }}.{{ $q }}.spare_brand_id" variant="listbox" size="sm" searchable clearable label="Brand" placeholder="Brand…">
+                                            @foreach ($this->spareBrands as $b)
+                                                <flux:select.option :value="$b->id" wire:key="qb-{{ $i }}-{{ $q }}-{{ $b->id }}">{{ $b->name }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                        <flux:input wire:model.live.debounce.400ms="quotes.{{ $i }}.{{ $q }}.rate" type="number" step="0.01" min="0" size="sm" label="Rate" class:input="text-right font-mono" />
+                                    </div>
+
+                                    <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        <flux:input wire:model="quotes.{{ $i }}.{{ $q }}.warranty_period_value" type="number" min="0" size="sm" label="Warranty (months)" />
+                                        <flux:input wire:model="quotes.{{ $i }}.{{ $q }}.lead_time_days" type="number" min="0" size="sm" label="Lead time (days)" />
+                                        <flux:select wire:model="quotes.{{ $i }}.{{ $q }}.availability" variant="listbox" size="sm" clearable label="Availability" placeholder="—">
+                                            @foreach ($QUOTE::availabilities() as $key => $label)
+                                                <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                        <div class="flex items-end gap-2">
+                                            @if ($quote['is_selected'] ?? false)
+                                                <flux:badge color="lime" size="sm" icon="check-circle">Chosen</flux:badge>
+                                            @else
+                                                <flux:button type="button" size="xs" variant="primary" wire:click="selectQuote({{ $i }}, {{ $q }})">Choose</flux:button>
+                                            @endif
+                                            @if ($best === $q && ! ($quote['is_selected'] ?? false))
+                                                <flux:badge color="sky" size="sm">Cheapest</flux:badge>
+                                            @endif
+                                            <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="removeQuote({{ $i }}, {{ $q }})" />
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <flux:text size="sm" class="text-zinc-500">
+                                    No quotes yet. Add one per vendor, or one per grade (genuine vs aftermarket), then choose the one to order.
+                                </flux:text>
+                            @endforelse
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -322,7 +496,54 @@
 
         <div class="flex items-center justify-end gap-2 py-6">
             <flux:button :href="route('vendor-purchase-inquiry.index')" variant="ghost" wire:navigate>Cancel</flux:button>
-            <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save changes' : 'Create RFQ' }}</flux:button>
+            @if ($this->canEdit)
+                <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save changes' : 'Create RFQ' }}</flux:button>
+            @endif
         </div>
+        </fieldset>
     </form>
+
+    {{-- WHAT TO SEND THE VENDOR --}}
+    @if ($editingId)
+        <flux:modal name="vpi-dispatch" variant="flyout" class="w-full max-w-lg">
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Message to send</flux:heading>
+                    <flux:text size="sm" class="mt-1 text-zinc-500">
+                        Copy this to the vendor over WhatsApp or email. The VIN is included so they can identify the exact part.
+                    </flux:text>
+                </div>
+
+                @if (! $this->dispatchPayload['vin'])
+                    <flux:callout variant="warning" icon="exclamation-triangle" heading="No VIN on this vehicle">
+                        Vendors usually need the VIN to confirm the right part. Add it on the vehicle record before sending.
+                    </flux:callout>
+                @endif
+
+                <flux:textarea rows="12" readonly class:input="font-mono text-xs" :value="$this->dispatchPayload['message']" />
+
+                <div>
+                    <flux:text size="sm" class="mb-2 font-medium">Images ({{ count($this->dispatchPayload['images']) }})</flux:text>
+                    @forelse ($this->dispatchPayload['images'] as $img)
+                        <div class="flex items-center justify-between gap-3 rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-2">
+                            <span class="min-w-0 flex-1 truncate text-sm">{{ $img['label'] }}</span>
+                            @if ($img['url'])
+                                <flux:button size="xs" variant="ghost" icon="arrow-top-right-on-square" :href="$img['url']" target="_blank">Open</flux:button>
+                            @endif
+                        </div>
+                    @empty
+                        <flux:text size="sm" class="text-zinc-500">
+                            No photos attached. Add an image of the part or plate in Attachments below — it is what stops a vendor sending the wrong part.
+                        </flux:text>
+                    @endforelse
+                </div>
+
+                <div class="flex justify-end">
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Close</flux:button>
+                    </flux:modal.close>
+                </div>
+            </div>
+        </flux:modal>
+    @endif
 </div>
