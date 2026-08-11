@@ -82,6 +82,22 @@ class GateInOut extends Model
                 $row->entered_at,
             );
         });
+
+        // Gate-out closes the visit — the other end of the vehicle's timeline.
+        static::updated(function (self $row) {
+            if (! array_key_exists('exited_at', $row->getChanges()) || ! $row->exited_at) {
+                return;
+            }
+
+            JobCardHistoryRecorder::recordForVehicle(
+                $row->customer_vehicle_id,
+                JobCardHistoryEvent::TYPE_VEHICLE_DEPARTED,
+                'Vehicle left the gate ('.$row->gate_event_no.')',
+                ['source_id' => $row->id],
+                $row->job_card_id ?? null,
+                $row->exited_at,
+            );
+        });
     }
 
     public function customerVehicle(): BelongsTo

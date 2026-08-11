@@ -1,12 +1,12 @@
 <div class="max-w-7xl">
     {{-- HEADER --}}
-        <div class="mb-6 flex items-start justify-between gap-4">
-            <div>
+        <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0">
                 <flux:link :href="route('job-card.index')" variant="ghost" class="text-xs">
                     <flux:icon.chevron-left class="inline size-3 -mt-0.5" />
                     Job Cards
                 </flux:link>
-                <flux:heading size="xl" level="1" class="mt-1">
+                <flux:heading size="xl" level="1" class="mt-1 whitespace-nowrap">
                     {{ $editingId ? 'Job Card '.$job_card_no : 'New Job Card' }}
                 </flux:heading>
                 @if ($appointment_id)
@@ -14,69 +14,69 @@
                 @endif
             </div>
             @if ($editingId)
-                <div class="flex items-center gap-2">
-                    @if ($this->vehicleJobCards->isNotEmpty())
-                        <flux:modal.trigger name="vehicle-history">
-                            <flux:button type="button" size="sm" variant="ghost" icon="truck">
-                                Vehicle History ({{ $this->vehicleJobCards->count() }})
-                            </flux:button>
-                        </flux:modal.trigger>
-                    @endif
-                    <flux:dropdown>
-                        <flux:button size="sm" variant="ghost" icon="magnifying-glass-circle" icon:trailing="chevron-down">
-                            Inspection @if ($this->digitalInspections->isNotEmpty())({{ $this->digitalInspections->count() }})@endif
-                        </flux:button>
+                {{-- Three controls, not ten: what you can create, where you can go,
+                     and where the card stands. Everything else lives inside them. --}}
+                <div class="flex shrink-0 items-center gap-2">
+                    <flux:dropdown align="end">
+                        <flux:button size="sm" variant="primary" icon="plus" icon:trailing="chevron-down">Create</flux:button>
                         <flux:menu>
-                            <flux:menu.item icon="plus" :href="route('digital-inspection.create', ['from-job-card' => $editingId])" wire:navigate>
-                                New inspection
+                            <flux:menu.item icon="magnifying-glass-circle" :href="route('digital-inspection.create', ['from-job-card' => $editingId])" wire:navigate>
+                                Inspection
                             </flux:menu.item>
-                            @if ($this->digitalInspections->isNotEmpty())
+                            @can('vehicle_inspection_order.create')
+                                <flux:menu.item icon="clipboard-document-check" :href="route('vehicle-inspection-order.create', ['from-job-card' => $editingId])" wire:navigate>
+                                    Work order
+                                </flux:menu.item>
+                            @endcan
+                            @can('internal_parts_inquiry.create')
+                                <flux:menu.item icon="cube" :href="route('internal-parts-inquiry.create', ['from-job-card' => $editingId])" wire:navigate>
+                                    Part inquiry
+                                </flux:menu.item>
+                            @endcan
+                            @can('pickup_drop.create')
+                                <flux:menu.item icon="map-pin" :href="route('pickup-drop.create', ['from-job-card' => $editingId])" wire:navigate>
+                                    Pickup / drop
+                                </flux:menu.item>
+                            @endcan
+                        </flux:menu>
+                    </flux:dropdown>
+
+                    <flux:dropdown align="end">
+                        <flux:button size="sm" variant="ghost" icon="arrow-top-right-on-square" icon:trailing="chevron-down">Go to</flux:button>
+                        <flux:menu>
+                            <flux:menu.item icon="clock" :href="route('job-history.show', $editingId)" wire:navigate>
+                                Job history
+                            </flux:menu.item>
+                            @if ($customer_vehicle_id)
+                                @can('job_history.view')
+                                    <flux:menu.item icon="truck" :href="route('job-history.vehicle-timeline', $customer_vehicle_id)" wire:navigate>
+                                        Vehicle timeline
+                                    </flux:menu.item>
+                                @endcan
+                            @endif
+                            <flux:menu.item icon="wrench-screwdriver" x-on:click="$flux.modal('vehicle-history').show()">
+                                Service history @if ($this->vehicleJobCards->isNotEmpty())({{ $this->vehicleJobCards->count() }})@endif
+                            </flux:menu.item>
+                            <flux:menu.item icon="squares-2x2" x-on:click="$flux.modal('record-panel').show()">
+                                Related areas
+                            </flux:menu.item>
+
+                            @if ($this->digitalInspections->isNotEmpty() || $this->inspectionOrders->isNotEmpty())
                                 <flux:menu.separator />
                                 @foreach ($this->digitalInspections as $di)
                                     <flux:menu.item :href="route('digital-inspection.edit', $di->id)" wire:navigate>
                                         {{ $di->inspection_no }} · {{ \App\Modules\DigitalInspection\Models\DigitalInspection::statuses()[$di->status] ?? $di->status }}
                                     </flux:menu.item>
                                 @endforeach
+                                @foreach ($this->inspectionOrders as $vio)
+                                    <flux:menu.item :href="route('vehicle-inspection-order.edit', $vio->id)" wire:navigate>
+                                        {{ $vio->order_no }} · {{ \App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder::statuses()[$vio->status] ?? $vio->status }}
+                                    </flux:menu.item>
+                                @endforeach
                             @endif
                         </flux:menu>
                     </flux:dropdown>
-                    @can('vehicle_inspection_order.view')
-                        <flux:dropdown>
-                            <flux:button size="sm" variant="ghost" icon="clipboard-document-check" icon:trailing="chevron-down">
-                                Work Orders @if ($this->inspectionOrders->isNotEmpty())({{ $this->inspectionOrders->count() }})@endif
-                            </flux:button>
-                            <flux:menu>
-                                @can('vehicle_inspection_order.create')
-                                    <flux:menu.item icon="plus" :href="route('vehicle-inspection-order.create', ['from-job-card' => $editingId])" wire:navigate>
-                                        Assign work order
-                                    </flux:menu.item>
-                                @endcan
-                                @if ($this->inspectionOrders->isNotEmpty())
-                                    <flux:menu.separator />
-                                    @foreach ($this->inspectionOrders as $vio)
-                                        <flux:menu.item :href="route('vehicle-inspection-order.edit', $vio->id)" wire:navigate>
-                                            {{ $vio->order_no }} · {{ \App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder::statuses()[$vio->status] ?? $vio->status }}
-                                        </flux:menu.item>
-                                    @endforeach
-                                @endif
-                            </flux:menu>
-                        </flux:dropdown>
-                    @endcan
-                    @can('internal_parts_inquiry.create')
-                        <flux:button :href="route('internal-parts-inquiry.create', ['from-job-card' => $editingId])" wire:navigate size="sm" variant="ghost" icon="clipboard-document-list">Raise Part Inquiry</flux:button>
-                    @endcan
-                    @can('pickup_drop.create')
-                        <flux:button :href="route('pickup-drop.create', ['from-job-card' => $editingId])" wire:navigate size="sm" variant="ghost" icon="truck">Pickup / Drop</flux:button>
-                    @endcan
-                    <flux:modal.trigger name="record-panel">
-                        <flux:button type="button" size="sm" variant="ghost" icon="squares-2x2">Related</flux:button>
-                    </flux:modal.trigger>
-                    <flux:button :href="route('job-history.show', $editingId)" wire:navigate size="sm" variant="ghost" icon="clock">History</flux:button>
-                    @if ($customer_vehicle_id)
-                        @can('job_history.view')
-                            <flux:button :href="route('job-history.vehicle-timeline', $customer_vehicle_id)" wire:navigate size="sm" variant="ghost" icon="truck">Vehicle Timeline</flux:button>
-                        @endcan
-                    @endif
+
                     <flux:badge :color="match ($status) {
                         'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',
                         'awaiting_approval' => 'purple', 'completed' => 'lime', 'closed' => 'zinc',
@@ -502,9 +502,40 @@
         <flux:modal name="vehicle-history" variant="flyout" class="w-full max-w-lg">
             <div class="space-y-5">
                 <div>
-                    <flux:heading size="lg">Vehicle History</flux:heading>
-                    <flux:text size="sm" class="mt-1 text-zinc-500">Other job cards for this vehicle. Each opens in a new tab.</flux:text>
+                    <flux:heading size="lg">Service History</flux:heading>
+                    <flux:text size="sm" class="mt-1 text-zinc-500">
+                        What this vehicle has had done, and when — search a service to see the visits that included it.
+                    </flux:text>
                 </div>
+
+                {{-- WHAT'S BEEN DONE — the basis for recommending what's due --}}
+                @if ($this->serviceHistory->isNotEmpty())
+                    <div>
+                        <flux:text size="sm" class="mb-2 font-medium">Last done</flux:text>
+                        <div class="space-y-1.5">
+                            @foreach ($this->serviceHistory->take(8) as $s)
+                                @php($months = $s['last_done_at'] ? (int) $s['last_done_at']->diffInMonths(now()) : null)
+                                <button type="button" wire:click="$set('historySearch', @js($s['service']))"
+                                    class="flex w-full items-center justify-between gap-3 rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-left transition hover:border-mq-orange-500">
+                                    <span class="min-w-0 flex-1 truncate text-sm">{{ \Illuminate\Support\Str::limit($s['service'], 48) }}</span>
+                                    <span class="shrink-0 text-xs text-zinc-500">
+                                        {{ $s['last_done_at']?->format('d M Y') ?? '—' }}
+                                        @if ($s['last_km'])· {{ number_format($s['last_km']) }} km @endif
+                                    </span>
+                                    {{-- Overdue-ish hint: a year since it was last done. --}}
+                                    @if ($months !== null && $months >= 12)
+                                        <flux:badge size="sm" color="amber">{{ intdiv($months, 12) }}y ago</flux:badge>
+                                    @elseif ($s['times'] > 1)
+                                        <flux:badge size="sm" color="zinc">×{{ $s['times'] }}</flux:badge>
+                                    @endif
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <flux:input wire:model.live.debounce.300ms="historySearch" icon="magnifying-glass" clearable
+                    placeholder="Filter visits by service — e.g. oil change" />
 
                 <div class="space-y-2">
                     @forelse ($this->vehicleJobCards as $vjc)
@@ -525,10 +556,25 @@
                                 @if ($vjc->advisor)<span>· {{ $vjc->advisor->name }}</span>@endif
                                 @if ($vjc->km_at_service)<span>· {{ number_format($vjc->km_at_service) }} km</span>@endif
                             </div>
+
+                            {{-- The actual work on that visit. --}}
+                            @php($done = $vjc->complaints->pluck('description')->filter()->merge($vjc->requestedRepairs->pluck('name'))->unique()->take(4))
+                            @if ($done->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-1">
+                                    @foreach ($done as $d)
+                                        <flux:badge size="sm" color="zinc">{{ \Illuminate\Support\Str::limit($d, 32) }}</flux:badge>
+                                    @endforeach
+                                </div>
+                            @endif
                         </a>
                     @empty
                         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-8 text-center text-sm text-zinc-500">
-                            No other job cards for this vehicle yet.
+                            @if (trim($historySearch) !== '')
+                                No past visit matched “{{ $historySearch }}”.
+                                <button type="button" wire:click="$set('historySearch', '')" class="text-mq-orange-500 underline">Clear filter</button>
+                            @else
+                                No other job cards for this vehicle yet.
+                            @endif
                         </div>
                     @endforelse
                 </div>

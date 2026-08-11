@@ -67,6 +67,16 @@ class VehicleInspectionOrder extends Model
                     'order_no' => 'VIO-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
+
+            // The assignment itself is a timeline moment ("assigned for
+            // inspection at 12:00"); the updated() hook below only sees
+            // later status moves, so record the creation here.
+            JobCardHistoryRecorder::record(
+                (int) $row->job_card_id,
+                JobCardHistoryEvent::TYPE_WORK_ORDER_ASSIGNED,
+                'Work Order '.$row->fresh()->order_no.' created',
+                ['order_id' => $row->id, 'technician_id' => $row->technician_id],
+            );
         });
 
         static::updated(function (self $row) {

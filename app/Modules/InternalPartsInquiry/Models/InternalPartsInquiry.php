@@ -10,6 +10,8 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InternalPartsInquiry\Database\Factories\InternalPartsInquiryFactory;
 use App\Modules\IpiRejectionReasonMaster\Models\IpiRejectionReasonMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -80,6 +82,16 @@ class InternalPartsInquiry extends Model
                     'ipi_no' => 'IPI-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
+
+            // "Part ordered" is one of the delays a service advisor is asked to
+            // explain, so it belongs on the vehicle's timeline.
+            JobCardHistoryRecorder::recordForVehicle(
+                $row->customer_vehicle_id,
+                JobCardHistoryEvent::TYPE_PARTS_INQUIRY_RAISED,
+                'Parts inquiry '.$row->fresh()->ipi_no.' raised',
+                ['ipi_id' => $row->id],
+                $row->job_card_id,
+            );
         });
     }
 

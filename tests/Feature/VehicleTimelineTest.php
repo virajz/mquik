@@ -2,10 +2,13 @@
 
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\GateInOut\Models\GateInOut;
+use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Livewire\VehicleTimeline;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -86,4 +89,31 @@ it('does not show another vehicle\'s events', function () {
     Livewire::test(VehicleTimeline::class, ['customerVehicle' => $mine])
         ->assertDontSee('OTHER VEHICLE EVENT')
         ->assertSee('Nothing recorded yet');
+});
+
+it('records work order assignment, parts inquiry and gate departure on the timeline', function () {
+    $vehicle = CustomerVehicleMaster::factory()->create();
+    $card = JobCard::factory()->create(['customer_vehicle_id' => $vehicle->id]);
+
+    VehicleInspectionOrder::factory()
+        ->create(['job_card_id' => $card->id]);
+
+    InternalPartsInquiry::factory()->create([
+        'job_card_id' => $card->id,
+        'customer_vehicle_id' => $vehicle->id,
+    ]);
+
+    $gate = GateInOut::factory()->create([
+        'customer_vehicle_id' => $vehicle->id,
+        'exited_at' => null,
+    ]);
+    $gate->update(['exited_at' => now()]);
+
+    $types = JobCardHistoryEvent::query()
+        ->where('customer_vehicle_id', $vehicle->id)
+        ->pluck('event_type');
+
+    expect($types)->toContain(JobCardHistoryEvent::TYPE_WORK_ORDER_ASSIGNED)
+        ->and($types)->toContain(JobCardHistoryEvent::TYPE_PARTS_INQUIRY_RAISED)
+        ->and($types)->toContain(JobCardHistoryEvent::TYPE_VEHICLE_DEPARTED);
 });

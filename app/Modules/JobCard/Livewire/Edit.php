@@ -12,6 +12,7 @@ use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
+use App\Modules\JobCard\Concerns\ShowsServiceHistory;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
@@ -47,6 +48,7 @@ use Livewire\WithFileUploads;
 class Edit extends Component
 {
     use SearchesPickerOptions;
+    use ShowsServiceHistory;
     use WithFileUploads;
 
     /** Search term for the server-backed vendors picker. */
@@ -552,25 +554,6 @@ class Edit extends Component
     {
         return JobCardPendingReasonMaster::query()
             ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
-    }
-
-    /**
-     * Other job cards for the same vehicle — the "Vehicle History" drawer.
-     */
-    #[Computed]
-    public function vehicleJobCards()
-    {
-        if (! $this->customer_vehicle_id) {
-            return collect();
-        }
-
-        return JobCard::query()
-            ->where('customer_vehicle_id', $this->customer_vehicle_id)
-            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
-            ->with(['advisor:id,name', 'currentStage:id,name', 'workshopDepartment:id,name'])
-            ->orderByDesc('opened_at')
-            ->limit(50)
-            ->get(['id', 'job_card_no', 'status', 'current_stage_id', 'assigned_advisor_id', 'workshop_department_id', 'opened_at', 'promised_at', 'closed_at', 'km_at_service']);
     }
 
     #[Computed]

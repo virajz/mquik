@@ -65,7 +65,16 @@ class JobCard extends Model
         'terms_accepted' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['job_card_no', 'suggested_services', 'notes', 'customer.first_name', 'customer.phone', 'customerVehicle.registration_no'];
+    /**
+     * Includes the work itself (complaints and requested repairs), so an advisor
+     * can search "oil change" and get every card where it was actually done —
+     * the basis for spotting what a vehicle is due for.
+     */
+    protected static array $searchableFields = [
+        'job_card_no', 'suggested_services', 'notes',
+        'customer.first_name', 'customer.phone', 'customerVehicle.registration_no',
+        'complaints.description', 'requestedRepairs.name',
+    ];
 
     protected static function newFactory(): JobCardFactory
     {
