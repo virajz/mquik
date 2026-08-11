@@ -137,11 +137,7 @@ class Index extends Component
         return VendorPurchaseOrder::query()
             ->with(['vendor:id,name', 'priority:id,name', 'jobCard:id,job_card_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('po_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('consignment_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->ackFilter !== 'all', fn ($q) => $q->where('acknowledgement_status', $this->ackFilter))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->where('vendor_id', (int) $this->vendorFilter));

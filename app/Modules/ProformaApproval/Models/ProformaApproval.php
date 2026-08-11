@@ -54,7 +54,7 @@ class ProformaApproval extends Model
         'converted_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['approval_no', 'proforma_reference', 'notes'];
+    protected static array $searchableFields = ['approval_no', 'proforma_reference', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): ProformaApprovalFactory
     {

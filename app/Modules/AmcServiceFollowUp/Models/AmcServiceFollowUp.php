@@ -52,7 +52,7 @@ class AmcServiceFollowUp extends Model
         'job_card_open_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['follow_up_no', 'vehicle_history_reference', 'notes'];
+    protected static array $searchableFields = ['follow_up_no', 'vehicle_history_reference', 'notes', 'amc.amc_no'];
 
     protected static function newFactory(): AmcServiceFollowUpFactory
     {

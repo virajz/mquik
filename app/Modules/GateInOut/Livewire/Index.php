@@ -122,11 +122,7 @@ class Index extends Component
                 'parkingSlot:id,name',
                 'jobCard:id,job_card_no',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('registration_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('gate_event_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->presenceFilter === 'inside', fn ($q) => $q->stillInside())
             ->when($this->sourceFilter !== 'all', fn ($q) => $q->where('source', $this->sourceFilter))

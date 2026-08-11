@@ -113,10 +113,7 @@ class Index extends Component
                 'cancelReason:id,name',
                 'employee:id,name',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('approval_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('cancellation_type', $this->typeFilter));
     }

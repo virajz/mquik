@@ -93,10 +93,7 @@ class Index extends Component
 
         return AdvisorFeedback::query()
             ->with(['customer:id,first_name,last_name', 'advisor:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('feedback_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('invoice_reference', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter));
     }
 

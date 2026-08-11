@@ -38,7 +38,7 @@ class Consumable extends Model
         'approved_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['consumable_no', 'notes'];
+    protected static array $searchableFields = ['consumable_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): ConsumableFactory
     {

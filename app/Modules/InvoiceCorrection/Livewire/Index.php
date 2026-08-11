@@ -103,10 +103,7 @@ class Index extends Component
         return InvoiceCorrection::query()
             ->with(['jobCard:id,job_card_no', 'customer:id,first_name,last_name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('correction_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('invoice_reference', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->invoiceTypeFilter !== 'all', fn ($q) => $q->where('invoice_type', $this->invoiceTypeFilter));
     }

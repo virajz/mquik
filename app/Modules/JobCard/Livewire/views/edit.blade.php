@@ -40,13 +40,43 @@
                             @endif
                         </flux:menu>
                     </flux:dropdown>
+                    @can('vehicle_inspection_order.view')
+                        <flux:dropdown>
+                            <flux:button size="sm" variant="ghost" icon="clipboard-document-check" icon:trailing="chevron-down">
+                                Work Orders @if ($this->inspectionOrders->isNotEmpty())({{ $this->inspectionOrders->count() }})@endif
+                            </flux:button>
+                            <flux:menu>
+                                @can('vehicle_inspection_order.create')
+                                    <flux:menu.item icon="plus" :href="route('vehicle-inspection-order.create', ['from-job-card' => $editingId])" wire:navigate>
+                                        Assign work order
+                                    </flux:menu.item>
+                                @endcan
+                                @if ($this->inspectionOrders->isNotEmpty())
+                                    <flux:menu.separator />
+                                    @foreach ($this->inspectionOrders as $vio)
+                                        <flux:menu.item :href="route('vehicle-inspection-order.edit', $vio->id)" wire:navigate>
+                                            {{ $vio->order_no }} · {{ \App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder::statuses()[$vio->status] ?? $vio->status }}
+                                        </flux:menu.item>
+                                    @endforeach
+                                @endif
+                            </flux:menu>
+                        </flux:dropdown>
+                    @endcan
                     @can('internal_parts_inquiry.create')
                         <flux:button :href="route('internal-parts-inquiry.create', ['from-job-card' => $editingId])" wire:navigate size="sm" variant="ghost" icon="clipboard-document-list">Raise Part Inquiry</flux:button>
                     @endcan
                     @can('pickup_drop.create')
                         <flux:button :href="route('pickup-drop.create', ['from-job-card' => $editingId])" wire:navigate size="sm" variant="ghost" icon="truck">Pickup / Drop</flux:button>
                     @endcan
+                    <flux:modal.trigger name="record-panel">
+                        <flux:button type="button" size="sm" variant="ghost" icon="squares-2x2">Related</flux:button>
+                    </flux:modal.trigger>
                     <flux:button :href="route('job-history.show', $editingId)" wire:navigate size="sm" variant="ghost" icon="clock">History</flux:button>
+                    @if ($customer_vehicle_id)
+                        @can('job_history.view')
+                            <flux:button :href="route('job-history.vehicle-timeline', $customer_vehicle_id)" wire:navigate size="sm" variant="ghost" icon="truck">Vehicle Timeline</flux:button>
+                        @endcan
+                    @endif
                     <flux:badge :color="match ($status) {
                         'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',
                         'awaiting_approval' => 'purple', 'completed' => 'lime', 'closed' => 'zinc',
@@ -510,5 +540,10 @@
                 </div>
             </div>
         </flux:modal>
+    @endif
+
+    {{-- Related-areas flyout --}}
+    @if ($editingId)
+        <livewire:record-panel subject="job_card" :record-id="$editingId" :record-label="$job_card_no" />
     @endif
 </div>

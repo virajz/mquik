@@ -47,7 +47,7 @@ class AdvanceReceiptRequest extends Model
         'amount' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['request_no', 'notes'];
+    protected static array $searchableFields = ['request_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): AdvanceReceiptRequestFactory
     {

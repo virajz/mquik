@@ -80,6 +80,42 @@ class Edit extends Component
 
         if ($this->fromJobCard) {
             $this->job_card_id = $this->fromJobCard;
+            $this->prefillFromJobCard();
+        }
+    }
+
+    /** Picking a job card in the form should fill the same things the URL handoff does. */
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    /**
+     * The final inspection signs off the work the digital inspection opened, so
+     * carry that link and its template across when they're unambiguous.
+     */
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+        if (! $jobCard) {
+            return;
+        }
+
+        if (! $this->digital_inspection_id) {
+            $inspections = DigitalInspection::query()
+                ->where('job_card_id', $jobCard->id)
+                ->orderByDesc('id')
+                ->limit(2)
+                ->get(['id', 'inspection_template_id']);
+
+            if ($inspections->count() === 1) {
+                $this->digital_inspection_id = $inspections->first()->id;
+                $this->inspection_template_id ??= $inspections->first()->inspection_template_id;
+            }
         }
     }
 

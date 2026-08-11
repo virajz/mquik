@@ -113,11 +113,7 @@ class Index extends Component
 
         $rows = LabourMaster::query()
             ->with(['vehicleSegment:id,name', 'workshopDepartment:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('name', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('labour_code', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('hsn', fn ($h) => $h->whereLike('code', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->segmentFilter !== 'all', fn ($q) => $q->where('vehicle_segment_id', (int) $this->segmentFilter))
             ->when($this->oslFilter === 'osl', fn ($q) => $q->where('is_osl', true))
             ->when($this->oslFilter === 'in-house', fn ($q) => $q->where('is_osl', false))

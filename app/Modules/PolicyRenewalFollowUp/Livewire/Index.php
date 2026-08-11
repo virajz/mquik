@@ -106,10 +106,7 @@ class Index extends Component
 
         return PolicyRenewalFollowUp::query()
             ->with(['customer:id,first_name,last_name', 'customerVehicle:id,registration_no', 'insuranceCompany:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('follow_up_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('policy_number', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->retentionFilter !== 'all', fn ($q) => $q->where('customer_retention', $this->retentionFilter));
     }

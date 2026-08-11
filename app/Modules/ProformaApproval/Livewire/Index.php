@@ -102,10 +102,7 @@ class Index extends Component
         return ProformaApproval::query()
             ->with(['jobCard:id,job_card_no', 'customer:id,first_name,last_name'])
             ->withCount('checkpoints')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('approval_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->stageFilter !== 'all', fn ($q) => $q->where('approval_stage', $this->stageFilter));
     }

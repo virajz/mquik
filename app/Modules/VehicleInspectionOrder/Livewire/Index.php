@@ -2,6 +2,7 @@
 
 namespace App\Modules\VehicleInspectionOrder\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\BayMaster\Models\BayMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
@@ -18,6 +19,7 @@ use Livewire\WithPagination;
 #[Title('Vehicle Inspection Orders')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -147,16 +149,13 @@ class Index extends Component
                 'template:id,name',
             ])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('order_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false))
-                    ->orWhereHas('jobCard.customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('priority_id', (int) $this->priorityFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('technician_id', (int) $this->technicianFilter))
             ->when($this->bayFilter !== 'all', fn ($q) => $q->where('bay_id', (int) $this->bayFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('vehicle-inspection-order::index', [

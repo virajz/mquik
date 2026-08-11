@@ -57,7 +57,7 @@ class OutsideLabourOrder extends Model
         'ended_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['order_no', 'notes'];
+    protected static array $searchableFields = ['order_no', 'notes', 'registration_no', 'jobCard.job_card_no'];
 
     protected static function newFactory(): OutsideLabourOrderFactory
     {

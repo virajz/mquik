@@ -150,10 +150,7 @@ class Index extends Component
                 'jobCard:id,job_card_no',
             ])
             ->withCount('scopes')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('inquiry_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('inquiry_type_id', (int) $this->typeFilter))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->where('vendor_id', (int) $this->vendorFilter))

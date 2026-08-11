@@ -38,7 +38,7 @@ class SurveyorInspection extends Model
         'surveyed_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['inspection_no', 'surveyor_name', 'notes'];
+    protected static array $searchableFields = ['inspection_no', 'surveyor_name', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): SurveyorInspectionFactory
     {

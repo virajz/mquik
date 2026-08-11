@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\Inventory\Models\StockEntry;
+use App\Modules\Inventory\Services\StockIssuer;
 use App\Modules\InventoryGroupMaster\Models\InventoryGroupMaster;
 use App\Modules\InventorySearch\Livewire\Index;
 use App\Modules\PartTypeMaster\Models\PartTypeMaster;
@@ -71,4 +73,39 @@ it('lists alternatives in the same sub-group sharing a vehicle variant', functio
     expect($names)->toContain('PAD ALTERNATIVE')
         ->not->toContain('PAD UNRELATED')
         ->not->toContain('PAD PRIMARY');
+});
+
+it('hides parts with nothing on the shelf when in-stock-only is on', function () {
+    $onShelf = SpareMaster::factory()->create(['name' => 'BRAKE PAD IN STOCK']);
+    $none = SpareMaster::factory()->create(['name' => 'BRAKE PAD NO STOCK']);
+    $drained = SpareMaster::factory()->create(['name' => 'BRAKE PAD DRAINED']);
+
+    StockIssuer::receive($onShelf->id, 5, 100, StockEntry::TYPE_OPENING);
+    // Received then fully issued — nets to zero, so it must hide too.
+    StockIssuer::receive($drained->id, 4, 100, StockEntry::TYPE_OPENING);
+    StockIssuer::issue($drained->id, 4, StockEntry::TYPE_CONSUMPTION);
+
+    Livewire::test(Index::class)
+        ->assertSee('BRAKE PAD NO STOCK')
+        ->set('inStockOnly', true)
+        ->assertSee('BRAKE PAD IN STOCK')
+        ->assertDontSee('BRAKE PAD NO STOCK')
+        ->assertDontSee('BRAKE PAD DRAINED');
+});
+
+it('keeps a negative balance visible — it still needs attention', function () {
+    $negative = SpareMaster::factory()->create(['name' => 'OVERSOLD PART']);
+    StockIssuer::receive($negative->id, 2, 100, StockEntry::TYPE_OPENING);
+    StockIssuer::issue($negative->id, 5, StockEntry::TYPE_CONSUMPTION, null, ['allow_negative' => true]);
+
+    Livewire::test(Index::class)
+        ->set('inStockOnly', true)
+        ->assertSee('OVERSOLD PART');
+});
+
+it('clears the in-stock filter along with the rest', function () {
+    Livewire::test(Index::class)
+        ->set('inStockOnly', true)
+        ->call('clearFilters')
+        ->assertSet('inStockOnly', false);
 });

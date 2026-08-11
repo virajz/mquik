@@ -104,10 +104,7 @@ class Index extends Component
 
         return AmcServiceFollowUp::query()
             ->with(['customer:id,first_name,last_name', 'customerVehicle:id,registration_no', 'amc:id,amc_no'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('follow_up_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('amc', fn ($a) => $a->whereLike('amc_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('follow_up_type', $this->typeFilter));
     }

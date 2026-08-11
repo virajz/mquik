@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerVehicleMaster\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use Flux\Flux;
 use Illuminate\Database\QueryException;
@@ -15,6 +16,7 @@ use Livewire\WithPagination;
 #[Title('Customer Vehicles')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -83,6 +85,7 @@ class Index extends Component
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->when($this->statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('customer-vehicle-master::index', ['rows' => $rows]);

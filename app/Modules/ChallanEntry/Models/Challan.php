@@ -36,7 +36,7 @@ class Challan extends Model
         'grand_total' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['challan_no', 'po_reference', 'notes'];
+    protected static array $searchableFields = ['challan_no', 'po_reference', 'notes', 'vendor.name'];
 
     protected static function newFactory(): ChallanFactory
     {

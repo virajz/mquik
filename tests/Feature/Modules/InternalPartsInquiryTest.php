@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use App\Modules\CustomerMaster\Models\CustomerMaster;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InternalPartsInquiry\Livewire\Edit;
 use App\Modules\InternalPartsInquiry\Livewire\Index;
@@ -232,4 +234,54 @@ it('requires authentication', function () {
 it('denies index access without permission', function () {
     $this->actingAs(User::factory()->create());
     $this->get(route('internal-parts-inquiry.index'))->assertForbidden();
+});
+
+it('offers job cards labelled with the customer and registration, searchable by any of them', function () {
+    $customer = CustomerMaster::factory()->create([
+        'first_name' => 'RAVI', 'last_name' => 'SHARMA',
+    ]);
+    $vehicle = CustomerVehicleMaster::factory()->create([
+        'customer_id' => $customer->id, 'registration_no' => 'GJ05AA1234',
+    ]);
+    JobCard::factory()->create(['customer_id' => $customer->id, 'customer_vehicle_id' => $vehicle->id]);
+
+    $component = Livewire::test(Edit::class);
+    $option = collect($component->instance()->jobCards())->first();
+
+    expect($option['customer'])->toBe('RAVI SHARMA')
+        ->and($option['registration_no'])->toBe('GJ05AA1234');
+
+    // Any of the three finds it.
+    foreach (['RAVI', 'GJ05AA1234'] as $term) {
+        $hits = collect(Livewire::test(Edit::class)->set('jobCardSearch', $term)->instance()->jobCards());
+        expect($hits)->toHaveCount(1);
+    }
+});
+
+it('replaces the customer and vehicle pickers with derived context once a job card is linked', function () {
+    $customer = CustomerMaster::factory()->create([
+        'first_name' => 'RAVI', 'last_name' => 'SHARMA',
+    ]);
+    $vehicle = CustomerVehicleMaster::factory()->create([
+        'customer_id' => $customer->id, 'registration_no' => 'GJ05AA1234',
+    ]);
+    $jobCard = JobCard::factory()->create(['customer_id' => $customer->id, 'customer_vehicle_id' => $vehicle->id]);
+
+    $component = Livewire::test(Edit::class)->set('job_card_id', $jobCard->id);
+
+    // Derived onto the record, and shown read-only rather than as pickers.
+    $component->assertSet('customer_id', $customer->id)
+        ->assertSet('customer_vehicle_id', $vehicle->id)
+        ->assertSee('GJ05AA1234')
+        ->assertDontSee('Search customer…');
+
+    // Unlinking brings the standalone pickers back for a non-job-card inquiry.
+    $component->set('job_card_id', null)->assertSee('Search customer…');
+});
+
+it('no longer carries a vendor field', function () {
+    $component = Livewire::test(Edit::class);
+
+    expect(property_exists($component->instance(), 'vendor_id'))->toBeFalse()
+        ->and($component->html())->not->toContain('Supplier / Vendor');
 });

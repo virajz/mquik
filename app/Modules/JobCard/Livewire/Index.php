@@ -2,6 +2,7 @@
 
 namespace App\Modules\JobCard\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
@@ -20,6 +21,7 @@ use Livewire\WithPagination;
 #[Title('Job Cards')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -196,12 +198,7 @@ class Index extends Component
                 'technician:id,name',
             ])
             ->withCount(['complaints', 'inventoryItems'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('phone', '%'.$search.'%', caseSensitive: false))
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->advisorFilter !== 'all', fn ($q) => $q->where('assigned_advisor_id', (int) $this->advisorFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('assigned_technician_id', (int) $this->technicianFilter))
@@ -209,6 +206,7 @@ class Index extends Component
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('opened_at', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn ($q) => $q->whereDate('opened_at', '<=', $this->dateTo))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('job-card::index', [

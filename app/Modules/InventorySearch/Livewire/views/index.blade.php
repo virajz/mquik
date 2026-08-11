@@ -87,7 +87,8 @@
             </flux:select>
         </div>
 
-        <div>
+        <div class="flex items-center gap-4">
+            <flux:checkbox wire:model.live="inStockOnly" label="In stock only" />
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear filters</flux:button>
         </div>
     </div>

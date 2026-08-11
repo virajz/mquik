@@ -33,7 +33,7 @@ class GoodsReturn extends Model
         'grand_total' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['return_no', 'grn_reference', 'notes'];
+    protected static array $searchableFields = ['return_no', 'grn_reference', 'notes', 'vendor.name'];
 
     protected static function newFactory(): GoodsReturnFactory
     {

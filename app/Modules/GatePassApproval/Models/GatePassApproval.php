@@ -58,7 +58,7 @@ class GatePassApproval extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['approval_no', 'invoice_reference', 'notes'];
+    protected static array $searchableFields = ['approval_no', 'invoice_reference', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): GatePassApprovalFactory
     {

@@ -42,7 +42,7 @@ class DigitalInspection extends Model
         'completed_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['inspection_no', 'summary_notes'];
+    protected static array $searchableFields = ['inspection_no', 'summary_notes', 'registration_no', 'jobCard.job_card_no'];
 
     protected static function newFactory(): DigitalInspectionFactory
     {

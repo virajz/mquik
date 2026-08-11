@@ -111,10 +111,7 @@ class Index extends Component
         return VpoApproval::query()
             ->with(['vendor:id,name', 'inquiry:id,vpi_no', 'jobCard:id,job_card_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('approval_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('po_approval_type', $this->typeFilter));
     }

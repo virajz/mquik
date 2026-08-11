@@ -80,11 +80,7 @@ class Index extends Component
                 'insuranceCompany:id,name',
             ])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('proforma_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('policy_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);

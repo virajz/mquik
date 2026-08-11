@@ -57,20 +57,57 @@ trait Searchable
                 $needle = '%'.$token.'%';
                 $outer->where(function (Builder $sub) use ($fields, $needle, $token, $isPostgres) {
                     foreach ($fields as $field) {
-                        $sub->orWhereLike($field, $needle, caseSensitive: false);
+                        // "relation.column" searches through a relationship, so a job
+                        // card can still be found by customer name or registration no.
+                        if (str_contains($field, '.')) {
+                            [$relation, $column] = explode('.', $field, 2);
+                            $sub->orWhereHas($relation, function (Builder $rel) use ($column, $needle, $token, $isPostgres) {
+                                $rel->where(function (Builder $inner) use ($column, $needle, $token, $isPostgres) {
+                                    self::applyFieldMatch($inner, $column, $needle, $token, $isPostgres);
+                                });
+                            });
 
-                        // Fuzzy fallback (Postgres only): word_similarity scans for the best
-                        // matching word/substring within the field value, not the whole string.
-                        // Min 4 chars on the token keeps short inputs from over-matching.
-                        // Threshold 0.4 catches typos ("viaraj"→"VIRAJ", "zveri"→"ZAVERI") without
-                        // returning unrelated rows.
-                        if ($isPostgres && mb_strlen($token) >= 4 && self::isSafeIdentifier($field)) {
-                            $sub->orWhereRaw(sprintf('word_similarity(?, "%s"::text) > 0.4', $field), [$token]);
+                            continue;
                         }
+
+                        self::applyFieldMatch($sub, $field, $needle, $token, $isPostgres);
                     }
                 });
             }
         });
+    }
+
+    /**
+     * One field's contribution to a token match: a case-insensitive LIKE, plus a
+     * trigram-similarity fallback on Postgres.
+     *
+     * Fuzzy fallback: `word_similarity` scans for the best matching word/substring
+     * within the field value rather than comparing whole strings. Min 4 chars on the
+     * token keeps short inputs from over-matching; threshold 0.4 catches typos
+     * ("viaraj"→"VIRAJ", "zveri"→"ZAVERI") without returning unrelated rows.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     */
+    protected static function applyFieldMatch(Builder $query, string $field, string $needle, string $token, bool $isPostgres): void
+    {
+        $query->orWhereLike($field, $needle, caseSensitive: false);
+
+        if ($isPostgres && self::isFuzzyCandidate($token) && self::isSafeIdentifier($field)) {
+            $query->orWhereRaw(sprintf('word_similarity(?, "%s"::text) > 0.4', $field), [$token]);
+        }
+    }
+
+    /**
+     * Whether a token should get the trigram treatment.
+     *
+     * Only alphabetic words qualify. Structured identifiers — job card numbers,
+     * codes, phone numbers — are typed exactly and share long common prefixes, so
+     * trigram matching on them returns thousands of near-identical rows instead of
+     * the one the user wanted. Typo tolerance is for names, not for `MQ/JC/21-22/3099`.
+     */
+    protected static function isFuzzyCandidate(string $token): bool
+    {
+        return mb_strlen($token) >= 4 && preg_match('/^\p{L}+$/u', $token) === 1;
     }
 
     /** Defensive: only allow simple identifier names through `whereRaw`. */

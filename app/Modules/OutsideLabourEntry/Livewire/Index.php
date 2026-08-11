@@ -62,11 +62,7 @@ class Index extends Component
         $rows = OutsideLabourEntry::query()
             ->with(['vendor:id,name', 'jobCard:id,job_card_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('entry_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('invoice_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('vendor', fn ($v) => $v->whereLike('name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 

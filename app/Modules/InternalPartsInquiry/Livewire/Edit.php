@@ -18,7 +18,6 @@ use App\Modules\SpareBrandMaster\Models\SpareBrandMaster;
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
-use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use App\Support\ChildRows;
 use Flux\Flux;
@@ -64,8 +63,6 @@ class Edit extends Component
 
     public ?int $customer_vehicle_id = null;
 
-    public ?int $vendor_id = null;
-
     public ?int $priority_id = null;
 
     public ?string $inquiry_type = 'against_job_card';
@@ -87,8 +84,6 @@ class Edit extends Component
     public ?string $notes = null;
 
     /** Search terms for the server-side pickers. */
-    public string $vendorSearch = '';
-
     public string $customerSearch = '';
 
     public string $vehicleSearch = '';
@@ -135,7 +130,7 @@ class Edit extends Component
         $this->editingId = $inquiry->id;
         foreach ([
             'ipi_no', 'job_card_id', 'workshop_department_id', 'requested_by_employee_id',
-            'target_employee_id', 'responded_by_employee_id', 'customer_id', 'customer_vehicle_id', 'vendor_id', 'priority_id',
+            'target_employee_id', 'responded_by_employee_id', 'customer_id', 'customer_vehicle_id', 'priority_id',
             'inquiry_type', 'approval_authority', 'tat_option', 'tat_custom_days', 'status',
             'rejection_reason_id', 'notes',
         ] as $k) {
@@ -199,7 +194,6 @@ class Edit extends Component
             'responded_by_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')],
             'customer_vehicle_id' => ['nullable', 'integer', Rule::exists('customer_vehicles', 'id')],
-            'vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')],
             'inquiry_type' => ['required', Rule::in(array_keys(InternalPartsInquiry::inquiryTypes()))],
             'approval_authority' => ['nullable', Rule::in(array_keys(InternalPartsInquiry::approvalAuthorities()))],
@@ -358,19 +352,6 @@ class Edit extends Component
     }
 
     #[Computed]
-    public function vendors()
-    {
-        return $this->pickerOptions(
-            query: VendorMaster::query()->where('is_active', true)->orderBy('name'),
-            searchColumns: ['name', 'code'],
-            term: $this->vendorSearch,
-            selected: $this->vendor_id,
-            columns: ['id', 'name'],
-            limit: 30,
-        );
-    }
-
-    #[Computed]
     public function customers()
     {
         return $this->pickerOptions(
@@ -400,13 +381,24 @@ class Edit extends Component
     public function jobCards()
     {
         return $this->pickerOptions(
-            query: JobCard::query()->latest('id'),
-            searchColumns: ['job_card_no'],
+            // One control instead of three: the option carries the job card no,
+            // the customer and the registration, and searches on any of them.
+            query: JobCard::query()->with(['customer:id,first_name,middle_name,last_name', 'customerVehicle:id,registration_no'])->latest('id'),
+            searchColumns: [
+                'job_card_no',
+                'customer.first_name', 'customer.last_name',
+                'customerVehicle.registration_no',
+            ],
             term: $this->jobCardSearch,
             selected: $this->job_card_id,
-            columns: ['id', 'job_card_no'],
+            columns: ['id', 'job_card_no', 'customer_id', 'customer_vehicle_id'],
             limit: 30,
-        );
+        )->map(fn ($jc) => [
+            'id' => $jc->id,
+            'job_card_no' => $jc->job_card_no,
+            'customer' => $jc->customer?->name,
+            'registration_no' => $jc->customerVehicle?->registration_no,
+        ]);
     }
 
     /**
@@ -565,6 +557,22 @@ class Edit extends Component
     public function updatedJobCardId(): void
     {
         $this->prefillFromJobCard();
+        unset($this->linkedJobCard);
+    }
+
+    /**
+     * The linked job card with its customer and vehicle, for the read-only
+     * context line that replaces the separate customer / vehicle pickers.
+     */
+    #[Computed]
+    public function linkedJobCard()
+    {
+        if (! $this->job_card_id) {
+            return null;
+        }
+
+        return JobCard::with(['customer:id,first_name,middle_name,last_name,phone', 'customerVehicle:id,registration_no'])
+            ->find($this->job_card_id);
     }
 
     protected function prefillFromJobCard(): void

@@ -29,7 +29,7 @@
             class="max-w-sm"
         />
 
-        <flux:select wire:model.live="qtyFilter" class="w-44">
+        <flux:select wire:model.live="qtyFilter" class="max-w-44 shrink-0">
             <flux:select.option value="all">All quantities</flux:select.option>
             <flux:select.option value="positive">In stock (&gt;0)</flux:select.option>
             <flux:select.option value="zero">Zero stock</flux:select.option>

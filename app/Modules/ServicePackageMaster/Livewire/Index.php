@@ -78,10 +78,7 @@ class Index extends Component
 
         $rows = ServicePackageMaster::query()
             ->withCount('services')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('name', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('code', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->kindFilter === 'amc', fn ($q) => $q->where('is_amc', true))
             ->when($this->kindFilter === 'combo', fn ($q) => $q->where('is_amc', false))
             ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))

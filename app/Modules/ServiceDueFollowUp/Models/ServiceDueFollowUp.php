@@ -53,7 +53,7 @@ class ServiceDueFollowUp extends Model
         'job_card_open_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['follow_up_no', 'service_history_reference', 'notes'];
+    protected static array $searchableFields = ['follow_up_no', 'service_history_reference', 'notes', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): ServiceDueFollowUpFactory
     {

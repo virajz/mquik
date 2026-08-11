@@ -9,6 +9,9 @@
             </flux:link>
             <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($po_no ?: 'Edit PO') : 'New Vendor Purchase Order' }}</flux:heading>
             <flux:text size="sm" class="mt-1 text-zinc-500">The confirmed order placed on a vendor after inquiry/approval.</flux:text>
+            @if ($sourceVpiNo)
+                <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceVpiNo }}</flux:badge>
+            @endif
         </div>
 
         <flux:separator />

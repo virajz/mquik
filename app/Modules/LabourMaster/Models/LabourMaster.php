@@ -30,7 +30,7 @@ class LabourMaster extends Model
         'rate_before_tax' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['name', 'labour_code', 'description'];
+    protected static array $searchableFields = ['name', 'labour_code', 'description', 'hsn.code'];
 
     protected static function newFactory(): LabourMasterFactory
     {

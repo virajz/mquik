@@ -37,7 +37,7 @@ class ClaimIntimation extends Model
         'intimated_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['intimation_no', 'policy_no', 'claim_no', 'notes'];
+    protected static array $searchableFields = ['intimation_no', 'policy_no', 'claim_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): ClaimIntimationFactory
     {

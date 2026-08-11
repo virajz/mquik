@@ -123,10 +123,7 @@ class Index extends Component
         return GoodsReceipt::query()
             ->with(['vendor:id,name', 'purchaseOrder:id,po_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('grn_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('purchaseOrder', fn ($po) => $po->whereLike('po_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->where('vendor_id', (int) $this->vendorFilter));
     }

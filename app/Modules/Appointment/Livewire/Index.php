@@ -2,6 +2,7 @@
 
 namespace App\Modules\Appointment\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
@@ -18,6 +19,7 @@ use Livewire\WithPagination;
 #[Title('Appointments')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -146,13 +148,7 @@ class Index extends Component
                 // Driver stages are derived from the linked Pickup/Drop job.
                 'pickupDrops:id,appointment_id,status,driver_employee_id',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('appointment_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('last_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('phone', '%'.$search.'%', caseSensitive: false))
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->channelFilter !== 'all', fn ($q) => $q->where('booking_channel_id', (int) $this->channelFilter))
             ->when($this->advisorFilter !== 'all', fn ($q) => $q->where('assigned_advisor_id', (int) $this->advisorFilter))
@@ -160,6 +156,7 @@ class Index extends Component
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('appointment_at', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn ($q) => $q->whereDate('appointment_at', '<=', $this->dateTo))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('appointment::index', [

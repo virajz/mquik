@@ -92,10 +92,7 @@ class Index extends Component
         return GoodsHandover::query()
             ->with(['receivedBy:id,name', 'jobCard:id,job_card_no', 'goodsReceipt:id,grn_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('handover_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter));
     }
 

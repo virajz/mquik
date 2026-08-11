@@ -121,10 +121,7 @@ class Index extends Component
         return OutsideLabourBill::query()
             ->with(['vendor:id,name', 'order:id,order_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('bill_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('vendor_bill_no', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->where('vendor_id', (int) $this->vendorFilter));
     }

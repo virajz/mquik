@@ -38,7 +38,7 @@ class VendorPurchaseInquiry extends Model
         'tat_custom_days' => 'integer',
     ];
 
-    protected static array $searchableFields = ['vpi_no', 'notes'];
+    protected static array $searchableFields = ['vpi_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): VendorPurchaseInquiryFactory
     {

@@ -1,7 +1,7 @@
 <?php
 
-use App\Support\ChildRows;
 use App\Modules\SpareMaster\Models\SpareMaster;
+use App\Support\ChildRows;
 
 /**
  * Guards a bug the test suite structurally cannot catch.
@@ -81,4 +81,31 @@ it('creates rather than throwing when the given id belongs to nothing', function
     expect($row->exists)->toBeTrue()
         ->and($row->id)->not->toBe(999999)
         ->and($row->spare_id)->toBe($spare->id);
+});
+
+/**
+ * Filter selects must be capped with `max-w-*`, not sized with `w-*`.
+ *
+ * Flux puts `w-full` on its select root; a competing `w-48` loses to it and the
+ * control renders full-width, stacking one filter per row. `max-w-*` caps it
+ * regardless. Caught on Internal Parts Inquiry, where three filters each took a
+ * full row.
+ */
+it('never sizes a filter select with a fixed width', function () {
+    $offenders = [];
+
+    foreach (glob(base_path('app/Modules/*/Livewire/views/index.blade.php')) as $file) {
+        foreach (file($file) as $i => $line) {
+            // Negative lookbehind: `max-w-48` and `min-w-32` are fine, a bare `w-48` is not.
+            if (preg_match('/flux:select[^>]*class="[^"]*(?<!max-)(?<!min-)\bw-\d/', $line)) {
+                $offenders[] = str_replace(base_path().'/', '', $file).':'.($i + 1);
+            }
+        }
+    }
+
+    expect($offenders)->toBe([], implode("\n", [
+        'Use max-w-* on filter selects — Flux\'s own w-full beats a fixed w-*,',
+        'so the control renders full width and each filter takes its own row:',
+        ...$offenders,
+    ]));
 });

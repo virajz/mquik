@@ -12,6 +12,8 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
@@ -51,7 +53,7 @@ class Appointment extends Model
         'rescheduled_from_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['appointment_no', 'pickup_address', 'pickup_contact_phone', 'notes'];
+    protected static array $searchableFields = ['appointment_no', 'pickup_address', 'pickup_contact_phone', 'notes', 'customer.first_name', 'customer.last_name', 'customer.phone', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): AppointmentFactory
     {
@@ -70,6 +72,15 @@ class Appointment extends Model
                     'appointment_no' => 'APT-'.str_pad((string) $appointment->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
+
+            JobCardHistoryRecorder::recordForVehicle(
+                $appointment->customer_vehicle_id,
+                JobCardHistoryEvent::TYPE_APPOINTMENT_BOOKED,
+                'Appointment '.$appointment->appointment_no.' booked',
+                ['source_id' => $appointment->id],
+                $appointment->job_card_id ?? null,
+                $appointment->appointment_at,
+            );
         });
 
         // Forward-sync identity + pickup address to linked pickup/drops that haven't

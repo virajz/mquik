@@ -48,7 +48,7 @@ class VendorAdvanceRequest extends Model
 
     protected $casts = ['amount' => 'decimal:2', 'reminder_custom_days' => 'integer'];
 
-    protected static array $searchableFields = ['request_no', 'notes'];
+    protected static array $searchableFields = ['request_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): VendorAdvanceRequestFactory
     {

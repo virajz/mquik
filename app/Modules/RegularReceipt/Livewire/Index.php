@@ -2,6 +2,7 @@
 
 namespace App\Modules\RegularReceipt\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\RegularReceipt\Models\RegularReceipt;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
@@ -14,6 +15,7 @@ use Livewire\WithPagination;
 #[Title('Regular Receipts')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -83,16 +85,11 @@ class Index extends Component
 
         $rows = RegularReceipt::query()
             ->with(['customer:id,first_name,last_name', 'paymentMode:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('receipt_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('reference_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('cheque_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('last_name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->chequeFilter !== 'all', fn ($q) => $q->where('cheque_status', $this->chequeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('regular-receipt::index', [

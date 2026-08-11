@@ -70,11 +70,7 @@ class Index extends Component
         $rows = GoodsReturn::query()
             ->with(['vendor:id,name', 'creditNoteReason:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('return_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('grn_reference', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('vendor', fn ($v) => $v->whereLike('name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('document_type', $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);

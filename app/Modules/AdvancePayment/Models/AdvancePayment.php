@@ -45,7 +45,7 @@ class AdvancePayment extends Model
         'paid_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['payment_no', 'reference_no', 'cheque_no', 'notes'];
+    protected static array $searchableFields = ['payment_no', 'reference_no', 'cheque_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): AdvancePaymentFactory
     {

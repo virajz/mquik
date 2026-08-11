@@ -70,10 +70,7 @@ class Index extends Component
         $rows = FinalInspection::query()
             ->with(['jobCard:id,job_card_no', 'inspector:id,name', 'template:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('inspection_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);

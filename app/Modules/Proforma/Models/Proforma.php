@@ -49,7 +49,7 @@ class Proforma extends Model
         'approved_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['proforma_no', 'policy_no', 'notes'];
+    protected static array $searchableFields = ['proforma_no', 'policy_no', 'notes', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): ProformaFactory
     {

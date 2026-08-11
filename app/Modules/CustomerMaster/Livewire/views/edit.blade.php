@@ -1,16 +1,23 @@
 <div>
     <form wire:submit="save" class="max-w-4xl">
         {{-- Page header --}}
-        <div class="mb-8">
-            <flux:link :href="route('customer-master.index')" variant="ghost" class="text-xs">
-                <flux:icon.chevron-left class="inline size-3 -mt-0.5" />
-                Customers
-            </flux:link>
-            <flux:heading size="xl" level="1" class="mt-1">
-                {{ $editingId
-                    ? trim(implode(' ', array_filter([$first_name, $middle_name, $last_name])))
-                    : 'New Customer' }}
-            </flux:heading>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <flux:link :href="route('customer-master.index')" variant="ghost" class="text-xs">
+                    <flux:icon.chevron-left class="inline size-3 -mt-0.5" />
+                    Customers
+                </flux:link>
+                <flux:heading size="xl" level="1" class="mt-1">
+                    {{ $editingId
+                        ? trim(implode(' ', array_filter([$first_name, $middle_name, $last_name])))
+                        : 'New Customer' }}
+                </flux:heading>
+            </div>
+            @if ($editingId)
+                <flux:modal.trigger name="record-panel">
+                    <flux:button type="button" size="sm" variant="ghost" icon="squares-2x2">Related</flux:button>
+                </flux:modal.trigger>
+            @endif
         </div>
 
         <flux:separator />
@@ -493,4 +500,9 @@
             </div>
         </div>
     </flux:modal>
+
+    {{-- Related-areas flyout --}}
+    @if ($editingId)
+        <livewire:record-panel subject="customer" :record-id="$editingId" :record-label="trim(implode(' ', array_filter([$first_name, $middle_name, $last_name])))" />
+    @endif
 </div>

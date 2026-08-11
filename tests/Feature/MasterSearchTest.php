@@ -3,6 +3,7 @@
 use App\Livewire\MasterSearch;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\VehicleBrandMaster\Models\VehicleBrandMaster;
 use App\Support\SearchRegistry;
 use Livewire\Livewire;
@@ -194,4 +195,28 @@ it('on Postgres: scopeSearch emits a word_similarity OR clause for tokens >= 4 c
 
     expect($sqlLong)->toContain('word_similarity')
         ->and($sqlShort)->not->toContain('word_similarity'); // short token skips fuzzy
+});
+
+it('searches through a relation so a job card is findable by customer name', function () {
+    $customer = CustomerMaster::factory()->create(['name' => 'NILESH KULKARNI', 'first_name' => 'NILESH']);
+    $mine = JobCard::factory()->create(['customer_id' => $customer->id]);
+    $other = JobCard::factory()->create();
+
+    $found = JobCard::query()->search('NILESH')->pluck('id');
+
+    expect($found)->toContain($mine->id)
+        ->and($found)->not->toContain($other->id);
+});
+
+it('keeps identifier lookups exact instead of fuzzily matching similar codes', function () {
+    // Structured numbers share long prefixes; trigram matching on them would
+    // return every neighbouring card. Only the typed one should come back.
+    $a = JobCard::factory()->create(['job_card_no' => 'MQ/JC/21-22/3099']);
+    JobCard::factory()->create(['job_card_no' => 'MQ/JC/21-22/3098']);
+    JobCard::factory()->create(['job_card_no' => 'MQ/JC/21-22/3097']);
+
+    $found = JobCard::query()->search('MQ/JC/21-22/3099')->get();
+
+    expect($found)->toHaveCount(1)
+        ->and($found->first()->id)->toBe($a->id);
 });

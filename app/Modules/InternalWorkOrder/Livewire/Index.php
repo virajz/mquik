@@ -114,10 +114,7 @@ class Index extends Component
 
         return InternalWorkOrder::query()
             ->with(['requestedBy:id,name', 'assignedTo:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('iwo_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('title', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('priority', $this->priorityFilter));
     }

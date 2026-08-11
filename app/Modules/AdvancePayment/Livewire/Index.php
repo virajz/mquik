@@ -110,11 +110,7 @@ class Index extends Component
 
         return AdvancePayment::query()
             ->with(['vendor:id,name', 'jobCard:id,job_card_no'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('payment_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('reference_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('payment_status', $this->statusFilter))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->where('vendor_id', (int) $this->vendorFilter));
     }

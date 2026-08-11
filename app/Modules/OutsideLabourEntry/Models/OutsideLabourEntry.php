@@ -35,7 +35,7 @@ class OutsideLabourEntry extends Model
         'grand_total' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['entry_no', 'invoice_no', 'notes'];
+    protected static array $searchableFields = ['entry_no', 'invoice_no', 'notes', 'vendor.name'];
 
     protected static function newFactory(): OutsideLabourEntryFactory
     {

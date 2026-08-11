@@ -107,10 +107,7 @@ class Index extends Component
 
         return VehicleMovement::query()
             ->with(['customerVehicle:id,registration_no', 'jobCard:id,job_card_no'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('movement_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('number_plate', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('movement_type', $this->typeFilter))
             ->when($this->jobFilter !== 'all', fn ($q) => $q->where('job_status', $this->jobFilter));
     }

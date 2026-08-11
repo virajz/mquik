@@ -75,12 +75,7 @@ class Index extends Component
 
         $rows = ReceiptRefund::query()
             ->with(['customer:id,first_name,last_name', 'refundType:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('refund_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('reference_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('last_name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('refund_status', $this->statusFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);

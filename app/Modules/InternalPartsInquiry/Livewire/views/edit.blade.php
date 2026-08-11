@@ -72,49 +72,64 @@
         {{-- CONTEXT --}}
         <section class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-10 py-8">
             <div>
-                <flux:heading size="lg">Vehicle & Supplier</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Job card, customer, vehicle and the supplier/vendor being asked.</flux:text>
+                <flux:heading size="lg">Job Card &amp; Vehicle</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Pick the job card — the customer and vehicle come with it.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable :filter="false" label="Job Card" placeholder="Link a job card…">
-                        <x-slot name="search">
-                            <flux:select.search wire:model.live.debounce.250ms="jobCardSearch" placeholder="Search job card…" />
-                        </x-slot>
-                        @foreach ($this->jobCards as $jc)
-                            <flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">{{ $jc->job_card_no }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+                {{-- One picker instead of three: each option shows the job card
+                     no, the customer and the registration, and searches on any
+                     of them. --}}
+                <flux:select wire:model.live="job_card_id" variant="listbox" searchable clearable :filter="false" label="Job Card" placeholder="Search by job card no, customer or registration…">
+                    <x-slot name="search">
+                        <flux:select.search wire:model.live.debounce.250ms="jobCardSearch" placeholder="Job card no, customer name or reg no…" />
+                    </x-slot>
+                    @foreach ($this->jobCards as $jc)
+                        <flux:select.option :value="$jc['id']" wire:key="jc-{{ $jc['id'] }}">
+                            <span class="font-mono">{{ $jc['job_card_no'] }}</span>
+                            @if ($jc['customer'])<span class="text-zinc-500"> · {{ $jc['customer'] }}</span>@endif
+                            @if ($jc['registration_no'])<span class="text-zinc-500"> · {{ $jc['registration_no'] }}</span>@endif
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
 
-                    <flux:select wire:model="vendor_id" variant="listbox" searchable clearable :filter="false" label="Supplier / Vendor" placeholder="Who is being asked…">
-                        <x-slot name="search">
-                            <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Search vendor…" />
-                        </x-slot>
-                        @foreach ($this->vendors as $v)
-                            <flux:select.option :value="$v->id" wire:key="vn-{{ $v->id }}">{{ $v->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                </div>
+                @if ($this->linkedJobCard)
+                    {{-- Derived, so read-only: the job card is the source of truth. --}}
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/60 dark:bg-zinc-800/30 px-3 py-2 text-sm">
+                        <div>
+                            <span class="text-zinc-500">Customer</span>
+                            <span class="ml-2 font-medium">{{ $this->linkedJobCard->customer?->name ?? '—' }}</span>
+                            @if ($this->linkedJobCard->customer?->phone)
+                                <span class="ml-1 text-zinc-500 font-mono text-xs">+91 {{ $this->linkedJobCard->customer->phone }}</span>
+                            @endif
+                        </div>
+                        <div>
+                            <span class="text-zinc-500">Vehicle</span>
+                            <span class="ml-2 font-medium font-mono">{{ $this->linkedJobCard->customerVehicle?->registration_no ?? 'Unregistered' }}</span>
+                        </div>
+                    </div>
+                @else
+                    {{-- No job card (stock replenishment, special order): the
+                         customer and vehicle stay pickable on their own. --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <flux:select wire:model="customer_id" variant="listbox" searchable clearable :filter="false" label="Customer" placeholder="Search customer…">
+                            <x-slot name="search">
+                                <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                            </x-slot>
+                            @foreach ($this->customers as $c)
+                                <flux:select.option :value="$c->id" wire:key="cu-{{ $c->id }}">{{ $c->name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="customer_id" variant="listbox" searchable clearable :filter="false" label="Customer" placeholder="Search customer…">
-                        <x-slot name="search">
-                            <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
-                        </x-slot>
-                        @foreach ($this->customers as $c)
-                            <flux:select.option :value="$c->id" wire:key="cu-{{ $c->id }}">{{ $c->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-
-                    <flux:select wire:model="customer_vehicle_id" variant="listbox" searchable clearable :filter="false" label="Vehicle" placeholder="Registration no…">
-                        <x-slot name="search">
-                            <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Search reg no…" />
-                        </x-slot>
-                        @foreach ($this->vehicles as $veh)
-                            <flux:select.option :value="$veh->id" wire:key="vh-{{ $veh->id }}">{{ $veh->registration_no }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                </div>
+                        <flux:select wire:model="customer_vehicle_id" variant="listbox" searchable clearable :filter="false" label="Vehicle" placeholder="Registration no…">
+                            <x-slot name="search">
+                                <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Search reg no…" />
+                            </x-slot>
+                            @foreach ($this->vehicles as $veh)
+                                <flux:select.option :value="$veh->id" wire:key="vh-{{ $veh->id }}">{{ $veh->registration_no ?? 'Unregistered' }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </div>
+                @endif
             </div>
         </section>
 

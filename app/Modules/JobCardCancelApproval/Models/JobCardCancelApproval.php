@@ -44,7 +44,7 @@ class JobCardCancelApproval extends Model
         'decided_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['approval_no', 'notes'];
+    protected static array $searchableFields = ['approval_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): JobCardCancelApprovalFactory
     {

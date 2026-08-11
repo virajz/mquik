@@ -131,10 +131,7 @@ class Index extends Component
                 'courierCompany:id,name',
             ])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('delivery_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->modeFilter !== 'all', fn ($q) => $q->where('delivery_mode', $this->modeFilter))
             ->when($this->companyFilter !== 'all', fn ($q) => $q->where('insurance_company_id', (int) $this->companyFilter));

@@ -24,6 +24,7 @@ use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
+use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -808,4 +809,14 @@ it('server-side searches the vehicle picker by registration and owner name', fun
     // Registration number reaches it too.
     $ids = collect(Livewire::test(Edit::class)->set('vehicleSearch', 'GJ01ZZ9999')->get('vehiclePickerOptions'))->pluck('id');
     expect($ids)->toContain($veh->id)->not->toContain($other->id);
+});
+
+it('lists the job card\'s work orders and offers the assign-work-order link', function () {
+    $jobCard = JobCard::factory()->create();
+    $vio = VehicleInspectionOrder::factory()
+        ->create(['job_card_id' => $jobCard->id]);
+
+    Livewire::test(Edit::class, ['jobCard' => $jobCard])
+        ->assertSee($vio->order_no)
+        ->assertSee(route('vehicle-inspection-order.create', ['from-job-card' => $jobCard->id]), escape: false);
 });

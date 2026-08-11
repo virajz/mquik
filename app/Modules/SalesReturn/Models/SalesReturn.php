@@ -46,7 +46,7 @@ class SalesReturn extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['return_no', 'notes'];
+    protected static array $searchableFields = ['return_no', 'notes', 'customer.first_name', 'customer.last_name'];
 
     protected static function newFactory(): SalesReturnFactory
     {

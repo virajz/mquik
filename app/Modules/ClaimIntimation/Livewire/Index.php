@@ -136,12 +136,7 @@ class Index extends Component
                 'insuranceCompany:id,name',
                 'claimType:id,name',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('intimation_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('policy_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('claim_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->companyFilter !== 'all', fn ($q) => $q->where('insurance_company_id', (int) $this->companyFilter))
             ->when($this->tatFilter !== 'all', fn ($q) => $q->where('survey_tat', $this->tatFilter));

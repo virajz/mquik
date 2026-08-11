@@ -17,6 +17,7 @@ use App\Modules\ReworkReasonMaster\Models\ReworkReasonMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TechnicianFinding\Models\TechnicianFinding;
+use App\Modules\VehicleInspectionOrder\Concerns\ManagesScopeTimers;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrderScope;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
@@ -38,6 +39,7 @@ use Livewire\WithFileUploads;
 #[Title('Vehicle Inspection Order')]
 class Edit extends Component
 {
+    use ManagesScopeTimers;
     use WithFileUploads;
 
     public ?int $editingId = null;
@@ -303,20 +305,7 @@ class Edit extends Component
             return;
         }
 
-        // One active task at a time: pause any other running line for this technician.
-        VehicleInspectionOrderScope::query()
-            ->where('technician_id', $technicianId)
-            ->where('work_status', VehicleInspectionOrderScope::STATUS_IN_PROGRESS)
-            ->whereKeyNot($scope->id)
-            ->get()
-            ->each(fn (VehicleInspectionOrderScope $other) => $this->accumulateAndStop($other, VehicleInspectionOrderScope::STATUS_PAUSED));
-
-        $scope->forceFill([
-            'technician_id' => $technicianId,
-            'work_status' => VehicleInspectionOrderScope::STATUS_IN_PROGRESS,
-            'run_started_at' => now(),
-            'completed_at' => null,
-        ])->save();
+        $this->startScopeTimer($scope, (int) $technicianId);
 
         $this->refreshScope($index, $scope);
         Flux::toast(text: 'Timer started.', variant: 'success');
@@ -338,24 +327,9 @@ class Edit extends Component
         if (! $scope) {
             return;
         }
-        $this->accumulateAndStop($scope, VehicleInspectionOrderScope::STATUS_COMPLETED);
-        $scope->forceFill(['completed_at' => now()])->save();
+        $this->completeScopeTimer($scope);
         $this->refreshScope($index, $scope);
         Flux::toast(text: 'Task completed.', variant: 'success');
-    }
-
-    /** Fold the current running segment into the accumulated total and stop. */
-    protected function accumulateAndStop(VehicleInspectionOrderScope $scope, string $status): void
-    {
-        $accrued = $scope->run_started_at
-            ? max(0, now()->getTimestamp() - $scope->run_started_at->getTimestamp())
-            : 0;
-
-        $scope->forceFill([
-            'duration_seconds' => (int) $scope->duration_seconds + $accrued,
-            'run_started_at' => null,
-            'work_status' => $status,
-        ])->save();
     }
 
     /** The persisted scope row for a timer action, or null (with a toast) if unsaved. */

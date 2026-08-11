@@ -116,10 +116,7 @@ class Index extends Component
         return ExcessStockApproval::query()
             ->with(['goodsReceipt:id,grn_no', 'department:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('request_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('purchase_invoice_reference', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->reasonFilter !== 'all', fn ($q) => $q->where('excess_stock_reason', $this->reasonFilter));
     }

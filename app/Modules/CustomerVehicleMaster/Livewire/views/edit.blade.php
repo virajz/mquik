@@ -1,14 +1,26 @@
 <div>
     <form wire:submit="save" class="max-w-4xl">
         {{-- Page header --}}
-        <div class="mb-8">
-            <flux:link :href="route('customer-vehicle-master.index')" variant="ghost" class="text-xs">
-                <flux:icon.chevron-left class="inline size-3 -mt-0.5" />
-                Customer Vehicles
-            </flux:link>
-            <flux:heading size="xl" level="1" class="mt-1">
-                {{ $editingId ? ($registration_no ?: ($this->isUnregisteredPlate ? 'Unregistered vehicle' : 'Vehicle #'.$editingId)) : 'New Customer Vehicle' }}
-            </flux:heading>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <flux:link :href="route('customer-vehicle-master.index')" variant="ghost" class="text-xs">
+                    <flux:icon.chevron-left class="inline size-3 -mt-0.5" />
+                    Customer Vehicles
+                </flux:link>
+                <flux:heading size="xl" level="1" class="mt-1">
+                    {{ $editingId ? ($registration_no ?: ($this->isUnregisteredPlate ? 'Unregistered vehicle' : 'Vehicle #'.$editingId)) : 'New Customer Vehicle' }}
+                </flux:heading>
+            </div>
+            @if ($editingId)
+                <div class="flex items-center gap-2">
+                    @can('job_history.view')
+                        <flux:button :href="route('job-history.vehicle-timeline', $editingId)" wire:navigate size="sm" variant="ghost" icon="clock">Timeline</flux:button>
+                    @endcan
+                    <flux:modal.trigger name="record-panel">
+                        <flux:button type="button" size="sm" variant="ghost" icon="squares-2x2">Related</flux:button>
+                    </flux:modal.trigger>
+                </div>
+            @endif
         </div>
 
         <flux:separator />
@@ -272,4 +284,9 @@
     @can('vehicle_variant_master.create')
         @include('customer-vehicle-master::_quick_add_vehicle_modal')
     @endcan
+
+    {{-- Related-areas flyout --}}
+    @if ($editingId)
+        <livewire:record-panel subject="vehicle" :record-id="$editingId" :record-label="$registration_no" />
+    @endif
 </div>

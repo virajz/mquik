@@ -45,7 +45,7 @@ class TechnicianFinding extends Model
         'estimated_amount' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['finding_no', 'description', 'notes'];
+    protected static array $searchableFields = ['finding_no', 'description', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): TechnicianFindingFactory
     {

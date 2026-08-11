@@ -127,10 +127,7 @@ class Index extends Component
 
         return PaymentRefund::query()
             ->with(['vendor:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('refund_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('reference_no', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->where('vendor_id', (int) $this->vendorFilter));
     }

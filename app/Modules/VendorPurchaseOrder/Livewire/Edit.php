@@ -16,6 +16,7 @@ use App\Modules\TaxMaster\Models\TaxMaster;
 use App\Modules\UnitOfMeasureMaster\Models\UnitOfMeasureMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
+use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryItem;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrder;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrderAttachment;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrderItem;
@@ -28,6 +29,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -55,7 +57,14 @@ class Edit extends Component
 
     public ?int $priority_id = null;
 
+    /** ?int — passed via ?from-vpi=ID for the VPI → VPO carry-forward. */
+    #[Url(as: 'from-vpi')]
+    public ?int $fromVpi = null;
+
     public ?int $vendor_purchase_inquiry_id = null;
+
+    /** Display-only: source VPI number when carried forward. */
+    public ?string $sourceVpiNo = null;
 
     public ?int $vpo_approval_id = null;
 
@@ -125,6 +134,50 @@ class Edit extends Component
         }
 
         $this->items = [$this->blankItem()];
+
+        // Carry-forward from a Vendor Purchase Inquiry (?from-vpi=ID): link it,
+        // copy the header context, and seed the quoted lines onto the order.
+        if ($this->fromVpi) {
+            $vpi = VendorPurchaseInquiry::with('items')->find($this->fromVpi);
+            if ($vpi) {
+                $this->vendor_purchase_inquiry_id = $vpi->id;
+                $this->sourceVpiNo = $vpi->vpi_no;
+                $this->job_card_id = $vpi->job_card_id;
+                $this->vendor_id = $vpi->vendor_id;
+                $this->employee_id = $vpi->employee_id;
+                $this->priority_id = $vpi->priority_id;
+                $this->payment_term = $vpi->payment_term;
+                $this->po_type = $vpi->job_card_id ? 'against_job_card' : 'stock_replenishment';
+
+                $lines = $vpi->items
+                    ->map(fn (VendorPurchaseInquiryItem $it) => array_merge($this->blankItem(), [
+                        'spare_id' => $it->spare_id,
+                        'spare_brand_id' => $it->spare_brand_id,
+                        'part_type_id' => $it->part_type_id,
+                        'uom_id' => $it->uom_id,
+                        'hsn_id' => $it->hsn_id,
+                        'tax_id' => $it->tax_id,
+                        'vehicle_variant_id' => $it->vehicle_variant_id,
+                        'description' => $it->description,
+                        'quantity' => $it->quantity,
+                        // The vendor's quote becomes the ordered rate.
+                        'rate' => $it->quoted_rate,
+                        'discount_type' => $it->discount_type,
+                        'discount_value' => $it->discount_value,
+                        'warranty_type' => $it->warranty_type,
+                        'warranty_period_value' => $it->warranty_period_value,
+                        'warranty_period_unit' => $it->warranty_period_unit ?: 'month',
+                        'lead_time_days' => $it->lead_time_days,
+                        'notes' => $it->notes,
+                    ]))
+                    ->values()
+                    ->all();
+
+                if (! empty($lines)) {
+                    $this->items = $lines;
+                }
+            }
+        }
     }
 
     protected function load(VendorPurchaseOrder $order): void
@@ -143,6 +196,9 @@ class Edit extends Component
         }
         $this->expected_delivery_date = $order->expected_delivery_date?->format('Y-m-d');
         $this->consignment_date = $order->consignment_date?->format('Y-m-d');
+        $this->sourceVpiNo = $order->vendor_purchase_inquiry_id
+            ? VendorPurchaseInquiry::whereKey($order->vendor_purchase_inquiry_id)->value('vpi_no')
+            : null;
 
         $this->items = $order->items->map(fn (VendorPurchaseOrderItem $i) => [
             'id' => $i->id,

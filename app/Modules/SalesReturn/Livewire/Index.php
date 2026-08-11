@@ -92,11 +92,7 @@ class Index extends Component
         $rows = SalesReturn::query()
             ->with(['customer:id,first_name,last_name', 'returnReason:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('return_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('last_name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('return_type', $this->typeFilter))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->refundFilter !== 'all', fn ($q) => $q->where('refund_status', $this->refundFilter))

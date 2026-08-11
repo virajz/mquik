@@ -102,10 +102,7 @@ class Index extends Component
 
         return GatePassApproval::query()
             ->with(['customer:id,first_name,last_name', 'jobCard:id,job_card_no', 'customerVehicle:id,registration_no'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('approval_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->authorityFilter !== 'all', fn ($q) => $q->where('approval_authority', $this->authorityFilter));
     }

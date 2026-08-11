@@ -53,7 +53,7 @@ class DeliveryOrder extends Model
         'approved_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['do_no', 'claim_number', 'policy_number', 'notes'];
+    protected static array $searchableFields = ['do_no', 'claim_number', 'policy_number', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): DeliveryOrderFactory
     {

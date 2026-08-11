@@ -62,21 +62,21 @@
             class="max-w-sm"
         />
 
-        <flux:select wire:model.live="statusFilter" variant="listbox" class="w-48">
+        <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-48 shrink-0">
             <flux:select.option value="all">All statuses</flux:select.option>
             @foreach ($statuses as $value => $label)
                 <flux:select.option :value="$value">{{ $label }}</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="typeFilter" variant="listbox" class="w-48">
+        <flux:select wire:model.live="typeFilter" variant="listbox" class="max-w-48 shrink-0">
             <flux:select.option value="all">All types</flux:select.option>
             @foreach ($inquiryTypes as $value => $label)
                 <flux:select.option :value="$value">{{ $label }}</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="requestedByFilter" variant="listbox" searchable class="w-48">
+        <flux:select wire:model.live="requestedByFilter" variant="listbox" searchable class="max-w-48 shrink-0">
             <flux:select.option value="all">All requesters</flux:select.option>
             @foreach ($this->employees as $emp)
                 <flux:select.option :value="(string) $emp->id">{{ $emp->name }}</flux:select.option>

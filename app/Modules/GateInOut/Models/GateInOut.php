@@ -11,6 +11,8 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Database\Factories\GateInOutFactory;
 use App\Modules\GateMaster\Models\GateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\ParkingSlotMaster\Models\ParkingSlotMaster;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,7 +49,7 @@ class GateInOut extends Model
         'exited_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['gate_event_no', 'registration_no', 'notes'];
+    protected static array $searchableFields = ['gate_event_no', 'registration_no', 'notes', 'customer.first_name'];
 
     protected static function newFactory(): GateInOutFactory
     {
@@ -70,6 +72,15 @@ class GateInOut extends Model
                     'gate_event_no' => 'GE-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
+
+            JobCardHistoryRecorder::recordForVehicle(
+                $row->customer_vehicle_id,
+                JobCardHistoryEvent::TYPE_VEHICLE_ARRIVED,
+                'Vehicle arrived at gate ('.$row->gate_event_no.')',
+                ['source_id' => $row->id],
+                $row->job_card_id ?? null,
+                $row->entered_at,
+            );
         });
     }
 

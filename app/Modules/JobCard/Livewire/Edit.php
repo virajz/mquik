@@ -23,6 +23,7 @@ use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
+use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -604,6 +605,22 @@ class Edit extends Component
             ->where('job_card_id', $this->editingId)
             ->orderByDesc('id')
             ->get(['id', 'inspection_no', 'status']);
+    }
+
+    /**
+     * Vehicle inspection orders (work assignments) raised for this job card.
+     */
+    #[Computed]
+    public function inspectionOrders()
+    {
+        if (! $this->editingId) {
+            return collect();
+        }
+
+        return VehicleInspectionOrder::query()
+            ->where('job_card_id', $this->editingId)
+            ->orderByDesc('id')
+            ->get(['id', 'order_no', 'status']);
     }
 
     #[Computed]

@@ -30,7 +30,7 @@ class FinalInspection extends Model
         'ended_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['inspection_no', 'summary_notes'];
+    protected static array $searchableFields = ['inspection_no', 'summary_notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): FinalInspectionFactory
     {

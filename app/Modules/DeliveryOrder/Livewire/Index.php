@@ -101,11 +101,7 @@ class Index extends Component
 
         return DeliveryOrder::query()
             ->with(['jobCard:id,job_card_no', 'insuranceCompany:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('do_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('claim_number', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter));
     }
 

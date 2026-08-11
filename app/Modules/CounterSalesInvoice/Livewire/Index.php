@@ -84,12 +84,7 @@ class Index extends Component
         $rows = CounterSalesInvoice::query()
             ->with(['customer:id,first_name,last_name', 'courierCompany:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('invoice_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('tracking_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('last_name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->paymentFilter !== 'all', fn ($q) => $q->where('payment_status', $this->paymentFilter))
             ->orderBy($this->sortBy, $this->sortDirection)

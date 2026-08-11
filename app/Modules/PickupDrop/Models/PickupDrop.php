@@ -14,6 +14,8 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Database\Factories\PickupDropFactory;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
@@ -71,7 +73,7 @@ class PickupDrop extends Model
         'distance_charge' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['pickup_drop_no', 'pickup_address', 'drop_address', 'contact_phone', 'notes'];
+    protected static array $searchableFields = ['pickup_drop_no', 'pickup_address', 'drop_address', 'contact_phone', 'notes', 'customer.first_name', 'customer.phone', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): PickupDropFactory
     {
@@ -86,6 +88,15 @@ class PickupDrop extends Model
                     'pickup_drop_no' => 'PD-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
+
+            JobCardHistoryRecorder::recordForVehicle(
+                $row->customer_vehicle_id,
+                JobCardHistoryEvent::TYPE_PICKUP_SCHEDULED,
+                'Pickup / drop '.$row->pickup_drop_no.' scheduled',
+                ['source_id' => $row->id],
+                $row->job_card_id ?? null,
+                $row->scheduled_at,
+            );
         });
     }
 

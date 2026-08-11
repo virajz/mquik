@@ -2,6 +2,7 @@
 
 namespace App\Modules\InternalPartsInquiry\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry;
 use Flux\Flux;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 #[Title('Internal Parts Inquiry')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -140,15 +142,13 @@ class Index extends Component
                 'target:id,name',
             ])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('ipi_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->requestedByFilter !== 'all', fn ($q) => $q->where('requested_by_employee_id', (int) $this->requestedByFilter))
             ->when($this->targetFilter !== 'all', fn ($q) => $q->where('target_employee_id', (int) $this->targetFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('inquiry_type', $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('internal-parts-inquiry::index', [

@@ -2,6 +2,7 @@
 
 namespace App\Modules\SalesEstimate\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\SalesEstimate\Models\SalesEstimate;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
@@ -14,6 +15,7 @@ use Livewire\WithPagination;
 #[Title('Sales Estimates')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -88,14 +90,11 @@ class Index extends Component
                 'insuranceCompany:id,name',
             ])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('estimate_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('policy_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('estimate_type', $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('sales-estimate::index', [

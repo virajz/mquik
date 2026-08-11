@@ -79,13 +79,7 @@ class Index extends Component
                 'inspectedBy:id,name',
             ])
             ->withCount(['lines as replace_count' => fn ($q) => $q->where('condition', TyreReport::CONDITION_REPLACE)])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('report_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('last_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('phone', '%'.$search.'%', caseSensitive: false))
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('reported_on', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn ($q) => $q->whereDate('reported_on', '<=', $this->dateTo))
             ->orderBy($this->sortBy, $this->sortDirection)

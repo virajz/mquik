@@ -41,7 +41,7 @@ class VpoCancelRequest extends Model
 
     protected $casts = ['cancellation_charge' => 'decimal:2'];
 
-    protected static array $searchableFields = ['request_no', 'notes'];
+    protected static array $searchableFields = ['request_no', 'notes', 'purchaseOrder.po_no'];
 
     protected static function newFactory(): VpoCancelRequestFactory
     {

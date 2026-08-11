@@ -73,6 +73,10 @@ class Index extends Component
     #[Url(as: 'rack')]
     public string $rackFilter = 'all';
 
+    /** Hide parts with nothing on the shelf — the usual view for a store person. */
+    #[Url(as: 'instock')]
+    public bool $inStockOnly = false;
+
     #[Url(as: 'vendor')]
     public string $vendorFilter = 'all';
 
@@ -80,7 +84,7 @@ class Index extends Component
 
     public function updating($name): void
     {
-        if (str_ends_with($name, 'Filter') || $name === 'search') {
+        if (str_ends_with($name, 'Filter') || in_array($name, ['search', 'inStockOnly'], true)) {
             $this->resetPage();
         }
     }
@@ -106,6 +110,7 @@ class Index extends Component
         $this->reset([
             'search', 'vehicleBrandFilter', 'modelFilter', 'variantFilter', 'partTypeFilter',
             'groupFilter', 'subGroupFilter', 'partsBrandFilter', 'uomFilter', 'rackFilter', 'vendorFilter',
+            'inStockOnly',
         ]);
         $this->resetPage();
     }
@@ -280,6 +285,14 @@ class Index extends Component
             ->when($this->partsBrandFilter !== 'all', fn ($q) => $q->where('spare_brand_id', (int) $this->partsBrandFilter))
             ->when($this->uomFilter !== 'all', fn ($q) => $q->where('uom_id', (int) $this->uomFilter))
             ->when($this->rackFilter !== 'all', fn ($q) => $q->where('rack_id', (int) $this->rackFilter))
+            // Filtered in SQL, not against the qty map — doing it after
+            // pagination would leave the page counts lying.
+            ->when($this->inStockOnly, fn ($q) => $q->whereIn('id', function ($sub) {
+                $sub->from('stock_entries')
+                    ->select('spare_id')
+                    ->groupBy('spare_id')
+                    ->havingRaw('sum(qty) <> 0');
+            }))
             ->when($this->vendorFilter !== 'all', fn ($q) => $q->whereHas('brand.vendors', fn ($v) => $v->where('vendors.id', (int) $this->vendorFilter)))
             ->when($this->variantFilter !== 'all', fn ($q) => $q->whereHas('vehicleVariants', fn ($v) => $v->where('vehicle_variants.id', (int) $this->variantFilter)))
             ->when($this->variantFilter === 'all' && $this->modelFilter !== 'all', fn ($q) => $q->whereHas('vehicleVariants', fn ($v) => $v->where('model_id', (int) $this->modelFilter)))
@@ -289,7 +302,6 @@ class Index extends Component
 
         $qtyMap = StockLedger::currentQtyMap($rows->pluck('id')->all());
 
-        // Optional stock-status filter is applied in-view against the qty map.
         return view('inventory-search::index', [
             'rows' => $rows,
             'qtyMap' => $qtyMap,

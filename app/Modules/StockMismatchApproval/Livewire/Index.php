@@ -91,10 +91,7 @@ class Index extends Component
 
         return StockMismatchApproval::query()
             ->with(['stockCount:id,count_no', 'requestedBy:id,name', 'requestedTo:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('approval_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('stockCount', fn ($c) => $c->whereLike('count_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('approval_status', $this->statusFilter));
     }
 

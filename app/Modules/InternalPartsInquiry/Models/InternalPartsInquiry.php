@@ -65,7 +65,7 @@ class InternalPartsInquiry extends Model
         ];
     }
 
-    protected static array $searchableFields = ['ipi_no', 'notes'];
+    protected static array $searchableFields = ['ipi_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): InternalPartsInquiryFactory
     {

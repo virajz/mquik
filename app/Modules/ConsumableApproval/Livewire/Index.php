@@ -121,10 +121,7 @@ class Index extends Component
         return ConsumableApproval::query()
             ->with(['jobCard:id,job_card_no', 'department:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('request_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->categoryFilter !== 'all', fn ($q) => $q->where('consumable_category', $this->categoryFilter));
     }

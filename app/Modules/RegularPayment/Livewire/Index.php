@@ -83,12 +83,7 @@ class Index extends Component
 
         $rows = RegularPayment::query()
             ->with(['vendor:id,name', 'paymentMode:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('payment_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('reference_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('cheque_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('vendor', fn ($v) => $v->whereLike('name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->monthFilter !== '', fn ($q) => $q->whereRaw("to_char(created_at, 'YYYY-MM') = ?", [$this->monthFilter]))
             ->orderBy($this->sortBy, $this->sortDirection)

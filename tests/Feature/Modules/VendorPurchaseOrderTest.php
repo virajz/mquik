@@ -2,6 +2,7 @@
 
 use App\Modules\SpareMaster\Models\SpareMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
+use App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiry;
 use App\Modules\VendorPurchaseOrder\Livewire\Edit;
 use App\Modules\VendorPurchaseOrder\Livewire\Index;
 use App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrder;
@@ -143,4 +144,42 @@ it('downloads the purchase order report as a CSV stream', function () {
     VendorPurchaseOrder::factory()->count(2)->create();
 
     Livewire::test(Index::class)->call('download')->assertFileDownloaded();
+});
+
+it('carries forward from a VPI: links it and seeds the quoted lines', function () {
+    $vendor = VendorMaster::factory()->create();
+    $vpi = VendorPurchaseInquiry::factory()->create(['vendor_id' => $vendor->id, 'payment_term' => 'credit_15']);
+    $spare = SpareMaster::factory()->create();
+    $vpi->items()->create([
+        'description' => 'BRAKE PAD', 'quantity' => 2, 'spare_id' => $spare->id,
+        'quoted_rate' => 450.00, 'lead_time_days' => 3, 'sequence_no' => 1,
+    ]);
+
+    $component = Livewire::test(Edit::class, ['fromVpi' => $vpi->id]);
+
+    expect($component->get('vendor_purchase_inquiry_id'))->toBe($vpi->id)
+        ->and($component->get('vendor_id'))->toBe($vendor->id)
+        ->and($component->get('payment_term'))->toBe('credit_15');
+
+    $items = $component->get('items');
+    expect($items)->toHaveCount(1)
+        ->and($items[0]['description'])->toBe('BRAKE PAD')
+        ->and($items[0]['spare_id'])->toBe($spare->id)
+        // the vendor's quote becomes the ordered rate
+        ->and((float) $items[0]['rate'])->toBe(450.00)
+        ->and($items[0]['lead_time_days'])->toBe(3);
+});
+
+it('persists the VPI link when a carried-forward PO is saved', function () {
+    $vendor = VendorMaster::factory()->create();
+    $vpi = VendorPurchaseInquiry::factory()->create(['vendor_id' => $vendor->id]);
+    $vpi->items()->create(['description' => 'BRAKE PAD', 'quantity' => 1, 'quoted_rate' => 100, 'sequence_no' => 1]);
+
+    Livewire::test(Edit::class, ['fromVpi' => $vpi->id])
+        ->set('po_type', 'stock_replenishment')
+        ->set('vendor_id', $vendor->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(VendorPurchaseOrder::latest('id')->first()->vendor_purchase_inquiry_id)->toBe($vpi->id);
 });

@@ -108,10 +108,7 @@ class Index extends Component
 
         return ServiceRecommendationFollowUp::query()
             ->with(['customer:id,first_name,last_name', 'customerVehicle:id,registration_no', 'followUpBy:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('recommendation_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('recommended_service', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->categoryFilter !== 'all', fn ($q) => $q->where('recommendation_category', $this->categoryFilter));
     }

@@ -2,6 +2,7 @@
 
 namespace App\Modules\CustomerComplaint\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\CustomerComplaint\Models\CustomerComplaint;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Customer Complaints')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -99,12 +101,10 @@ class Index extends Component
 
         return CustomerComplaint::query()
             ->with(['customer:id,first_name,last_name', 'customerVehicle:id,registration_no'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('complaint_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('invoice_reference', '%'.$search.'%', caseSensitive: false);
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
-            ->when($this->typeFilter !== 'all', fn ($q) => $q->where('complaint_type', $this->typeFilter));
+            ->when($this->typeFilter !== 'all', fn ($q) => $q->where('complaint_type', $this->typeFilter))
+            ->tap(fn ($q) => $this->applyRecordScope($q));
     }
 
     /** Stream the Customer Complaint Report CSV. */

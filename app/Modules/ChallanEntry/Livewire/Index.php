@@ -84,11 +84,7 @@ class Index extends Component
         $rows = Challan::query()
             ->with(['vendor:id,name', 'jobCard:id,job_card_no'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('challan_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('po_reference', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('vendor', fn ($v) => $v->whereLike('name', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('inventory_status', $this->statusFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('purchase_type', $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)

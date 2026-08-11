@@ -36,7 +36,7 @@ class RegularPayment extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['payment_no', 'reference_no', 'cheque_no', 'notes'];
+    protected static array $searchableFields = ['payment_no', 'reference_no', 'cheque_no', 'notes', 'vendor.name'];
 
     protected static function newFactory(): RegularPaymentFactory
     {

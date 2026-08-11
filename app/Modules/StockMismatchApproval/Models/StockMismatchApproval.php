@@ -39,7 +39,7 @@ class StockMismatchApproval extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['approval_no', 'notes'];
+    protected static array $searchableFields = ['approval_no', 'notes', 'stockCount.count_no'];
 
     protected static function newFactory(): StockMismatchApprovalFactory
     {

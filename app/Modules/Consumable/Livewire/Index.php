@@ -93,10 +93,7 @@ class Index extends Component
         $rows = Consumable::query()
             ->with(['category:id,name', 'jobCard:id,job_card_no', 'lossReason:id,name'])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('consumable_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('approval_status', $this->statusFilter))
             ->when($this->categoryFilter !== 'all', fn ($q) => $q->where('consumable_category_id', (int) $this->categoryFilter))
             ->orderBy($this->sortBy, $this->sortDirection)

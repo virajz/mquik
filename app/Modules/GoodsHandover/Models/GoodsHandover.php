@@ -36,7 +36,7 @@ class GoodsHandover extends Model
 
     protected $guarded = [];
 
-    protected static array $searchableFields = ['handover_no', 'notes'];
+    protected static array $searchableFields = ['handover_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): GoodsHandoverFactory
     {

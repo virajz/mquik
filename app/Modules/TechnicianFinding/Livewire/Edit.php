@@ -64,12 +64,52 @@ class Edit extends Component
 
         if ($this->fromJobCard) {
             $this->job_card_id = $this->fromJobCard;
+            $this->prefillFromJobCard();
         }
         if ($this->fromOrder) {
             $this->vehicle_inspection_order_id = $this->fromOrder;
             $order = VehicleInspectionOrder::find($this->fromOrder);
             if ($order && ! $this->job_card_id) {
                 $this->job_card_id = $order->job_card_id;
+                $this->prefillFromJobCard();
+            }
+        }
+    }
+
+    /** Picking a job card in the form should fill the same things the URL handoff does. */
+    public function updatedJobCardId(): void
+    {
+        $this->prefillFromJobCard();
+    }
+
+    /**
+     * A finding is raised by whoever is on the vehicle, against the work order
+     * they are running — both derivable from the job card.
+     */
+    protected function prefillFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jobCard = JobCard::find($this->job_card_id);
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->reported_by_id ??= $jobCard->assigned_technician_id;
+
+        // Attach to the card's current work order when there is exactly one
+        // obvious candidate; ambiguity is left for the user to resolve.
+        if (! $this->vehicle_inspection_order_id) {
+            $orders = VehicleInspectionOrder::query()
+                ->where('job_card_id', $jobCard->id)
+                ->orderByDesc('id')
+                ->limit(2)
+                ->get(['id']);
+
+            if ($orders->count() === 1) {
+                $this->vehicle_inspection_order_id = $orders->first()->id;
             }
         }
     }

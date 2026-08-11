@@ -128,11 +128,7 @@ class Index extends Component
                 'labour:id,name',
                 'technician:id,name',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('queue_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('job_description', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->viewFilter !== 'all', fn ($q) => $q->where('screen_view', $this->viewFilter))
             ->when($this->typeFilter !== 'all', fn ($q) => $q->where('queue_type', $this->typeFilter))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter));

@@ -3,14 +3,21 @@
 @php($ATT = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryAttachment::class)
 <div>
     <form wire:submit="save" class="max-w-4xl">
-        <div class="mb-8">
-            <flux:link :href="route('vendor-purchase-inquiry.index')" variant="ghost" class="text-xs">
-                <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Vendor Purchase Inquiries
-            </flux:link>
-            <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($vpi_no ?: 'Edit RFQ') : 'New Vendor Purchase Inquiry (RFQ)' }}</flux:heading>
-            <flux:text size="sm" class="mt-1 text-zinc-500">Ask a vendor for part rate, brand, delivery time, warranty and payment terms.</flux:text>
-            @if ($sourceIpiNo)
-                <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceIpiNo }}</flux:badge>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <flux:link :href="route('vendor-purchase-inquiry.index')" variant="ghost" class="text-xs">
+                    <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Vendor Purchase Inquiries
+                </flux:link>
+                <flux:heading size="xl" level="1" class="mt-1">{{ $editingId ? ($vpi_no ?: 'Edit RFQ') : 'New Vendor Purchase Inquiry (RFQ)' }}</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Ask a vendor for part rate, brand, delivery time, warranty and payment terms.</flux:text>
+                @if ($sourceIpiNo)
+                    <flux:badge color="sky" size="sm" icon="arrow-right-circle" class="mt-2">Carried forward from {{ $sourceIpiNo }}</flux:badge>
+                @endif
+            </div>
+            @if ($editingId)
+                @can('vendor_purchase_order.create')
+                    <flux:button :href="route('vendor-purchase-order.create', ['from-vpi' => $editingId])" wire:navigate size="sm" variant="ghost" icon="arrow-right-circle">Raise Purchase Order</flux:button>
+                @endcan
             @endif
         </div>
 

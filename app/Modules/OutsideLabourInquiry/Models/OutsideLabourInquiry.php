@@ -52,7 +52,7 @@ class OutsideLabourInquiry extends Model
         'reminder_custom_days' => 'integer',
     ];
 
-    protected static array $searchableFields = ['inquiry_no', 'notes'];
+    protected static array $searchableFields = ['inquiry_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): OutsideLabourInquiryFactory
     {

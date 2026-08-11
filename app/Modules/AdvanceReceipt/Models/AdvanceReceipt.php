@@ -51,7 +51,7 @@ class AdvanceReceipt extends Model
         'received_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['receipt_no', 'reference_no', 'cheque_no', 'notes'];
+    protected static array $searchableFields = ['receipt_no', 'reference_no', 'cheque_no', 'notes', 'jobCard.job_card_no'];
 
     protected static function newFactory(): AdvanceReceiptFactory
     {

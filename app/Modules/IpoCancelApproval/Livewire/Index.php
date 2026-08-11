@@ -97,10 +97,7 @@ class Index extends Component
 
         return IpoCancelApproval::query()
             ->with(['jobCard:id,job_card_no', 'internalPartOrder:id,order_no', 'spare:id,name', 'employee:id,name'])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('cancel_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter));
     }
 

@@ -40,7 +40,7 @@ class RegularReceipt extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['receipt_no', 'reference_no', 'cheque_no', 'notes'];
+    protected static array $searchableFields = ['receipt_no', 'reference_no', 'cheque_no', 'notes', 'customer.first_name', 'customer.last_name'];
 
     protected static function newFactory(): RegularReceiptFactory
     {

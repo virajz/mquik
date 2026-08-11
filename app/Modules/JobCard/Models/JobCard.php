@@ -65,7 +65,7 @@ class JobCard extends Model
         'terms_accepted' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['job_card_no', 'suggested_services', 'notes'];
+    protected static array $searchableFields = ['job_card_no', 'suggested_services', 'notes', 'customer.first_name', 'customer.phone', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): JobCardFactory
     {

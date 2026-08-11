@@ -2,6 +2,7 @@
 
 namespace App\Modules\PickupDrop\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use Flux\Flux;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 #[Title('Pickup / Drop')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -110,18 +112,14 @@ class Index extends Component
                 'driver:id,name',
                 'vendor:id,name',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('pickup_drop_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('customer', fn ($c) => $c->whereLike('first_name', '%'.$search.'%', caseSensitive: false)
-                        ->orWhereLike('phone', '%'.$search.'%', caseSensitive: false))
-                    ->orWhereHas('customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->directionFilter !== 'all', fn ($q) => $q->where('direction', $this->directionFilter))
             ->when($this->driverFilter !== 'all', fn ($q) => $q->where('driver_employee_id', (int) $this->driverFilter))
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('scheduled_at', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn ($q) => $q->whereDate('scheduled_at', '<=', $this->dateTo))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('pickup-drop::index', [

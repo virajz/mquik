@@ -44,7 +44,7 @@ class TyreReport extends Model
         'odometer_km' => 'integer',
     ];
 
-    protected static array $searchableFields = ['report_no', 'recommendation', 'notes'];
+    protected static array $searchableFields = ['report_no', 'recommendation', 'notes', 'customer.first_name', 'customer.last_name', 'customer.phone', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): TyreReportFactory
     {

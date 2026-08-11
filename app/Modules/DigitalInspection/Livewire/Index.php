@@ -2,6 +2,7 @@
 
 namespace App\Modules\DigitalInspection\Livewire;
 
+use App\Concerns\ScopesToRecord;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
@@ -17,6 +18,7 @@ use Livewire\WithPagination;
 #[Title('Digital Inspections')]
 class Index extends Component
 {
+    use ScopesToRecord;
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -113,15 +115,12 @@ class Index extends Component
                 'technician:id,name',
             ])
             ->withCount('items')
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('inspection_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false))
-                    ->orWhereHas('jobCard.customerVehicle', fn ($v) => $v->whereLike('registration_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('assigned_technician_id', (int) $this->technicianFilter))
             ->when($this->templateFilter !== 'all', fn ($q) => $q->where('inspection_template_id', (int) $this->templateFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
+            ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
         return view('digital-inspection::index', [

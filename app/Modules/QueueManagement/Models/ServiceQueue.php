@@ -44,7 +44,7 @@ class ServiceQueue extends Model
         'work_ended_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['queue_no', 'job_description', 'notes'];
+    protected static array $searchableFields = ['queue_no', 'job_description', 'notes', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): ServiceQueueFactory
     {

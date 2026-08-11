@@ -120,12 +120,7 @@ class Index extends Component
                 'customer:id,first_name,last_name',
                 'paymentMode:id,name',
             ])
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->whereLike('receipt_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('reference_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereLike('cheque_no', '%'.$search.'%', caseSensitive: false)
-                    ->orWhereHas('jobCard', fn ($jc) => $jc->whereLike('job_card_no', '%'.$search.'%', caseSensitive: false));
-            }))
+            ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('payment_status', $this->statusFilter))
             ->when($this->modeFilter !== 'all', fn ($q) => $q->where('payment_mode_id', (int) $this->modeFilter));
     }

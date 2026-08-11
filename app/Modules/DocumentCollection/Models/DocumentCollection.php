@@ -15,6 +15,8 @@ use App\Modules\FollowUpModeMaster\Models\FollowUpModeMaster;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\InsurancePolicyTypeMaster\Models\InsurancePolicyTypeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\MissingDocumentReasonMaster\Models\MissingDocumentReasonMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -68,7 +70,7 @@ class DocumentCollection extends Model
         'uploaded_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['doc_collection_no', 'policy_no', 'notes'];
+    protected static array $searchableFields = ['doc_collection_no', 'policy_no', 'notes', 'customer.first_name', 'customer.phone', 'customerVehicle.registration_no'];
 
     protected static function newFactory(): DocumentCollectionFactory
     {
@@ -83,6 +85,15 @@ class DocumentCollection extends Model
                     'doc_collection_no' => 'DC-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
+
+            JobCardHistoryRecorder::recordForVehicle(
+                $row->customer_vehicle_id,
+                JobCardHistoryEvent::TYPE_DOCUMENT_REQUESTED,
+                'Documents requested ('.$row->doc_collection_no.')',
+                ['source_id' => $row->id],
+                $row->job_card_id ?? null,
+                $row->requested_at,
+            );
         });
 
         static::bootRetentionCascade();

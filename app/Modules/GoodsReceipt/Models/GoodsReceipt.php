@@ -33,7 +33,7 @@ class GoodsReceipt extends Model
 
     protected $guarded = [];
 
-    protected static array $searchableFields = ['grn_no', 'notes'];
+    protected static array $searchableFields = ['grn_no', 'notes', 'purchaseOrder.po_no'];
 
     protected static function newFactory(): GoodsReceiptFactory
     {
