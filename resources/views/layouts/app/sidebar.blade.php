@@ -92,10 +92,12 @@
 
     <livewire:master-search />
 
-    {{-- Standing alerts sit above the page and stay until acted on. --}}
-    <livewire:action-banner />
-
+    {{-- Inside main, above the page content. Flux's shell auto-places stray
+         siblings into the next grid row, which drops them below the page — so the
+         banner has to live within main rather than beside it. --}}
     <flux:main class="px-6 py-6 lg:px-8 lg:py-8">
+        <livewire:action-banner />
+
         {{ $slot }}
     </flux:main>
 

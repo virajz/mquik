@@ -39,20 +39,32 @@ class ActionBanner extends Component
     #[Computed]
     public function alerts()
     {
-        $role = RolePreview::role() ?: RolePreview::currentUserRole();
-        $employeeId = RolePreview::isPreviewing() ? null : ActingEmployee::id();
+        $query = AppNotification::query()
+            ->needsAction()
+            ->orderByRaw("case severity when 'critical' then 0 when 'warning' then 1 else 2 end")
+            ->orderByDesc('id')
+            ->limit(20);
+
+        // Previewing a role: show exactly that role's pile.
+        if (RolePreview::isPreviewing()) {
+            return $query->where('role', RolePreview::role())->get();
+        }
+
+        // An admin is nobody's job, so nothing is addressed to them. Rather than
+        // showing an empty banner, show the whole workshop's open items with a
+        // role badge on each — the overview only they need.
+        if (RolePreview::isAvailable()) {
+            return $query->get();
+        }
+
+        $role = RolePreview::currentUserRole();
+        $employeeId = ActingEmployee::id();
 
         if (! $role && ! $employeeId) {
             return collect();
         }
 
-        return AppNotification::query()
-            ->needsAction()
-            ->addressedTo($employeeId, $role)
-            ->orderByRaw("case severity when 'critical' then 0 when 'warning' then 1 else 2 end")
-            ->orderByDesc('id')
-            ->limit(20)
-            ->get();
+        return $query->addressedTo($employeeId, $role)->get();
     }
 
     /** Mark it handled — the only exit besides acting on it. */

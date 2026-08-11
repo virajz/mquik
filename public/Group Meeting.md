@@ -61,3 +61,7 @@
 - we need a red, orange and green zones for cars whose TAT increases. For example, for a job card I have setup a date of delivery today. So till today it will be in the green zone, but from tomorrow it will be in orange zone, if the car stays in the orange zone for 2 days, then it will be in the red zone. In most of the cases dates won't be changed for delivery.
 
 - First in the job card, we only add estimated date of delivery. Final date of delivery should be added only after the estimate is approved by client. So that we can analyze what went wrong if the car was not delivered on time. and also everyone is clear about how things are going to get shaped.
+
+- Integrate VIN search with parts and estimated services related to km s of the car.
+
+- We need inter department cross sale - for example if a car comes, and it has mechanical service, we can suggest for the tyre replaement or value added services, which are genuinely good for customer.

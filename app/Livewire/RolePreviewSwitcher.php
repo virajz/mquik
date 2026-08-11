@@ -28,8 +28,9 @@ class RolePreviewSwitcher extends Component
 
         unset($this->counts);
 
-        $this->dispatch('role-preview-changed');
-        $this->dispatch('notifications-changed');
+        // A full (wire:navigate) repaint is the reliable way to get the banner,
+        // bell and page all reflecting the switch at once.
+        $this->redirect(url()->current(), navigate: true);
     }
 
     public function clear(): void
@@ -39,8 +40,7 @@ class RolePreviewSwitcher extends Component
 
         unset($this->counts);
 
-        $this->dispatch('role-preview-changed');
-        $this->dispatch('notifications-changed');
+        $this->redirect(url()->current(), navigate: true);
     }
 
     /** @return list<string> */

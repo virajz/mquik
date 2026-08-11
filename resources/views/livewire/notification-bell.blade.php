@@ -1,6 +1,13 @@
 <div>
     <flux:dropdown align="end" class="w-full">
-        <flux:button variant="ghost" size="sm" icon="bell" class="relative">
+        {{-- Labelled, not just an icon: an unlabelled bell in a busy header is
+             the thing nobody finds. --}}
+        <flux:button
+            :variant="$this->unreadCount > 0 ? 'filled' : 'ghost'"
+            size="sm"
+            icon="bell"
+            icon:trailing="chevron-down">
+            <span class="max-lg:hidden">Alerts</span>
             @if ($this->unreadCount > 0)
                 <flux:badge size="sm" color="amber" class="ml-1">{{ $this->unreadCount }}</flux:badge>
             @endif

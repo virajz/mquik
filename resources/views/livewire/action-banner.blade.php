@@ -1,7 +1,9 @@
 @php($shown = $this->expanded ? $this->alerts : $this->alerts->take(3))
 <div>
     @if ($this->alerts->isNotEmpty())
-        <div class="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <div class="sticky -top-6 lg:-top-8 z-40 -mx-6 lg:-mx-8 -mt-6 lg:-mt-8 mb-6
+                    border-b border-zinc-200 dark:border-zinc-800
+                    bg-white/95 dark:bg-zinc-900/95 backdrop-blur">
             <div class="px-6 py-3 lg:px-8 space-y-2">
                 @foreach ($shown as $a)
                     @php($tone = match ($a->severity) {
