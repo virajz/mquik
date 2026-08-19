@@ -66,6 +66,9 @@ class Edit extends Component
     /** Search term for the server-backed customer+vehicle picker (~10k rows). */
     public string $vehicleSearch = '';
 
+    /** Search term for the inward picker. */
+    public string $gateVisitSearch = '';
+
     public ?int $customer_vehicle_id = null;
 
     public ?int $workshop_department_id = null;
@@ -334,7 +337,10 @@ class Edit extends Component
             // is what builds the persisted payload — so the card would lose the
             // appointment or gate visit it was raised from.
             'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')],
-            'gate_event_id' => ['nullable', 'integer', Rule::exists('gate_visits', 'id')],
+            // Every new card must come from an inward, so a vehicle in the
+            // workshop is always traceable to the moment it arrived. The column
+            // stays nullable for the imported cards that predate the gate log.
+            'gate_event_id' => ['required', 'integer', Rule::exists('gate_visits', 'id')],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_vehicle_id' => [
                 'required', 'integer',
@@ -626,6 +632,52 @@ class Edit extends Component
     /**
      * Vehicle inspection orders (work assignments) raised for this job card.
      */
+    /**
+     * Inward records to raise this card against.
+     *
+     * The visit is the starting point, so this is not filtered by vehicle —
+     * picking an inward is what sets the vehicle. Cars still on site come first,
+     * since those are the ones a card is normally being raised for.
+     */
+    #[Computed]
+    public function gateVisits()
+    {
+        $term = trim($this->gateVisitSearch);
+
+        return GateInOut::query()
+            // The "keep the chosen one visible" clause only belongs inside a
+            // search — on its own it collapses the list to that single visit.
+            ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->whereLike('gate_event_no', '%'.$term.'%', caseSensitive: false)
+                ->orWhereLike('registration_no', '%'.$term.'%', caseSensitive: false)
+                ->when($this->gate_event_id, fn ($k) => $k->orWhere('id', $this->gate_event_id))))
+            // The plate alone does not tell an advisor which car this is.
+            ->with(['customerVehicle:id,registration_no,model_id', 'customerVehicle.model:id,name,brand_id', 'customerVehicle.model.brand:id,name'])
+            ->orderByRaw('case when exited_at is null then 0 else 1 end')
+            ->orderByDesc('entered_at')
+            ->limit(25)
+            ->get(['id', 'gate_event_no', 'registration_no', 'entered_at', 'exited_at', 'customer_vehicle_id', 'customer_id']);
+    }
+
+    /** Picking the inward fills the vehicle and customer it arrived with. */
+    public function updatedGateEventId($value): void
+    {
+        if (! $value) {
+            return;
+        }
+
+        $visit = GateInOut::find($value);
+        if (! $visit) {
+            return;
+        }
+
+        if ($visit->customer_vehicle_id) {
+            $this->customer_vehicle_id = $visit->customer_vehicle_id;
+            $this->customer_id = $visit->customer_id
+                ?? CustomerVehicleMaster::whereKey($visit->customer_vehicle_id)->value('customer_id');
+        }
+    }
+
     #[Computed]
     public function inspectionOrders()
     {

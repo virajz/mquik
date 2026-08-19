@@ -1,20 +1,13 @@
 <div>
-    <flux:dropdown align="end" class="w-full">
-        {{-- Labelled, not just an icon: an unlabelled bell in a busy header is
-             the thing nobody finds. --}}
-        <flux:button
-            :variant="$this->unreadCount > 0 ? 'filled' : 'ghost'"
-            size="sm"
-            icon="bell"
-            icon:trailing="chevron-down">
-            <span class="max-lg:hidden">Alerts</span>
+    <flux:dropdown align="end">
+        {{-- Icon only: the header is tight, and the badge is what draws the eye. --}}
+        <flux:button variant="ghost" size="sm" icon="bell" class="relative">
             @if ($this->unreadCount > 0)
                 <flux:badge size="sm" color="amber" class="ml-1">{{ $this->unreadCount }}</flux:badge>
             @endif
         </flux:button>
 
         <flux:menu class="w-80">
-            {{-- Who is at this screen. Drives the bench and the notification list too. --}}
             <div class="px-3 py-2">
                 <flux:select wire:model.live="employeeId" variant="listbox" searchable clearable size="sm"
                     label="I am" placeholder="Pick your name…">
@@ -32,10 +25,8 @@
                 </div>
             @else
                 @forelse ($this->recent as $n)
-                    <flux:menu.item
-                        wire:key="bn-{{ $n->id }}"
-                        :href="$n->url ?: route('notification-center.index')"
-                        wire:navigate>
+                    <flux:menu.item wire:key="bn-{{ $n->id }}"
+                        :href="$n->url ?: route('notification-center.index')" wire:navigate>
                         <div class="min-w-0">
                             <div class="truncate text-sm font-medium">{{ $n->title }}</div>
                             @if ($n->body)

@@ -65,3 +65,22 @@
 - Integrate VIN search with parts and estimated services related to km s of the car.
 
 - We need inter department cross sale - for example if a car comes, and it has mechanical service, we can suggest for the tyre replaement or value added services, which are genuinely good for customer.
+
+- Explore options for bio metric login or nfc login.
+
+# 19 Aug 2026
+
+## Inward and Job Card
+
+- Make inward mandatory for the vehicle, all job cards need an inward, mandatory. This will help us track the movement of the car, from inward to outward
+
+## Time Blocks for a job card (Much later during reporting)
+
+- Appointment
+- Pickup/Drop
+- Vehicle Inward
+- Job Card Creation
+- Document Collection
+- VIO (Vehicle Inspection Order) - Optional
+- OWI (Outside Work Inquiry) Entry
+- IPI ( Internal Parts Inquiry) Entry

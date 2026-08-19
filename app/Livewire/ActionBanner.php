@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Modules\NotificationCenter\Models\AppNotification;
 use App\Support\ActingEmployee;
 use App\Support\RolePreview;
+use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -21,6 +22,9 @@ class ActionBanner extends Component
 {
     /** Show everything, not just the first few. */
     public bool $expanded = false;
+
+    /** The alert awaiting confirmation in the modal. */
+    public ?int $pendingId = null;
 
     #[On('notifications-changed')]
     #[On('acting-employee-changed')]
@@ -39,6 +43,12 @@ class ActionBanner extends Component
     #[Computed]
     public function alerts()
     {
+        // Switched off for this environment — see config/mquik.php. The alerts
+        // are still recorded; only this strip is hidden.
+        if (! config('mquik.features.alert_banner', true)) {
+            return collect();
+        }
+
         $query = AppNotification::query()
             ->needsAction()
             ->orderByRaw("case severity when 'critical' then 0 when 'warning' then 1 else 2 end")
@@ -67,19 +77,44 @@ class ActionBanner extends Component
         return $query->addressedTo($employeeId, $role)->get();
     }
 
-    /** Mark it handled — the only exit besides acting on it. */
-    public function resolve(int $id): void
+    /** Ask before clearing — this removes the alert for everyone. */
+    public function confirmResolve(int $id): void
     {
+        $this->pendingId = $id;
+
+        Flux::modal('confirm-handled')->show();
+    }
+
+    /** The alert being confirmed, so the modal can name it. */
+    #[Computed]
+    public function pendingAlert(): ?AppNotification
+    {
+        return $this->pendingId ? AppNotification::find($this->pendingId) : null;
+    }
+
+    /** Mark it handled — the only exit besides acting on it. */
+    public function resolve(): void
+    {
+        if (! $this->pendingId) {
+            return;
+        }
+
         AppNotification::query()
             ->needsAction()
-            ->whereKey($id)
+            ->whereKey($this->pendingId)
             ->update([
                 'resolved_at' => now(),
                 'resolved_by_user_id' => auth()->id(),
                 'read_at' => now(),
             ]);
 
-        unset($this->alerts);
+        $this->pendingId = null;
+
+        unset($this->alerts, $this->pendingAlert);
+
+        Flux::modal('confirm-handled')->close();
+        Flux::toast(text: 'Marked as handled.', variant: 'success');
+
         $this->dispatch('notifications-changed');
     }
 

@@ -2,14 +2,19 @@
 
 namespace App\Modules\GateInOut\Livewire;
 
+use App\Concerns\CanQuickAddCustomerVehicle;
+use App\Concerns\SearchesPickerOptions;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
+use App\Modules\GateInOut\Models\GateVisitMovement;
 use App\Modules\GateMaster\Models\GateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\ParkingSlotMaster\Models\ParkingSlotMaster;
+use App\Modules\VendorMaster\Models\VendorMaster;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -20,6 +25,9 @@ use Livewire\Component;
 #[Title('Gate Visit')]
 class Edit extends Component
 {
+    use CanQuickAddCustomerVehicle;
+    use SearchesPickerOptions;
+
     public ?int $editingId = null;
 
     // Inward leg.
@@ -63,6 +71,8 @@ class Edit extends Component
     protected function rules(): array
     {
         return [
+            // Stamped when the record is created and never edited afterwards —
+            // the moment a car arrived is a fact, not a preference.
             'entered_date' => ['required', 'date_format:Y-m-d'],
             'entered_time' => ['required', 'date_format:H:i'],
             'entry_gate_id' => ['nullable', 'integer', Rule::exists('gates', 'id')->where('is_active', true)],
@@ -73,6 +83,8 @@ class Edit extends Component
             'exited_date' => ['nullable', 'date_format:Y-m-d', 'required_with:exited_time'],
             'exited_time' => ['nullable', 'date_format:H:i', 'required_with:exited_date'],
             'exit_gate_id' => ['nullable', 'integer', Rule::exists('gates', 'id')->where('is_active', true)],
+            // Not asked for any more: the only departure that ends a visit is the
+            // final delivery. Trial runs and vendor trips are movements.
             'outward_type' => ['nullable', Rule::in(array_keys(GateInOut::outwardTypes()))],
             'driver_type' => ['nullable', Rule::in(array_keys(GateInOut::driverTypes()))],
             'delivered_by_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
@@ -128,6 +140,63 @@ class Edit extends Component
         $this->notes = $r->notes;
     }
 
+    /** Search term for the vehicle picker. */
+    public string $vehicleSearch = '';
+
+    // --- "send out" form state ---
+    public ?string $tripPurpose = GateVisitMovement::PURPOSE_TRIAL_RUN;
+
+    public ?int $tripJobCardId = null;
+
+    public ?int $tripVendorId = null;
+
+    public ?int $tripDriverId = null;
+
+    public ?string $tripExpectedBackDate = null;
+
+    public ?string $tripExpectedBackTime = null;
+
+    public ?int $tripOdometerOut = null;
+
+    public ?string $tripNotes = null;
+
+    /**
+     * Known vehicles to pick from — typing a plate every time is both slow and
+     * how walk-in duplicates get created.
+     */
+    /** The quick-add drops the new vehicle straight into this picker. */
+    protected function quickCustomerVehicleTargetProperty(): string
+    {
+        return 'customer_vehicle_id';
+    }
+
+    #[Computed]
+    public function vehicleOptions()
+    {
+        return $this->pickerOptions(
+            query: CustomerVehicleMaster::query()->where('is_active', true)->with('customer:id,first_name,last_name'),
+            searchColumns: ['registration_no', 'customer.first_name', 'customer.last_name', 'customer.phone'],
+            term: $this->vehicleSearch,
+            selected: $this->customer_vehicle_id,
+            columns: ['id', 'registration_no', 'customer_id'],
+            limit: 25,
+        );
+    }
+
+    /** Picking a vehicle fills the plate and the customer. */
+    public function updatedCustomerVehicleId($value): void
+    {
+        if (! $value) {
+            return;
+        }
+
+        $vehicle = CustomerVehicleMaster::find($value);
+        if ($vehicle) {
+            $this->registration_no = $vehicle->registration_no;
+            $this->customer_id = $vehicle->customer_id;
+        }
+    }
+
     /**
      * As soon as the user types a registration number, try to resolve it to an
      * existing CustomerVehicle so we can stamp the FK and link the customer.
@@ -148,6 +217,118 @@ class Edit extends Component
 
         $this->customer_vehicle_id = $vehicle?->id;
         $this->customer_id = $vehicle?->customer_id;
+    }
+
+    /**
+     * Trips taken during this visit — out for a trial run, to a vendor, back.
+     *
+     * @return Collection<int, GateVisitMovement>
+     */
+    #[Computed]
+    public function movements()
+    {
+        if (! $this->editingId) {
+            return collect();
+        }
+
+        return GateVisitMovement::query()
+            ->where('gate_visit_id', $this->editingId)
+            ->with(['jobCard:id,job_card_no', 'vendor:id,name', 'driver:id,name'])
+            ->orderByDesc('out_at')
+            ->get();
+    }
+
+    /** True while the car is away on a trip — it is not an outward. */
+    #[Computed]
+    public function isOffSite(): bool
+    {
+        return $this->movements->contains(fn (GateVisitMovement $m) => $m->isOut());
+    }
+
+    /** Send the vehicle out on a trip. */
+    public function sendOut(): void
+    {
+        $this->authorize('gate_in_out.update');
+
+        if (! $this->editingId) {
+            Flux::toast(text: 'Save the inward first.', variant: 'warning');
+
+            return;
+        }
+
+        if ($this->isOffSite) {
+            Flux::toast(text: 'The vehicle is already out — bring it back in first.', variant: 'warning');
+
+            return;
+        }
+
+        $data = $this->validate([
+            'tripPurpose' => ['required', Rule::in(array_keys(GateVisitMovement::purposes()))],
+            'tripJobCardId' => ['nullable', 'integer', Rule::exists('job_cards', 'id')],
+            'tripVendorId' => ['nullable', 'integer', Rule::exists('vendors', 'id')],
+            'tripDriverId' => ['nullable', 'integer', Rule::exists('employees', 'id')],
+            'tripExpectedBackDate' => ['nullable', 'date'],
+            'tripExpectedBackTime' => ['nullable', 'string'],
+            'tripOdometerOut' => ['nullable', 'integer', 'min:0'],
+            'tripNotes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        GateVisitMovement::create([
+            'gate_visit_id' => $this->editingId,
+            'job_card_id' => $data['tripJobCardId'] ?: null,
+            'purpose' => $data['tripPurpose'],
+            'vendor_id' => $data['tripVendorId'] ?: null,
+            'driver_employee_id' => $data['tripDriverId'] ?: null,
+            'out_at' => now(),
+            'expected_back_at' => $this->expectedBackAt(),
+            'odometer_out' => $data['tripOdometerOut'] ?: null,
+            'notes' => $data['tripNotes'] ?: null,
+        ]);
+
+        $this->reset(['tripPurpose', 'tripJobCardId', 'tripVendorId', 'tripDriverId', 'tripExpectedBackDate', 'tripExpectedBackTime', 'tripOdometerOut', 'tripNotes']);
+        unset($this->movements, $this->isOffSite);
+
+        Flux::modal('send-out')->close();
+        Flux::toast(text: 'Vehicle sent out.', variant: 'success');
+    }
+
+    /**
+     * Combine the date and time pickers into one timestamp.
+     *
+     * A date on its own still means something ("back sometime Thursday"), so it
+     * defaults to end of day rather than being thrown away.
+     */
+    protected function expectedBackAt(): ?Carbon
+    {
+        if (blank($this->tripExpectedBackDate)) {
+            return null;
+        }
+
+        $time = filled($this->tripExpectedBackTime) ? $this->tripExpectedBackTime : '23:59';
+
+        return Carbon::parse($this->tripExpectedBackDate.' '.$time);
+    }
+
+    /** Bring it back from a trip. */
+    public function bringBack(int $movementId): void
+    {
+        $this->authorize('gate_in_out.update');
+
+        GateVisitMovement::query()
+            ->where('gate_visit_id', $this->editingId)
+            ->whereKey($movementId)
+            ->stillOut()
+            ->update(['in_at' => now()]);
+
+        unset($this->movements, $this->isOffSite);
+
+        Flux::toast(text: 'Vehicle back on site.', variant: 'success');
+    }
+
+    #[Computed]
+    public function vendors()
+    {
+        return VendorMaster::query()->where('is_active', true)->orderBy('name')->limit(50)->get(['id', 'name']);
     }
 
     #[Computed]
@@ -192,6 +373,18 @@ class Edit extends Component
             return;
         }
 
+        // The arrival stamp belongs to the record, not the form — an edit must
+        // not be able to move it.
+        if ($this->editingId) {
+            unset($data['entered_at']);
+        }
+
+        // Every departure that closes a visit is the delivery; the other reasons
+        // a car leaves are movements, which do not end the visit.
+        if ($data['exited_at'] !== null) {
+            $data['outward_type'] = 'final_delivery';
+        }
+
         $data['customer_vehicle_id'] = $this->customer_vehicle_id;
         $data['customer_id'] = $this->customer_id;
         $data['recorded_by_user_id'] = auth()->id();
@@ -207,17 +400,23 @@ class Edit extends Component
         return redirect()->route('gate-in-out.index');
     }
 
-    /** The job card already raised off this visit, if any. */
+    /**
+     * Job cards raised off this visit.
+     *
+     * One inward can carry several — a vehicle in for a service and a separate
+     * bodyshop job is still one arrival.
+     */
     #[Computed]
-    public function linkedJobCard()
+    public function linkedJobCards()
     {
         if (! $this->editingId) {
-            return null;
+            return collect();
         }
 
         return JobCard::query()
             ->where('gate_event_id', $this->editingId)
-            ->first(['id', 'job_card_no']);
+            ->orderByDesc('id')
+            ->get(['id', 'job_card_no', 'status']);
     }
 
     public function render()

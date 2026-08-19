@@ -39,8 +39,7 @@
                             @endif
                             {{-- Not a dismiss: this records who decided it was handled. --}}
                             <flux:button size="xs" variant="ghost" icon="check"
-                                wire:click="resolve({{ $a->id }})"
-                                wire:confirm="Mark this as handled? It will leave the banner for everyone.">
+                                wire:click="confirmResolve({{ $a->id }})">
                                 Handled
                             </flux:button>
                         </div>
@@ -58,4 +57,28 @@
             </div>
         </div>
     @endif
+
+    {{-- Confirmation lives in the app's own UI, not the browser's. --}}
+    <flux:modal name="confirm-handled" class="md:w-96">
+        <div class="space-y-5">
+            <div>
+                <flux:heading size="lg">Mark as handled?</flux:heading>
+                <flux:text class="mt-2">
+                    @if ($this->pendingAlert)
+                        “{{ $this->pendingAlert->title }}” will leave the banner for everyone, and you will be
+                        recorded as the person who cleared it.
+                    @else
+                        This alert will leave the banner for everyone.
+                    @endif
+                </flux:text>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button variant="primary" icon="check" wire:click="resolve">Mark handled</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

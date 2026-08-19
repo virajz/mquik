@@ -45,6 +45,10 @@ class RolePreview
     /** Only an admin may look through someone else's eyes. */
     public static function isAvailable(): bool
     {
+        if (! config('mquik.features.role_preview', true)) {
+            return false;
+        }
+
         return (bool) auth()->user()?->hasRole('Super Admin');
     }
 
