@@ -525,7 +525,7 @@ class Edit extends Component
         }
 
         return CustomerMaster::query()
-            ->with(['businessType:id,name', 'gstType:id,name', 'primaryAddress.region.parent.parent.parent'])
+            ->with(['businessType:id,name', 'gstType:id,name', 'primaryAddress:id,customer_id,address_line,region_id', 'primaryAddress.region.parent.parent.parent'])
             ->find($this->customer_id);
     }
 

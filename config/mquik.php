@@ -29,4 +29,40 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Service history
+    |--------------------------------------------------------------------------
+    |
+    | The "what has this vehicle had done" panel on a job card. Per-service due
+    | intervals live in the Service Intervals master; these are the display
+    | limits and the fallback used when a service has no interval configured.
+    |
+    */
+
+    'service_history' => [
+
+        /*
+         * Default order for the "Last done" list. Options are declared on
+         * App\Modules\JobCard\Concerns\ShowsServiceHistory.
+         */
+        'sort_mode' => env('MQUIK_SERVICE_SORT', 'due_first'),
+
+        // How many services to list under "Last done".
+        'services_shown' => env('MQUIK_SERVICE_HISTORY_SHOWN', 8),
+
+        // Past visits scanned when building that list.
+        'visits_scanned' => env('MQUIK_SERVICE_HISTORY_SCAN', 100),
+
+        // Past visits listed underneath.
+        'visits_listed' => env('MQUIK_SERVICE_HISTORY_VISITS', 50),
+
+        /*
+         * Fallback age, in months, for a service with no configured interval.
+         * Set to null to flag nothing without an explicit interval.
+         */
+        'default_overdue_months' => env('MQUIK_SERVICE_OVERDUE_MONTHS', 12),
+
+    ],
+
 ];

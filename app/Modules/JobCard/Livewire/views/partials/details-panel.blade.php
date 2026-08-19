@@ -10,14 +10,56 @@
                     <flux:text size="xs" class="font-semibold uppercase tracking-wide text-zinc-400">Customer</flux:text>
                 </div>
                 <div class="text-sm font-medium">{{ trim($cust->first_name.' '.($cust->last_name ?? '')) }}</div>
+
+                {{-- Contact first: it is what an advisor reaches for when the car
+                     is ready or a decision is needed. Tap-to-call on mobile. --}}
+                @if ($cust->phone || $cust->alternate_phone || $cust->email)
+                    <div class="space-y-1.5">
+                        @if ($cust->phone)
+                            <div class="flex items-center gap-2">
+                                <flux:icon.phone variant="micro" class="size-3.5 shrink-0 text-zinc-400" />
+                                <a href="tel:{{ $cust->phone }}" class="text-sm font-medium hover:underline">+91 {{ $cust->phone }}</a>
+                            </div>
+                        @endif
+                        @if ($cust->alternate_phone)
+                            <div class="flex items-center gap-2">
+                                <flux:icon.phone variant="micro" class="size-3.5 shrink-0 text-zinc-400" />
+                                <a href="tel:{{ $cust->alternate_phone }}" class="text-sm text-zinc-500 hover:underline">+91 {{ $cust->alternate_phone }}</a>
+                                <span class="text-[11px] uppercase tracking-wide text-zinc-400">alt</span>
+                            </div>
+                        @endif
+                        @if ($cust->email)
+                            <div class="flex items-center gap-2 min-w-0">
+                                <flux:icon.envelope variant="micro" class="size-3.5 shrink-0 text-zinc-400" />
+                                <a href="mailto:{{ $cust->email }}" class="truncate text-sm text-zinc-500 hover:underline">{{ $cust->email }}</a>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
+                {{-- The whole address in one block rather than four scattered cells —
+                     it is read as an address, not as separate fields. --}}
+                @php($address = collect([
+                    $cust->primaryAddress?->address_line,
+                    $loc['area'],
+                    $loc['city'],
+                    $loc['state'],
+                    $loc['pincode'],
+                ])->filter()->implode(', '))
+                @if ($address !== '')
+                    <div class="flex items-start gap-2">
+                        <flux:icon.map-pin variant="micro" class="mt-0.5 size-3.5 shrink-0 text-zinc-400" />
+                        <div class="min-w-0">
+                            <dt class="text-[11px] uppercase tracking-wide text-zinc-400">Address</dt>
+                            <dd class="text-sm">{{ $address }}</dd>
+                        </div>
+                    </div>
+                @endif
+
                 <dl class="grid grid-cols-2 gap-x-4 gap-y-2.5">
                     @foreach ([
                         'Customer Type' => $cust->businessType?->name,
                         'GST Type' => $cust->gstType?->name,
-                        'State' => $loc['state'],
-                        'City' => $loc['city'],
-                        'Area' => $loc['area'],
-                        'Zip Code' => $loc['pincode'],
                     ] as $label => $value)
                         @if ($value)
                             <div class="min-w-0">
@@ -40,10 +82,10 @@
                 <div class="text-sm font-medium">{{ trim(($veh->model?->brand?->name ?? '').' '.($veh->model?->name ?? '')) }}</div>
                 <dl class="grid grid-cols-2 gap-x-4 gap-y-2.5">
                     @foreach ([
+                        'Segment' => $veh->model?->vehicleSegment?->name,
                         'Variant' => $veh->variant?->name,
                         'Fuel Type' => $veh->variant?->fuelType?->name,
                         'Transmission' => $veh->variant?->transmissionType?->name,
-                        'Type / Segment' => $veh->model?->vehicleSegment?->name,
                         'Colour' => $veh->color?->name,
                         'Registration Type' => $veh->registrationType?->name,
                     ] as $label => $value)

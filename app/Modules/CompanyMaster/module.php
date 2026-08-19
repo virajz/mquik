@@ -10,6 +10,8 @@ return [
     'permissions' => [
         'company_master.view',
         'company_master.update',
+        // Workshop-wide behaviour settings (see App\Livewire\Settings\Workshop).
+        'company_master.settings',
     ],
     'searchable' => [
         'model' => CompanyMaster::class,

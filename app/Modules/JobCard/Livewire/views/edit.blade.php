@@ -516,20 +516,25 @@
                 {{-- WHAT'S BEEN DONE — the basis for recommending what's due --}}
                 @if ($this->serviceHistory->isNotEmpty())
                     <div>
+                        @php($servicesShown = (int) \App\Support\AppSettings::int('service_history.services_shown', 8))
                         <flux:text size="sm" class="mb-2 font-medium">Last done</flux:text>
                         <div class="space-y-1.5">
-                            @foreach ($this->serviceHistory->take(8) as $s)
-                                @php($months = $s['last_done_at'] ? (int) $s['last_done_at']->diffInMonths(now()) : null)
+                            @foreach ($this->serviceHistory->take($servicesShown) as $s)
                                 <button type="button" wire:click="$set('historySearch', @js($s['service']))"
-                                    class="flex w-full items-center justify-between gap-3 rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-left transition hover:border-mq-orange-500">
-                                    <span class="min-w-0 flex-1 truncate text-sm">{{ \Illuminate\Support\Str::limit($s['service'], 48) }}</span>
+                                    class="flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition hover:border-mq-orange-500 {{ $s['is_due'] ? 'border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20' : 'border-zinc-200 dark:border-zinc-800' }}">
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-sm">{{ \Illuminate\Support\Str::limit($s['service'], 44) }}</span>
+                                        @if ($s['interval'])
+                                            <span class="block text-xs text-zinc-400">every {{ $s['interval'] }}</span>
+                                        @endif
+                                    </span>
                                     <span class="shrink-0 text-xs text-zinc-500">
                                         {{ $s['last_done_at']?->format('d M Y') ?? '—' }}
                                         @if ($s['last_km'])· {{ number_format($s['last_km']) }} km @endif
                                     </span>
-                                    {{-- Overdue-ish hint: a year since it was last done. --}}
-                                    @if ($months !== null && $months >= 12)
-                                        <flux:badge size="sm" color="amber">{{ intdiv($months, 12) }}y ago</flux:badge>
+                                    {{-- Says what is overdue and by how much, rather than just how old it is. --}}
+                                    @if ($s['is_due'])
+                                        <flux:badge size="sm" color="amber">Due · {{ $s['due_reason'] }}</flux:badge>
                                     @elseif ($s['times'] > 1)
                                         <flux:badge size="sm" color="zinc">×{{ $s['times'] }}</flux:badge>
                                     @endif
