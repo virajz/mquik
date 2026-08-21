@@ -3,6 +3,7 @@
 namespace App\Modules\AuthorizationMaster\Livewire;
 
 use App\Models\User;
+use App\Support\Otp\OtpService;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -15,6 +16,11 @@ use Livewire\WithPagination;
 #[Title('Users')]
 class Users extends Component
 {
+    /** Shown only while SMS delivery is mocked — the OTP, never a password. */
+    public ?string $mockCode = null;
+
+    public ?string $mockCodeFor = null;
+
     use WithPagination;
 
     #[Url(as: 'q')]
@@ -130,6 +136,41 @@ class Users extends Component
     public function refreshAfterSave(): void
     {
         // Triggers re-render.
+    }
+
+    /**
+     * Send the user a code to set a new password.
+     *
+     * An admin can trigger a reset but never sees or sets the password — the
+     * user chooses it themselves from the code.
+     */
+    public function sendPasswordReset(int $userId, OtpService $otp): void
+    {
+        $this->authorize('authorization_master.update');
+
+        $user = User::findOrFail($userId);
+
+        if (! $user->phone) {
+            Flux::toast(text: $user->name.' has no phone number on file. Add one first.', variant: 'warning');
+
+            return;
+        }
+
+        $user->forceFill(['must_reset_password' => true])->save();
+
+        $this->mockCode = $otp->issue($user);
+        $this->mockCodeFor = $user->name;
+
+        Flux::toast(
+            text: 'Reset code sent to '.$user->name.' on +91 '.$user->phone.'.',
+            variant: 'success',
+        );
+    }
+
+    public function dismissMockCode(): void
+    {
+        $this->mockCode = null;
+        $this->mockCodeFor = null;
     }
 
     public function render()

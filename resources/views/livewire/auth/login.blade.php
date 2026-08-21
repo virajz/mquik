@@ -37,6 +37,13 @@
                         {{ __('Forgot your password?') }}
                     </flux:link>
                 @endif
+
+        @if (Route::has('password.otp'))
+            <flux:text size="sm" class="mt-2">
+                {{ __('No email access?') }}
+                <flux:link :href="route('password.otp')" wire:navigate>{{ __('Reset with a code sent to your phone') }}</flux:link>
+            </flux:text>
+        @endif
             </div>
 
             <!-- Remember Me -->

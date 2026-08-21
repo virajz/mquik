@@ -32,6 +32,17 @@
     </div>
 
     {{-- Table --}}
+    @if ($mockCode)
+        <flux:callout variant="warning" icon="beaker" heading="SMS is mocked in this environment" class="mb-4">
+            <div class="mt-2 flex flex-wrap items-center gap-3">
+                <flux:text size="sm">Code for {{ $mockCodeFor }}:</flux:text>
+                <flux:input value="{{ $mockCode }}" readonly copyable class="w-40"
+                    class:input="font-mono text-center tracking-[0.3em]" />
+                <flux:button size="sm" variant="ghost" wire:click="dismissMockCode">Dismiss</flux:button>
+            </div>
+        </flux:callout>
+    @endif
+
     <flux:table>
         <flux:table.columns>
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">
@@ -43,6 +54,7 @@
             <flux:table.column sortable :sorted="$sortBy === 'email'" :direction="$sortDirection" wire:click="sort('email')">
                 Email
             </flux:table.column>
+            <flux:table.column>Phone</flux:table.column>
             <flux:table.column>Roles</flux:table.column>
             <flux:table.column class="w-24">Status</flux:table.column>
             <flux:table.column class="w-40" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection" wire:click="sort('created_at')">
@@ -62,6 +74,17 @@
 
                     <flux:table.cell class="text-zinc-600 dark:text-zinc-300">
                         {{ $row->email }}
+                    </flux:table.cell>
+
+                    <flux:table.cell class="text-zinc-600 dark:text-zinc-300">
+                        @if ($row->phone)
+                            <a href="tel:{{ $row->phone }}" class="hover:underline">+91 {{ $row->phone }}</a>
+                            @if ($row->must_reset_password)
+                                <flux:badge color="amber" size="sm" class="ml-1">Password not set</flux:badge>
+                            @endif
+                        @else
+                            <span class="text-zinc-400 text-xs">Not set</span>
+                        @endif
                     </flux:table.cell>
 
                     <flux:table.cell>
@@ -94,6 +117,15 @@
                                 wire:click="openManageRoles({{ $row->id }})">
                                 Manage
                             </flux:button>
+
+                            @can('authorization_master.update')
+                                {{-- Sends a code; the user picks their own password.
+                                     An admin never sees or sets one. --}}
+                                <flux:tooltip content="Text them a code to set a new password">
+                                    <flux:button size="sm" variant="ghost" icon="key"
+                                        wire:click="sendPasswordReset({{ $row->id }})" />
+                                </flux:tooltip>
+                            @endcan
 
                             @if ($row->id !== auth()->id() && (auth()->user()->can('authorization_master.update') || auth()->user()->can('authorization_master.delete')))
                                 <flux:dropdown align="end">
@@ -146,7 +178,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
                         <flux:icon.users class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No users yet</div>
                         <flux:text class="mt-1">Users will appear here once they sign up.</flux:text>

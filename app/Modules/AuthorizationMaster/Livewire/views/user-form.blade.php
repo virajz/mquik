@@ -1,89 +1,79 @@
 <div>
-    <flux:modal name="authorization-master-user-form" :dismissible="false" class="md:w-2xl">
-        <form wire:submit="save" class="space-y-5">
-            <div>
-                <flux:heading size="lg">New User</flux:heading>
-                <flux:subheading>
-                    Admin-created users skip email verification. Share the temporary password securely; the user can change it from their profile after first login.
-                </flux:subheading>
+    <flux:modal name="authorization-master-user-form" :dismissible="false" class="md:w-lg">
+        @if ($createdNotice)
+            {{-- No password here on purpose: the user sets their own via a code
+                 sent to their phone. Nobody, including an admin, sees a password. --}}
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">User created</flux:heading>
+                    <flux:subheading>
+                        A verification code has been sent to +91 {{ $createdFor }}. They use it to set their own
+                        password — nothing needs to be shared by you.
+                    </flux:subheading>
+                </div>
+
+                @if ($mockCode)
+                    <flux:callout variant="warning" icon="beaker" heading="SMS is mocked in this environment">
+                        <div class="mt-2 space-y-2">
+                            <flux:text size="sm">The code that would have been texted:</flux:text>
+                            <flux:input value="{{ $mockCode }}" readonly copyable
+                                class:input="font-mono text-lg tracking-[0.3em] text-center" />
+                            <flux:text size="sm" class="text-zinc-500">
+                                It is also in the application log. Once a real SMS gateway is connected this box disappears.
+                            </flux:text>
+                        </div>
+                    </flux:callout>
+                @endif
+
+                <div class="flex justify-end">
+                    <flux:button variant="primary" icon="check" wire:click="dismissNotice">Done</flux:button>
+                </div>
             </div>
+        @else
+            <form wire:submit="save" class="space-y-5">
+                <div>
+                    <flux:heading size="lg">New user</flux:heading>
+                    <flux:subheading>
+                        They set their own password using a code sent to their phone. You never handle a password.
+                    </flux:subheading>
+                </div>
 
-            <flux:separator variant="subtle" />
+                <flux:separator variant="subtle" />
 
-            @if ($createdNotice)
-                <flux:callout color="lime" icon="check-circle">
-                    <flux:callout.heading>User created</flux:callout.heading>
-                    <flux:callout.text>
-                        Hand the user this <strong>temporary password</strong>. It won't be shown again.
-                    </flux:callout.text>
-                    <div class="mt-3">
-                        <flux:input
-                            value="{{ $createdPassword }}"
-                            readonly
-                            copyable
-                            class:input="font-mono tracking-wide"
-                        />
-                    </div>
-                    <x-slot name="actions">
-                        <flux:button size="sm" wire:click="dismissNotice">Done</flux:button>
-                    </x-slot>
-                </flux:callout>
-            @else
-                <div class="space-y-4">
-                    <flux:input
-                        wire:model="name"
-                        label="Name"
-                        placeholder="e.g. Ravi Sharma"
-                        required
-                        autofocus
-                    />
+                <flux:input wire:model="name" label="Name" placeholder="Full name" required autofocus />
 
-                    <flux:input
-                        wire:model="email"
-                        type="email"
-                        label="Email"
-                        placeholder="ravi@workshop.com"
-                        icon="envelope"
-                        required
-                    />
+                <flux:input wire:model="email" type="email" label="Email" placeholder="name@workshop.com"
+                    icon="envelope" required />
 
-                    <flux:field>
-                        <flux:label>Temporary Password</flux:label>
-                        <flux:input.group>
-                            <flux:input
-                                wire:model="password"
-                                placeholder="Leave blank to auto-generate"
-                                class:input="font-mono tracking-wide"
-                            />
-                            <flux:button icon="arrow-path" wire:click="regeneratePassword" type="button">
-                                Generate
-                            </flux:button>
-                        </flux:input.group>
-                        <flux:description>
-                            Min 8 characters. If blank we'll generate a 12-char password and show it on save.
-                        </flux:description>
-                        <flux:error name="password" />
-                    </flux:field>
+                <flux:field>
+                    <flux:label>Phone</flux:label>
+                    <flux:input.group>
+                        <flux:input.group.prefix>+91</flux:input.group.prefix>
+                        <flux:input wire:model="phone" mask="99999 99999" inputmode="numeric" placeholder="98765 43210" />
+                    </flux:input.group>
+                    <flux:description>The verification code is sent here.</flux:description>
+                    <flux:error name="phone" />
+                </flux:field>
 
-                    <flux:select
-                        wire:model="selectedRoles"
-                        label="Roles"
-                        variant="listbox"
-                        multiple
-                        searchable
-                        placeholder="No roles assigned"
-                    >
+                <flux:field>
+                    <flux:label>Roles</flux:label>
+                    <flux:checkbox.group wire:model="selectedRoles" class="grid grid-cols-2 gap-2">
                         @foreach ($roles as $role)
-                            <flux:select.option :value="$role->id">{{ $role->name }}</flux:select.option>
+                            <flux:checkbox :value="$role->id" :label="$role->name" wire:key="role-{{ $role->id }}" />
                         @endforeach
-                    </flux:select>
-                </div>
+                    </flux:checkbox.group>
+                    <flux:error name="selectedRoles" />
+                </flux:field>
 
-                <div class="flex justify-end gap-2 pt-2">
-                    <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
-                    <flux:button type="submit" variant="primary" icon="user-plus">Create user</flux:button>
+                <flux:separator variant="subtle" />
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Create user</flux:button>
                 </div>
-            @endif
-        </form>
+            </form>
+        @endif
     </flux:modal>
 </div>
