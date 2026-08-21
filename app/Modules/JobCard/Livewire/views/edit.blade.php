@@ -207,7 +207,9 @@
                             <flux:text size="sm" class="mt-1 text-zinc-500">Specific miscellaneous jobs the customer asked for, beyond the complaints above.</flux:text>
                         </div>
                         <div class="space-y-2 min-w-0">
-                            <flux:select wire:model="requestedRepairIds" variant="listbox" multiple searchable placeholder="Pick requested repairs…" clearable>
+                            <flux:select wire:model="requestedRepairIds" variant="listbox" multiple searchable clearable
+                                :placeholder="$workshop_department_id ? 'Pick requested repairs…' : 'Pick a department first'"
+                                :disabled="! $workshop_department_id">
                                 @foreach ($this->requestedRepairOptions as $rr)
                                     <flux:select.option :value="$rr->id" wire:key="rr-{{ $rr->id }}">{{ $rr->name }}</flux:select.option>
                                 @endforeach

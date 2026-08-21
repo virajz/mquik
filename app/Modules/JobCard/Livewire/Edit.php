@@ -19,6 +19,7 @@ use App\Modules\JobCard\Models\JobCardInventoryItem;
 use App\Modules\JobCard\Models\JobCardPhoto;
 use App\Modules\JobCardPendingReasonMaster\Models\JobCardPendingReasonMaster;
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
@@ -614,6 +615,123 @@ class Edit extends Component
     }
 
     /**
+     * Advisors and technicians for the picked department.
+     *
+     * Both lists are now hard filters: the department a job card routes to is
+     * linked to the HR department staff belong to, so this is a real join rather
+     * than a name comparison, and showing people from other departments only
+     * invites picking the wrong one.
+     *
+     * @return array{advisors: Collection, technicians: Collection}
+     */
+    #[Computed]
+    public function employeesByDepartment(): array
+    {
+        $empty = ['advisors' => collect(), 'technicians' => collect()];
+
+        if (! $this->workshop_department_id) {
+            return $empty;
+        }
+
+        $departmentId = WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('department_id');
+
+        if (! $departmentId) {
+            return $empty;
+        }
+
+        $staff = EmployeeMaster::query()
+            ->where('is_active', true)
+            ->where('department_id', $departmentId)
+            ->with('designation:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'designation_id']);
+
+        $designation = fn ($e) => mb_strtoupper((string) $e->designation?->name);
+
+        return [
+            'advisors' => $staff->filter(fn ($e) => str_contains($designation($e), 'ADVISOR'))->values(),
+            'technicians' => $staff->filter(fn ($e) => $designation($e) === 'TECHNICIAN')->values(),
+        ];
+    }
+
+    /**
+     * Service types belonging to the picked department.
+     *
+     * `service_types.workshop_department_id` is a real link, so this filters
+     * strictly — nothing from another department is offered.
+     */
+    #[Computed]
+    public function serviceTypesForDepartment()
+    {
+        if (! $this->workshop_department_id) {
+            return collect();
+        }
+
+        return ServiceTypeMaster::query()
+            ->where('is_active', true)
+            ->where('workshop_department_id', $this->workshop_department_id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Stage name for the read-only routing summary. */
+    #[Computed]
+    public function currentStageName(): ?string
+    {
+        return $this->current_stage_id
+            ? JobStageMaster::whereKey($this->current_stage_id)->value('name')
+            : null;
+    }
+
+    #[Computed]
+    public function pendingReasonName(): ?string
+    {
+        return $this->pending_reason_id
+            ? JobCardPendingReasonMaster::whereKey($this->pending_reason_id)->value('name')
+            : null;
+    }
+
+    /**
+     * When the current pending reason was set.
+     *
+     * Taken from the history event rather than a column, so "on hold since" is
+     * the same fact the timeline shows and cannot drift from it.
+     */
+    #[Computed]
+    public function pendingSince(): ?string
+    {
+        if (! $this->editingId || ! $this->pending_reason_id) {
+            return null;
+        }
+
+        return JobCardHistoryEvent::query()
+            ->where('job_card_id', $this->editingId)
+            ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)
+            ->latest('occurred_at')
+            ->value('occurred_at')
+            ?->format('d M Y, h:i A');
+    }
+
+    /**
+     * Department drives the three fields under it, so changing it clears them.
+     *
+     * Leaving a stale advisor or service type from the previous department is
+     * exactly the error this ordering is meant to prevent.
+     */
+    public function updatedWorkshopDepartmentId(): void
+    {
+        $this->service_type_id = null;
+        $this->assigned_advisor_id = null;
+        $this->assigned_technician_id = null;
+
+        unset($this->employeesByDepartment, $this->serviceTypesForDepartment, $this->requestedRepairOptions);
+
+        // Drop any repair the new department does not offer.
+        $allowed = $this->requestedRepairOptions->pluck('id')->all();
+        $this->requestedRepairIds = array_values(array_intersect($this->requestedRepairIds, $allowed));
+    }
+
+    /**
      * Digital inspections already raised for this job card (for the in-context link).
      */
     #[Computed]
@@ -751,11 +869,25 @@ class Edit extends Component
         return DamageTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
+    /**
+     * Requested repairs offered by the card's department.
+     *
+     * Strictly what is assigned: a repair with no department appears nowhere,
+     * so a new one has to be placed deliberately rather than quietly showing up
+     * on every department's card.
+     */
     #[Computed]
     public function requestedRepairOptions()
     {
+        if (! $this->workshop_department_id) {
+            return collect();
+        }
+
         return RequestedRepairMaster::query()
-            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+            ->where('is_active', true)
+            ->whereHas('workshopDepartments', fn ($d) => $d->where('workshop_departments.id', $this->workshop_department_id))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     /**
@@ -901,6 +1033,12 @@ class Edit extends Component
 
         $data['opened_at'] = Carbon::parse($data['opened_date'].' '.$data['opened_time'].':00');
         unset($data['opened_date'], $data['opened_time']);
+
+        // Stamped when the card is opened and never moved by a later edit — the
+        // form shows it read-only, and this is what enforces it server-side.
+        if ($this->editingId) {
+            unset($data['opened_at']);
+        }
         if (! empty($data['promised_date']) && ! empty($data['promised_time'])) {
             $data['promised_at'] = Carbon::parse($data['promised_date'].' '.$data['promised_time'].':00');
         } else {

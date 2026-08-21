@@ -3,6 +3,7 @@
 namespace App\Modules\AuthorizationMaster\Livewire;
 
 use App\Models\User;
+use App\Support\Otp\OtpService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -17,21 +18,29 @@ class UserForm extends Component
 
     public string $email = '';
 
-    public string $password = '';
+    public string $phone = '';
 
     /** @var array<int, int> */
     public array $selectedRoles = [];
 
-    public ?string $createdPassword = null;
+    /**
+     * Shown once after creation only when OTP delivery is mocked — it is the
+     * code, not the password. Nobody is ever shown a password.
+     */
+    public ?string $mockCode = null;
 
     public bool $createdNotice = false;
+
+    public ?string $createdFor = null;
 
     protected function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['nullable', 'string', 'min:8', 'max:255'],
+            // The number is how the account is verified, so it has to be there
+            // and it has to be unique.
+            'phone' => ['required', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')],
             'selectedRoles' => ['array'],
             'selectedRoles.*' => ['integer', Rule::exists('roles', 'id')],
         ];
@@ -44,52 +53,44 @@ class UserForm extends Component
         $this->resetErrorBag();
     }
 
-    public function regeneratePassword(): void
-    {
-        $this->password = $this->generatePassword();
-    }
-
-    public function save(): void
+    public function save(OtpService $otp): void
     {
         $this->authorize('authorization_master.create');
 
         $data = $this->validate();
 
-        $plainPassword = $data['password'] !== '' ? $data['password'] : $this->generatePassword();
-
         $user = User::create([
             'name' => $data['name'],
-            'email' => strtolower($data['email']),
-            'password' => Hash::make($plainPassword),
+            'email' => mb_strtolower($data['email']),
+            'phone' => preg_replace('/\D/', '', $data['phone']),
+            // A throwaway nobody sees or needs: the user sets their own via the
+            // reset flow before they can do anything.
+            'password' => Hash::make(Str::password(32)),
+            'must_reset_password' => true,
         ]);
-        // Admin-created users skip the email verification round-trip. `email_verified_at`
-        // isn't in the User #[Fillable] list, so set it explicitly.
+
+        // Admin-created users skip the email verification round-trip.
         $user->forceFill(['email_verified_at' => now()])->save();
 
         if (! empty($data['selectedRoles'])) {
-            $roleNames = Role::query()->whereIn('id', $data['selectedRoles'])->pluck('name')->all();
-            $user->syncRoles($roleNames);
+            $user->syncRoles(Role::query()->whereIn('id', $data['selectedRoles'])->pluck('name')->all());
         }
 
-        $this->createdPassword = $plainPassword;
+        // Send them a code to set their own password with.
+        $this->mockCode = $otp->issue($user);
+        $this->createdFor = $user->phone;
         $this->createdNotice = true;
 
-        Flux::toast(
-            text: 'User '.$user->name.' created. Share the temporary password securely.',
-            variant: 'success',
-        );
-
-        // Don't dispatch the parent-refresh event yet — that re-renders Users.php and would
-        // reset this component's state, hiding the password before the admin can copy it.
-        // Defer the refresh to dismissNotice() which fires when the admin clicks Done.
+        Flux::toast(text: 'User created. They have been sent a code to set their password.', variant: 'success');
     }
 
     public function dismissNotice(): void
     {
         $this->createdNotice = false;
-        $this->createdPassword = null;
+        $this->mockCode = null;
+        $this->createdFor = null;
         $this->resetForm();
-        $this->dispatch('authorization-master:user-created'); // refresh Users table now
+        $this->dispatch('authorization-master:user-created');
         Flux::modal('authorization-master-user-form')->close();
     }
 
@@ -97,16 +98,11 @@ class UserForm extends Component
     {
         $this->name = '';
         $this->email = '';
-        $this->password = '';
+        $this->phone = '';
         $this->selectedRoles = [];
-        $this->createdPassword = null;
+        $this->mockCode = null;
+        $this->createdFor = null;
         $this->createdNotice = false;
-    }
-
-    protected function generatePassword(): string
-    {
-        // 12 chars, mixed case + digits + a symbol — easy to read aloud, hard to guess.
-        return Str::password(length: 12, letters: true, numbers: true, symbols: false);
     }
 
     public function render()

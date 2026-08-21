@@ -1,5 +1,5 @@
 <div>
-    <flux:modal name="requested-repair-master-form" :dismissible="false" class="md:w-md">
+    <flux:modal name="requested-repair-master-form" :dismissible="false" class="md:w-lg">
         <form wire:submit="save" class="space-y-5">
             <div>
                 <flux:heading size="lg">
@@ -32,6 +32,16 @@
                         class:input="font-mono uppercase tracking-wide"
                     />
                 </div>
+
+                {{-- Which departments offer this repair. Left empty it stays
+                     available everywhere, which is how existing rows behave. --}}
+                <flux:select wire:model="workshopDepartmentIds" variant="listbox" multiple searchable clearable
+                    label="Departments" placeholder="All departments"
+                    description="Only these departments offer this repair on a job card. Leave blank to show it in all.">
+                    @foreach ($this->workshopDepartments as $d)
+                        <flux:select.option :value="$d->id" wire:key="wd-{{ $d->id }}">{{ $d->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
 
                 <flux:textarea
                     wire:model="notes"

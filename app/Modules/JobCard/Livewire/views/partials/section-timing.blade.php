@@ -6,30 +6,52 @@
     </div>
     <div class="space-y-4 min-w-0">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <flux:date-picker wire:model="opened_date" label="Opened Date" placeholder="Today" with-today selectable-header fixed-weeks type="input" />
-            <flux:time-picker wire:model="opened_time" label="Opened Time" placeholder="Now" type="input" />
+            {{-- Fixed: when the card was opened is a fact, stamped once. Only the
+                 promise and the expected completion are the advisor's to move. --}}
+            <flux:field>
+                <flux:label>Opened Date</flux:label>
+                <flux:input :value="\Illuminate\Support\Carbon::parse($opened_date)->format('d M Y')" readonly class:input="text-zinc-500" />
+            </flux:field>
+            <flux:field>
+                <flux:label>Opened Time</flux:label>
+                <flux:input :value="$opened_time" readonly class:input="text-zinc-500 font-mono" />
+                <flux:description>Recorded automatically — cannot be changed.</flux:description>
+            </flux:field>
             <flux:date-picker wire:model="promised_date" label="Promised Date" placeholder="Tomorrow" with-today selectable-header fixed-weeks type="input" />
             <flux:time-picker wire:model="promised_time" label="Promised Time" type="input" />
-            @unless ($lean)
-                <flux:date-picker wire:model="expected_completion_date" label="Expected Completion Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
-                <flux:time-picker wire:model="expected_completion_time" label="Expected Completion Time" type="input" />
-            @endunless
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <flux:select wire:model="workshop_department_id" variant="listbox" searchable label="Department" placeholder="Pick a department…" required>
+        {{-- Routing runs in the order the desk works it: department, then what
+             kind of job, then who owns it, then who does it. --}}
+        @php($staff = $this->employeesByDepartment)
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <flux:select wire:model.live="workshop_department_id" variant="listbox" searchable label="1. Department" placeholder="Pick a department…" required>
                 @foreach ($this->workshopDepartments as $d)
                     <flux:select.option :value="$d->id" wire:key="wd-{{ $d->id }}">{{ $d->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="assigned_advisor_id" variant="listbox" searchable label="Advisor" placeholder="Pick an advisor…" required>
-                @foreach ($this->employees as $e)
+
+            <flux:select wire:model="service_type_id" variant="listbox" searchable clearable label="2. Service Type"
+                :placeholder="$workshop_department_id ? 'Pick a service type…' : 'Pick a department first'"
+                :disabled="! $workshop_department_id">
+                @foreach ($this->serviceTypesForDepartment as $st)
+                    <flux:select.option :value="$st->id" wire:key="st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+
+            <flux:select wire:model="assigned_advisor_id" variant="listbox" searchable label="3. Advisor"
+                :placeholder="$workshop_department_id ? 'Pick an advisor…' : 'Pick a department first'"
+                :disabled="! $workshop_department_id" required>
+                @foreach ($staff['advisors'] as $e)
                     <flux:select.option :value="$e->id" wire:key="adv-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                 @endforeach
             </flux:select>
+
             <div>
-                <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="Technician" placeholder="Auto-assign later or pick now…">
-                    @foreach ($this->employees as $e)
+                <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="4. Technician"
+                    :placeholder="$workshop_department_id ? 'Auto-assign later or pick now…' : 'Pick a department first'"
+                    :disabled="! $workshop_department_id">
+                    @foreach ($staff['technicians'] as $e)
                         <flux:select.option :value="$e->id" wire:key="tech-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                     @endforeach
                 </flux:select>
@@ -37,43 +59,51 @@
                     <flux:text size="sm" class="mt-1 text-zinc-500"><flux:icon.clock class="inline size-3 -mt-0.5" /> Assigned {{ $technician_assigned_at }}</flux:text>
                 @endif
             </div>
+            @if ($workshop_department_id && $staff['advisors']->isEmpty())
+                <div class="md:col-span-2">
+                    <flux:text size="sm" class="text-amber-600 dark:text-amber-500">
+                        No advisors are attached to this department yet — set their department on the Employees master.
+                    </flux:text>
+                </div>
+            @endif
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <flux:select wire:model="service_type_id" variant="listbox" searchable clearable label="Service Type" placeholder="Pick a service type…">
-                @foreach ($this->serviceTypes as $st)
-                    <flux:select.option :value="$st->id" wire:key="st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:select wire:model="service_package_id" variant="listbox" searchable clearable label="Service Package" placeholder="None / Combo / AMC">
-                @foreach ($this->servicePackages as $sp)
-                    <flux:select.option :value="$sp->id" wire:key="sp-{{ $sp->id }}">{{ $sp->name }}{{ $sp->is_amc ? ' (AMC)' : '' }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:select wire:model="job_description_id" variant="listbox" searchable clearable label="Job Type / Description" placeholder="Standard job description…">
-                @foreach ($this->jobDescriptions as $jd)
-                    <flux:select.option :value="$jd->id" wire:key="jd-{{ $jd->id }}">{{ $jd->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-        </div>
-
+        {{-- Status, stage and pending reason are job-history facts: they move as
+             work happens and each change is already timestamped on the timeline,
+             so they are shown here rather than typed. --}}
         @unless ($lean)
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <flux:select wire:model="status" variant="listbox" label="Status" required>
-                    @foreach (\App\Modules\JobCard\Models\JobCard::statuses() as $key => $label)
-                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:select wire:model="current_stage_id" variant="listbox" searchable clearable label="Stage" placeholder="Lifecycle stage…">
-                    @foreach ($this->jobStages as $stage)
-                        <flux:select.option :value="$stage->id" wire:key="stg-{{ $stage->id }}">{{ $stage->name }} ({{ ucfirst($stage->track) }})</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:select wire:model="pending_reason_id" variant="listbox" searchable clearable label="Pending Reason" placeholder="If on hold…">
-                    @foreach ($this->pendingReasons as $pr)
-                        <flux:select.option :value="$pr->id" wire:key="pr-{{ $pr->id }}">{{ $pr->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                        <div>
+                            <dt class="text-[11px] uppercase tracking-wide text-zinc-400">Status</dt>
+                            <dd class="mt-0.5">
+                                <flux:badge size="sm" :color="match ($status) {
+                                    'open' => 'amber', 'in_progress' => 'blue', 'awaiting_parts' => 'sky',
+                                    'awaiting_approval' => 'purple', 'completed' => 'lime', 'closed' => 'zinc',
+                                    'cancelled' => 'red', default => 'zinc',
+                                }">{{ \App\Modules\JobCard\Models\JobCard::statuses()[$status] ?? $status }}</flux:badge>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-[11px] uppercase tracking-wide text-zinc-400">Stage</dt>
+                            <dd class="mt-0.5 text-sm font-medium">{{ $this->currentStageName ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[11px] uppercase tracking-wide text-zinc-400">Pending Reason</dt>
+                            <dd class="mt-0.5 text-sm font-medium">
+                                {{ $this->pendingReasonName ?? '—' }}
+                                @if ($this->pendingSince)
+                                    <span class="text-xs text-zinc-500">· since {{ $this->pendingSince }}</span>
+                                @endif
+                            </dd>
+                        </div>
+                    </div>
+                    @if ($editingId)
+                        <flux:button size="sm" variant="ghost" icon="clock"
+                            :href="route('job-history.show', $editingId)" wire:navigate>History</flux:button>
+                    @endif
+                </div>
             </div>
         @endunless
     </div>

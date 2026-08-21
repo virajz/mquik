@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Support\Otp\MockOtpSender;
+use App\Support\Otp\OtpSender;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Mocked for now. Swapping in a real gateway is this one binding — and
+        // a live sender returns null, which is what stops codes being shown.
+        $this->app->bind(OtpSender::class, MockOtpSender::class);
+
         //
     }
 

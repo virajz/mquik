@@ -4,6 +4,21 @@
         <flux:text size="sm" class="mt-1 text-zinc-500">What the customer reported. One row per distinct complaint.</flux:text>
     </div>
     <div class="space-y-3 min-w-0">
+        {{-- Moved here from Timing & Routing: a package and a job description
+             describe the work, which is what this section is about. --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <flux:select wire:model="service_package_id" variant="listbox" searchable clearable label="Service Package" placeholder="None / Combo / AMC">
+                @foreach ($this->servicePackages as $sp)
+                    <flux:select.option :value="$sp->id" wire:key="sp-{{ $sp->id }}">{{ $sp->name }}{{ $sp->is_amc ? ' (AMC)' : '' }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:select wire:model="job_description_id" variant="listbox" searchable clearable label="Job Type / Description" placeholder="Standard job description…">
+                @foreach ($this->jobDescriptions as $jd)
+                    <flux:select.option :value="$jd->id" wire:key="jd-{{ $jd->id }}">{{ $jd->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+
         <div class="flex justify-end">
             <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addComplaint">Add complaint</flux:button>
         </div>

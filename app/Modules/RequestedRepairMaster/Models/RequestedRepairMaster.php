@@ -5,8 +5,10 @@ namespace App\Modules\RequestedRepairMaster\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\RequestedRepairMaster\Database\Factories\RequestedRepairMasterFactory;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class RequestedRepairMaster extends Model
 {
@@ -27,5 +29,18 @@ class RequestedRepairMaster extends Model
     protected static function newFactory(): RequestedRepairMasterFactory
     {
         return RequestedRepairMasterFactory::new();
+    }
+
+    /**
+     * Departments this repair is offered in. Empty means "all".
+     */
+    public function workshopDepartments(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            WorkshopDepartmentMaster::class,
+            'requested_repair_workshop_department',
+            'requested_repair_id',
+            'workshop_department_id',
+        )->withTimestamps();
     }
 }
