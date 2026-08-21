@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
  *   - emits a success toast
  *
  * Special-case fields (e.g. RegionMaster needs `kind`) go through `$defaults`.
+ * Where a name is only unique within a parent (a city name repeats across states),
+ * pass those columns in `$matchOn` so the lookup is scoped rather than global.
  */
 trait HasQuickCreate
 {
@@ -31,6 +33,7 @@ trait HasQuickCreate
      *
      * @param  class-string<Model>  $modelClass
      * @param  array<string, mixed>  $defaults  attributes set when creating a fresh row
+     * @param  array<string, mixed>  $matchOn  extra columns that scope the lookup (merged into both the match and the insert)
      * @param  bool  $appendToList  when true, target property is treated as a list and the new id is appended (deduped). Use for multi-select pickers.
      */
     protected function quickCreate(
@@ -42,6 +45,7 @@ trait HasQuickCreate
         string $column = 'name',
         ?string $label = null,
         bool $appendToList = false,
+        array $matchOn = [],
     ): bool {
         $this->authorize($permission);
 
@@ -51,7 +55,7 @@ trait HasQuickCreate
         }
 
         /** @var Model $record */
-        $record = $modelClass::firstOrCreate([$column => $value], $defaults);
+        $record = $modelClass::firstOrCreate([$column => $value] + $matchOn, $defaults + $matchOn);
 
         if ($appendToList) {
             $current = (array) ($this->{$targetProperty} ?? []);

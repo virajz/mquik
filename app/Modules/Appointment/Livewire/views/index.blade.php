@@ -53,6 +53,7 @@
             <flux:table.column class="w-32">Channel</flux:table.column>
             <flux:table.column class="w-24">Priority</flux:table.column>
             <flux:table.column class="w-32" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
+            <flux:table.column class="w-40">Pending Reason</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
@@ -109,6 +110,16 @@
                         })
                         <flux:badge :color="$statusColor" size="sm">{{ $row->effectiveStatusLabel() }}</flux:badge>
                     </flux:table.cell>
+
+                    {{-- Only meaningful while a booking is pending — why it is stuck
+                         is the thing a coordinator scans this list for. --}}
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if ($row->status === \App\Modules\Appointment\Models\Appointment::STATUS_PENDING)
+                            {{ $row->pendingReason?->name ?? 'Not specified' }}
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('job_card.create')
@@ -144,7 +155,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
                         <flux:icon.calendar-days class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No appointments yet</div>
                         <flux:text class="mt-1">Booking from app, website, email, or phone — they all land here.</flux:text>

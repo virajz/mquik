@@ -18,6 +18,7 @@ use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
+use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
@@ -121,6 +122,18 @@ class Appointment extends Model
     public function pickupAddress(): BelongsTo
     {
         return $this->belongsTo(CustomerAddress::class, 'pickup_address_id');
+    }
+
+    /** Leaf region (usually an area) of the collection address. */
+    public function pickupRegion(): BelongsTo
+    {
+        return $this->belongsTo(RegionMaster::class, 'pickup_region_id');
+    }
+
+    /** Leaf region of the return address. */
+    public function dropRegion(): BelongsTo
+    {
+        return $this->belongsTo(RegionMaster::class, 'drop_region_id');
     }
 
     /** The pickup address resolved live from the linked saved address, else the free-text snapshot. */

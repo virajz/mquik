@@ -44,10 +44,10 @@
                     </flux:callout>
                 @endif
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:date-picker
                         wire:model.live="appointment_date"
-                        label="Date"
+                        label="Appointment Date"
                         placeholder="Select date"
                         with-today
                         selectable-header
@@ -56,17 +56,10 @@
                     />
                     <flux:time-picker
                         wire:model="appointment_time"
-                        label="Time"
+                        label="Appointment Time"
                         placeholder="Select time"
                         type="input"
                     />
-                    <flux:select wire:model.live="time_slot_id" variant="listbox" label="Time Slot" placeholder="No specific slot">
-                        @foreach ($this->timeSlots as $slot)
-                            <flux:select.option :value="$slot['id']" wire:key="slot-{{ $slot['id'] }}">
-                                {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -228,6 +221,66 @@
                     @endforeach
                 </flux:select>
 
+                {{-- Distance drives the slab, and the slab quotes the charge —
+                     same mechanic as the PickupDrop job, asked once here so the
+                     coordinator can price the trip while the customer is on the
+                     line. The charge stays editable; a slab is a default price. --}}
+                @if ($this->optionInvolvesPickup() || $this->optionInvolvesDrop())
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <flux:input type="number" step="0.01" min="0"
+                            wire:model.live.debounce.500ms="distance_km"
+                            label="Distance (KM)" placeholder="12" />
+
+                        <flux:select wire:model="distance_slab_id" variant="listbox" clearable
+                            label="Distance Slab" placeholder="Auto from distance">
+                            @foreach ($this->distanceSlabs as $slab)
+                                <flux:select.option :value="$slab->id" wire:key="dslab-{{ $slab->id }}">
+                                    {{ $slab->name }} · ₹{{ number_format((float) $slab->charge_amount, 2) }}
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+
+                        <flux:field>
+                            <flux:label>Pickup / Drop Charge</flux:label>
+                            <flux:input.group>
+                                <flux:input.group.prefix>₹</flux:input.group.prefix>
+                                <flux:input wire:model="distance_charge" inputmode="decimal" placeholder="200.00" />
+                            </flux:input.group>
+                            <flux:description>Filled from the slab — override if agreed otherwise.</flux:description>
+                            <flux:error name="distance_charge" />
+                        </flux:field>
+                    </div>
+                @endif
+
+                {{-- Slots belong to the legs the workshop actually drives, so they
+                     live here rather than in Booking, and each appears only when
+                     its leg is part of the chosen option. --}}
+                @if ($this->optionInvolvesPickup() || $this->optionInvolvesDrop())
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        @if ($this->optionInvolvesPickup())
+                            <flux:select wire:model.live="time_slot_id" variant="listbox"
+                                label="Pickup Time Slot" placeholder="No specific slot">
+                                @foreach ($this->timeSlots as $slot)
+                                    <flux:select.option :value="$slot['id']" wire:key="pslot-{{ $slot['id'] }}">
+                                        {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                                    </flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        @endif
+
+                        @if ($this->optionInvolvesDrop())
+                            <flux:select wire:model.live="drop_time_slot_id" variant="listbox"
+                                label="Drop Time Slot" placeholder="No specific slot">
+                                @foreach ($this->timeSlots as $slot)
+                                    <flux:select.option :value="$slot['id']" wire:key="dslot-{{ $slot['id'] }}">
+                                        {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                                    </flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        @endif
+                    </div>
+                @endif
+
                 @if ($this->optionInvolvesPickup())
                     @if ($this->customerAddresses->isNotEmpty())
                         <flux:select wire:model.live="pickup_address_choice" variant="listbox" label="Saved address">
@@ -248,6 +301,8 @@
                         required
                     />
 
+                    @include('appointment::_region_pickers', ['leg' => 'pickup'])
+
                     <flux:field>
                         <flux:label>Pickup Contact Phone</flux:label>
                         <flux:input.group>
@@ -261,6 +316,45 @@
                         </flux:input.group>
                         <flux:description>Defaults to the customer's phone if blank.</flux:description>
                         <flux:error name="pickup_contact_phone" />
+                    </flux:field>
+                @endif
+
+                {{-- DROP ADDRESS — a car collected from home is often returned to an
+                     office, so this is captured separately rather than assumed. --}}
+                @if ($this->optionInvolvesDrop())
+                    <flux:separator variant="subtle" />
+
+                    @if ($this->customerAddresses->isNotEmpty())
+                        <flux:select wire:model.live="drop_address_choice" variant="listbox" label="Saved address">
+                            @foreach ($this->customerAddresses as $addr)
+                                <flux:select.option :value="(string) $addr['id']" wire:key="daddr-{{ $addr['id'] }}">
+                                    {{ $addr['label'] ?: 'Address' }}{{ $addr['is_primary'] ? ' · primary' : '' }}
+                                </flux:select.option>
+                            @endforeach
+                            <flux:select.option value="custom">Somewhere else…</flux:select.option>
+                        </flux:select>
+                    @endif
+
+                    <flux:textarea
+                        wire:model.live.debounce.500ms="drop_address"
+                        label="{{ $this->customerAddresses->isNotEmpty() && $drop_address_choice !== 'custom' ? 'Drop Address (preview — edit if needed)' : 'Drop Address' }}"
+                        placeholder="Where the vehicle should be returned"
+                        rows="2"
+                        required
+                    />
+                    <flux:error name="drop_address" />
+
+                    @include('appointment::_region_pickers', ['leg' => 'drop'])
+
+                    <flux:field>
+                        <flux:label>Drop Contact Phone</flux:label>
+                        <flux:input.group>
+                            <flux:input.group.prefix>+91</flux:input.group.prefix>
+                            <flux:input wire:model="drop_contact_phone" mask="99999 99999"
+                                placeholder="98765 43210" inputmode="numeric" />
+                        </flux:input.group>
+                        <flux:description>Defaults to the customer's phone if blank.</flux:description>
+                        <flux:error name="drop_contact_phone" />
                     </flux:field>
                 @endif
             </div>

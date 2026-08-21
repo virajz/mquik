@@ -145,6 +145,7 @@ class Index extends Component
                 'timeSlot:id,name,slot_start_time,slot_end_time',
                 'priority:id,name',
                 'pickupDropOption:id,name',
+                'pendingReason:id,name',
                 // Driver stages are derived from the linked Pickup/Drop job.
                 'pickupDrops:id,appointment_id,status,driver_employee_id',
             ])

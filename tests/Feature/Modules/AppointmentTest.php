@@ -9,10 +9,12 @@ use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\HolidayMaster\Models\HolidayMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Livewire\Features\SupportTesting\Testable;
@@ -418,4 +420,160 @@ it('finds a customer beyond the first page via server-side search', function () 
     // Searching by name reaches it too.
     $component->set('customerSearch', 'Zoravar');
     expect(collect($component->get('customers'))->pluck('id'))->toContain($target->id);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Address regions + trip distance
+|--------------------------------------------------------------------------
+*/
+
+/** An option that involves both legs, so pickup and drop fields are both live. */
+function bothLegsOption(): PickupDropOptionMaster
+{
+    return PickupDropOptionMaster::firstOrCreate(
+        ['name' => 'PICKUP AND DROP BOTH'],
+        ['involves_pickup' => true, 'involves_drop' => true, 'is_active' => true],
+    );
+}
+
+function state(string $name): RegionMaster
+{
+    return RegionMaster::firstOrCreate(['kind' => 'state', 'name' => $name], ['is_active' => true]);
+}
+
+it('creates a city inline under the chosen state and selects it', function () {
+    $gujarat = state('GUJARAT');
+
+    $component = fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('drop_state_id', $gujarat->id)
+        ->set('dropCitySearch', 'gandhinagar')
+        ->call('createDropCity');
+
+    $city = RegionMaster::find($component->get('drop_city_id'));
+
+    expect($city->name)->toBe('GANDHINAGAR')
+        ->and($city->kind)->toBe('city')
+        ->and($city->parent_id)->toBe($gujarat->id);
+
+    // Picking a city is itself a usable region — the area only refines it.
+    expect($component->get('drop_region_id'))->toBe($city->id);
+});
+
+it('scopes an inline city to its state instead of reusing a same-named one', function () {
+    $gujarat = state('GUJARAT');
+    $maharashtra = state('MAHARASHTRA');
+
+    $make = fn (int $stateId) => fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('drop_state_id', $stateId)
+        ->set('dropCitySearch', 'shirpur')
+        ->call('createDropCity')
+        ->get('drop_city_id');
+
+    $first = $make($gujarat->id);
+    $second = $make($maharashtra->id);
+
+    expect($first)->not->toBe($second)
+        ->and(RegionMaster::where('kind', 'city')->where('name', 'SHIRPUR')->count())->toBe(2);
+});
+
+it('creates an area under the chosen city on the pickup leg', function () {
+    $component = fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('pickup_state_id', state('GUJARAT')->id)
+        ->set('pickupCitySearch', 'surat')
+        ->call('createPickupCity')
+        ->set('pickupAreaSearch', 'vesu')
+        ->call('createPickupArea');
+
+    $area = RegionMaster::find($component->get('pickup_region_id'));
+
+    expect($area->name)->toBe('VESU')
+        ->and($area->kind)->toBe('area')
+        ->and($area->parent->name)->toBe('SURAT');
+});
+
+it('refuses to create a city with no state chosen', function () {
+    $component = fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('dropCitySearch', 'nowhere')
+        ->call('createDropCity');
+
+    expect($component->get('drop_city_id'))->toBeNull()
+        ->and(RegionMaster::where('name', 'NOWHERE')->exists())->toBeFalse();
+});
+
+it('persists the region on both legs', function () {
+    $area = RegionMaster::factory()->create(['kind' => 'area', 'name' => 'BODAKDEV', 'is_active' => true]);
+
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('pickup_address_choice', 'custom')
+        ->set('pickup_address', '12 SOME LANE')
+        ->set('pickup_region_id', $area->id)
+        ->set('drop_address_choice', 'custom')
+        ->set('drop_address', '9 OTHER ROAD')
+        ->set('drop_region_id', $area->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $appointment = Appointment::latest('id')->first();
+
+    expect($appointment->pickup_region_id)->toBe($area->id)
+        ->and($appointment->drop_region_id)->toBe($area->id);
+});
+
+it('resolves the distance slab and quotes its charge', function () {
+    $slab = DistanceSlabMaster::firstOrCreate(
+        ['name' => '6-15 KM'],
+        ['code' => 'T2', 'min_km' => 6, 'max_km' => 15, 'charge_amount' => 300, 'is_active' => true],
+    );
+
+    $component = fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('distance_km', '12');
+
+    expect($component->get('distance_slab_id'))->toBe($slab->id)
+        ->and((float) $component->get('distance_charge'))->toBe(300.0);
+});
+
+it('clears the distance when neither leg is driven', function () {
+    $component = fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('distance_km', '12')
+        ->set('pickup_drop_option_id', pickupOption()->id);
+
+    expect($component->get('distance_km'))->toBeNull()
+        ->and($component->get('distance_slab_id'))->toBeNull()
+        ->and($component->get('distance_charge'))->toBeNull();
+});
+
+it('persists the distance and its charge', function () {
+    DistanceSlabMaster::firstOrCreate(
+        ['name' => '0-5 KM'],
+        ['code' => 'T1', 'min_km' => 0, 'max_km' => 5, 'charge_amount' => 200, 'is_active' => true],
+    );
+
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('pickup_address_choice', 'custom')
+        ->set('pickup_address', '12 SOME LANE')
+        ->set('drop_address_choice', 'custom')
+        ->set('drop_address', '9 OTHER ROAD')
+        ->set('distance_km', '4')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $appointment = Appointment::latest('id')->first();
+
+    expect((float) $appointment->distance_km)->toBe(4.0)
+        ->and((float) $appointment->distance_charge)->toBe(200.0);
+});
+
+it('no longer shows the entry date and time field', function () {
+    $html = Livewire::test(Edit::class)->html();
+
+    expect($html)->not->toContain('Entry Date');
 });

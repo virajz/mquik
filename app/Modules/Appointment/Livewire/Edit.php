@@ -4,6 +4,7 @@ namespace App\Modules\Appointment\Livewire;
 
 use App\Concerns\CanQuickAddCustomer;
 use App\Concerns\SearchesPickerOptions;
+use App\Modules\Appointment\Concerns\PicksAddressRegions;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
@@ -11,6 +12,7 @@ use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\HolidayMaster\Models\HolidayMaster;
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
@@ -36,6 +38,7 @@ use Livewire\Component;
 class Edit extends Component
 {
     use CanQuickAddCustomer;
+    use PicksAddressRegions;
     use SearchesPickerOptions;
 
     public ?int $editingId = null;
@@ -50,6 +53,16 @@ class Edit extends Component
     public string $appointment_time = '';
 
     public ?int $time_slot_id = null;
+
+    /** The return leg's slot — only meaningful when the workshop drops the car back. */
+    public ?int $drop_time_slot_id = null;
+
+    /** One-way trip distance; drives the slab and the charge quoted on the call. */
+    public ?string $distance_km = null;
+
+    public ?int $distance_slab_id = null;
+
+    public ?string $distance_charge = null;
 
     public ?int $booking_channel_id = null;
 
@@ -82,6 +95,18 @@ class Edit extends Component
 
     /** Set when the pickup address is a saved customer address (resolved live). */
     public ?int $pickup_address_id = null;
+
+    // ---- Drop leg. Separate from pickup: a car collected from home is often
+    // returned to an office, so the two addresses are not interchangeable.
+    public string $drop_address_choice = 'custom';
+
+    public ?string $drop_address = null;
+
+    public ?int $drop_address_id = null;
+
+    public ?int $drop_region_id = null;
+
+    public ?string $drop_contact_phone = null;
 
     public ?string $pickup_contact_phone = null;
 
@@ -121,6 +146,10 @@ class Edit extends Component
         $this->appointment_date = $a->appointment_at?->format('Y-m-d') ?? '';
         $this->appointment_time = $a->appointment_at?->format('H:i') ?? '';
         $this->time_slot_id = $a->time_slot_id;
+        $this->drop_time_slot_id = $a->drop_time_slot_id;
+        $this->distance_km = $a->distance_km === null ? null : (string) $a->distance_km;
+        $this->distance_slab_id = $a->distance_slab_id;
+        $this->distance_charge = $a->distance_charge === null ? null : (string) $a->distance_charge;
         $this->booking_channel_id = $a->booking_channel_id;
         $this->priority_id = $a->priority_id;
         $this->customer_id = $a->customer_id;
@@ -132,6 +161,13 @@ class Edit extends Component
         $this->pickup_drop_option_id = $a->pickup_drop_option_id;
         $this->pickup_address = $a->pickup_address;
         $this->pickup_address_id = $a->pickup_address_id;
+        $this->pickup_region_id = $a->pickup_region_id;
+        $this->drop_address = $a->drop_address;
+        $this->drop_address_id = $a->drop_address_id;
+        $this->drop_region_id = $a->drop_region_id;
+        $this->drop_contact_phone = $a->drop_contact_phone;
+        $this->drop_address_choice = $a->drop_address_id ? (string) $a->drop_address_id : 'custom';
+        $this->seedDropRegionPickers();
         $this->pickup_contact_phone = $a->pickup_contact_phone;
         $this->status = $a->status;
         $this->cancel_reason_id = $a->cancel_reason_id;
@@ -149,6 +185,7 @@ class Edit extends Component
         if ($a->pickup_address_id) {
             $this->pickup_address = $a->pickupAddress?->fullAddress();
         }
+        $this->seedRegionPickers('pickup');
     }
 
     protected function rules(): array
@@ -157,6 +194,10 @@ class Edit extends Component
             'appointment_date' => ['required', 'date_format:Y-m-d'],
             'appointment_time' => ['required', 'date_format:H:i'],
             'time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
+            'drop_time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
+            'distance_km' => ['nullable', 'numeric', 'min:0', 'max:99999'],
+            'distance_slab_id' => ['nullable', 'integer', Rule::exists('distance_slabs', 'id')->where('is_active', true)],
+            'distance_charge' => ['nullable', 'numeric', 'min:0'],
             'booking_channel_id' => ['required', 'integer', Rule::exists('booking_channels', 'id')->where('is_active', true)],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
@@ -172,6 +213,12 @@ class Edit extends Component
             // Address only matters when the workshop is the one moving the vehicle.
             'pickup_address' => [Rule::requiredIf(fn () => $this->optionInvolvesPickup() && $this->pickup_address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
             'pickup_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
+            'pickup_region_id' => ['nullable', 'integer', Rule::exists('regions', 'id')],
+            // Required only when the workshop is actually returning the vehicle.
+            'drop_address' => [Rule::requiredIf(fn () => $this->optionInvolvesDrop() && $this->drop_address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
+            'drop_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
+            'drop_region_id' => ['nullable', 'integer', Rule::exists('regions', 'id')],
+            'drop_contact_phone' => ['nullable', 'string', 'max:20'],
             'pickup_contact_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'status' => ['required', Rule::in(array_keys(Appointment::statuses()))],
             'cancel_reason_id' => [
@@ -195,7 +242,8 @@ class Edit extends Component
             'booking_channel_id' => 'booking channel',
             'pickup_drop_option_id' => 'pickup/drop option',
             'cancel_reason_id' => 'cancel reason',
-            'time_slot_id' => 'time slot',
+            'time_slot_id' => 'pickup time slot',
+            'drop_time_slot_id' => 'drop time slot',
         ];
     }
 
@@ -215,6 +263,42 @@ class Edit extends Component
         }
     }
 
+    /** True when the picked option means the workshop returns the vehicle. */
+    /**
+     * Typing a distance resolves its slab and quotes that slab's charge.
+     * The charge stays editable — a slab is the default price, not a fixed one.
+     */
+    public function updatedDistanceKm(): void
+    {
+        if ($this->distance_km === null || $this->distance_km === '') {
+            $this->distance_slab_id = null;
+            $this->distance_charge = null;
+
+            return;
+        }
+
+        $slab = DistanceSlabMaster::forDistance((float) $this->distance_km);
+
+        $this->distance_slab_id = $slab?->id;
+        $this->distance_charge = $slab === null ? null : (string) $slab->charge_amount;
+    }
+
+    /** @return Collection<int, DistanceSlabMaster> */
+    #[Computed]
+    public function distanceSlabs(): Collection
+    {
+        return DistanceSlabMaster::query()->where('is_active', true)->orderBy('min_km')->get();
+    }
+
+    public function optionInvolvesDrop(): bool
+    {
+        if (! $this->pickup_drop_option_id) {
+            return false;
+        }
+
+        return (bool) PickupDropOptionMaster::find($this->pickup_drop_option_id)?->involves_drop;
+    }
+
     /** True when the picked option means the workshop collects the vehicle. */
     public function optionInvolvesPickup(): bool
     {
@@ -227,11 +311,43 @@ class Edit extends Component
 
     public function updatedPickupDropOptionId(): void
     {
+        // A slot is meaningless for a leg the workshop is not doing.
+        if (! $this->optionInvolvesPickup()) {
+            $this->time_slot_id = null;
+        }
+
+        if (! $this->optionInvolvesPickup() && ! $this->optionInvolvesDrop()) {
+            // Nobody drives anywhere, so there is no trip to measure or charge for.
+            $this->distance_km = null;
+            $this->distance_slab_id = null;
+            $this->distance_charge = null;
+        }
+
+        if (! $this->optionInvolvesDrop()) {
+            $this->drop_time_slot_id = null;
+        }
+
+        // The drop leg defaults to the customer's address too — most returns go
+        // back where the car came from, and the user can override.
+        if (! $this->optionInvolvesDrop()) {
+            $this->drop_address = null;
+            $this->drop_address_id = null;
+            $this->drop_region_id = null;
+            $this->drop_contact_phone = null;
+            $this->drop_address_choice = 'custom';
+            $this->drop_state_id = null;
+            $this->drop_city_id = null;
+        } else {
+            $this->defaultDropAddress();
+        }
+
         if (! $this->optionInvolvesPickup()) {
             $this->pickup_address = null;
             $this->pickup_address_id = null;
             $this->pickup_contact_phone = null;
             $this->pickup_address_choice = 'custom';
+            $this->pickup_region_id = null;
+            $this->seedRegionPickers('pickup');
 
             return;
         }
@@ -242,9 +358,58 @@ class Edit extends Component
             $this->pickup_address_choice = (string) $primary['id'];
             $this->pickup_address_id = (int) $primary['id'];
             $this->pickup_address = $primary['full'];
+            $this->pickup_region_id = $primary['region_id'];
+            $this->seedRegionPickers('pickup');
         }
         // The contact phone defaults to the customer's live phone — no stale snapshot;
         // leave it null and let resolvedContactPhone() supply it unless the user overrides.
+    }
+
+    /** Prefill the drop address from the customer's primary address. */
+    protected function defaultDropAddress(): void
+    {
+        if ($this->drop_address_id || filled($this->drop_address)) {
+            return;   // already chosen or typed — never overwrite the user
+        }
+
+        $primary = $this->customerAddresses->firstWhere('is_primary', true) ?? $this->customerAddresses->first();
+
+        if ($primary) {
+            $this->drop_address_choice = (string) $primary['id'];
+            $this->drop_address_id = (int) $primary['id'];
+            $this->drop_address = $primary['full'];
+            $this->drop_region_id = $primary['region_id'];
+            $this->seedDropRegionPickers();
+        }
+    }
+
+    public function updatedDropAddressChoice(string $value): void
+    {
+        if ($value === 'custom') {
+            // Unlink the saved address but keep the text, so it can be edited.
+            $this->drop_address_id = null;
+
+            return;
+        }
+
+        $picked = $this->customerAddresses->firstWhere('id', (int) $value);
+
+        if ($picked) {
+            $this->drop_address_id = (int) $value;
+            $this->drop_address = $picked['full'];
+            $this->drop_region_id = $picked['region_id'];
+            $this->seedDropRegionPickers();
+        }
+    }
+
+    /** Typing an address unlinks it from the saved one it was copied from. */
+    public function updatedDropAddress(): void
+    {
+        if ($this->drop_address_choice !== 'custom') {
+            return;
+        }
+
+        $this->drop_address_id = null;
     }
 
     public function updatedPickupAddressChoice(string $value): void
@@ -260,6 +425,8 @@ class Edit extends Component
         if ($picked) {
             $this->pickup_address_id = (int) $value;
             $this->pickup_address = $picked['full'];
+            $this->pickup_region_id = $picked['region_id'];
+            $this->seedRegionPickers('pickup');
         }
     }
 
@@ -490,6 +657,7 @@ class Edit extends Component
                 'id' => $addr->id,
                 'label' => $addr->label,
                 'is_primary' => (bool) $addr->is_primary,
+                'region_id' => $addr->region_id,
                 'full' => trim(($addr->address_line ?? '').($addr->regionChain() ? ', '.$addr->regionChain() : '')),
             ]);
     }
