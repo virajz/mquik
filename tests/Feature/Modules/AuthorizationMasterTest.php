@@ -145,19 +145,23 @@ it('always keeps every permission on the Super Admin role even when unticked', f
     expect($superAdmin->fresh()->permissions()->count())->toBe($totalPermissions);
 });
 
-it('creates a user via the UserForm with auto-generated password', function () {
+it('creates a user without ever handling a password', function () {
     $component = Livewire::test(UserForm::class)
+        ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'Ravi Sharma')
         ->set('email', 'ravi@example.com')
+        ->set('phone', '9812000001')
         ->call('save')
         ->assertHasNoErrors()
         ->assertNotDispatched('authorization-master:user-created') // deferred until dismiss
         ->assertSet('createdNotice', true);
 
     $user = User::where('email', 'ravi@example.com')->firstOrFail();
+
     expect($user->name)->toBe('Ravi Sharma')
         ->and($user->email_verified_at)->not->toBeNull()
-        ->and(Hash::check('wrong-password', $user->password))->toBeFalse();
+        // They set their own via the code sent to their phone.
+        ->and($user->must_reset_password)->toBeTrue();
 
     // Dismissing the notice triggers the parent refresh event.
     $component
@@ -166,40 +170,43 @@ it('creates a user via the UserForm with auto-generated password', function () {
         ->assertSet('createdNotice', false);
 });
 
-it('creates a user with explicit password and roles', function () {
+it('assigns roles on create', function () {
     $role = Role::firstOrCreate(['name' => 'Cashier', 'guard_name' => 'web']);
 
     Livewire::test(UserForm::class)
+        ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'Cashier One')
         ->set('email', 'cashier@example.com')
-        ->set('password', 'manual-pw-12345')
+        ->set('phone', '9812000002')
         ->set('selectedRoles', [$role->id])
         ->call('save')
         ->assertHasNoErrors();
 
-    $user = User::where('email', 'cashier@example.com')->firstOrFail();
-    expect(Hash::check('manual-pw-12345', $user->password))->toBeTrue()
-        ->and($user->hasRole('Cashier'))->toBeTrue();
+    expect(User::where('email', 'cashier@example.com')->firstOrFail()->hasRole('Cashier'))->toBeTrue();
 });
 
-it('reveals the temporary password to the admin after auto-generation', function () {
+it('never shows a password to the admin', function () {
     $component = Livewire::test(UserForm::class)
-        ->set('name', 'Auto Pw')
+        ->set('userType', UserForm::TYPE_MANUAL)
+        ->set('name', 'No Pw')
         ->set('email', 'auto@example.com')
+        ->set('phone', '9812000003')
         ->call('save');
 
-    $shownPassword = $component->get('createdPassword');
-    expect($shownPassword)->toBeString()
-        ->and(strlen($shownPassword))->toBeGreaterThanOrEqual(12);
+    // What comes back is the OTP, not a password — and only because SMS is mocked.
+    $shown = $component->get('mockCode');
 
-    $user = User::where('email', 'auto@example.com')->firstOrFail();
-    expect(Hash::check($shownPassword, $user->password))->toBeTrue();
+    expect($shown)->toHaveLength(6)
+        ->and(Hash::check($shown, User::where('email', 'auto@example.com')->firstOrFail()->password))->toBeFalse()
+        ->and($component->html())->not->toContain('temporary password');
 });
 
 it('blocks duplicate email on user create', function () {
     User::factory()->create(['email' => 'taken@example.com']);
 
     Livewire::test(UserForm::class)
+        ->set('userType', UserForm::TYPE_MANUAL)
+        ->set('phone', '9812000009')
         ->set('name', 'Dupe')
         ->set('email', 'taken@example.com')
         ->call('save')

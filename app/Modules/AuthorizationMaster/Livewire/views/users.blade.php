@@ -58,7 +58,7 @@
             <flux:table.column>Roles</flux:table.column>
             <flux:table.column class="w-24">Status</flux:table.column>
             <flux:table.column class="w-40" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection" wire:click="sort('created_at')">
-                Joined
+                Created
             </flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
@@ -117,6 +117,13 @@
                                 wire:click="openManageRoles({{ $row->id }})">
                                 Manage
                             </flux:button>
+
+                            @can('authorization_master.update')
+                                <flux:tooltip content="Edit name, email or phone">
+                                    <flux:button size="sm" variant="ghost" icon="pencil-square"
+                                        wire:click="$dispatch('authorization-master:edit-user', { id: {{ $row->id }} })" />
+                                </flux:tooltip>
+                            @endcan
 
                             @can('authorization_master.update')
                                 {{-- Sends a code; the user picks their own password.
@@ -197,5 +204,7 @@
     <livewire:authorization-master.user-roles-form />
     @can('authorization_master.create')
         <livewire:authorization-master.user-form wire:key="authorization-master-user-form" />
+    <livewire:authorization-master.person-quick-add />
+    <livewire:authorization-master.user-edit-form />
     @endcan
 </div>

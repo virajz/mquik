@@ -19,25 +19,6 @@ use Livewire\Attributes\Computed;
  */
 trait ShowsServiceHistory
 {
-    /**
-     * How the "Last done" list is ordered.
-     *
-     * Workshops disagree on this: a fast-fit bay wants whatever is overdue at
-     * the top, a service centre often just wants the last visit's work.
-     *
-     * @return array<string, string>
-     */
-    public static function serviceHistorySortModes(): array
-    {
-        return [
-            'due_first' => 'Due first, then most recent',
-            'most_overdue' => 'Most overdue first',
-            'recent' => 'Most recent first',
-            'frequent' => 'Most often done first',
-            'alphabetical' => 'A to Z',
-        ];
-    }
-
     /** Free-text filter over the vehicle's past work — e.g. "oil change". */
     public string $historySearch = '';
 

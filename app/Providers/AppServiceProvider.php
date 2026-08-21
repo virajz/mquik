@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Support\AppSettings;
 use App\Support\Otp\MockOtpSender;
 use App\Support\Otp\OtpSender;
 use Carbon\CarbonImmutable;
@@ -31,6 +32,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Applied before the session middleware runs, so an admin-set idle
+        // timeout takes effect without touching .env. Falls back to the
+        // config/session.php default when nothing is saved.
+        if ($minutes = AppSettings::int('security.session_lifetime')) {
+            config(['session.lifetime' => $minutes]);
+        }
+
         $this->configureDefaults();
         $this->configureAuthorization();
     }

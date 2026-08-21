@@ -134,6 +134,7 @@ it('creates a user with a phone and never exposes a password', function () {
     $this->actingAs(adminUser());
 
     $component = Livewire::test(UserForm::class)
+        ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'New Person')
         ->set('email', 'new.person@mquik.test')
         ->set('phone', '9876500888')
@@ -152,6 +153,7 @@ it('requires a unique phone number', function () {
     User::factory()->create(['phone' => '9876500999']);
 
     Livewire::test(UserForm::class)
+        ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'Clashing')
         ->set('email', 'clash@mquik.test')
         ->set('phone', '9876500999')

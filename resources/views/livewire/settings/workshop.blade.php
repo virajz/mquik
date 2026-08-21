@@ -33,6 +33,18 @@
             <flux:input wire:model="visitsListed" type="number" min="5" max="200"
                 :label="__('Past visits listed')" description="Rows shown under the filter box." required />
 
+            <flux:separator variant="subtle" />
+
+            <div>
+                <flux:heading size="sm">{{ __('Security') }}</flux:heading>
+                <flux:subheading>How long a screen can sit idle before it signs itself out.</flux:subheading>
+            </div>
+
+            <flux:input wire:model="sessionLifetime" type="number" min="5" max="480"
+                :label="__('Sign out after (minutes idle)')"
+                description="Applies to everyone. Shared floor terminals are the reason to keep this short."
+                required />
+
             <div class="flex items-center gap-4">
                 <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
             </div>

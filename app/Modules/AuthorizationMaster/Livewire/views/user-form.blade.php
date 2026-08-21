@@ -40,7 +40,67 @@
 
                 <flux:separator variant="subtle" />
 
-                <flux:input wire:model="name" label="Name" placeholder="Full name" required autofocus />
+                {{-- Who this login is for. Employees and contractors already exist
+                     in a master, so pick them rather than retyping their details. --}}
+                <flux:select wire:model.live="userType" variant="listbox" label="User type" required>
+                    @foreach (\App\Modules\AuthorizationMaster\Livewire\UserForm::userTypes() as $key => $label)
+                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                @if ($userType === 'employee')
+                    <flux:field>
+                        <flux:label>Employee</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="min-w-0 flex-1">
+                                <flux:select wire:model.live="employeeId" variant="listbox" searchable clearable
+                                    placeholder="Pick an employee…">
+                                    @foreach ($this->employees as $e)
+                                        <flux:select.option :value="$e->id" wire:key="emp-{{ $e->id }}">
+                                            {{ $e->name }}@if ($e->phone) · +91 {{ $e->phone }} @endif
+                                        </flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                            @can('employee_master.create')
+                                <flux:tooltip content="Employee not on file? Add them">
+                                    <flux:button type="button" icon="plus" variant="ghost"
+                                        wire:click="$dispatch('authorization-master:quick-add-person', { type: 'employee' })" />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                        <flux:description>Only employees without a login are listed.</flux:description>
+                        <flux:error name="employeeId" />
+                    </flux:field>
+                @elseif ($userType === 'contractor')
+                    <flux:field>
+                        <flux:label>Service Contractor</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="min-w-0 flex-1">
+                                <flux:select wire:model.live="vendorId" variant="listbox" searchable clearable
+                                    placeholder="Pick a contractor…">
+                                    @foreach ($this->contractors as $v)
+                                        <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">
+                                            {{ $v->name }}@if ($v->phone) · +91 {{ $v->phone }} @endif
+                                        </flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                            @can('vendor_master.create')
+                                <flux:tooltip content="Contractor not on file? Add them">
+                                    <flux:button type="button" icon="plus" variant="ghost"
+                                        wire:click="$dispatch('authorization-master:quick-add-person', { type: 'contractor' })" />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                        <flux:description>Vendors filed as “Service Contractor”, without a login.</flux:description>
+                        <flux:error name="vendorId" />
+                    </flux:field>
+                @endif
+
+                <flux:input wire:model="name" label="Name" placeholder="Full name" required autofocus
+                    :readonly="$userType !== 'manual'"
+                    :description="$userType !== 'manual' ? 'From the master record.' : null" />
 
                 <flux:input wire:model="email" type="email" label="Email" placeholder="name@workshop.com"
                     icon="envelope" required />

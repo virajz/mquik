@@ -31,6 +31,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Security
+    |--------------------------------------------------------------------------
+    */
+
+    'security' => [
+
+        /*
+         * Minutes of inactivity before a user is signed out. The default lives
+         * in config/session.php; a value saved in Workshop Settings overrides it
+         * at boot, so an admin can change it without a deploy.
+         */
+        'session_lifetime' => env('SESSION_LIFETIME', 30),
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Service history
     |--------------------------------------------------------------------------
     |
