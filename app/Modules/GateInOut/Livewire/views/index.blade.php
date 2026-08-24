@@ -29,27 +29,57 @@
         @endforeach
     </div>
 
-    <div class="mb-4 flex items-center gap-3 flex-wrap">
-        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by reg no, visit no, customer..." icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-36">
-            <flux:select.option value="all">All status</flux:select.option>
-            @foreach ($statuses as $key => $label)
-                <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:select wire:model.live="presenceFilter" variant="listbox" class="max-w-40">
-            <flux:select.option value="all">On site + left</flux:select.option>
-            <flux:select.option value="inside">Still inside</flux:select.option>
-        </flux:select>
-        <flux:select wire:model.live="sourceFilter" variant="listbox" class="max-w-40">
-            <flux:select.option value="all">All sources</flux:select.option>
-            <flux:select.option value="manual">Manual</flux:select.option>
-            <flux:select.option value="anpr">ANPR</flux:select.option>
-        </flux:select>
-        <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        @if ($search || $statusFilter !== 'all' || $presenceFilter !== 'all' || $sourceFilter !== 'all' || $dateFrom || $dateTo)
-            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
+    <div class="mb-4 flex items-center gap-3">
+        <div class="flex-1 min-w-0">
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Reg no, visit no, customer, phone, brand/model…" icon="magnifying-glass" clearable class="w-full" />
+        </div>
+
+        <div class="w-40 shrink-0">
+            <flux:select wire:model.live="statusFilter" variant="listbox" class="w-full">
+                <flux:select.option value="pending">Pending (inside)</flux:select.option>
+                <flux:select.option value="all">All status</flux:select.option>
+                <flux:select.option value="completed">Completed</flux:select.option>
+                <flux:select.option value="cancelled">Cancelled</flux:select.option>
+            </flux:select>
+        </div>
+
+        @php($filtersOn = $presenceFilter !== 'all' || $sourceFilter !== 'all' || $dateFrom || $dateTo || $outDateFrom || $outDateTo)
+        <flux:dropdown class="shrink-0">
+            <flux:button icon="funnel" variant="{{ $filtersOn ? 'primary' : 'outline' }}">Filters</flux:button>
+            <flux:popover class="w-80 space-y-4">
+                <flux:select wire:model.live="presenceFilter" variant="listbox" label="Presence">
+                    <flux:select.option value="all">On site + left</flux:select.option>
+                    <flux:select.option value="inside">Still inside</flux:select.option>
+                </flux:select>
+
+                <flux:select wire:model.live="sourceFilter" variant="listbox" label="Source">
+                    <flux:select.option value="all">All sources</flux:select.option>
+                    <flux:select.option value="manual">Manual</flux:select.option>
+                    <flux:select.option value="anpr">ANPR</flux:select.option>
+                </flux:select>
+
+                <flux:separator variant="subtle" />
+
+                <flux:field>
+                    <flux:label>Inward date</flux:label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                    </div>
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Outward date</flux:label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:date-picker wire:model.live="outDateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker wire:model.live="outDateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                    </div>
+                </flux:field>
+            </flux:popover>
+        </flux:dropdown>
+
+        @if ($search || $statusFilter !== 'pending' || $filtersOn)
+            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters" class="shrink-0">Clear</flux:button>
         @endif
     </div>
 
@@ -59,7 +89,11 @@
             <flux:table.column class="w-40" sortable :sorted="$sortBy === 'entered_at'" :direction="$sortDirection" wire:click="sort('entered_at')">In</flux:table.column>
             <flux:table.column class="w-40" sortable :sorted="$sortBy === 'exited_at'" :direction="$sortDirection" wire:click="sort('exited_at')">Out</flux:table.column>
             <flux:table.column class="w-24">TAT</flux:table.column>
-            <flux:table.column>Reg. No / Customer</flux:table.column>
+            <flux:table.column sortable :sorted="$sortBy === 'registration_no'" :direction="$sortDirection" wire:click="sort('registration_no')">Vehicle / Customer</flux:table.column>
+            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'job_card'" :direction="$sortDirection" wire:click="sort('job_card')">Job Card</flux:table.column>
+            <flux:table.column class="w-36" sortable :sorted="$sortBy === 'delivered_by'" :direction="$sortDirection" wire:click="sort('delivered_by')">Delivered By</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'driver_type'" :direction="$sortDirection" wire:click="sort('driver_type')">Driver Type</flux:table.column>
+            <flux:table.column class="w-36" sortable :sorted="$sortBy === 'exit_by'" :direction="$sortDirection" wire:click="sort('exit_by')">Exit By</flux:table.column>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
@@ -90,6 +124,9 @@
                     <flux:table.cell class="font-mono text-sm text-zinc-500">{{ $row->tatForHumans() }}</flux:table.cell>
                     <flux:table.cell>
                         <div class="font-mono font-medium">{{ $row->registration_no }}</div>
+                        @if ($row->customerVehicle?->model)
+                            <div class="text-xs text-zinc-500 mt-0.5">{{ trim(($row->customerVehicle->model->brand->name ?? '').' '.$row->customerVehicle->model->name) }}</div>
+                        @endif
                         @if ($row->customer)
                             <div class="text-xs text-zinc-500 mt-0.5">
                                 {{ trim($row->customer->first_name.' '.($row->customer->last_name ?? '')) }}
@@ -99,6 +136,16 @@
                             <div class="text-xs text-zinc-500 mt-0.5"><span class="text-amber-600 dark:text-amber-400">Walk-in (unmatched)</span></div>
                         @endif
                     </flux:table.cell>
+                    <flux:table.cell class="font-mono text-xs">
+                        @if ($row->jobCard)
+                            <flux:link :href="route('job-card.edit', $row->job_card_id)" wire:navigate>{{ $row->jobCard->job_card_no }}</flux:link>
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->deliveredBy?->name ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->driver_type ? (\App\Modules\GateInOut\Models\GateInOut::driverTypes()[$row->driver_type] ?? $row->driver_type) : '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->exitBy?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {
                             'completed' => 'lime', 'cancelled' => 'zinc', default => 'amber',
@@ -135,7 +182,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="6" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="11" class="text-center text-zinc-500 py-12">
                         <flux:icon.arrow-right-end-on-rectangle class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No gate events recorded yet</div>
                         <flux:text class="mt-1">Every vehicle in or out — recorded here.</flux:text>

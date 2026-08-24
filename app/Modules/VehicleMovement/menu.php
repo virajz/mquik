@@ -1,13 +1,9 @@
 <?php
 
-return [
-    [
-        'mode' => 'operations',
-        'group' => 'Workshop',
-        'label' => 'Vehicle Inward / Outward',
-        'icon' => 'arrows-right-left',
-        'route' => 'vehicle-movement.index',
-        'permission' => 'vehicle_movement.view',
-        'order' => 68,
-    ],
-];
+/*
+ * Retired from navigation: this module duplicated GateInOut ("Inward / Outward"),
+ * which is the maintained gate register. The models and table survive because
+ * they carry a gate-pass-approval link GateInOut does not have yet; once that
+ * is ported, the module can be deleted outright.
+ */
+return [];

@@ -2,7 +2,9 @@
 
 namespace App\Modules\GateInOut\Livewire;
 
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
+use App\Modules\JobCard\Models\JobCard;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -19,8 +21,9 @@ class Index extends Component
     #[Url(as: 'q')]
     public string $search = '';
 
+    /** Defaults to vehicles still inside (not delivered/billed out). */
     #[Url(as: 'status')]
-    public string $statusFilter = 'all';
+    public string $statusFilter = 'pending';
 
     /** 'all' | 'inside' — vehicles that came in and have not left. */
     #[Url(as: 'presence')]
@@ -35,13 +38,29 @@ class Index extends Component
     #[Url(as: 'to')]
     public string $dateTo = '';
 
+    #[Url(as: 'outfrom')]
+    public string $outDateFrom = '';
+
+    #[Url(as: 'outto')]
+    public string $outDateTo = '';
+
     #[Url(as: 'sort')]
     public string $sortBy = 'entered_at';
 
     #[Url(as: 'dir')]
     public string $sortDirection = 'desc';
 
-    protected array $sortable = ['id', 'gate_event_no', 'entered_at', 'exited_at', 'status', 'created_at'];
+    protected array $sortable = ['id', 'gate_event_no', 'entered_at', 'exited_at', 'status', 'created_at', 'registration_no', 'driver_type', 'outward_type'];
+
+    /** Headings whose order comes from a related name, not an own column. */
+    protected function sortSubqueries(): array
+    {
+        return [
+            'delivered_by' => EmployeeMaster::select('name')->whereColumn('employees.id', 'gate_visits.delivered_by_id'),
+            'exit_by' => EmployeeMaster::select('name')->whereColumn('employees.id', 'gate_visits.exit_by_id'),
+            'job_card' => JobCard::select('job_card_no')->whereColumn('job_cards.id', 'gate_visits.job_card_id'),
+        ];
+    }
 
     public function updatingSearch(): void
     {
@@ -65,7 +84,7 @@ class Index extends Component
 
     public function sort(string $column): void
     {
-        if (! in_array($column, $this->sortable, true)) {
+        if (! in_array($column, $this->sortable, true) && ! array_key_exists($column, $this->sortSubqueries())) {
             return;
         }
 
@@ -88,7 +107,7 @@ class Index extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'statusFilter', 'presenceFilter', 'sourceFilter', 'dateFrom', 'dateTo']);
+        $this->reset(['search', 'statusFilter', 'presenceFilter', 'sourceFilter', 'dateFrom', 'dateTo', 'outDateFrom', 'outDateTo']);
         $this->resetPage();
     }
 
@@ -116,7 +135,11 @@ class Index extends Component
         $rows = GateInOut::query()
             ->with([
                 'customer:id,first_name,last_name,phone',
-                'customerVehicle:id,registration_no',
+                'customerVehicle:id,registration_no,model_id',
+                'customerVehicle.model:id,name,brand_id',
+                'customerVehicle.model.brand:id,name',
+                'deliveredBy:id,name',
+                'exitBy:id,name',
                 'entryGate:id,name',
                 'exitGate:id,name',
                 'parkingSlot:id,name',
@@ -128,7 +151,13 @@ class Index extends Component
             ->when($this->sourceFilter !== 'all', fn ($q) => $q->where('source', $this->sourceFilter))
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('entered_at', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn ($q) => $q->whereDate('entered_at', '<=', $this->dateTo))
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->when($this->outDateFrom !== '', fn ($q) => $q->whereDate('exited_at', '>=', $this->outDateFrom))
+            ->when($this->outDateTo !== '', fn ($q) => $q->whereDate('exited_at', '<=', $this->outDateTo))
+            ->when(
+                isset($this->sortSubqueries()[$this->sortBy]),
+                fn ($q) => $q->orderBy($this->sortSubqueries()[$this->sortBy], $this->sortDirection),
+                fn ($q) => $q->orderBy($this->sortBy, $this->sortDirection),
+            )
             ->paginate(30);
 
         return view('gate-in-out::index', [

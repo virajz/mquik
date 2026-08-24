@@ -20,6 +20,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Gate Visit')]
@@ -27,6 +28,7 @@ class Edit extends Component
 {
     use CanQuickAddCustomerVehicle;
     use SearchesPickerOptions;
+    use WithFileUploads;
 
     public ?int $editingId = null;
 
@@ -62,7 +64,13 @@ class Edit extends Component
 
     public ?int $exit_by_id = null;
 
+    /** Derived, never edited — pending until the delivery stamp lands. */
     public string $status = GateInOut::STATUS_PENDING;
+
+    /** Photo taken at the gate (vehicle at the barrier). */
+    public $capturedImage = null;
+
+    public ?string $captured_image_path = null;
 
     public string $source = GateInOut::SOURCE_MANUAL;
 
@@ -75,7 +83,7 @@ class Edit extends Component
             // the moment a car arrived is a fact, not a preference.
             'entered_date' => ['required', 'date_format:Y-m-d'],
             'entered_time' => ['required', 'date_format:H:i'],
-            'entry_gate_id' => ['nullable', 'integer', Rule::exists('gates', 'id')->where('is_active', true)],
+            'entry_gate_id' => ['required', 'integer', Rule::exists('gates', 'id')->where('is_active', true)],
             'parking_slot_id' => ['nullable', 'integer', Rule::exists('parking_slots', 'id')->where('is_active', true)],
             'registration_no' => ['required', 'string', 'max:20'],
             'job_card_id' => ['nullable', 'integer', 'exists:job_cards,id'],
@@ -89,9 +97,10 @@ class Edit extends Component
             'driver_type' => ['nullable', Rule::in(array_keys(GateInOut::driverTypes()))],
             'delivered_by_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'exit_by_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
-            'status' => ['required', Rule::in(array_keys(GateInOut::statuses()))],
+
             'source' => ['required', Rule::in(array_keys(GateInOut::sources()))],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'capturedImage' => ['nullable', 'image', 'max:8192'],
         ];
     }
 
@@ -139,6 +148,7 @@ class Edit extends Component
         $this->entry_gate_id = $r->entry_gate_id;
         $this->parking_slot_id = $r->parking_slot_id;
         $this->registration_no = $r->registration_no;
+        $this->captured_image_path = $r->captured_image_path;
         $this->customer_vehicle_id = $r->customer_vehicle_id;
         $this->customer_id = $r->customer_id;
         $this->job_card_id = $r->job_card_id;
@@ -407,6 +417,80 @@ class Edit extends Component
         return JobCard::query()->orderByDesc('id')->limit(200)->get(['id', 'job_card_no']);
     }
 
+    /** The saved exit stamp, if any — only markDelivered() ever writes it. */
+    protected function exitedAt(): ?Carbon
+    {
+        $raw = $this->editingId ? GateInOut::whereKey($this->editingId)->value('exited_at') : null;
+
+        return $raw ? Carbon::parse($raw) : null;
+    }
+
+    /**
+     * The delivery is a moment, not a form field: everything the exit needs is
+     * checked here, then the stamp is now() — backdating a departure is exactly
+     * what a gate register exists to prevent.
+     */
+    public function markDelivered(): void
+    {
+        $this->authorize('gate_in_out.update');
+
+        if (! $this->editingId) {
+            return;
+        }
+
+        $this->resetErrorBag();
+        $this->validate([
+            'exit_gate_id' => ['required', 'integer', Rule::exists('gates', 'id')->where('is_active', true)],
+            'driver_type' => ['required', Rule::in(array_keys(GateInOut::driverTypes()))],
+            'delivered_by_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            'exit_by_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+        ], attributes: [
+            'exit_gate_id' => 'exit gate',
+            'driver_type' => 'driver type',
+            'delivered_by_id' => 'delivered by',
+            'exit_by_id' => 'exit by (security guard)',
+        ]);
+
+        $row = GateInOut::findOrFail($this->editingId);
+        $row->forceFill([
+            'exited_at' => now(),
+            'exit_gate_id' => $this->exit_gate_id,
+            'driver_type' => $this->driver_type,
+            'delivered_by_id' => $this->delivered_by_id,
+            'exit_by_id' => $this->exit_by_id,
+            'outward_type' => 'final_delivery',
+            'status' => GateInOut::STATUS_COMPLETED,
+        ])->save();
+
+        $this->exited_date = $row->exited_at->format('Y-m-d');
+        $this->exited_time = $row->exited_at->format('H:i');
+        $this->status = GateInOut::STATUS_COMPLETED;
+
+        Flux::toast(text: 'Vehicle delivered — visit '.$row->gate_event_no.' completed.', variant: 'success');
+    }
+
+    public function cancelVisit(): void
+    {
+        $this->authorize('gate_in_out.update');
+
+        $row = GateInOut::findOrFail($this->editingId);
+        $row->forceFill(['status' => GateInOut::STATUS_CANCELLED])->save();
+        $this->status = GateInOut::STATUS_CANCELLED;
+
+        Flux::toast(text: 'Visit '.$row->gate_event_no.' cancelled.', variant: 'success');
+    }
+
+    public function restoreVisit(): void
+    {
+        $this->authorize('gate_in_out.update');
+
+        $row = GateInOut::findOrFail($this->editingId);
+        $row->forceFill(['status' => $row->exited_at ? GateInOut::STATUS_COMPLETED : GateInOut::STATUS_PENDING])->save();
+        $this->status = $row->fresh()->status;
+
+        Flux::toast(text: 'Visit '.$row->gate_event_no.' restored.', variant: 'success');
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'gate_in_out.update' : 'gate_in_out.create');
@@ -414,27 +498,22 @@ class Edit extends Component
         $data = $this->validate();
 
         $data['entered_at'] = Carbon::parse($data['entered_date'].' '.$data['entered_time'].':00');
-        $data['exited_at'] = $data['exited_date'] && $data['exited_time']
-            ? Carbon::parse($data['exited_date'].' '.$data['exited_time'].':00')
-            : null;
-        unset($data['entered_date'], $data['entered_time'], $data['exited_date'], $data['exited_time']);
-
-        if ($data['exited_at'] !== null && $data['exited_at']->lt($data['entered_at'])) {
-            $this->addError('exited_date', 'The vehicle cannot leave before it arrived.');
-
-            return;
-        }
+        unset($data['entered_date'], $data['entered_time'], $data['exited_date'], $data['exited_time'], $data['capturedImage']);
 
         // The arrival stamp belongs to the record, not the form — an edit must
-        // not be able to move it.
+        // not be able to move it. The exit stamp is markDelivered()'s alone.
         if ($this->editingId) {
             unset($data['entered_at']);
         }
 
-        // Every departure that closes a visit is the delivery; the other reasons
-        // a car leaves are movements, which do not end the visit.
-        if ($data['exited_at'] !== null) {
-            $data['outward_type'] = 'final_delivery';
+        // Status is derived: completed once the delivery stamp exists, pending
+        // until then; a cancellation is its own deliberate action.
+        if ($this->status !== GateInOut::STATUS_CANCELLED) {
+            $data['status'] = $this->exitedAt() ? GateInOut::STATUS_COMPLETED : GateInOut::STATUS_PENDING;
+        }
+
+        if ($this->capturedImage) {
+            $data['captured_image_path'] = $this->capturedImage->store('gate-visits', 'public');
         }
 
         $data['customer_vehicle_id'] = $this->customer_vehicle_id;

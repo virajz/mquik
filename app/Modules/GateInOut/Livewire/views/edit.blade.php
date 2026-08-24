@@ -110,8 +110,22 @@
                     </div>
                 @endif
 
+                {{-- Photo of the car at the barrier — proof of condition on arrival. --}}
+                <flux:field>
+                    <flux:label>Gate Photo</flux:label>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 min-w-0">
+                            <flux:input type="file" wire:model="capturedImage" accept="image/*" capture="environment" />
+                        </div>
+                        @if ($captured_image_path)
+                            <flux:link :href="\Illuminate\Support\Facades\Storage::disk('public')->url($captured_image_path)" target="_blank" class="text-xs shrink-0">View saved</flux:link>
+                        @endif
+                    </div>
+                    <flux:error name="capturedImage" />
+                </flux:field>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="entry_gate_id" variant="listbox" clearable label="Entry Gate" placeholder="Which gate…">
+                    <flux:select wire:model="entry_gate_id" variant="listbox" clearable label="Entry Gate" placeholder="Which gate…" required>
                         @foreach ($this->gates as $g)
                             <flux:select.option :value="$g->id" wire:key="eg-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                         @endforeach
@@ -205,24 +219,31 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">The departure that closes the visit. Leave blank while the vehicle is still ours — trips out and back belong above.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
+                {{-- Stamped by "Mark delivered", never typed — backdating a
+                     departure is what a gate register exists to prevent. --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:date-picker wire:model="exited_date" label="Delivery Date" placeholder="Not yet" with-today selectable-header fixed-weeks type="input" clearable />
-                    <flux:time-picker wire:model="exited_time" label="Delivery Time" placeholder="Not yet" type="input" clearable />
+                    <flux:field>
+                        <flux:label>Exit Date</flux:label>
+                        <flux:input :value="$exited_date ? \Illuminate\Support\Carbon::parse($exited_date)->format('d M Y') : '— not yet —'" readonly class:input="text-zinc-500" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Exit Time</flux:label>
+                        <flux:input :value="$exited_time ?? '— not yet —'" readonly class:input="text-zinc-500 font-mono" />
+                        <flux:description>Stamped when the guard marks the vehicle delivered.</flux:description>
+                    </flux:field>
                 </div>
-                <flux:error name="exited_date" />
-                <flux:error name="exited_time" />
 
                 {{-- Two columns, matching the rows above and below: dropping the
                      outward-type picker left this as 2 fields in a 3-column grid,
                      so they sat narrow and out of line with everything else. --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="exit_gate_id" variant="listbox" clearable label="Exit Gate" placeholder="Which gate…">
+                    <flux:select wire:model="exit_gate_id" variant="listbox" clearable label="Exit Gate" placeholder="Which gate…" required>
                         @foreach ($this->gates as $g)
                             <flux:select.option :value="$g->id" wire:key="xg-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model="driver_type" variant="listbox" clearable label="Driver Type" placeholder="Who is driving…">
+                    <flux:select wire:model="driver_type" variant="listbox" clearable label="Driver Type" placeholder="Who is driving…" required>
                         @foreach ($G::driverTypes() as $key => $label)
                             <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                         @endforeach
@@ -230,18 +251,24 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-<flux:select wire:model="delivered_by_id" variant="listbox" searchable clearable label="Delivered By" placeholder="Advisor or cashier…">
+<flux:select wire:model="delivered_by_id" variant="listbox" searchable clearable label="Delivered By" placeholder="Advisor or cashier…" required>
                         @foreach ($this->deliveryStaff as $e)
                             <flux:select.option :value="$e->id" wire:key="dlv-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-<flux:select wire:model="exit_by_id" variant="listbox" searchable clearable label="Exit By (Security Guard)" placeholder="Which guard let it out…">
+<flux:select wire:model="exit_by_id" variant="listbox" searchable clearable label="Exit By (Security Guard)" placeholder="Which guard let it out…" required>
                         @foreach ($this->securityGuards as $e)
                             <flux:select.option :value="$e->id" wire:key="grd-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
+
+                @if ($editingId && ! $exited_date && $status !== $G::STATUS_CANCELLED)
+                    <flux:button variant="primary" icon="check-badge" wire:click="markDelivered">
+                        Mark delivered — stamp exit now
+                    </flux:button>
+                @endif
             </div>
         </section>
 
@@ -254,11 +281,22 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="status" variant="listbox" label="Job Status" required>
-                        @foreach ($G::statuses() as $key => $label)
-                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+                    {{-- Derived: pending while the car is ours, completed once the
+                         exit stamp lands. Cancelling stays a deliberate act. --}}
+                    <flux:field>
+                        <flux:label>Job Status</flux:label>
+                        <div class="flex items-center gap-2 h-10">
+                            <flux:badge :color="match ($status) {
+                                'pending' => 'amber', 'completed' => 'green', 'cancelled' => 'zinc', default => 'zinc',
+                            }" size="sm">{{ $G::statuses()[$status] ?? $status }}</flux:badge>
+                            @if ($editingId && $status === $G::STATUS_CANCELLED)
+                                <flux:button size="xs" variant="ghost" wire:click="restoreVisit">Restore</flux:button>
+                            @elseif ($editingId && $status !== $G::STATUS_COMPLETED)
+                                <flux:button size="xs" variant="ghost" wire:click="cancelVisit">Cancel visit</flux:button>
+                            @endif
+                        </div>
+                        <flux:description>Updates itself from the delivery stamp.</flux:description>
+                    </flux:field>
 
                     <flux:select wire:model="source" variant="listbox" label="Source">
                         @foreach ($G::sources() as $key => $label)
