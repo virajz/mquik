@@ -29,19 +29,19 @@ Legend: `[ ]` pending · `[x]` done · `[~]` partially done / needs decision
 - [x] 14. Driver-wise lists: assigned vehicles, collected vehicles, collection pending
 
 ## Chunk 5 — Customer Complaints
-- [ ] 15. Dept-wise quick-add services (frequent job descriptions) — reuse Appointment's checklist
-- [ ] 16. Complaint Type dropdown removed — direct complaint add
-- [ ] 17. Job Description dropdown removed — quick-add covers it
+- [x] 15. Dept-wise quick-add services (frequent job descriptions) — reuse Appointment's checklist
+- [x] 16. Complaint Type dropdown removed — direct complaint add
+- [x] 17. Job Description dropdown removed — quick-add covers it
 
 ## Chunk 6 — Driver leg (checklist, photos, OTP)
-- [ ] 18. Document Checklist: only DOCUMENT COLLECTION TEMPLATE, remove the rest
-- [ ] 19. Checklist is the driver's job at the pickup location — driver captures selfie & vehicle images
-- [ ] 20. Vehicle Condition: View & When fields get overridden when selecting view then uploading — fix; driver-side
-- [ ] 21. OTP send & verify (auto-generated) — reuse the mocked OtpService
+- [x] 18. Document Checklist: only DOCUMENT COLLECTION TEMPLATE, remove the rest
+- [x] 19. Checklist is the driver's job at the pickup location — driver captures selfie & vehicle images
+- [x] 20. Vehicle Condition: View & When fields get overridden when selecting view then uploading — fix; driver-side
+- [x] 21. OTP send & verify (auto-generated) — reuse the mocked OtpService
 
 ## Chunk 7 — Listing
-- [ ] 22. Default to all Pending pickups & drops on load
-- [ ] 23. Easy search (space or %) customer+vehicle / vehicle+reg — shared Searchable already upgraded; widen this model's fields
-- [ ] 24. New filters: created date, time slot, Pickup/Drop Type, job card no.
-- [ ] 25. Columns: created date, Vehicle, Department, Advisor, Time Slot, Pending Reason, Job Card No.
-- [ ] 26. Cancel action with standard reason (Flux modal, no browser alert)
+- [x] 22. Default to all Pending pickups & drops on load
+- [x] 23. Easy search (space or %) customer+vehicle / vehicle+reg — shared Searchable already upgraded; widen this model's fields
+- [x] 24. New filters: created date, time slot, Pickup/Drop Type, job card no.
+- [x] 25. Columns: created date, Vehicle, Department, Advisor, Time Slot, Pending Reason, Job Card No.
+- [x] 26. Cancel action with standard reason (Flux modal, no browser alert)

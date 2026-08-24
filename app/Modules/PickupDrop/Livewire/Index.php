@@ -3,10 +3,14 @@
 namespace App\Modules\PickupDrop\Livewire;
 
 use App\Concerns\ScopesToRecord;
+use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
+use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -24,8 +28,9 @@ class Index extends Component
     #[Url(as: 'q')]
     public string $search = '';
 
+    /** Defaults to jobs still in play; finished ones are the exception, not the view. */
     #[Url(as: 'status')]
-    public string $statusFilter = 'all';
+    public string $statusFilter = 'open';
 
     #[Url(as: 'direction')]
     public string $directionFilter = 'all';
@@ -44,6 +49,16 @@ class Index extends Component
 
     #[Url(as: 'to')]
     public string $dateTo = '';
+
+    /** Which date the from/to range applies to — when it runs, or when it was entered. */
+    #[Url(as: 'dateon')]
+    public string $dateField = 'scheduled_at';
+
+    #[Url(as: 'slot')]
+    public string $slotFilter = 'all';
+
+    #[Url(as: 'pdtype')]
+    public string $typeFilter = 'all';
 
     #[Url(as: 'sort')]
     public string $sortBy = 'scheduled_at';
@@ -87,6 +102,52 @@ class Index extends Component
         }
     }
 
+    /** Bound by the per-row cancel modal. */
+    public ?int $cancelReasonId = null;
+
+    public function cancelRow(int $id): void
+    {
+        $this->authorize('pickup_drop.update');
+
+        $this->resetErrorBag('cancelReasonId');
+
+        $this->validate(
+            ['cancelReasonId' => ['required', 'integer', Rule::exists('cancel_reasons', 'id')->where('is_active', true)]],
+            attributes: ['cancelReasonId' => 'cancel reason'],
+        );
+
+        $row = PickupDrop::findOrFail($id);
+        $row->forceFill(['cancelled_at' => now(), 'cancel_reason_id' => $this->cancelReasonId])->save();
+
+        $this->cancelReasonId = null;
+
+        Flux::modal('pickup-drop-cancel-'.$id)->close();
+        Flux::toast(text: 'Pickup/Drop '.$row->pickup_drop_no.' cancelled.', variant: 'success');
+    }
+
+    #[Computed]
+    public function cancelReasons()
+    {
+        return CancelReasonMaster::query()
+            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function timeSlots()
+    {
+        return TimeSlotMaster::query()
+            ->where('is_active', true)->orderBy('slot_start_time')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function pickupDropOptions()
+    {
+        return PickupDropOptionMaster::query()
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->where('involves_pickup', true)->orWhere('involves_drop', true))
+            ->orderBy('name')->get(['id', 'name']);
+    }
+
     public function delete(int $id): void
     {
         $this->authorize('pickup_drop.delete');
@@ -98,8 +159,25 @@ class Index extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'statusFilter', 'directionFilter', 'driverFilter', 'dateFrom', 'dateTo', 'stageFilter']);
+        $this->reset(['search', 'statusFilter', 'directionFilter', 'driverFilter', 'dateFrom', 'dateTo', 'stageFilter', 'dateField', 'slotFilter', 'typeFilter']);
         $this->resetPage();
+    }
+
+    /** @return list<string> jobs still in play — not delivered, completed, or cancelled */
+    public static function openStatuses(): array
+    {
+        return [
+            PickupDrop::STATUS_PENDING,
+            PickupDrop::STATUS_DRIVER_ASSIGNED,
+            PickupDrop::STATUS_DRIVER_ON_THE_WAY,
+            PickupDrop::STATUS_VEHICLE_COLLECTED,
+        ];
+    }
+
+    /** Whitelisted so the URL cannot point the range at an arbitrary column. */
+    protected function dateColumn(): string
+    {
+        return $this->dateField === 'created_at' ? 'created_at' : 'scheduled_at';
     }
 
     /** One click on a board count narrows the table to that driver and stage. */
@@ -169,16 +247,24 @@ class Index extends Component
                 'customerVehicle:id,registration_no',
                 'driver:id,name',
                 'pendingReason:id,name',
+                'advisor:id,name',
+                'workshopDepartment:id,name',
+                'timeSlot:id,name',
+                'jobCard:id,job_card_no',
                 'vendor:id,name',
             ])
             ->when($search !== '', fn ($q) => $q->search($search))
-            ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
+            // 'open' is the group of unfinished work; the literal statuses below it.
+            ->when($this->statusFilter === 'open', fn ($q) => $q->whereIn('status', self::openStatuses()))
+            ->when(! in_array($this->statusFilter, ['all', 'open'], true), fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->directionFilter !== 'all', fn ($q) => $q->where('direction', $this->directionFilter))
             ->when($this->driverFilter !== 'all', fn ($q) => $q->where('driver_employee_id', (int) $this->driverFilter))
             ->when($this->stageFilter === 'awaiting', fn ($q) => $q->whereIn('status', self::awaitingStatuses()))
             ->when($this->stageFilter === 'collected', fn ($q) => $q->whereIn('status', self::collectedStatuses()))
-            ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('scheduled_at', '>=', $this->dateFrom))
-            ->when($this->dateTo !== '', fn ($q) => $q->whereDate('scheduled_at', '<=', $this->dateTo))
+            ->when($this->dateFrom !== '', fn ($q) => $q->whereDate($this->dateColumn(), '>=', $this->dateFrom))
+            ->when($this->dateTo !== '', fn ($q) => $q->whereDate($this->dateColumn(), '<=', $this->dateTo))
+            ->when($this->slotFilter !== 'all', fn ($q) => $q->where('time_slot_id', (int) $this->slotFilter))
+            ->when($this->typeFilter !== 'all', fn ($q) => $q->where('pickup_drop_option_id', (int) $this->typeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);

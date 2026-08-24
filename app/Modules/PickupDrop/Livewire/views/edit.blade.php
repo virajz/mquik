@@ -369,8 +369,8 @@
         {{-- DOCUMENT CHECKLIST --}}
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
-                <flux:heading size="lg">Document Checklist</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Picking a template copies its lines here — later template edits won't rewrite them.</flux:text>
+<flux:heading size="lg">Document Collection</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">The driver's job at the pickup location — collect these with the car, and capture a selfie plus vehicle photos below as proof of condition.</flux:text>
             </div>
             <div class="space-y-3 min-w-0">
                 <flux:select wire:model.live="checklist_template_id" variant="listbox" clearable label="Checklist Template" placeholder="Load a template…">
@@ -400,25 +400,25 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Vehicle Condition</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Photo evidence at collection and again at handover.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Captured by the driver at the location — a DRIVER SELFIE view plus the vehicle, at collection and again at handover.</flux:text>
             </div>
             <div class="space-y-3 min-w-0">
                 @forelse ($photos as $i => $photo)
                     <div class="grid grid-cols-1 md:grid-cols-[1fr_150px_1fr_auto] gap-3 items-end" wire:key="pdp-{{ $i }}">
-                        <flux:select wire:model="photos.{{ $i }}.photo_type_id" variant="listbox" searchable clearable label="View" placeholder="Odometer, Front…">
+                        <flux:select wire:model.live="photos.{{ $i }}.photo_type_id" variant="listbox" searchable clearable label="View" placeholder="Odometer, Front…">
                             @foreach ($this->photoTypes as $pt)
                                 <flux:select.option :value="$pt->id" wire:key="pt-{{ $i }}-{{ $pt->id }}">{{ $pt->name }}</flux:select.option>
                             @endforeach
                         </flux:select>
 
-                        <flux:select wire:model="photos.{{ $i }}.leg" variant="listbox" label="When">
+                        <flux:select wire:model.live="photos.{{ $i }}.leg" variant="listbox" label="When">
                             @foreach ($PD::legs() as $key => $label)
                                 <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                             @endforeach
                         </flux:select>
 
                         <div>
-                            <flux:input type="file" wire:model="photoFiles.{{ $i }}" label="Image" accept="image/*" />
+                            <flux:input type="file" wire:model="photoFiles.{{ $i }}" label="Image" accept="image/*" capture="environment" />
                             @if ($photo['path'])
                                 <flux:text size="xs" class="text-zinc-500 mt-1">Saved: {{ basename($photo['path']) }}</flux:text>
                             @endif
@@ -450,10 +450,34 @@
                             <flux:select.option :value="$key">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>
-
-                    <flux:input wire:model="pickup_otp" label="Pickup OTP" placeholder="123456" maxlength="10" class:input="font-mono tracking-widest" />
-                    <flux:input wire:model="delivery_otp" label="Delivery OTP" placeholder="123456" maxlength="10" class:input="font-mono tracking-widest" />
                 </div>
+
+                {{-- Auto-generated, sent to the customer, read back at the door.
+                     Which leg's code this is follows the job's direction. --}}
+                @if ($editingId)
+                    @php($otpVerifiedAt = $direction === $PD::DIRECTION_PICKUP ? $pickup_otp_verified_at : $delivery_otp_verified_at)
+                    <flux:field>
+                        <flux:label>{{ $direction === $PD::DIRECTION_PICKUP ? 'Pickup' : 'Delivery' }} OTP</flux:label>
+                        @if ($otpVerifiedAt)
+                            <div class="flex items-center h-10">
+                                <flux:badge color="lime" size="sm">Verified · {{ $otpVerifiedAt }}</flux:badge>
+                            </div>
+                        @else
+                        <div class="flex flex-wrap items-center gap-2">
+                            <flux:button size="sm" variant="outline" icon="paper-airplane" wire:click="sendOtp">
+                                {{ ($direction === $PD::DIRECTION_PICKUP ? $pickup_otp : $delivery_otp) ? 'Resend OTP' : 'Send OTP' }}
+                            </flux:button>
+                            <flux:input wire:model="otpEntry" placeholder="Code from customer" maxlength="6"
+                                inputmode="numeric" class="max-w-40" class:input="font-mono tracking-widest" />
+                            <flux:button size="sm" variant="primary" wire:click="verifyOtp">Verify</flux:button>
+                        </div>
+                        <flux:error name="otpEntry" />
+                        <flux:description>Verifying confirms the handover and moves the status on its own.</flux:description>
+                        @endif
+                    </flux:field>
+                @else
+                    <flux:text size="sm" class="text-zinc-500">Save the job first — then an OTP can be sent for the handover.</flux:text>
+                @endif
 
                 <flux:textarea wire:model="notes" label="Driver Notes" placeholder="Apartment 3B; ask for Suresh; gate closes at 8 PM." rows="3" />
             </div>

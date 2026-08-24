@@ -112,9 +112,23 @@ class Edit extends Component
         $this->entered_date = $now->format('Y-m-d');
         $this->entered_time = $now->format('H:i');
 
+        // Cars come in through gate 1 and leave through gate 2 — pre-picked so
+        // the guard only changes it on the exception.
+        $this->entry_gate_id = $this->defaultGateId('GATE NO. 1');
+
         if ($gateInOut && $gateInOut->exists) {
             $this->load($gateInOut);
         }
+
+        if ($this->exit_gate_id === null) {
+            $this->exit_gate_id = $this->defaultGateId('GATE NO. 2');
+        }
+    }
+
+    protected function defaultGateId(string $name): ?int
+    {
+        return GateMaster::query()->where('is_active', true)->where('name', $name)->value('id')
+            ?? GateMaster::query()->where('is_active', true)->orderBy('id')->value('id');
     }
 
     protected function load(GateInOut $r): void
@@ -174,11 +188,12 @@ class Edit extends Component
     public function vehicleOptions()
     {
         return $this->pickerOptions(
-            query: CustomerVehicleMaster::query()->where('is_active', true)->with('customer:id,first_name,last_name'),
+            query: CustomerVehicleMaster::query()->where('is_active', true)
+                ->with(['customer:id,first_name,last_name', 'model:id,name,brand_id', 'model.brand:id,name']),
             searchColumns: ['registration_no', 'customer.first_name', 'customer.last_name', 'customer.phone'],
             term: $this->vehicleSearch,
             selected: $this->customer_vehicle_id,
-            columns: ['id', 'registration_no', 'customer_id'],
+            columns: ['id', 'registration_no', 'customer_id', 'model_id'],
             limit: 25,
         );
     }
@@ -331,6 +346,21 @@ class Edit extends Component
         return VendorMaster::query()->where('is_active', true)->orderBy('name')->limit(50)->get(['id', 'name']);
     }
 
+    /** "MARUTI SWIFT" for the linked vehicle — what the guard confirms visually. */
+    #[Computed]
+    public function linkedVehicleName(): ?string
+    {
+        if (! $this->customer_vehicle_id) {
+            return null;
+        }
+
+        $vehicle = CustomerVehicleMaster::with('model.brand')->find($this->customer_vehicle_id);
+
+        return $vehicle
+            ? trim(($vehicle->model?->brand?->name ?? '').' '.($vehicle->model?->name ?? '')) ?: null
+            : null;
+    }
+
     #[Computed]
     public function gates()
     {
@@ -347,6 +377,28 @@ class Edit extends Component
     public function employees()
     {
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /** Only the people who hand cars over: advisors and cashiers. */
+    #[Computed]
+    public function deliveryStaff()
+    {
+        return EmployeeMaster::query()
+            ->where('is_active', true)
+            ->whereHas('designation', fn ($q) => $q->where('name', 'like', '%ADVISOR%')->orWhere('name', 'like', '%CASHIER%'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Only the guards can let a car out. */
+    #[Computed]
+    public function securityGuards()
+    {
+        return EmployeeMaster::query()
+            ->where('is_active', true)
+            ->whereHas('designation', fn ($q) => $q->where('name', 'like', '%SECURITY%')->orWhere('name', 'like', '%GUARD%'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]

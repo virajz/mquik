@@ -11,33 +11,77 @@
         </div>
     </div>
 
-    <div class="mb-4 flex items-center gap-3 flex-wrap">
-        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by no, customer, phone, reg no..." icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-40">
-            <flux:select.option value="all">All status</flux:select.option>
-            @foreach ($statuses as $key => $label)
-                <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:select wire:model.live="directionFilter" variant="listbox" class="max-w-32">
-            <flux:select.option value="all">Both</flux:select.option>
-            @foreach ($directions as $key => $label)
-                <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:select wire:model.live="driverFilter" variant="listbox" searchable class="max-w-52">
-            <flux:select.option value="all">All drivers</flux:select.option>
-            @foreach ($this->drivers as $d)
-                <flux:select.option :value="(string) $d->id">{{ $d->name }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        @if ($search || $statusFilter !== 'all' || $directionFilter !== 'all' || $driverFilter !== 'all' || $dateFrom || $dateTo || $stageFilter !== 'all')
-            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
+    {{-- Search and status on the surface; everything else behind one button,
+         same pattern as the Appointment listing. --}}
+    <div class="mb-3 flex items-center gap-3">
+        <div class="flex-1 min-w-0">
+            <flux:input wire:model.live.debounce.300ms="search"
+                placeholder="PD no, job card no, customer, phone, reg no, brand/model…"
+                icon="magnifying-glass" clearable class="w-full" />
+        </div>
+
+        <div class="w-44 shrink-0">
+            <flux:select wire:model.live="statusFilter" variant="listbox" class="w-full">
+                <flux:select.option value="open">Open (unfinished)</flux:select.option>
+                <flux:select.option value="all">All status</flux:select.option>
+                @foreach ($statuses as $key => $label)
+                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+
+        @php($filtersOn = $directionFilter !== 'all' || $driverFilter !== 'all' || $slotFilter !== 'all' || $typeFilter !== 'all' || $dateFrom || $dateTo || $stageFilter !== 'all' || $dateField !== 'scheduled_at')
+        <flux:dropdown class="shrink-0">
+            <flux:button icon="funnel" variant="{{ $filtersOn ? 'primary' : 'outline' }}">Filters</flux:button>
+
+            <flux:popover class="w-80 space-y-4">
+                <flux:select wire:model.live="directionFilter" variant="listbox" label="Direction">
+                    <flux:select.option value="all">Both</flux:select.option>
+                    @foreach ($directions as $key => $label)
+                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="driverFilter" variant="listbox" searchable label="Driver">
+                    <flux:select.option value="all">All drivers</flux:select.option>
+                    @foreach ($this->drivers as $d)
+                        <flux:select.option :value="(string) $d->id">{{ $d->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="slotFilter" variant="listbox" searchable label="Time Slot">
+                    <flux:select.option value="all">All time slots</flux:select.option>
+                    @foreach ($this->timeSlots as $slot)
+                        <flux:select.option :value="(string) $slot->id" wire:key="fslot-{{ $slot->id }}">{{ $slot->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="typeFilter" variant="listbox" searchable label="Pickup/Drop Type">
+                    <flux:select.option value="all">All types</flux:select.option>
+                    @foreach ($this->pickupDropOptions as $opt)
+                        <flux:select.option :value="(string) $opt->id" wire:key="ftype-{{ $opt->id }}">{{ $opt->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:separator variant="subtle" />
+
+                <flux:select wire:model.live="dateField" variant="listbox" label="Date range applies to">
+                    <flux:select.option value="scheduled_at">Scheduled date</flux:select.option>
+                    <flux:select.option value="created_at">Created date</flux:select.option>
+                </flux:select>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                </div>
+            </flux:popover>
+        </flux:dropdown>
+
+        @if ($search || $statusFilter !== 'open' || $filtersOn)
+            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters" class="shrink-0">Clear</flux:button>
         @endif
-        <flux:spacer />
-        <flux:button variant="{{ $showDriverBoard ? 'primary' : 'outline' }}" size="sm" icon="users" wire:click="$toggle('showDriverBoard')">
+
+        <flux:button variant="{{ $showDriverBoard ? 'primary' : 'outline' }}" size="sm" icon="users" wire:click="$toggle('showDriverBoard')" class="shrink-0">
             Driver board
         </flux:button>
     </div>
@@ -83,9 +127,11 @@
             <flux:table.column class="w-44" sortable :sorted="$sortBy === 'scheduled_at'" :direction="$sortDirection" wire:click="sort('scheduled_at')">When</flux:table.column>
             <flux:table.column class="w-24">Direction</flux:table.column>
             <flux:table.column>Customer / Vehicle</flux:table.column>
+            <flux:table.column class="w-40">Advisor / Dept</flux:table.column>
             <flux:table.column class="w-44">Assigned</flux:table.column>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
             <flux:table.column class="w-40">Pending Reason</flux:table.column>
+            <flux:table.column class="w-28">Job Card</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
@@ -95,7 +141,10 @@
                     <flux:table.cell class="font-mono text-xs">{{ $row->pickup_drop_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
                         <div class="font-medium">{{ $row->scheduled_at?->format('d M Y') }}</div>
-                        <div class="text-xs text-zinc-500 mt-0.5">{{ $row->scheduled_at?->format('h:i A') }}</div>
+                        <div class="text-xs text-zinc-500 mt-0.5">
+                            {{ $row->scheduled_at?->format('h:i A') }}{{ $row->timeSlot ? ' · '.$row->timeSlot->name : '' }}
+                        </div>
+                        <div class="text-xs text-zinc-400 mt-0.5">Entered {{ $row->created_at?->format('d M Y') }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
                         <flux:badge :color="$row->direction === 'pickup' ? 'blue' : 'sky'" size="sm">{{ $directions[$row->direction] ?? $row->direction }}</flux:badge>
@@ -111,6 +160,10 @@
                                 <span class="font-mono">{{ $row->customerVehicle->registration_no }}</span>
                             @endif
                         </div>
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm">
+                        <div>{{ $row->advisor?->name ?? '—' }}</div>
+                        <div class="text-xs text-zinc-500 mt-0.5">{{ $row->workshopDepartment?->name }}</div>
                     </flux:table.cell>
                     <flux:table.cell class="text-sm">
                         @if ($row->driver)
@@ -140,9 +193,39 @@
                             —
                         @endif
                     </flux:table.cell>
+                    {{-- Linked after the vehicle is received. --}}
+                    <flux:table.cell class="font-mono text-xs">
+                        @if ($row->jobCard)
+                            <flux:link :href="route('job-card.edit', $row->job_card_id)" wire:navigate>{{ $row->jobCard->job_card_no }}</flux:link>
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('pickup_drop.update')
+                                @if (! $row->cancelled_at && $row->status !== \App\Modules\PickupDrop\Models\PickupDrop::STATUS_COMPLETED)
+                                    <flux:tooltip content="Cancel with a reason">
+                                        <flux:modal.trigger :name="'pickup-drop-cancel-' . $row->id">
+                                            <flux:button size="sm" variant="ghost" icon="x-circle" />
+                                        </flux:modal.trigger>
+                                    </flux:tooltip>
+                                    <flux:modal :name="'pickup-drop-cancel-' . $row->id" class="md:w-96">
+                                        <div class="space-y-4">
+                                            <flux:heading size="lg">Cancel {{ $row->pickup_drop_no }}?</flux:heading>
+                                            <flux:select wire:model="cancelReasonId" variant="listbox" label="Cancel Reason" placeholder="Why is it being cancelled?">
+                                                @foreach ($this->cancelReasons as $r)
+                                                    <flux:select.option :value="$r->id" wire:key="cxl-{{ $row->id }}-{{ $r->id }}">{{ $r->name }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                            <flux:error name="cancelReasonId" />
+                                            <div class="flex gap-2 justify-end">
+                                                <flux:modal.close><flux:button variant="ghost">Keep it</flux:button></flux:modal.close>
+                                                <flux:button variant="danger" wire:click="cancelRow({{ $row->id }})">Cancel Job</flux:button>
+                                            </div>
+                                        </div>
+                                    </flux:modal>
+                                @endif
                                 <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('pickup-drop.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
                             @can('pickup_drop.delete')
@@ -165,7 +248,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="10" class="text-center text-zinc-500 py-12">
                         <flux:icon.truck class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No pickup / drop runs scheduled</div>
                         <flux:text class="mt-1">Schedule from an appointment, or create one directly here.</flux:text>

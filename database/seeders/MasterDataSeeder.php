@@ -273,6 +273,19 @@ class MasterDataSeeder extends Seeder
                     ['applies_to' => 'inspection', 'checklist_group_id' => null, 'items' => $items, 'is_active' => true],
                 );
             }
+
+            // The driver's document run at the pickup address — the only template
+            // the Pickup/Drop screen offers.
+            ChecklistTemplateMaster::firstOrCreate(
+                ['name' => 'DOCUMENT COLLECTION TEMPLATE'],
+                ['applies_to' => 'pickup', 'items' => [
+                    ['label' => 'RC BOOK', 'is_required' => true],
+                    ['label' => 'INSURANCE POLICY', 'is_required' => true],
+                    ['label' => 'PUC CERTIFICATE', 'is_required' => false],
+                    ['label' => 'SERVICE BOOK', 'is_required' => false],
+                    ['label' => 'SPARE KEY', 'is_required' => false],
+                ], 'is_active' => true],
+            );
         });
         $this->command?->info('  · inspection groups, items + checklist templates imported');
     }

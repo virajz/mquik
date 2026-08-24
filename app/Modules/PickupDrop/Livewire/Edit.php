@@ -34,6 +34,7 @@ use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -144,6 +145,14 @@ class Edit extends Component
 
     public ?string $delivery_otp = null;
 
+    /** What the driver types back at the door. */
+    public ?string $otpEntry = null;
+
+    /** Display-only: when each leg's code was verified. */
+    public ?string $pickup_otp_verified_at = null;
+
+    public ?string $delivery_otp_verified_at = null;
+
     public ?int $checklist_template_id = null;
 
     public ?string $notes = null;
@@ -188,6 +197,13 @@ class Edit extends Component
         }
 
         $this->guardDepartmentPairings();
+
+        // One template applies to this screen; load its lines up front so the
+        // driver's document run is on the job from the start.
+        if ($this->checklist_template_id === null && ($only = $this->checklistTemplates->first())) {
+            $this->checklist_template_id = $only->id;
+            $this->updatedChecklistTemplateId();
+        }
     }
 
     protected function prefillFromJobCard(int $jobCardId): void
@@ -254,6 +270,8 @@ class Edit extends Component
         $this->otp_mode = $p->otp_mode ?? PickupDrop::OTP_OPTIONAL;
         $this->pickup_otp = $p->pickup_otp;
         $this->delivery_otp = $p->delivery_otp;
+        $this->pickup_otp_verified_at = $p->pickup_otp_verified_at?->format('d M Y, h:i A');
+        $this->delivery_otp_verified_at = $p->delivery_otp_verified_at?->format('d M Y, h:i A');
         $this->checklist_template_id = $p->checklist_template_id;
         $this->notes = $p->notes;
 
@@ -367,6 +385,70 @@ class Edit extends Component
         $this->status = $row->fresh()->status;
 
         Flux::toast(text: ucfirst(str_replace('_at', '', $column)).' recorded.', variant: 'success');
+    }
+
+    /**
+     * Text a fresh code to the customer for this leg. Mocked for now — the code
+     * is logged and shown in the toast; a real SMS gateway drops the toast.
+     */
+    public function sendOtp(): void
+    {
+        $this->authorize('pickup_drop.update');
+
+        if (! $this->editingId) {
+            return;
+        }
+
+        $row = PickupDrop::findOrFail($this->editingId);
+        $column = $this->otpColumn();
+        $code = (string) random_int(100000, 999999);
+
+        $row->forceFill([$column => $code, $column.'_verified_at' => null])->save();
+        $this->{$column} = $code;
+
+        Log::info('[MOCK OTP] would text a pickup/drop code', [
+            'pickup_drop' => $row->pickup_drop_no,
+            'phone' => $this->contact_phone ?: $row->customer?->phone,
+            'leg' => $this->direction,
+            'code' => $code,
+        ]);
+
+        Flux::toast(text: 'OTP sent (mock): '.$code, variant: 'success');
+    }
+
+    /** A matching code is the customer confirming the handover — status follows. */
+    public function verifyOtp(): void
+    {
+        $this->authorize('pickup_drop.update');
+
+        if (! $this->editingId) {
+            return;
+        }
+
+        $this->resetErrorBag('otpEntry');
+
+        $row = PickupDrop::findOrFail($this->editingId);
+        $column = $this->otpColumn();
+
+        if (! $row->{$column} || trim((string) $this->otpEntry) !== $row->{$column}) {
+            $this->addError('otpEntry', 'That code does not match.');
+
+            return;
+        }
+
+        $row->forceFill([$column.'_verified_at' => now()])->save();
+        $this->{$column} = $row->{$column};
+        $this->{$column.'_verified_at'} = $row->fresh()->{$column.'_verified_at'}?->format('d M Y, h:i A');
+        $this->otpEntry = null;
+        $this->status = $row->fresh()->status;
+
+        Flux::toast(text: 'OTP verified — handover confirmed.', variant: 'success');
+    }
+
+    /** Which leg's code this job uses. */
+    protected function otpColumn(): string
+    {
+        return $this->direction === PickupDrop::DIRECTION_PICKUP ? 'pickup_otp' : 'delivery_otp';
     }
 
     /** Cancelling is a deliberate act with a reason — a flag, not a status pick. */
@@ -913,7 +995,13 @@ class Edit extends Component
     #[Computed]
     public function checklistTemplates()
     {
-        return ChecklistTemplateMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        // Only the driver's document run applies here — inspection, claim and
+        // job-card templates belong to other screens.
+        return ChecklistTemplateMaster::query()
+            ->where('is_active', true)
+            ->where('applies_to', 'pickup')
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     public function save()

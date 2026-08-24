@@ -73,6 +73,7 @@
                     @foreach ($this->vehicleOptions as $v)
                         <flux:select.option :value="$v->id" wire:key="veh-{{ $v->id }}">
                             {{ $v->registration_no }}
+                            @if ($v->model)· {{ trim(($v->model->brand->name ?? '').' '.$v->model->name) }}@endif
                             @if ($v->customer)· {{ trim($v->customer->first_name.' '.$v->customer->last_name) }}@endif
                         </flux:select.option>
                     @endforeach
@@ -100,7 +101,7 @@
                 @if ($customer_vehicle_id)
                     <div class="rounded-md border border-lime-200 dark:border-lime-900 bg-lime-50 dark:bg-lime-900/20 px-3 py-2 text-sm flex items-center gap-2">
                         <flux:icon.check-circle class="size-4 text-lime-600 dark:text-lime-400" />
-                        <span>Linked to a known customer vehicle (#{{ $customer_vehicle_id }}).</span>
+                        <span>{{ $this->linkedVehicleName ?: 'Known customer vehicle' }} — linked (#{{ $customer_vehicle_id }}).</span>
                     </div>
                 @elseif (trim($registration_no))
                     <div class="rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm flex items-center gap-2">
@@ -229,15 +230,15 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:select wire:model="delivered_by_id" variant="listbox" searchable clearable label="Delivered By" placeholder="Driver or advisor…">
-                        @foreach ($this->employees as $e)
-                            <flux:select.option :value="$e->id" wire:key="db-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+<flux:select wire:model="delivered_by_id" variant="listbox" searchable clearable label="Delivered By" placeholder="Advisor or cashier…">
+                        @foreach ($this->deliveryStaff as $e)
+                            <flux:select.option :value="$e->id" wire:key="dlv-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model="exit_by_id" variant="listbox" searchable clearable label="Exit Approved By" placeholder="Security guard…">
-                        @foreach ($this->employees as $e)
-                            <flux:select.option :value="$e->id" wire:key="xb-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+<flux:select wire:model="exit_by_id" variant="listbox" searchable clearable label="Exit By (Security Guard)" placeholder="Which guard let it out…">
+                        @foreach ($this->securityGuards as $e)
+                            <flux:select.option :value="$e->id" wire:key="grd-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>

@@ -13,6 +13,7 @@ use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PickupDrop\Livewire\Edit;
 use App\Modules\PickupDrop\Livewire\Index;
@@ -505,4 +506,230 @@ it('groups the driver board by assigned, collected, and awaiting', function () {
     expect($row['assigned'])->toBe(2)
         ->and($row['collected'])->toBe(1)
         ->and($row['awaiting'])->toBe(1);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Quick-add services & direct complaints
+|--------------------------------------------------------------------------
+*/
+
+/** A department with one frequent and one general job description. */
+function deptWithJobs(): array
+{
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $st = ServiceTypeMaster::factory()->create(['workshop_department_id' => $dept->id]);
+    $frequent = JobDescriptionMaster::factory()->create(['service_type_id' => $st->id, 'category' => 'frequent', 'is_active' => true]);
+    $general = JobDescriptionMaster::factory()->create(['service_type_id' => $st->id, 'category' => 'general', 'is_active' => true]);
+
+    return [$dept, $frequent, $general];
+}
+
+it('persists ticked, picked, and typed services on their own table', function () {
+    [$dept, $frequent, $general] = deptWithJobs();
+
+    validPickupDrop(Livewire::test(Edit::class))
+        ->set('workshop_department_id', $dept->id)
+        // the dept change rightly cleared the helper's advisor — re-pick one
+        ->set('advisor_employee_id', EmployeeMaster::factory()->create()->id)
+        ->set('service_type_id', ServiceTypeMaster::where('workshop_department_id', $dept->id)->value('id'))
+        ->set('selectedServiceIds', [(string) $frequent->id])
+        ->set('requestedRepairIds', [(string) $general->id])
+        ->set('manualRepairInput', 'odd rattle fix')->call('addManualRepair')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $row = PickupDrop::latest('id')->first();
+
+    expect($row->services)->toHaveCount(3)
+        ->and($row->services->pluck('name')->all())->toContain($frequent->name, $general->name, 'ODD RATTLE FIX')
+        ->and($row->complaints)->toHaveCount(1); // the helper's typed complaint, untouched
+});
+
+it('requires a purpose: at least one service or one complaint', function () {
+    $component = validPickupDrop(Livewire::test(Edit::class))
+        ->call('removeComplaint', 0)
+        ->call('save');
+
+    $component->assertHasErrors(['complaints']);
+
+    // A ticked service alone is a valid purpose.
+    [$dept, $frequent] = deptWithJobs();
+    validPickupDrop(Livewire::test(Edit::class))
+        ->call('removeComplaint', 0)
+        ->set('workshop_department_id', $dept->id)
+        // the dept change rightly cleared the helper's advisor — re-pick one
+        ->set('advisor_employee_id', EmployeeMaster::factory()->create()->id)
+        ->set('service_type_id', ServiceTypeMaster::where('workshop_department_id', $dept->id)->value('id'))
+        ->set('selectedServiceIds', [(string) $frequent->id])
+        ->call('save')
+        ->assertHasNoErrors();
+});
+
+it('inherits the appointment\'s services and complaints on handoff', function () {
+    [$dept, $frequent] = deptWithJobs();
+    $appointment = Appointment::factory()->create(['workshop_department_id' => $dept->id]);
+    $appointment->services()->create(['job_description_id' => $frequent->id, 'name' => $frequent->name, 'sequence_no' => 0]);
+    $appointment->services()->create(['job_description_id' => null, 'name' => 'CUSTOM SHINE', 'sequence_no' => 1]);
+    $appointment->complaints()->create(['description' => 'RATTLE FROM REAR', 'sequence_no' => 1]);
+
+    $component = Livewire::test(Edit::class, ['fromAppointment' => $appointment->id]);
+
+    expect($component->get('selectedServiceIds'))->toBe([(string) $frequent->id])
+        ->and($component->get('manualRepairs'))->toBe(['CUSTOM SHINE'])
+        ->and(collect($component->get('complaints'))->pluck('description')->all())->toBe(['RATTLE FROM REAR']);
+});
+
+it('reloads a saved job\'s services back into the three inputs', function () {
+    [$dept, $frequent, $general] = deptWithJobs();
+
+    validPickupDrop(Livewire::test(Edit::class))
+        ->set('workshop_department_id', $dept->id)
+        // the dept change rightly cleared the helper's advisor — re-pick one
+        ->set('advisor_employee_id', EmployeeMaster::factory()->create()->id)
+        ->set('service_type_id', ServiceTypeMaster::where('workshop_department_id', $dept->id)->value('id'))
+        ->set('selectedServiceIds', [(string) $frequent->id])
+        ->set('requestedRepairIds', [(string) $general->id])
+        ->call('save')->assertHasNoErrors();
+
+    $row = PickupDrop::latest('id')->first();
+    $reopened = Livewire::test(Edit::class, ['pickupDrop' => $row]);
+
+    expect($reopened->get('selectedServiceIds'))->toBe([(string) $frequent->id])
+        ->and($reopened->get('requestedRepairIds'))->toBe([(string) $general->id]);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Driver leg: checklist, photos, OTP
+|--------------------------------------------------------------------------
+*/
+
+it('offers only pickup-applicable checklist templates, auto-loaded on new jobs', function () {
+    $docs = ChecklistTemplateMaster::firstOrCreate(
+        ['name' => 'DOCUMENT COLLECTION TEMPLATE'],
+        ['applies_to' => 'pickup', 'items' => [['label' => 'RC BOOK', 'is_required' => true]], 'is_active' => true],
+    );
+    ChecklistTemplateMaster::factory()->create(['name' => 'PMS CHECK LIST X', 'applies_to' => 'inspection']);
+
+    $component = Livewire::test(Edit::class);
+
+    expect($component->instance()->checklistTemplates->pluck('id')->all())->toBe([$docs->id])
+        ->and($component->get('checklist_template_id'))->toBe($docs->id)
+        ->and(collect($component->get('documents'))->pluck('label'))->toContain('RC BOOK');
+});
+
+it('sends and verifies a handover OTP, which drives the status', function () {
+    $row = PickupDrop::factory()->create([
+        'driver_employee_id' => EmployeeMaster::factory()->create()->id,
+        'vendor_courier_id' => null,
+        'departed_at' => now(),
+    ]);
+
+    $component = Livewire::test(Edit::class, ['pickupDrop' => $row->fresh()])
+        ->call('sendOtp');
+
+    $code = $row->fresh()->pickup_otp;
+    expect($code)->toHaveLength(6);
+
+    $component->set('otpEntry', '000000')->call('verifyOtp')->assertHasErrors(['otpEntry']);
+    expect($row->fresh()->pickup_otp_verified_at)->toBeNull();
+
+    $component->set('otpEntry', $code)->call('verifyOtp')->assertHasNoErrors();
+
+    expect($row->fresh()->pickup_otp_verified_at)->not->toBeNull()
+        ->and($row->fresh()->status)->toBe(PickupDrop::STATUS_VEHICLE_COLLECTED);
+});
+
+it('uses the delivery OTP column for a drop job', function () {
+    $row = PickupDrop::factory()->drop()->create([
+        'driver_employee_id' => EmployeeMaster::factory()->create()->id,
+        'vendor_courier_id' => null,
+        'departed_at' => now(),
+    ]);
+
+    $component = Livewire::test(Edit::class, ['pickupDrop' => $row->fresh()])->call('sendOtp');
+    $code = $row->fresh()->delivery_otp;
+
+    $component->set('otpEntry', $code)->call('verifyOtp')->assertHasNoErrors();
+
+    expect($row->fresh()->delivery_otp_verified_at)->not->toBeNull()
+        ->and($row->fresh()->status)->toBe(PickupDrop::STATUS_VEHICLE_DELIVERED);
+});
+
+it('keeps the photo view and leg selections live so uploads cannot wipe them', function () {
+    $html = Livewire::test(Edit::class)->call('addPhoto')->html();
+
+    expect($html)->toContain('wire:model.live="photos.0.photo_type_id"')
+        ->and($html)->toContain('wire:model.live="photos.0.leg"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Listing: default open, filters, cancel
+|--------------------------------------------------------------------------
+*/
+
+it('defaults the listing to open jobs', function () {
+    PickupDrop::factory()->create();                                            // pending
+    PickupDrop::factory()->create(['cancelled_at' => now()]);                   // cancelled
+    PickupDrop::factory()->drop()->create(['delivered_at' => now()]);           // delivered (finished)
+
+    $component = Livewire::test(Index::class);
+
+    expect($component->get('statusFilter'))->toBe('open');
+    $component->assertViewHas('rows', fn ($rows) => $rows->total() === 1);
+
+    $component->set('statusFilter', 'all')
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 3);
+});
+
+it('filters by time slot, type, and created date', function () {
+    $slot = TimeSlotMaster::firstOrCreate(
+        ['name' => '11:00-12:00'],
+        ['slot_start_time' => '11:00:00', 'slot_end_time' => '12:00:00', 'is_active' => true],
+    );
+    $type = pickupType();
+    PickupDrop::factory()->create(['time_slot_id' => $slot->id, 'pickup_drop_option_id' => $type->id]);
+    PickupDrop::factory()->create();
+
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
+        ->set('slotFilter', (string) $slot->id)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1)
+        ->set('slotFilter', 'all')
+        ->set('typeFilter', (string) $type->id)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1)
+        ->set('typeFilter', 'all')
+        ->set('dateField', 'created_at')
+        ->set('dateFrom', now()->subDay()->toDateString())
+        ->set('dateTo', now()->toDateString())
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 2);
+});
+
+it('searches by the linked job card number', function () {
+    $jobCard = JobCard::factory()->create();
+    PickupDrop::factory()->create(['job_card_id' => $jobCard->id]);
+    PickupDrop::factory()->create();
+
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
+        ->set('search', $jobCard->job_card_no)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1);
+});
+
+it('cancels a row from the listing with a standard reason', function () {
+    $row = PickupDrop::factory()->create();
+
+    $component = Livewire::test(Index::class)
+        ->call('cancelRow', $row->id)
+        ->assertHasErrors(['cancelReasonId']);
+
+    expect($row->fresh()->status)->not->toBe(PickupDrop::STATUS_CANCELLED);
+
+    $component->set('cancelReasonId', CancelReasonMaster::factory()->create()->id)
+        ->call('cancelRow', $row->id);
+
+    expect($row->fresh()->status)->toBe(PickupDrop::STATUS_CANCELLED)
+        ->and($row->fresh()->cancel_reason_id)->not->toBeNull();
 });

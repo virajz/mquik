@@ -80,7 +80,12 @@ class PickupDrop extends Model
         'distance_charge' => 'decimal:2',
     ];
 
-    protected static array $searchableFields = ['pickup_drop_no', 'pickup_address', 'drop_address', 'contact_phone', 'notes', 'customer.first_name', 'customer.phone', 'customerVehicle.registration_no'];
+    protected static array $searchableFields = [
+        'pickup_drop_no', 'pickup_address', 'drop_address', 'contact_phone', 'notes',
+        'customer.first_name', 'customer.last_name', 'customer.phone',
+        'customerVehicle.registration_no', 'customerVehicle.model.name', 'customerVehicle.model.brand.name',
+        'jobCard.job_card_no',
+    ];
 
     protected static function newFactory(): PickupDropFactory
     {

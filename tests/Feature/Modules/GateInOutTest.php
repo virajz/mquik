@@ -3,6 +3,8 @@
 use App\Models\User;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DesignationMaster\Models\DesignationMaster;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Livewire\Edit;
 use App\Modules\GateInOut\Livewire\Index;
 use App\Modules\GateInOut\Models\GateInOut;
@@ -93,7 +95,6 @@ it('records the outward leg with gate, type and driver type', function () {
         ->set('exited_date', '2026-09-01')
         ->set('exited_time', '11:00')
         ->set('exit_gate_id', $gate->id)
-        ->set('outward_type', 'trial_run')
         ->set('driver_type', 'workshop_staff')
         ->set('status', GateInOut::STATUS_COMPLETED)
         ->call('save')
@@ -102,7 +103,8 @@ it('records the outward leg with gate, type and driver type', function () {
     $visit = GateInOut::firstOrFail();
     expect($visit->exit_gate_id)->toBe($gate->id)
         ->and($visit->parking_slot_id)->toBe($slot->id)
-        ->and($visit->outward_type)->toBe('trial_run')
+        // The only exit recorded here is the final delivery; trial runs live in Movements.
+        ->and($visit->outward_type)->toBe('final_delivery')
         ->and($visit->driver_type)->toBe('workshop_staff')
         ->and($visit->tatMinutes())->toBe(120);
 });
@@ -190,4 +192,51 @@ it('requires authentication', function () {
     auth()->logout();
 
     $this->get(route('gate-in-out.index'))->assertRedirect(route('login'));
+});
+
+/*
+|--------------------------------------------------------------------------
+| Pickers & defaults (rework chunk 1)
+|--------------------------------------------------------------------------
+*/
+
+it('defaults entry gate to GATE NO. 1 and exit gate to GATE NO. 2', function () {
+    $in = GateMaster::firstOrCreate(['name' => 'GATE NO. 1'], ['is_active' => true]);
+    $out = GateMaster::firstOrCreate(['name' => 'GATE NO. 2'], ['is_active' => true]);
+
+    $component = Livewire::test(Edit::class);
+
+    expect($component->get('entry_gate_id'))->toBe($in->id)
+        ->and($component->get('exit_gate_id'))->toBe($out->id);
+});
+
+it('keeps a saved record\'s own gates when editing', function () {
+    GateMaster::firstOrCreate(['name' => 'GATE NO. 1'], ['is_active' => true]);
+    $side = GateMaster::factory()->create(['name' => 'SIDE GATE']);
+    $row = GateInOut::factory()->create(['entry_gate_id' => $side->id]);
+
+    expect(Livewire::test(Edit::class, ['gateInOut' => $row])->get('entry_gate_id'))->toBe($side->id);
+});
+
+it('offers only advisors and cashiers as Delivered By, and only guards as Exit By', function () {
+    $advisor = EmployeeMaster::factory()->create(['designation_id' => DesignationMaster::firstOrCreate(['name' => 'MECHANICAL ADVISOR'], ['is_active' => true])->id]);
+    $cashier = EmployeeMaster::factory()->create(['designation_id' => DesignationMaster::firstOrCreate(['name' => 'CASHIER'], ['is_active' => true])->id]);
+    $guard = EmployeeMaster::factory()->create(['designation_id' => DesignationMaster::firstOrCreate(['name' => 'SECURITY GUARD'], ['is_active' => true])->id]);
+    EmployeeMaster::factory()->create(['designation_id' => DesignationMaster::firstOrCreate(['name' => 'TECHNICIAN'], ['is_active' => true])->id]);
+
+    $instance = Livewire::test(Edit::class)->instance();
+
+    expect($instance->deliveryStaff->pluck('id'))->toContain($advisor->id, $cashier->id)
+        ->and($instance->deliveryStaff->pluck('id'))->not->toContain($guard->id)
+        ->and($instance->securityGuards->pluck('id')->all())->toBe([$guard->id]);
+});
+
+it('shows the vehicle name for the selected registration', function () {
+    $vehicle = CustomerVehicleMaster::factory()->create();
+
+    $name = Livewire::test(Edit::class)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->instance()->linkedVehicleName;
+
+    expect($name)->not->toBeNull();
 });
