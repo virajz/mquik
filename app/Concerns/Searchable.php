@@ -44,7 +44,10 @@ trait Searchable
             return $query;
         }
 
-        $tokens = preg_split('/\s+/', $term, -1, PREG_SPLIT_NO_EMPTY);
+        // `%` separates too, so a pasted "RAJESH%KA01" works like "RAJESH KA01".
+        // People type it expecting a wildcard; treating it as a separator gets
+        // them the result they wanted either way.
+        $tokens = preg_split('/[\s%]+/', $term, -1, PREG_SPLIT_NO_EMPTY);
         if (empty($tokens)) {
             return $query;
         }
@@ -60,7 +63,8 @@ trait Searchable
                         // "relation.column" searches through a relationship, so a job
                         // card can still be found by customer name or registration no.
                         if (str_contains($field, '.')) {
-                            [$relation, $column] = explode('.', $field, 2);
+                            $relation = substr($field, 0, strrpos($field, '.'));
+                            $column = substr($field, strrpos($field, '.') + 1);
                             $sub->orWhereHas($relation, function (Builder $rel) use ($column, $needle, $token, $isPostgres) {
                                 $rel->where(function (Builder $inner) use ($column, $needle, $token, $isPostgres) {
                                     self::applyFieldMatch($inner, $column, $needle, $token, $isPostgres);

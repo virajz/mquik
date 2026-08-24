@@ -6,6 +6,8 @@ use App\Concerns\ScopesToRecord;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
@@ -26,7 +28,8 @@ class Index extends Component
     public string $search = '';
 
     #[Url(as: 'status')]
-    public string $statusFilter = 'all';
+    /** Defaults to bookings still in play; finished ones are the exception, not the view. */
+    public string $statusFilter = 'open';
 
     #[Url(as: 'channel')]
     public string $channelFilter = 'all';
@@ -42,6 +45,16 @@ class Index extends Component
 
     #[Url(as: 'to')]
     public string $dateTo = '';
+
+    /** Which date the from/to range applies to — when it is for, or when it was booked. */
+    #[Url(as: 'dateon')]
+    public string $dateField = 'appointment_at';
+
+    #[Url(as: 'slot')]
+    public string $slotFilter = 'all';
+
+    #[Url(as: 'pdopt')]
+    public string $pickupDropFilter = 'all';
 
     #[Url(as: 'sort')]
     public string $sortBy = 'appointment_at';
@@ -110,9 +123,77 @@ class Index extends Component
         Flux::toast(text: 'Appointment #'.$id.' deleted.', variant: 'success');
     }
 
+    /** Whitelisted so the URL cannot point the range at an arbitrary column. */
+    protected function dateColumn(): string
+    {
+        return $this->dateField === 'created_at' ? 'created_at' : 'appointment_at';
+    }
+
+    /**
+     * The filters currently narrowing the list, as chips.
+     *
+     * Nine always-visible dropdowns read as noise and hide which ones are
+     * actually doing something. The secondary filters live behind one button;
+     * whatever is set shows here as a removable chip, so the applied state is
+     * legible without opening anything.
+     *
+     * @return array<string, array{label: string, value: string}>
+     */
+    public function activeFilters(): array
+    {
+        $chips = [];
+
+        if ($this->statusFilter !== 'open') {
+            $chips['statusFilter'] = [
+                'label' => 'Status',
+                'value' => $this->statusFilter === 'all' ? 'All' : (Appointment::statuses()[$this->statusFilter] ?? $this->statusFilter),
+            ];
+        }
+
+        if ($this->channelFilter !== 'all') {
+            $chips['channelFilter'] = ['label' => 'Channel', 'value' => (string) BookingChannelMaster::whereKey($this->channelFilter)->value('name')];
+        }
+
+        if ($this->advisorFilter !== 'all') {
+            $chips['advisorFilter'] = ['label' => 'Advisor', 'value' => (string) EmployeeMaster::whereKey($this->advisorFilter)->value('name')];
+        }
+
+        if ($this->deptFilter !== 'all') {
+            $chips['deptFilter'] = ['label' => 'Department', 'value' => (string) WorkshopDepartmentMaster::whereKey($this->deptFilter)->value('name')];
+        }
+
+        if ($this->slotFilter !== 'all') {
+            $chips['slotFilter'] = ['label' => 'Time slot', 'value' => (string) TimeSlotMaster::whereKey($this->slotFilter)->value('name')];
+        }
+
+        if ($this->pickupDropFilter !== 'all') {
+            $chips['pickupDropFilter'] = ['label' => 'Pickup/drop', 'value' => (string) PickupDropOptionMaster::whereKey($this->pickupDropFilter)->value('name')];
+        }
+
+        if ($this->dateFrom !== '' || $this->dateTo !== '') {
+            $on = $this->dateField === 'created_at' ? 'Created' : 'Appointment';
+            $range = trim(($this->dateFrom ?: '…').' → '.($this->dateTo ?: '…'));
+            $chips['dateRange'] = ['label' => $on.' date', 'value' => $range];
+        }
+
+        return $chips;
+    }
+
+    public function removeFilter(string $key): void
+    {
+        match ($key) {
+            'statusFilter' => $this->statusFilter = 'open',
+            'dateRange' => $this->reset(['dateFrom', 'dateTo', 'dateField']),
+            'channelFilter', 'advisorFilter', 'deptFilter', 'slotFilter', 'pickupDropFilter' => $this->{$key} = 'all',
+            default => null,
+        };
+
+        $this->resetPage();
+    }
+
     public function clearFilters(): void
     {
-        $this->reset(['search', 'statusFilter', 'channelFilter', 'advisorFilter', 'deptFilter', 'dateFrom', 'dateTo']);
+        $this->reset(['search', 'statusFilter', 'channelFilter', 'advisorFilter', 'deptFilter', 'dateFrom', 'dateTo', 'dateField', 'slotFilter', 'pickupDropFilter']);
         $this->resetPage();
     }
 
@@ -126,6 +207,18 @@ class Index extends Component
     public function departments()
     {
         return WorkshopDepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function timeSlots()
+    {
+        return TimeSlotMaster::query()->where('is_active', true)->orderBy('slot_start_time')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function pickupDropOptions()
+    {
+        return PickupDropOptionMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     public function render()
@@ -150,12 +243,20 @@ class Index extends Component
                 'pickupDrops:id,appointment_id,status,driver_employee_id',
             ])
             ->when($search !== '', fn ($q) => $q->search($search))
-            ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
+            // 'open' is the group of everything unfinished; 'pending' below is the
+            // literal status, and the two must not share a value.
+            ->when($this->statusFilter === 'open', fn ($q) => $q->whereIn('status', Appointment::pendingStatuses()))
+            ->when(! in_array($this->statusFilter, ['all', 'open'], true), fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->channelFilter !== 'all', fn ($q) => $q->where('booking_channel_id', (int) $this->channelFilter))
             ->when($this->advisorFilter !== 'all', fn ($q) => $q->where('assigned_advisor_id', (int) $this->advisorFilter))
             ->when($this->deptFilter !== 'all', fn ($q) => $q->where('workshop_department_id', (int) $this->deptFilter))
-            ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('appointment_at', '>=', $this->dateFrom))
-            ->when($this->dateTo !== '', fn ($q) => $q->whereDate('appointment_at', '<=', $this->dateTo))
+            ->when($this->dateFrom !== '', fn ($q) => $q->whereDate($this->dateColumn(), '>=', $this->dateFrom))
+            ->when($this->dateTo !== '', fn ($q) => $q->whereDate($this->dateColumn(), '<=', $this->dateTo))
+            // A slot can be booked on either leg, so match either.
+            ->when($this->slotFilter !== 'all', fn ($q) => $q->where(fn ($w) => $w
+                ->where('time_slot_id', (int) $this->slotFilter)
+                ->orWhere('drop_time_slot_id', (int) $this->slotFilter)))
+            ->when($this->pickupDropFilter !== 'all', fn ($q) => $q->where('pickup_drop_option_id', (int) $this->pickupDropFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);

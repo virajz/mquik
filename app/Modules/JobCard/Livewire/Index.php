@@ -27,8 +27,9 @@ class Index extends Component
     #[Url(as: 'q')]
     public string $search = '';
 
+    /** Defaults to the cards still on the floor — closed history is the exception, not the view. */
     #[Url(as: 'status')]
-    public string $statusFilter = 'all';
+    public string $statusFilter = 'pending';
 
     #[Url(as: 'advisor')]
     public string $advisorFilter = 'all';
@@ -199,7 +200,8 @@ class Index extends Component
             ])
             ->withCount(['complaints', 'inventoryItems'])
             ->when($search !== '', fn ($q) => $q->search($search))
-            ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
+            ->when($this->statusFilter === 'pending', fn ($q) => $q->whereIn('status', JobCard::pendingStatuses()))
+            ->when(! in_array($this->statusFilter, ['all', 'pending'], true), fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->advisorFilter !== 'all', fn ($q) => $q->where('assigned_advisor_id', (int) $this->advisorFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('assigned_technician_id', (int) $this->technicianFilter))
             ->when($this->deptFilter !== 'all', fn ($q) => $q->where('workshop_department_id', (int) $this->deptFilter))

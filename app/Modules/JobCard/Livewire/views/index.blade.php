@@ -14,6 +14,7 @@
     <div class="mb-4 flex items-center gap-3 flex-wrap">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by JC no, customer, phone, reg no..." icon="magnifying-glass" clearable class="max-w-md" />
         <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-44">
+            <flux:select.option value="pending">Pending</flux:select.option>
             <flux:select.option value="all">All status</flux:select.option>
             @foreach ($statuses as $key => $label)
                 <flux:select.option :value="$key">{{ $label }}</flux:select.option>
@@ -39,7 +40,7 @@
         </flux:select>
         <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
         <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        @if ($search || $statusFilter !== 'all' || $advisorFilter !== 'all' || $technicianFilter !== 'all' || $deptFilter !== 'all' || $dateFrom || $dateTo)
+        @if ($search || $statusFilter !== 'pending' || $advisorFilter !== 'all' || $technicianFilter !== 'all' || $deptFilter !== 'all' || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
     </div>

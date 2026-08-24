@@ -11,38 +11,106 @@
         </div>
     </div>
 
-    <div class="mb-4 flex items-center gap-3 flex-wrap">
-        <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by appointment no, customer, phone, reg no..." icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:select wire:model.live="statusFilter" variant="listbox" class="max-w-40">
-            <flux:select.option value="all">All status</flux:select.option>
-            @foreach ($statuses as $key => $label)
-                <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:select wire:model.live="channelFilter" variant="listbox" class="max-w-44">
-            <flux:select.option value="all">All channels</flux:select.option>
-            @foreach ($channels as $key => $label)
-                <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:select wire:model.live="advisorFilter" variant="listbox" searchable class="max-w-52">
-            <flux:select.option value="all">All advisors</flux:select.option>
-            @foreach ($this->advisors as $a)
-                <flux:select.option :value="(string) $a->id">{{ $a->name }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:select wire:model.live="deptFilter" variant="listbox" searchable class="max-w-52">
-            <flux:select.option value="all">All departments</flux:select.option>
-            @foreach ($this->departments as $d)
-                <flux:select.option :value="(string) $d->id">{{ $d->name }}</flux:select.option>
-            @endforeach
-        </flux:select>
-        <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        @if ($search || $statusFilter !== 'all' || $channelFilter !== 'all' || $advisorFilter !== 'all' || $deptFilter !== 'all' || $dateFrom || $dateTo)
-            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
-        @endif
+    {{-- Search and status stay on the surface because they are what people reach
+         for; the rest live behind one button, with chips showing what is applied
+         so the narrowed state is never invisible. --}}
+    <div class="mb-3 flex items-center gap-3">
+        {{-- Flux puts `class` on the inner control, not the wrapper, so the flex
+             sizing has to live on a wrapping div or the search collapses and the
+             dropdown eats the row. --}}
+        <div class="flex-1 min-w-0">
+            <flux:input
+                wire:model.live.debounce.300ms="search"
+                placeholder="Appointment no, job card no, customer, phone, reg no, brand/model…"
+                icon="magnifying-glass"
+                clearable
+                class="w-full"
+            />
+        </div>
+
+        <div class="w-44 shrink-0">
+            <flux:select wire:model.live="statusFilter" variant="listbox" class="w-full">
+                <flux:select.option value="open">Open (unfinished)</flux:select.option>
+                <flux:select.option value="all">All status</flux:select.option>
+                @foreach ($statuses as $key => $label)
+                    <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+
+        @php($activeFilters = $this->activeFilters())
+        <flux:dropdown class="shrink-0">
+            <flux:button icon="funnel" variant="{{ count($activeFilters) ? 'primary' : 'outline' }}">
+                Filters
+                @if (count($activeFilters))
+                    <flux:badge size="sm" color="zinc" class="ms-1.5">{{ count($activeFilters) }}</flux:badge>
+                @endif
+            </flux:button>
+
+            <flux:popover class="w-80 space-y-4">
+                <flux:select wire:model.live="channelFilter" variant="listbox" label="Booking Channel">
+                    <flux:select.option value="all">All channels</flux:select.option>
+                    @foreach ($channels as $key => $label)
+                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="advisorFilter" variant="listbox" searchable label="Advisor">
+                    <flux:select.option value="all">All advisors</flux:select.option>
+                    @foreach ($this->advisors as $a)
+                        <flux:select.option :value="(string) $a->id">{{ $a->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="deptFilter" variant="listbox" searchable label="Department">
+                    <flux:select.option value="all">All departments</flux:select.option>
+                    @foreach ($this->departments as $d)
+                        <flux:select.option :value="(string) $d->id">{{ $d->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="slotFilter" variant="listbox" searchable label="Time Slot">
+                    <flux:select.option value="all">All time slots</flux:select.option>
+                    @foreach ($this->timeSlots as $slot)
+                        <flux:select.option :value="(string) $slot->id" wire:key="fslot-{{ $slot->id }}">{{ $slot->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:select wire:model.live="pickupDropFilter" variant="listbox" searchable label="Pickup / Drop">
+                    <flux:select.option value="all">All pickup/drop</flux:select.option>
+                    @foreach ($this->pickupDropOptions as $opt)
+                        <flux:select.option :value="(string) $opt->id" wire:key="fpd-{{ $opt->id }}">{{ $opt->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:separator variant="subtle" />
+
+                {{-- One range, pointed at whichever date is being asked about. --}}
+                <flux:select wire:model.live="dateField" variant="listbox" label="Date range applies to">
+                    <flux:select.option value="appointment_at">Appointment date</flux:select.option>
+                    <flux:select.option value="created_at">Created date</flux:select.option>
+                </flux:select>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                </div>
+            </flux:popover>
+        </flux:dropdown>
     </div>
+
+    @if ($search || count($activeFilters))
+        <div class="mb-4 flex items-center gap-2 flex-wrap">
+            @foreach ($activeFilters as $key => $chip)
+                <flux:badge size="sm" variant="pill" wire:key="chip-{{ $key }}">
+                    <span class="text-zinc-500">{{ $chip['label'] }}:</span>&nbsp;{{ $chip['value'] }}
+                    <flux:badge.close wire:click="removeFilter('{{ $key }}')" />
+                </flux:badge>
+            @endforeach
+
+            <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear all</flux:button>
+        </div>
+    @endif
 
     <flux:table>
         <flux:table.columns>

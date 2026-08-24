@@ -50,7 +50,11 @@ class GateInOut extends Model
         'exited_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['gate_event_no', 'registration_no', 'notes', 'customer.first_name'];
+    protected static array $searchableFields = [
+        'gate_event_no', 'registration_no', 'notes',
+        'customer.first_name', 'customer.last_name', 'customer.phone',
+        'customerVehicle.model.name', 'customerVehicle.model.brand.name',
+    ];
 
     protected static function newFactory(): GateInOutFactory
     {

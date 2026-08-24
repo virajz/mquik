@@ -60,7 +60,12 @@ class Appointment extends Model
         'cancelled_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['appointment_no', 'pickup_address', 'pickup_contact_phone', 'notes', 'customer.first_name', 'customer.last_name', 'customer.phone', 'customerVehicle.registration_no'];
+    protected static array $searchableFields = [
+        'appointment_no', 'pickup_address', 'pickup_contact_phone', 'notes',
+        'customer.first_name', 'customer.last_name', 'customer.phone',
+        'customerVehicle.registration_no', 'customerVehicle.model.name', 'customerVehicle.model.brand.name',
+        'jobCards.job_card_no',
+    ];
 
     protected static function newFactory(): AppointmentFactory
     {
@@ -247,6 +252,26 @@ class Appointment extends Model
     /**
      * @return array<string, string>
      */
+    /**
+     * Bookings that still need somebody to do something.
+     *
+     * The literal `pending` status is only one of these — a confirmed booking
+     * whose car has not arrived is just as open. Completed, cancelled and
+     * no-show are the end states, so this is their inverse.
+     *
+     * @return list<string>
+     */
+    public static function pendingStatuses(): array
+    {
+        return [
+            self::STATUS_PENDING,
+            self::STATUS_CONFIRMED,
+            self::STATUS_RESCHEDULED,
+            self::STATUS_VEHICLE_COLLECTED,
+            self::STATUS_ARRIVED,
+        ];
+    }
+
     public static function statuses(): array
     {
         return [

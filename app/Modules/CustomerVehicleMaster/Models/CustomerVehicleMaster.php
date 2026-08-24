@@ -32,7 +32,11 @@ class CustomerVehicleMaster extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static array $searchableFields = ['registration_no', 'vin', 'engine_no'];
+    protected static array $searchableFields = [
+        'registration_no', 'vin', 'engine_no',
+        'customer.first_name', 'customer.last_name', 'customer.phone',
+        'model.name', 'model.brand.name',
+    ];
 
     /** Plate type for a vehicle that has no registration number yet. */
     public const PLATE_UNREGISTERED = 'UNREGISTERED';

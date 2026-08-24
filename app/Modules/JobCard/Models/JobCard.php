@@ -73,7 +73,8 @@ class JobCard extends Model
      */
     protected static array $searchableFields = [
         'job_card_no', 'suggested_services', 'notes',
-        'customer.first_name', 'customer.phone', 'customerVehicle.registration_no',
+        'customer.first_name', 'customer.last_name', 'customer.phone',
+        'customerVehicle.registration_no', 'customerVehicle.model.name', 'customerVehicle.model.brand.name',
         'complaints.description', 'requestedRepairs.name',
     ];
 
@@ -291,6 +292,25 @@ class JobCard extends Model
     /**
      * @return array<string, string>
      */
+    /**
+     * The statuses that mean "still on the floor".
+     *
+     * There is no single `pending` status — a job card is pending because it has
+     * not reached an end state yet, so the list is the inverse of completed,
+     * closed and cancelled.
+     *
+     * @return list<string>
+     */
+    public static function pendingStatuses(): array
+    {
+        return [
+            self::STATUS_OPEN,
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_AWAITING_PARTS,
+            self::STATUS_AWAITING_APPROVAL,
+        ];
+    }
+
     public static function statuses(): array
     {
         return [
