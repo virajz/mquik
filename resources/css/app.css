@@ -71,3 +71,22 @@
 		border-color: var(--color-gray-200, currentColor);
 	}
 }
+
+@layer base {
+	/*
+	 * Required fields mark themselves.
+	 *
+	 * `required` is already on the control in every form, so the asterisk is
+	 * derived from it rather than hand-written into each label — 193 blade files
+	 * use `required`, and typing a red span next to each one is how the marker
+	 * and the actual validation rule drift apart.
+	 *
+	 * Scoped to the field's own label (`> [data-flux-label]`) so a field wrapping
+	 * another field never inherits its child's marker.
+	 */
+	[data-flux-field]:has([data-flux-control][required]) > [data-flux-label]::after {
+		content: '*';
+		margin-inline-start: 0.125rem;
+		color: var(--color-red-500);
+	}
+}

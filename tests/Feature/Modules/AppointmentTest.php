@@ -11,10 +11,14 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\HolidayMaster\Models\HolidayMaster;
+use App\Modules\JobCard\Models\JobCard;
+use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Livewire\Features\SupportTesting\Testable;
@@ -121,7 +125,7 @@ it('creates an appointment with capital typing on free-text fields', function ()
     $a = Appointment::first();
     expect($a)->not->toBeNull()
         ->and($a->notes)->toBe('CUSTOMER REQUESTED EARLY DELIVERY')
-        ->and($a->status)->toBe(Appointment::STATUS_PENDING)
+        ->and($a->status)->toBe(Appointment::STATUS_CONFIRMED)
         ->and($a->appointment_no)->toStartWith('APT-');
 });
 
@@ -230,26 +234,44 @@ it('updates an existing appointment without changing appointment_no', function (
 
     Livewire::test(Edit::class, ['appointment' => $a])
         ->set('notes', 'updated note')
-        ->set('status', Appointment::STATUS_CONFIRMED)
         ->call('save')
         ->assertHasNoErrors();
 
     expect($a->fresh()->notes)->toBe('UPDATED NOTE')
-        ->and($a->fresh()->status)->toBe(Appointment::STATUS_CONFIRMED)
         ->and($a->fresh()->appointment_no)->toBe($original);
 });
 
-it('requires a cancel reason only when the status is cancelled', function () {
-    fillValidAppointment(Livewire::test(Edit::class))
-        ->set('status', Appointment::STATUS_CANCELLED)
-        ->call('save')
+it('requires a reason to cancel, and derives the cancelled status from it', function () {
+    $a = Appointment::factory()->create();
+
+    Livewire::test(Edit::class, ['appointment' => $a])
+        ->call('cancelAppointment')
         ->assertHasErrors(['cancel_reason_id']);
 
-    fillValidAppointment(Livewire::test(Edit::class))
-        ->set('status', Appointment::STATUS_CANCELLED)
+    expect($a->fresh()->status)->not->toBe(Appointment::STATUS_CANCELLED);
+
+    Livewire::test(Edit::class, ['appointment' => $a])
         ->set('cancel_reason_id', CancelReasonMaster::factory()->create()->id)
-        ->call('save')
+        ->call('cancelAppointment')
         ->assertHasNoErrors();
+
+    expect($a->fresh()->status)->toBe(Appointment::STATUS_CANCELLED)
+        ->and($a->fresh()->cancelled_at)->not->toBeNull();
+});
+
+it('restores a cancelled booking back to a derived status', function () {
+    $a = Appointment::factory()->create([
+        'cancelled_at' => now(),
+        'cancel_reason_id' => CancelReasonMaster::factory()->create()->id,
+    ]);
+    $a->save();
+
+    expect($a->fresh()->status)->toBe(Appointment::STATUS_CANCELLED);
+
+    Livewire::test(Edit::class, ['appointment' => $a])->call('restoreAppointment');
+
+    expect($a->fresh()->cancelled_at)->toBeNull()
+        ->and($a->fresh()->status)->not->toBe(Appointment::STATUS_CANCELLED);
 });
 
 it('saves customer complaints as line items and re-syncs on update', function () {
@@ -316,10 +338,10 @@ it('warns when the chosen date is a holiday', function () {
         ->and($component->instance()->schedulingWarnings[0])->toContain('REPUBLIC DAY');
 });
 
-it('derives the driver stage from the linked pickup/drop job', function () {
-    $a = Appointment::factory()->create(['status' => Appointment::STATUS_CONFIRMED]);
+it('refines an unstarted booking with the live driver stage', function () {
+    $a = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
 
-    expect($a->effectiveStatusLabel())->toBe('Confirmed');
+    expect($a->fresh()->effectiveStatusLabel())->toBe('Confirmed');
 
     $job = PickupDrop::factory()->create([
         'appointment_id' => $a->id,
@@ -328,11 +350,14 @@ it('derives the driver stage from the linked pickup/drop job', function () {
 
     expect($a->fresh()->effectiveStatusLabel())->toBe('Driver on the Way');
 
+    // Once the driver has the car the derived ladder takes over, so the job's
+    // later stages no longer talk over the appointment's own status.
     $job->update(['status' => PickupDrop::STATUS_VEHICLE_COLLECTED]);
-    expect($a->fresh()->effectiveStatusLabel())->toBe('Vehicle Collected');
+    expect($a->fresh()->status)->toBe(Appointment::STATUS_VEHICLE_COLLECTED)
+        ->and($a->fresh()->effectiveStatusLabel())->toBe('Vehicle Collected');
 
-    // A terminal appointment state always wins over the driver stage.
-    $a->update(['status' => Appointment::STATUS_CANCELLED]);
+    // A cancellation always wins over the driver stage.
+    $a->forceFill(['cancelled_at' => now()])->save();
     expect($a->fresh()->effectiveStatusLabel())->toBe('Cancelled');
 });
 
@@ -576,4 +601,126 @@ it('no longer shows the entry date and time field', function () {
     $html = Livewire::test(Edit::class)->html();
 
     expect($html)->not->toContain('Entry Date');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Derived status
+|--------------------------------------------------------------------------
+*/
+
+it('does not offer a status field on the form', function () {
+    $html = Livewire::test(Edit::class)->html();
+
+    expect($html)->not->toContain('wire:model="status"');
+});
+
+it('completes the booking when a job card is raised against it', function () {
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_CONFIRMED);
+
+    JobCard::factory()->create([
+        'appointment_id' => $appointment->id,
+        'customer_vehicle_id' => $appointment->customer_vehicle_id,
+    ]);
+
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_COMPLETED);
+});
+
+it('marks the booking arrived when an inward is raised for the vehicle', function () {
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+
+    GateInOut::factory()->create([
+        'customer_vehicle_id' => $appointment->customer_vehicle_id,
+        'entered_at' => now(),
+    ]);
+
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_ARRIVED);
+});
+
+it('treats a pending reason as what makes a booking pending', function () {
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_CONFIRMED);
+
+    $appointment->update(['pending_reason_id' => PendingReasonMaster::factory()->create()->id]);
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_PENDING);
+
+    $appointment->update(['pending_reason_id' => null]);
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_CONFIRMED);
+});
+
+it('marks a passed booking as a no-show when nothing happened', function () {
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->subDay()]);
+
+    expect($appointment->fresh()->status)->toBe(Appointment::STATUS_NO_SHOW);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Department drives service type
+|--------------------------------------------------------------------------
+*/
+
+it('offers no service type until a department is chosen', function () {
+    $component = Livewire::test(Edit::class);
+
+    expect($component->instance()->serviceTypes)->toHaveCount(0);
+});
+
+it('offers only the chosen department\'s service types', function () {
+    $mechanical = WorkshopDepartmentMaster::factory()->create();
+    $bodyshop = WorkshopDepartmentMaster::factory()->create();
+
+    $mine = ServiceTypeMaster::factory()->create(['workshop_department_id' => $mechanical->id, 'is_active' => true]);
+    ServiceTypeMaster::factory()->create(['workshop_department_id' => $bodyshop->id, 'is_active' => true]);
+
+    $offered = Livewire::test(Edit::class)
+        ->set('workshop_department_id', $mechanical->id)
+        ->instance()->serviceTypes;
+
+    expect($offered->pluck('id')->all())->toBe([$mine->id]);
+});
+
+it('clears a service type belonging to the previous department', function () {
+    $mechanical = WorkshopDepartmentMaster::factory()->create();
+    $bodyshop = WorkshopDepartmentMaster::factory()->create();
+    $mine = ServiceTypeMaster::factory()->create(['workshop_department_id' => $mechanical->id, 'is_active' => true]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('workshop_department_id', $mechanical->id)
+        ->set('service_type_id', $mine->id)
+        ->set('workshop_department_id', $bodyshop->id);
+
+    expect($component->get('service_type_id'))->toBeNull();
+});
+
+it('rejects a service type from another department on save', function () {
+    $mechanical = WorkshopDepartmentMaster::factory()->create();
+    $bodyshop = WorkshopDepartmentMaster::factory()->create();
+    $theirs = ServiceTypeMaster::factory()->create(['workshop_department_id' => $bodyshop->id, 'is_active' => true]);
+
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('workshop_department_id', $mechanical->id)
+        ->set('service_type_id', $theirs->id)
+        ->call('save')
+        ->assertHasErrors(['service_type_id']);
+});
+
+it('drops a legacy mismatched pairing when the form opens', function () {
+    $mechanical = WorkshopDepartmentMaster::factory()->create();
+    $bodyshop = WorkshopDepartmentMaster::factory()->create();
+    $theirs = ServiceTypeMaster::factory()->create(['workshop_department_id' => $bodyshop->id, 'is_active' => true]);
+
+    // A row from before service types were scoped to a department.
+    $appointment = Appointment::factory()->create([
+        'workshop_department_id' => $mechanical->id,
+        'service_type_id' => $theirs->id,
+    ]);
+
+    $component = Livewire::test(Edit::class, ['appointment' => $appointment]);
+
+    expect($component->get('service_type_id'))->toBeNull()
+        ->and($component->get('workshop_department_id'))->toBe($mechanical->id);
 });

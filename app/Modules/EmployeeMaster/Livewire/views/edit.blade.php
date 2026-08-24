@@ -50,7 +50,7 @@
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:field>
-                        <flux:label>Phone <span class="text-red-500">*</span></flux:label>
+                        <flux:label>Phone</flux:label>
                         <flux:input.group>
                             <flux:input.group.prefix>+91</flux:input.group.prefix>
                             <flux:input wire:model="phone" mask="99999 99999" placeholder="98765 43210" inputmode="numeric" required />

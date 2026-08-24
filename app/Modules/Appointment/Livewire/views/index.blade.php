@@ -106,6 +106,7 @@
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) {
                             'pending' => 'amber', 'confirmed' => 'blue', 'rescheduled' => 'purple',
+                            'vehicle_collected' => 'indigo', 'arrived' => 'purple',
                             'completed' => 'lime', 'cancelled' => 'zinc', 'no_show' => 'red', default => 'zinc',
                         })
                         <flux:badge :color="$statusColor" size="sm">{{ $row->effectiveStatusLabel() }}</flux:badge>

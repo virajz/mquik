@@ -5,6 +5,7 @@ namespace App\Modules\Appointment\Livewire;
 use App\Concerns\CanQuickAddCustomer;
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\Appointment\Concerns\PicksAddressRegions;
+use App\Modules\Appointment\Concerns\PicksQuickServices;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
@@ -39,6 +40,7 @@ class Edit extends Component
 {
     use CanQuickAddCustomer;
     use PicksAddressRegions;
+    use PicksQuickServices;
     use SearchesPickerOptions;
 
     public ?int $editingId = null;
@@ -110,7 +112,13 @@ class Edit extends Component
 
     public ?string $pickup_contact_phone = null;
 
-    public string $status = Appointment::STATUS_PENDING;
+    /** Derived, never edited — kept only so the header badge has something to read. */
+    public string $status = Appointment::STATUS_CONFIRMED;
+
+    public ?string $cancelled_at = null;
+
+    /** The customer's own note, kept apart from the workshop's internal `notes`. */
+    public ?string $customer_note = null;
 
     public ?int $cancel_reason_id = null;
 
@@ -154,8 +162,13 @@ class Edit extends Component
         $this->priority_id = $a->priority_id;
         $this->customer_id = $a->customer_id;
         $this->customer_vehicle_id = $a->customer_vehicle_id;
-        $this->service_type_id = $a->service_type_id;
         $this->workshop_department_id = $a->workshop_department_id;
+        // Rows saved before service types were scoped to a department can hold a
+        // pairing the form no longer offers. Drop it rather than open a form that
+        // fails validation on a field nobody touched.
+        $this->service_type_id = $this->serviceTypes->contains('id', $a->service_type_id)
+            ? $a->service_type_id
+            : null;
         $this->assigned_advisor_id = $a->assigned_advisor_id;
         $this->assigned_technician_id = $a->assigned_technician_id;
         $this->pickup_drop_option_id = $a->pickup_drop_option_id;
@@ -170,9 +183,11 @@ class Edit extends Component
         $this->seedDropRegionPickers();
         $this->pickup_contact_phone = $a->pickup_contact_phone;
         $this->status = $a->status;
+        $this->cancelled_at = $a->cancelled_at?->toDateTimeString();
         $this->cancel_reason_id = $a->cancel_reason_id;
         $this->pending_reason_id = $a->pending_reason_id;
         $this->notes = $a->notes;
+        $this->customer_note = $a->customer_note;
 
         $this->complaints = $a->complaints()->get()->map(fn ($c) => [
             'id' => $c->id,
@@ -180,6 +195,7 @@ class Edit extends Component
             'job_description_id' => $c->job_description_id,
             'description' => $c->description,
         ])->all();
+        $this->seedSelectedServices();
         // Reflect a linked saved address in the picker; otherwise treat it as custom text.
         $this->pickup_address_choice = $a->pickup_address_id ? (string) $a->pickup_address_id : 'custom';
         if ($a->pickup_address_id) {
@@ -193,19 +209,34 @@ class Edit extends Component
         return [
             'appointment_date' => ['required', 'date_format:Y-m-d'],
             'appointment_time' => ['required', 'date_format:H:i'],
-            'time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
-            'drop_time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
+            'time_slot_id' => [
+                Rule::requiredIf(fn () => $this->optionInvolvesPickup()),
+                'nullable', 'integer',
+                Rule::exists('time_slots', 'id')->where('is_active', true),
+            ],
+            'drop_time_slot_id' => [
+                Rule::requiredIf(fn () => $this->optionInvolvesDrop()),
+                'nullable', 'integer',
+                Rule::exists('time_slots', 'id')->where('is_active', true),
+            ],
             'distance_km' => ['nullable', 'numeric', 'min:0', 'max:99999'],
             'distance_slab_id' => ['nullable', 'integer', Rule::exists('distance_slabs', 'id')->where('is_active', true)],
             'distance_charge' => ['nullable', 'numeric', 'min:0'],
             'booking_channel_id' => ['required', 'integer', Rule::exists('booking_channels', 'id')->where('is_active', true)],
-            'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
+            'priority_id' => ['required', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_vehicle_id' => [
                 'required', 'integer',
                 Rule::exists('customer_vehicles', 'id')->where(fn ($q) => $q->where('customer_id', $this->customer_id)->where('is_active', true)),
             ],
-            'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'service_type_id' => [
+                'nullable', 'integer',
+                // Scoped to the department, so a stale pairing cannot be posted
+                // past the dropdown that no longer offers it.
+                Rule::exists('service_types', 'id')
+                    ->where('is_active', true)
+                    ->where('workshop_department_id', $this->workshop_department_id),
+            ],
             'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
@@ -220,18 +251,14 @@ class Edit extends Component
             'drop_region_id' => ['nullable', 'integer', Rule::exists('regions', 'id')],
             'drop_contact_phone' => ['nullable', 'string', 'max:20'],
             'pickup_contact_phone' => ['nullable', 'string', 'min:10', 'max:20'],
-            'status' => ['required', Rule::in(array_keys(Appointment::statuses()))],
-            'cancel_reason_id' => [
-                Rule::requiredIf(fn () => $this->status === Appointment::STATUS_CANCELLED),
-                'nullable', 'integer',
-                Rule::exists('cancel_reasons', 'id')->where('is_active', true),
-            ],
+            'cancel_reason_id' => ['nullable', 'integer', Rule::exists('cancel_reasons', 'id')->where('is_active', true)],
             'pending_reason_id' => ['nullable', 'integer', Rule::exists('pending_reasons', 'id')->where('is_active', true)],
             'complaints' => ['array'],
             'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'complaints.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
             'complaints.*.description' => ['required', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'customer_note' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -307,6 +334,27 @@ class Edit extends Component
         }
 
         return (bool) PickupDropOptionMaster::find($this->pickup_drop_option_id)?->involves_pickup;
+    }
+
+    /** Department label for the checklist heading. */
+    #[Computed]
+    public function departmentName(): string
+    {
+        return $this->workshop_department_id
+            ? (string) WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('name')
+            : '';
+    }
+
+    /** Changing department invalidates a service type belonging to the old one. */
+    public function updatedWorkshopDepartmentId(): void
+    {
+        $this->service_type_id = null;
+
+        unset($this->serviceTypes, $this->frequentServiceGroups, $this->otherJobDescriptions);
+
+        // The checklist is scoped to the department, so jobs picked for the old
+        // one no longer belong on this booking.
+        $this->dropServicesOutsideDepartment();
     }
 
     public function updatedPickupDropOptionId(): void
@@ -430,6 +478,52 @@ class Edit extends Component
         }
     }
 
+    /**
+     * Cancelling is the one thing about a booking nobody can observe from the
+     * workshop floor, so it stays a deliberate act — but it is a flag with a
+     * reason, not a status somebody picks off a list.
+     */
+    public function confirmCancel(): void
+    {
+        Flux::modal('cancel-appointment')->show();
+    }
+
+    public function cancelAppointment(): void
+    {
+        $this->authorize('appointment.update');
+
+        $this->validate([
+            'cancel_reason_id' => ['required', 'integer', Rule::exists('cancel_reasons', 'id')->where('is_active', true)],
+        ], attributes: ['cancel_reason_id' => 'cancel reason']);
+
+        $appointment = Appointment::findOrFail($this->editingId);
+        $appointment->forceFill([
+            'cancelled_at' => now(),
+            'cancel_reason_id' => $this->cancel_reason_id,
+        ])->save();
+
+        $this->cancelled_at = $appointment->cancelled_at->toDateTimeString();
+        $this->status = $appointment->fresh()->status;
+
+        Flux::modal('cancel-appointment')->close();
+        Flux::toast(text: 'Appointment '.$appointment->appointment_no.' cancelled.', variant: 'success');
+    }
+
+    /** Undo a cancellation; the ladder re-derives from wherever the car actually is. */
+    public function restoreAppointment(): void
+    {
+        $this->authorize('appointment.update');
+
+        $appointment = Appointment::findOrFail($this->editingId);
+        $appointment->forceFill(['cancelled_at' => null, 'cancel_reason_id' => null])->save();
+
+        $this->cancelled_at = null;
+        $this->cancel_reason_id = null;
+        $this->status = $appointment->fresh()->status;
+
+        Flux::toast(text: 'Appointment restored.', variant: 'success');
+    }
+
     /** Required by CanQuickAddCustomer — receives the new customer's id. */
     protected function quickCustomerTargetProperty(): string
     {
@@ -480,10 +574,25 @@ class Edit extends Component
         ]);
     }
 
+    /**
+     * Service types offered by the chosen department.
+     *
+     * `service_types.workshop_department_id` is a real link, so this filters
+     * strictly — nothing from another department is offered, and nothing at all
+     * until a department is picked.
+     */
     #[Computed]
     public function serviceTypes()
     {
-        return ServiceTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        if (! $this->workshop_department_id) {
+            return collect();
+        }
+
+        return ServiceTypeMaster::query()
+            ->where('is_active', true)
+            ->where('workshop_department_id', $this->workshop_department_id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]
@@ -685,18 +794,18 @@ class Edit extends Component
             $data['pickup_address_id'] = null;
         }
 
-        foreach (['pickup_address', 'notes'] as $k) {
+        foreach (['pickup_address', 'notes', 'customer_note'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
             }
         }
 
-        // Reasons only belong to the state that asks for them.
-        if ($this->status !== Appointment::STATUS_CANCELLED) {
+        // Status is derived on save from what has happened to the vehicle, so the
+        // form never sends one. A cancel reason only means anything alongside the
+        // cancellation itself, which is its own action.
+        unset($data['status']);
+        if ($this->cancelled_at === null) {
             $data['cancel_reason_id'] = null;
-        }
-        if ($this->status !== Appointment::STATUS_PENDING) {
-            $data['pending_reason_id'] = null;
         }
 
         $isCreate = $this->editingId === null;
@@ -716,6 +825,7 @@ class Edit extends Component
             }
 
             $this->syncComplaints($appointment, $complaints);
+            $this->syncSelectedServices($appointment);
 
             return $appointment;
         });

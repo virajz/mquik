@@ -5,6 +5,7 @@ namespace App\Modules\Appointment\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\Appointment\Database\Factories\AppointmentFactory;
+use App\Modules\Appointment\Support\AppointmentStatus;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
@@ -37,6 +38,10 @@ class Appointment extends Model
 
     public const STATUS_CONFIRMED = 'confirmed';
 
+    public const STATUS_VEHICLE_COLLECTED = 'vehicle_collected';
+
+    public const STATUS_ARRIVED = 'arrived';
+
     public const STATUS_COMPLETED = 'completed';
 
     public const STATUS_CANCELLED = 'cancelled';
@@ -52,6 +57,7 @@ class Appointment extends Model
     protected $casts = [
         'appointment_at' => 'datetime',
         'rescheduled_from_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     protected static array $searchableFields = ['appointment_no', 'pickup_address', 'pickup_contact_phone', 'notes', 'customer.first_name', 'customer.last_name', 'customer.phone', 'customerVehicle.registration_no'];
@@ -67,6 +73,12 @@ class Appointment extends Model
      */
     protected static function booted(): void
     {
+        // Status is never written by a form, so anything that could change what
+        // it derives to — a pending reason, a cancellation — recomputes it here.
+        static::saved(function (self $appointment) {
+            AppointmentStatus::refresh($appointment);
+        });
+
         static::created(function (self $appointment) {
             if ($appointment->appointment_no === null) {
                 $appointment->forceFill([
@@ -107,6 +119,12 @@ class Appointment extends Model
                     'pickup_address' => $appointment->pickup_address,
                 ]);
         });
+    }
+
+    /** Jobs this booking is for, as opposed to what the customer complained about. */
+    public function services(): HasMany
+    {
+        return $this->hasMany(AppointmentService::class)->orderBy('sequence_no');
     }
 
     public function customer(): BelongsTo
@@ -235,6 +253,8 @@ class Appointment extends Model
             self::STATUS_PENDING => 'Pending',
             self::STATUS_CONFIRMED => 'Confirmed',
             self::STATUS_RESCHEDULED => 'Rescheduled',
+            self::STATUS_VEHICLE_COLLECTED => 'Vehicle Collected',
+            self::STATUS_ARRIVED => 'Arrived',
             self::STATUS_COMPLETED => 'Completed',
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_NO_SHOW => 'No-show',
@@ -251,15 +271,23 @@ class Appointment extends Model
     {
         $own = self::statuses()[$this->status] ?? $this->status;
 
-        if (in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_CANCELLED, self::STATUS_NO_SHOW], true)) {
+        // The derived ladder already knows about collection and everything after
+        // it, so the driver's own stages only add detail while the booking has
+        // not moved yet — otherwise a stale "Vehicle Delivered" would talk over
+        // an appointment the workshop has already taken in.
+        $notStartedYet = [self::STATUS_PENDING, self::STATUS_CONFIRMED, self::STATUS_RESCHEDULED];
+
+        if (! in_array($this->status, $notStartedYet, true)) {
             return $own;
         }
 
         $job = $this->pickupDrops->sortByDesc('id')->first();
 
-        // Only an in-flight driver stage overrides the appointment's own state;
-        // the job's own pending/completed/cancelled are not the customer's view.
-        if (! $job || ! in_array($job->status, PickupDrop::driverStages(), true)) {
+        // Only an early, in-flight driver stage refines it; the job's own
+        // pending/completed/cancelled are not the customer's view.
+        $early = [PickupDrop::STATUS_DRIVER_ASSIGNED, PickupDrop::STATUS_DRIVER_ON_THE_WAY];
+
+        if (! $job || ! in_array($job->status, $early, true)) {
             return $own;
         }
 

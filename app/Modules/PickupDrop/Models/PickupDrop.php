@@ -5,6 +5,7 @@ namespace App\Modules\PickupDrop\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\Appointment\Support\AppointmentStatus;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
@@ -82,6 +83,13 @@ class PickupDrop extends Model
 
     protected static function booted(): void
     {
+        // The driver's progress is the booking's progress up to collection.
+        static::saved(function (self $job) {
+            if ($job->appointment_id && $job->wasChanged('status')) {
+                AppointmentStatus::refresh($job->appointment);
+            }
+        });
+
         static::created(function (self $row) {
             if ($row->pickup_drop_no === null) {
                 $row->forceFill([

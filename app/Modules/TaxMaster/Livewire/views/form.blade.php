@@ -45,7 +45,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:field>
-                        <flux:label>GST % <span class="text-red-500">*</span></flux:label>
+                        <flux:label>GST %</flux:label>
                         <flux:input.group>
                             <flux:input wire:model="gst_percent" type="number" step="0.01" min="0" max="50" inputmode="decimal" required />
                             <flux:input.group.suffix>%</flux:input.group.suffix>

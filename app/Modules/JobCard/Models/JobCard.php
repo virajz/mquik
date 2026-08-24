@@ -5,6 +5,7 @@ namespace App\Modules\JobCard\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\Appointment\Support\AppointmentStatus;
 use App\Modules\CustomerApprovalTypeMaster\Models\CustomerApprovalTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
@@ -83,6 +84,14 @@ class JobCard extends Model
 
     protected static function booted(): void
     {
+        // Raising a job card is what finishes a booking — the reason the
+        // appointment existed has now been fulfilled.
+        static::saved(function (self $jobCard) {
+            if ($jobCard->appointment_id) {
+                AppointmentStatus::refresh($jobCard->appointment);
+            }
+        });
+
         // Stamp (or clear) the assignment time whenever the technician changes.
         static::saving(function (self $row) {
             if ($row->isDirty('assigned_technician_id')) {

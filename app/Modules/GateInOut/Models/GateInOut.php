@@ -5,6 +5,7 @@ namespace App\Modules\GateInOut\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Models\User;
+use App\Modules\Appointment\Support\AppointmentStatus;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
@@ -58,6 +59,12 @@ class GateInOut extends Model
 
     protected static function booted(): void
     {
+        // An inward means the car is physically here, which moves any open
+        // booking for that vehicle to Arrived.
+        static::saved(function (self $visit) {
+            AppointmentStatus::refreshForVehicle($visit->customer_vehicle_id);
+        });
+
         static::saving(function (self $row) {
             // Reg-No standardisation: collapse whitespace and uppercase. The full
             // GJ 05 AA 1234 spacing is enforced upstream during data entry.
