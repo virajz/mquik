@@ -6,6 +6,7 @@ use App\Concerns\ScopesToRecord;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use Flux\Flux;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -31,6 +32,12 @@ class Index extends Component
 
     #[Url(as: 'driver')]
     public string $driverFilter = 'all';
+
+    /** Coarse stage cut: awaiting = car not yet in hand, collected = handover done. */
+    #[Url(as: 'stage')]
+    public string $stageFilter = 'all';
+
+    public bool $showDriverBoard = false;
 
     #[Url(as: 'from')]
     public string $dateFrom = '';
@@ -91,8 +98,59 @@ class Index extends Component
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'statusFilter', 'directionFilter', 'driverFilter', 'dateFrom', 'dateTo']);
+        $this->reset(['search', 'statusFilter', 'directionFilter', 'driverFilter', 'dateFrom', 'dateTo', 'stageFilter']);
         $this->resetPage();
+    }
+
+    /** One click on a board count narrows the table to that driver and stage. */
+    public function focusDriver(int $driverId, string $stage): void
+    {
+        $this->driverFilter = (string) $driverId;
+        $this->stageFilter = $stage;
+        $this->statusFilter = 'all';
+        $this->resetPage();
+    }
+
+    /** @return list<string> */
+    public static function awaitingStatuses(): array
+    {
+        return [PickupDrop::STATUS_PENDING, PickupDrop::STATUS_DRIVER_ASSIGNED, PickupDrop::STATUS_DRIVER_ON_THE_WAY];
+    }
+
+    /** @return list<string> */
+    public static function collectedStatuses(): array
+    {
+        return [PickupDrop::STATUS_VEHICLE_COLLECTED, PickupDrop::STATUS_VEHICLE_DELIVERED, PickupDrop::STATUS_COMPLETED];
+    }
+
+    /**
+     * Per-driver workload: everything on their plate, what they have already
+     * collected, and what is still waiting on them.
+     *
+     * @return Collection<int, array{id:int, name:string, assigned:int, collected:int, awaiting:int}>
+     */
+    #[Computed]
+    public function driverBoard()
+    {
+        $awaiting = self::awaitingStatuses();
+        $collected = self::collectedStatuses();
+
+        return PickupDrop::query()
+            ->whereNotNull('driver_employee_id')
+            ->whereNull('cancelled_at')
+            ->whereIn('status', [...$awaiting, ...$collected])
+            ->with('driver:id,name')
+            ->get(['id', 'driver_employee_id', 'status'])
+            ->groupBy('driver_employee_id')
+            ->map(fn ($jobs) => [
+                'id' => $jobs->first()->driver_employee_id,
+                'name' => $jobs->first()->driver?->name ?? '#'.$jobs->first()->driver_employee_id,
+                'assigned' => $jobs->count(),
+                'collected' => $jobs->whereIn('status', $collected)->count(),
+                'awaiting' => $jobs->whereIn('status', $awaiting)->count(),
+            ])
+            ->sortBy('name')
+            ->values();
     }
 
     #[Computed]
@@ -110,12 +168,15 @@ class Index extends Component
                 'customer:id,first_name,last_name,phone',
                 'customerVehicle:id,registration_no',
                 'driver:id,name',
+                'pendingReason:id,name',
                 'vendor:id,name',
             ])
             ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->directionFilter !== 'all', fn ($q) => $q->where('direction', $this->directionFilter))
             ->when($this->driverFilter !== 'all', fn ($q) => $q->where('driver_employee_id', (int) $this->driverFilter))
+            ->when($this->stageFilter === 'awaiting', fn ($q) => $q->whereIn('status', self::awaitingStatuses()))
+            ->when($this->stageFilter === 'collected', fn ($q) => $q->whereIn('status', self::collectedStatuses()))
             ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('scheduled_at', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn ($q) => $q->whereDate('scheduled_at', '<=', $this->dateTo))
             ->orderBy($this->sortBy, $this->sortDirection)

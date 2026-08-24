@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Appointment\Concerns;
+namespace App\Concerns;
 
 use App\Concerns\HasQuickCreate;
 use App\Modules\RegionMaster\Models\RegionMaster as Region;
@@ -9,6 +9,9 @@ use Livewire\Attributes\Computed;
 
 /**
  * State → city → area pickers for the pickup and drop addresses.
+ *
+ * Shared by Appointment and PickupDrop — both capture the same two legs, and
+ * the pickers must behave identically wherever an address is typed.
  *
  * Both legs behave identically, so they share one implementation keyed by leg.
  * Only the leaf is persisted (`{leg}_region_id`) — city and state are recovered

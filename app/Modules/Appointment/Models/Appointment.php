@@ -147,6 +147,12 @@ class Appointment extends Model
         return $this->belongsTo(CustomerAddress::class, 'pickup_address_id');
     }
 
+    /** Saved address the vehicle goes back to, when one was linked. */
+    public function dropAddress(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAddress::class, 'drop_address_id');
+    }
+
     /** Leaf region (usually an area) of the collection address. */
     public function pickupRegion(): BelongsTo
     {

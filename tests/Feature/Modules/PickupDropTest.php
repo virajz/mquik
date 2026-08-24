@@ -8,13 +8,19 @@ use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DesignationMaster\Models\DesignationMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PickupDrop\Livewire\Edit;
 use App\Modules\PickupDrop\Livewire\Index;
 use App\Modules\PickupDrop\Models\PickupDrop;
+use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
@@ -23,6 +29,15 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->actingAs(adminUser());
 });
+
+/** The form now derives its leg from a required Pickup/Drop Type. */
+function pickupType(): PickupDropOptionMaster
+{
+    return PickupDropOptionMaster::firstOrCreate(
+        ['name' => 'WORKSHOP PICKUP ONLY'],
+        ['involves_pickup' => true, 'involves_drop' => false, 'is_active' => true],
+    );
+}
 
 it('renders the index page', function () {
     PickupDrop::factory()->count(3)->create();
@@ -41,7 +56,7 @@ it('auto-stamps PD-00001 style pickup_drop_no on create', function () {
 it('filters by status, direction, and driver', function () {
     $driver = EmployeeMaster::factory()->create(['name' => 'TARGET DRIVER']);
     PickupDrop::factory()->create();
-    PickupDrop::factory()->delivered()->create();
+    PickupDrop::factory()->drop()->create(['delivered_at' => now()]);
     PickupDrop::factory()->drop()->create();
     PickupDrop::factory()->create(['driver_employee_id' => $driver->id]);
 
@@ -50,7 +65,7 @@ it('filters by status, direction, and driver', function () {
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1)
         ->set('statusFilter', 'all')
         ->set('directionFilter', 'drop')
-        ->assertViewHas('rows', fn ($rows) => $rows->count() === 1)
+        ->assertViewHas('rows', fn ($rows) => $rows->count() === 2)
         ->set('directionFilter', 'all')
         ->set('driverFilter', (string) $driver->id)
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1);
@@ -61,7 +76,7 @@ it('creates a pickup with driver assignment', function () {
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $driver = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    validPickupDrop(Livewire::test(Edit::class))
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('pickup_address', '12 maple st')
@@ -80,10 +95,11 @@ it('rejects create when neither driver nor vendor is assigned', function () {
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
 
-    Livewire::test(Edit::class)
+    validPickupDrop(Livewire::test(Edit::class))
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('pickup_address', 'somewhere')
+        ->set('driver_employee_id', null)
         ->call('save')
         ->assertHasErrors(['driver_employee_id']);
 
@@ -96,7 +112,7 @@ it('rejects create when both driver AND vendor are assigned', function () {
     $driver = EmployeeMaster::factory()->create();
     $courier = CourierCompanyMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    validPickupDrop(Livewire::test(Edit::class))
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('pickup_address', 'somewhere')
@@ -143,7 +159,7 @@ it('combines scheduled_date + scheduled_time into a single datetime on save', fu
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $driver = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    validPickupDrop(Livewire::test(Edit::class))
         ->set('scheduled_date', '2026-09-10')
         ->set('scheduled_time', '08:15')
         ->set('customer_id', $customer->id)
@@ -165,7 +181,7 @@ it('Edit::save blocks a user without create permission', function () {
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $driver = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    validPickupDrop(Livewire::test(Edit::class))
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('pickup_address', 'somewhere')
@@ -195,9 +211,19 @@ function validPickupDrop(Testable $c): Testable
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
 
     return $c
+        ->set('pickup_drop_option_id', pickupType()->id)
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('pickup_address', 'somewhere')
+        ->set('time_slot_id', TimeSlotMaster::firstOrCreate(
+            ['name' => '09:00-10:00'],
+            ['slot_start_time' => '09:00:00', 'slot_end_time' => '10:00:00', 'is_active' => true],
+        )->id)
+        ->set('workshop_department_id', ($dept = WorkshopDepartmentMaster::factory()->create())->id)
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['workshop_department_id' => $dept->id])->id)
+        ->set('advisor_employee_id', EmployeeMaster::factory()->create()->id)
+        ->call('addComplaint')
+        ->set('complaints.0.description', 'GENERAL CHECK')
         ->set('driver_employee_id', EmployeeMaster::factory()->create()->id);
 }
 
@@ -233,7 +259,6 @@ it('snapshots the chosen checklist template into document lines', function () {
 
 it('saves complaints and document lines, and re-syncs on update', function () {
     validPickupDrop(Livewire::test(Edit::class))
-        ->call('addComplaint')
         ->set('complaints.0.description', 'ac not cooling')
         ->call('addDocument')
         ->set('documents.0.label', 'rc copy')
@@ -248,25 +273,43 @@ it('saves complaints and document lines, and re-syncs on update', function () {
         ->and($row->documents->first()->label)->toBe('RC COPY')
         ->and($row->documents->first()->is_collected)->toBeTrue();
 
+    // Complaints are mandatory now — swapping the line re-syncs, emptying it is an error.
     Livewire::test(Edit::class, ['pickupDrop' => $row])
+        ->set('pickup_drop_option_id', pickupType()->id)
+        ->set('complaints.0.description', 'brake noise')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($row->fresh()->complaints)->toHaveCount(1)
+        ->and($row->fresh()->complaints->first()->description)->toBe('BRAKE NOISE');
+
+    Livewire::test(Edit::class, ['pickupDrop' => $row->fresh()])
+        ->set('pickup_drop_option_id', pickupType()->id)
         ->call('removeComplaint', 0)
         ->call('save')
-        ->assertHasNoErrors();
-
-    expect($row->fresh()->complaints)->toHaveCount(0);
+        ->assertHasErrors(['complaints']);
 });
 
-it('requires a cancel reason only when the job is cancelled', function () {
-    validPickupDrop(Livewire::test(Edit::class))
-        ->set('status', PickupDrop::STATUS_CANCELLED)
-        ->call('save')
+it('requires a reason to cancel, and derives the cancelled status from it', function () {
+    $row = PickupDrop::factory()->create();
+
+    Livewire::test(Edit::class, ['pickupDrop' => $row])
+        ->call('cancelPickupDrop')
         ->assertHasErrors(['cancel_reason_id']);
 
-    validPickupDrop(Livewire::test(Edit::class))
-        ->set('status', PickupDrop::STATUS_CANCELLED)
+    expect($row->fresh()->status)->not->toBe(PickupDrop::STATUS_CANCELLED);
+
+    Livewire::test(Edit::class, ['pickupDrop' => $row])
         ->set('cancel_reason_id', CancelReasonMaster::factory()->create()->id)
-        ->call('save')
-        ->assertHasNoErrors();
+        ->call('cancelPickupDrop');
+
+    expect($row->fresh()->status)->toBe(PickupDrop::STATUS_CANCELLED)
+        ->and($row->fresh()->cancelled_at)->not->toBeNull();
+
+    Livewire::test(Edit::class, ['pickupDrop' => $row->fresh()])->call('restorePickupDrop');
+
+    expect($row->fresh()->cancelled_at)->toBeNull()
+        ->and($row->fresh()->status)->not->toBe(PickupDrop::STATUS_CANCELLED);
 });
 
 it('stores condition photos against a photo type and leg', function () {
@@ -291,7 +334,7 @@ it('stores condition photos against a photo type and leg', function () {
 it('stamps rescheduled_from_at when the job is moved', function () {
     $row = PickupDrop::factory()->create(['scheduled_at' => '2026-09-01 09:00:00']);
 
-    Livewire::test(Edit::class, ['pickupDrop' => $row])
+    validPickupDrop(Livewire::test(Edit::class, ['pickupDrop' => $row]))
         ->set('scheduled_date', '2026-09-03')
         ->set('scheduled_time', '11:00')
         ->call('save')
@@ -301,7 +344,7 @@ it('stamps rescheduled_from_at when the job is moved', function () {
 });
 
 it('surfaces the driver stage on the linked appointment', function () {
-    $appointment = Appointment::factory()->create(['status' => Appointment::STATUS_CONFIRMED]);
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
     $job = PickupDrop::factory()->create([
         'appointment_id' => $appointment->id,
         'status' => PickupDrop::STATUS_DRIVER_ASSIGNED,
@@ -309,9 +352,9 @@ it('surfaces the driver stage on the linked appointment', function () {
 
     expect($appointment->fresh()->effectiveStatusLabel())->toBe('Driver Assigned');
 
-    // The job's own non-driver states must not override the appointment.
+    // Once the driver has the car, the appointment's own derived ladder takes over.
     $job->update(['status' => PickupDrop::STATUS_COMPLETED]);
-    expect($appointment->fresh()->effectiveStatusLabel())->toBe('Confirmed');
+    expect($appointment->fresh()->effectiveStatusLabel())->toBe('Vehicle Collected');
 });
 
 it('prefills and links from a job card (?from-job-card handoff)', function () {
@@ -327,9 +370,7 @@ it('prefills and links from a job card (?from-job-card handoff)', function () {
 it('persists the job_card link when saved', function () {
     $jobCard = JobCard::factory()->create();
 
-    Livewire::test(Edit::class, ['fromJobCard' => $jobCard->id])
-        ->set('pickup_address', 'somewhere')
-        ->set('driver_employee_id', EmployeeMaster::factory()->create()->id)
+    validPickupDrop(Livewire::test(Edit::class, ['fromJobCard' => $jobCard->id]))
         ->call('save')
         ->assertHasNoErrors();
 
@@ -349,4 +390,119 @@ it('resolves the drop address live from a linked saved address (edits propagate)
 
     $addr->update(['address_line' => '8 QUEEN ST']);
     expect($pd->fresh()->resolvedDropAddress())->toContain('8 QUEEN ST');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Department drives service type and advisor
+|--------------------------------------------------------------------------
+*/
+
+it('offers only the department\'s advisors, and only ADVISOR-designated staff', function () {
+    // The workshop department mirrors an HR department by name on save.
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $hrId = $dept->fresh()->department_id;
+    $designation = DesignationMaster::factory()->create(['name' => 'SERVICE ADVISOR']);
+
+    $advisor = EmployeeMaster::factory()->create(['department_id' => $hrId, 'designation_id' => $designation->id]);
+    EmployeeMaster::factory()->create(['department_id' => $hrId, 'designation_id' => DesignationMaster::factory()->create(['name' => 'DRIVER'])->id]); // not an advisor — not offered
+    EmployeeMaster::factory()->create(['designation_id' => $designation->id]); // other department — not offered
+
+    $offered = Livewire::test(Edit::class)
+        ->set('workshop_department_id', $dept->id)
+        ->instance()->advisors;
+
+    expect($offered->pluck('id')->all())->toBe([$advisor->id]);
+});
+
+it('clears service type and advisor when the department changes', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $other = WorkshopDepartmentMaster::factory()->create();
+    $st = ServiceTypeMaster::factory()->create(['workshop_department_id' => $dept->id]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('workshop_department_id', $dept->id)
+        ->set('service_type_id', $st->id)
+        ->set('workshop_department_id', $other->id);
+
+    expect($component->get('service_type_id'))->toBeNull()
+        ->and($component->get('advisor_employee_id'))->toBeNull();
+});
+
+it('rejects a service type from another department on save', function () {
+    $theirs = ServiceTypeMaster::factory()->create(['workshop_department_id' => WorkshopDepartmentMaster::factory()->create()->id]);
+
+    validPickupDrop(Livewire::test(Edit::class))
+        ->set('service_type_id', $theirs->id)
+        ->call('save')
+        ->assertHasErrors(['service_type_id']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Derived status & assignment history
+|--------------------------------------------------------------------------
+*/
+
+it('derives the ladder from recorded facts', function () {
+    $job = PickupDrop::factory()->create(['driver_employee_id' => null, 'vendor_courier_id' => null]);
+    expect($job->fresh()->status)->toBe(PickupDrop::STATUS_PENDING);
+
+    $job->fresh()->update(['driver_employee_id' => EmployeeMaster::factory()->create()->id]);
+    $job = $job->fresh();
+    expect($job->status)->toBe(PickupDrop::STATUS_DRIVER_ASSIGNED)
+        ->and($job->assigned_at)->not->toBeNull()
+        ->and($job->assigned_by_user_id)->not->toBeNull();
+
+    $job->forceFill(['departed_at' => now()])->save();
+    expect($job->fresh()->status)->toBe(PickupDrop::STATUS_DRIVER_ON_THE_WAY);
+
+    $job->fresh()->forceFill(['collected_at' => now()])->save();
+    expect($job->fresh()->status)->toBe(PickupDrop::STATUS_VEHICLE_COLLECTED);
+});
+
+it('completes a pickup when the vehicle\'s inward is recorded', function () {
+    $job = PickupDrop::factory()->create([
+        'driver_employee_id' => EmployeeMaster::factory()->create()->id,
+        'vendor_courier_id' => null,
+        'collected_at' => now(),
+    ]);
+    $job->save();
+
+    GateInOut::factory()->create([
+        'customer_vehicle_id' => $job->customer_vehicle_id,
+        'entered_at' => now(),
+    ]);
+
+    expect($job->fresh()->status)->toBe(PickupDrop::STATUS_COMPLETED);
+});
+
+it('marks a drop delivered when its OTP is verified', function () {
+    $job = PickupDrop::factory()->drop()->create([
+        'driver_employee_id' => EmployeeMaster::factory()->create()->id,
+        'vendor_courier_id' => null,
+        'departed_at' => now(),
+    ]);
+    $job->fresh()->forceFill(['delivery_otp_verified_at' => now()])->save();
+
+    expect($job->fresh()->status)->toBe(PickupDrop::STATUS_VEHICLE_DELIVERED);
+});
+
+it('does not offer a status field on the form', function () {
+    $html = Livewire::test(Edit::class)->html();
+
+    expect($html)->not->toContain('wire:model.live="status"');
+});
+
+it('groups the driver board by assigned, collected, and awaiting', function () {
+    $driver = EmployeeMaster::factory()->create(['name' => 'BOARD DRIVER']);
+    PickupDrop::factory()->create(['driver_employee_id' => $driver->id, 'vendor_courier_id' => null]);
+    PickupDrop::factory()->create(['driver_employee_id' => $driver->id, 'vendor_courier_id' => null, 'collected_at' => now()]);
+
+    $board = Livewire::test(Index::class)->instance()->driverBoard;
+    $row = collect($board)->firstWhere('name', 'BOARD DRIVER');
+
+    expect($row['assigned'])->toBe(2)
+        ->and($row['collected'])->toBe(1)
+        ->and($row['awaiting'])->toBe(1);
 });

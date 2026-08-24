@@ -33,10 +33,49 @@
         </flux:select>
         <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
         <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        @if ($search || $statusFilter !== 'all' || $directionFilter !== 'all' || $driverFilter !== 'all' || $dateFrom || $dateTo)
+        @if ($search || $statusFilter !== 'all' || $directionFilter !== 'all' || $driverFilter !== 'all' || $dateFrom || $dateTo || $stageFilter !== 'all')
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
+        <flux:spacer />
+        <flux:button variant="{{ $showDriverBoard ? 'primary' : 'outline' }}" size="sm" icon="users" wire:click="$toggle('showDriverBoard')">
+            Driver board
+        </flux:button>
     </div>
+
+    {{-- Per-driver workload. A count is a filter: one click narrows the table
+         to that driver's assigned / collected / still-waiting jobs. --}}
+    @if ($showDriverBoard)
+        <div class="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-x-auto">
+            <flux:table>
+                <flux:table.columns>
+                    <flux:table.column>Driver</flux:table.column>
+                    <flux:table.column align="end">Assigned</flux:table.column>
+                    <flux:table.column align="end">Collected</flux:table.column>
+                    <flux:table.column align="end">Collection Pending</flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @forelse ($this->driverBoard as $driverRow)
+                        <flux:table.row wire:key="db-{{ $driverRow['id'] }}">
+                            <flux:table.cell class="font-medium">{{ $driverRow['name'] }}</flux:table.cell>
+                            <flux:table.cell align="end">
+                                <flux:button size="xs" variant="ghost" wire:click="focusDriver({{ $driverRow['id'] }}, 'all')">{{ $driverRow['assigned'] }}</flux:button>
+                            </flux:table.cell>
+                            <flux:table.cell align="end">
+                                <flux:button size="xs" variant="ghost" wire:click="focusDriver({{ $driverRow['id'] }}, 'collected')">{{ $driverRow['collected'] }}</flux:button>
+                            </flux:table.cell>
+                            <flux:table.cell align="end">
+                                <flux:button size="xs" variant="ghost" wire:click="focusDriver({{ $driverRow['id'] }}, 'awaiting')">{{ $driverRow['awaiting'] }}</flux:button>
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @empty
+                        <flux:table.row>
+                            <flux:table.cell colspan="4" class="text-center text-zinc-500 py-6">No open jobs are assigned to a driver.</flux:table.cell>
+                        </flux:table.row>
+                    @endforelse
+                </flux:table.rows>
+            </flux:table>
+        </div>
+    @endif
 
     <flux:table>
         <flux:table.columns>
@@ -46,6 +85,7 @@
             <flux:table.column>Customer / Vehicle</flux:table.column>
             <flux:table.column class="w-44">Assigned</flux:table.column>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
+            <flux:table.column class="w-40">Pending Reason</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
@@ -91,6 +131,15 @@
                         })
                         <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
                     </flux:table.cell>
+
+                    {{-- Why a stuck job is stuck — what this list is scanned for. --}}
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if ($row->status === \App\Modules\PickupDrop\Models\PickupDrop::STATUS_PENDING)
+                            {{ $row->pendingReason?->name ?? 'Not specified' }}
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('pickup_drop.update')
@@ -116,7 +165,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
                         <flux:icon.truck class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No pickup / drop runs scheduled</div>
                         <flux:text class="mt-1">Schedule from an appointment, or create one directly here.</flux:text>

@@ -17,6 +17,7 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
+use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
@@ -57,6 +58,7 @@ function fillValidAppointment(Testable $component): Testable
         ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
         ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
         ->set('booking_channel_id', channel()->id)
+        ->set('priority_id', PriorityMaster::firstOrCreate(['name' => 'NORMAL'], ['is_active' => true])->id)
         ->set('pickup_drop_option_id', pickupOption()->id);
 }
 
@@ -75,9 +77,13 @@ it('auto-stamps APT-00001 style appointment_no on create', function () {
 });
 
 it('filters by status', function () {
-    Appointment::factory()->create(['status' => Appointment::STATUS_PENDING]);
-    Appointment::factory()->confirmed()->create();
-    Appointment::factory()->cancelled()->create();
+    // Status derives from facts, so each row is built from the fact that produces it.
+    Appointment::factory()->create([
+        'appointment_at' => now()->addDay(),
+        'pending_reason_id' => PendingReasonMaster::factory()->create()->id,
+    ]);
+    Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+    Appointment::factory()->create(['appointment_at' => now()->addDay(), 'cancelled_at' => now()]);
 
     Livewire::test(Index::class)
         ->set('statusFilter', 'confirmed')
@@ -93,6 +99,7 @@ it('filters by channel and advisor', function () {
     Appointment::factory()->create(['booking_channel_id' => $phone->id, 'assigned_advisor_id' => $a2->id]);
 
     Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
         ->set('channelFilter', (string) $email->id)
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1)
         ->set('channelFilter', 'all')
@@ -110,6 +117,7 @@ it('searches by appointment_no, customer name, and reg no', function () {
     Appointment::factory()->count(2)->create();
 
     Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
         ->set('search', 'AAARDVARK')
         ->assertViewHas('rows', fn ($rows) => $rows->count() === 1)
         ->set('search', 'GJ05XYZ7777')
@@ -233,6 +241,7 @@ it('updates an existing appointment without changing appointment_no', function (
     $original = $a->fresh()->appointment_no;
 
     Livewire::test(Edit::class, ['appointment' => $a])
+        ->set('priority_id', PriorityMaster::firstOrCreate(['name' => 'NORMAL'], ['is_active' => true])->id)
         ->set('notes', 'updated note')
         ->call('save')
         ->assertHasNoErrors();
@@ -345,14 +354,14 @@ it('refines an unstarted booking with the live driver stage', function () {
 
     $job = PickupDrop::factory()->create([
         'appointment_id' => $a->id,
-        'status' => PickupDrop::STATUS_DRIVER_ON_THE_WAY,
+        'departed_at' => now(),
     ]);
 
     expect($a->fresh()->effectiveStatusLabel())->toBe('Driver on the Way');
 
     // Once the driver has the car the derived ladder takes over, so the job's
     // later stages no longer talk over the appointment's own status.
-    $job->update(['status' => PickupDrop::STATUS_VEHICLE_COLLECTED]);
+    $job->fresh()->update(['collected_at' => now()]);
     expect($a->fresh()->status)->toBe(Appointment::STATUS_VEHICLE_COLLECTED)
         ->and($a->fresh()->effectiveStatusLabel())->toBe('Vehicle Collected');
 
@@ -365,6 +374,7 @@ it('stamps rescheduled_from_at when the appointment is moved', function () {
     $a = Appointment::factory()->create(['appointment_at' => '2026-08-01 10:00:00']);
 
     Livewire::test(Edit::class, ['appointment' => $a])
+        ->set('priority_id', PriorityMaster::firstOrCreate(['name' => 'NORMAL'], ['is_active' => true])->id)
         ->set('appointment_date', '2026-08-05')
         ->set('appointment_time', '11:00')
         ->call('save')
@@ -413,7 +423,7 @@ it('does not forward-sync to a pickup/drop that is already collected', function 
     $appt = Appointment::factory()->create();
     $collected = PickupDrop::factory()->create([
         'appointment_id' => $appt->id,
-        'status' => PickupDrop::STATUS_VEHICLE_COLLECTED,
+        'collected_at' => now(),
         'customer_vehicle_id' => $original->id,
     ]);
 
@@ -452,6 +462,15 @@ it('finds a customer beyond the first page via server-side search', function () 
 | Address regions + trip distance
 |--------------------------------------------------------------------------
 */
+
+/** A slot for tests whose option makes both legs mandatory. */
+function bothLegsSlot(): TimeSlotMaster
+{
+    return TimeSlotMaster::firstOrCreate(
+        ['name' => '09:00-10:00'],
+        ['slot_start_time' => '09:00:00', 'slot_end_time' => '10:00:00', 'is_active' => true],
+    );
+}
 
 /** An option that involves both legs, so pickup and drop fields are both live. */
 function bothLegsOption(): PickupDropOptionMaster
@@ -535,6 +554,8 @@ it('persists the region on both legs', function () {
 
     fillValidAppointment(Livewire::test(Edit::class))
         ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('time_slot_id', bothLegsSlot()->id)
+        ->set('drop_time_slot_id', bothLegsSlot()->id)
         ->set('pickup_address_choice', 'custom')
         ->set('pickup_address', '12 SOME LANE')
         ->set('pickup_region_id', $area->id)
@@ -583,6 +604,8 @@ it('persists the distance and its charge', function () {
 
     fillValidAppointment(Livewire::test(Edit::class))
         ->set('pickup_drop_option_id', bothLegsOption()->id)
+        ->set('time_slot_id', bothLegsSlot()->id)
+        ->set('drop_time_slot_id', bothLegsSlot()->id)
         ->set('pickup_address_choice', 'custom')
         ->set('pickup_address', '12 SOME LANE')
         ->set('drop_address_choice', 'custom')

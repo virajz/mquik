@@ -3,10 +3,11 @@
 namespace App\Modules\Appointment\Livewire;
 
 use App\Concerns\CanQuickAddCustomer;
+use App\Concerns\PicksAddressRegions;
+use App\Concerns\PicksQuickServices;
 use App\Concerns\SearchesPickerOptions;
-use App\Modules\Appointment\Concerns\PicksAddressRegions;
-use App\Modules\Appointment\Concerns\PicksQuickServices;
 use App\Modules\Appointment\Models\Appointment;
+use App\Modules\Appointment\Models\AppointmentService;
 use App\Modules\BookingChannelMaster\Models\BookingChannelMaster;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
@@ -336,13 +337,12 @@ class Edit extends Component
         return (bool) PickupDropOptionMaster::find($this->pickup_drop_option_id)?->involves_pickup;
     }
 
-    /** Department label for the checklist heading. */
-    #[Computed]
-    public function departmentName(): string
+    /** Required by PicksQuickServices — the booking's saved job rows. */
+    protected function savedServiceRows(): Collection
     {
-        return $this->workshop_department_id
-            ? (string) WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('name')
-            : '';
+        return $this->editingId
+            ? AppointmentService::where('appointment_id', $this->editingId)->orderBy('sequence_no')->get()
+            : collect();
     }
 
     /** Changing department invalidates a service type belonging to the old one. */

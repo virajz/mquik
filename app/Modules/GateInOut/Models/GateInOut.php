@@ -15,6 +15,7 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\ParkingSlotMaster\Models\ParkingSlotMaster;
+use App\Modules\PickupDrop\Support\PickupDropStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -67,6 +68,7 @@ class GateInOut extends Model
         // booking for that vehicle to Arrived.
         static::saved(function (self $visit) {
             AppointmentStatus::refreshForVehicle($visit->customer_vehicle_id);
+            PickupDropStatus::refreshForVehicle($visit->customer_vehicle_id);
         });
 
         static::saving(function (self $row) {

@@ -15,11 +15,20 @@
                 @endif
             </div>
             @if ($editingId)
-                <flux:badge :color="match ($status) {
-                    'pending' => 'amber', 'driver_assigned' => 'blue', 'driver_on_the_way' => 'sky',
-                    'vehicle_collected' => 'indigo', 'vehicle_delivered' => 'lime',
-                    'completed' => 'green', 'cancelled' => 'zinc', default => 'zinc',
-                }" size="lg">{{ $PD::statuses()[$status] }}</flux:badge>
+                <div class="flex items-center gap-3">
+                    {{-- Derived from what the driver has done, never typed. --}}
+                    <flux:badge :color="match ($status) {
+                        'pending' => 'amber', 'driver_assigned' => 'blue', 'driver_on_the_way' => 'sky',
+                        'vehicle_collected' => 'indigo', 'vehicle_delivered' => 'lime',
+                        'completed' => 'green', 'cancelled' => 'zinc', default => 'zinc',
+                    }" size="lg">{{ $PD::statuses()[$status] }}</flux:badge>
+
+                    @if ($cancelled_at)
+                        <flux:button size="sm" variant="ghost" wire:click="restorePickupDrop">Restore</flux:button>
+                    @elseif ($status !== $PD::STATUS_COMPLETED)
+                        <flux:button size="sm" variant="ghost" wire:click="confirmCancel">Cancel Job</flux:button>
+                    @endif
+                </div>
             @endif
         </div>
 
@@ -33,23 +42,29 @@
             </div>
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model="pickup_drop_option_id" variant="listbox" label="Pickup/Drop Type" placeholder="What the customer booked…">
+                    <flux:select wire:model.live="pickup_drop_option_id" variant="listbox" label="Pickup/Drop Type" placeholder="What the customer booked…" required>
                         @foreach ($this->pickupDropOptions as $o)
                             <flux:select.option :value="$o->id" wire:key="pdopt-{{ $o->id }}">{{ $o->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model.live="direction" variant="listbox" label="This Job Is" required>
-                        @foreach ($PD::directions() as $key => $label)
-                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+{{-- The leg is read off the type — a pickup-involving type IS the
+                         pickup leg; the return trip is its own job later. --}}
+                    <flux:field>
+                        <flux:label>This Job Is</flux:label>
+                        <div class="flex items-center h-10">
+                            <flux:badge color="{{ $direction === \App\Modules\PickupDrop\Models\PickupDrop::DIRECTION_PICKUP ? 'blue' : 'indigo' }}" size="sm">
+                                {{ \App\Modules\PickupDrop\Models\PickupDrop::directions()[$direction] ?? $direction }}
+                            </flux:badge>
+                        </div>
+                        <flux:description>Derived from the type above.</flux:description>
+                    </flux:field>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:date-picker wire:model="scheduled_date" label="Date" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
-                    <flux:time-picker wire:model="scheduled_time" label="Time" placeholder="Select time" type="input" />
-                    <flux:select wire:model="time_slot_id" variant="listbox" label="Time Slot" placeholder="No specific slot">
+                    <flux:date-picker wire:model="scheduled_date" label="Entry Date" placeholder="Select date" required with-today selectable-header fixed-weeks type="input" />
+                    <flux:time-picker wire:model="scheduled_time" label="Entry Time" placeholder="Select time" required type="input" />
+                    <flux:select wire:model="time_slot_id" variant="listbox" label="Time Slot" placeholder="Pick a slot" required>
                         @foreach ($this->timeSlots as $slot)
                             <flux:select.option :value="$slot->id" wire:key="slot-{{ $slot->id }}">{{ $slot->window() }}</flux:select.option>
                         @endforeach
@@ -57,32 +72,60 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select wire:model.live="status" variant="listbox" label="Status" required>
-                        @foreach ($PD::statuses() as $key => $label)
-                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+                    {{-- Status is derived: each button records the fact that moves
+                         it, available once the previous fact exists. --}}
+                    @if ($editingId && ! $cancelled_at && $status !== $PD::STATUS_COMPLETED)
+                        <flux:field>
+                            <flux:label>Driver Progress</flux:label>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <flux:button size="sm" variant="{{ $status === $PD::STATUS_DRIVER_ASSIGNED ? 'primary' : 'ghost' }}"
+                                    :disabled="$status !== $PD::STATUS_DRIVER_ASSIGNED"
+                                    wire:click="markDeparted">Departed</flux:button>
+                                <flux:button size="sm" variant="{{ $status === $PD::STATUS_DRIVER_ON_THE_WAY ? 'primary' : 'ghost' }}"
+                                    :disabled="$status !== $PD::STATUS_DRIVER_ON_THE_WAY"
+                                    wire:click="markReached">Reached location</flux:button>
+                                <flux:button size="sm" variant="ghost"
+                                    :disabled="$status !== $PD::STATUS_DRIVER_ON_THE_WAY"
+                                    wire:click="confirmHandover">
+                                    {{ $direction === $PD::DIRECTION_PICKUP ? 'Vehicle collected' : 'Vehicle delivered' }}
+                                </flux:button>
+                            </div>
+                            <flux:description>
+                                @if ($status === $PD::STATUS_PENDING) Assign a driver or vendor below to begin.
+                                @else Collection is also confirmed automatically by OTP or condition photos.
+                                @endif
+                            </flux:description>
+                        </flux:field>
+                    @endif
 
                     @if ($status === $PD::STATUS_PENDING)
-                        <flux:select wire:model="pending_reason_id" variant="listbox" label="Pending Reason" placeholder="Not specified">
+                        <flux:select wire:model="pending_reason_id" variant="combobox" clearable label="Pending Reason">
+                            <x-slot name="input">
+                                <flux:select.input wire:model="pendingReasonSearch" placeholder="Pick or type to add…" />
+                            </x-slot>
                             @foreach ($this->pendingReasons as $r)
                                 <flux:select.option :value="$r->id" wire:key="pnd-{{ $r->id }}">{{ $r->name }}</flux:select.option>
                             @endforeach
+                            @can('pending_reason_master.create')
+                                <flux:select.option.create wire:click="createPendingReason" min-length="2">
+                                    Create "<span wire:text="pendingReasonSearch"></span>"
+                                </flux:select.option.create>
+                            @endcan
                         </flux:select>
                     @endif
 
-                    @if ($status === $PD::STATUS_CANCELLED)
-                        <flux:select wire:model="cancel_reason_id" variant="listbox" label="Cancel Reason" required>
-                            @foreach ($this->cancelReasons as $r)
-                                <flux:select.option :value="$r->id" wire:key="cxl-{{ $r->id }}">{{ $r->name }}</flux:select.option>
-                            @endforeach
-                        </flux:select>
-                    @endif
-
-                    <flux:select wire:model="reschedule_reason_id" variant="listbox" clearable label="Reschedule Reason" placeholder="Only if moved">
+                    <flux:select wire:model="reschedule_reason_id" variant="combobox" clearable label="Reschedule Reason">
+                        <x-slot name="input">
+                            <flux:select.input wire:model="rescheduleReasonSearch" placeholder="Only if moved — pick or type to add…" />
+                        </x-slot>
                         @foreach ($this->pendingReasons as $r)
                             <flux:select.option :value="$r->id" wire:key="rsc-{{ $r->id }}">{{ $r->name }}</flux:select.option>
                         @endforeach
+                        @can('pending_reason_master.create')
+                            <flux:select.option.create wire:click="createRescheduleReason" min-length="2">
+                                Create "<span wire:text="rescheduleReasonSearch"></span>"
+                            </flux:select.option.create>
+                        @endcan
                     </flux:select>
                 </div>
             </div>
@@ -97,25 +140,51 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Pick the customer first — the vehicle list filters to them.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:select wire:model.live="customer_id" variant="listbox" searchable label="Customer" placeholder="Pick a customer…" required :filter="false">
-                <x-slot name="search">
-                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
-                </x-slot>
-                    @foreach ($this->customers as $c)
-                        <flux:select.option :value="$c->id" wire:key="cust-{{ $c->id }}">
-                            {{ trim($c->first_name.' '.($c->last_name ?? '')) }}{{ $c->phone ? ' · '.$c->phone : '' }}
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
+                <flux:field>
+                    <flux:label>Customer</flux:label>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select wire:model.live="customer_id" variant="listbox" searchable required placeholder="Pick a customer…" :filter="false">
+                                <x-slot name="search">
+                                    <flux:select.search wire:model.live.debounce.250ms="customerSearch" placeholder="Name or phone…" />
+                                </x-slot>
+                                @foreach ($this->customers as $c)
+                                    <flux:select.option :value="$c->id" wire:key="cust-{{ $c->id }}">
+                                        {{ trim($c->first_name.' '.($c->last_name ?? '')) }}{{ $c->phone ? ' · '.$c->phone : '' }}
+                                    </flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+                        @can('customer_master.create')
+                            <flux:tooltip content="Quick add a new customer">
+                                <flux:button icon="plus" variant="ghost" type="button" x-on:click="$flux.modal('customer-quick-add').show()" />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
+                    <flux:error name="customer_id" />
+                </flux:field>
 
-                <flux:select wire:model.live="customer_vehicle_id" variant="listbox" searchable clearable :filter="false" label="Vehicle" placeholder="Search a vehicle (owner auto-fills)…" required>
-                    <x-slot name="search">
-                        <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Registration no…" />
-                    </x-slot>
-                    @foreach ($this->customerVehicles as $v)
-                        <flux:select.option :value="$v['id']" wire:key="veh-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <flux:field>
+                    <flux:label>Vehicle</flux:label>
+                    <div class="flex items-stretch gap-2">
+                        <div class="flex-1 min-w-0">
+                            <flux:select wire:model.live="customer_vehicle_id" variant="listbox" searchable clearable required :filter="false" placeholder="Search a vehicle (owner auto-fills)…">
+                                <x-slot name="search">
+                                    <flux:select.search wire:model.live.debounce.250ms="vehicleSearch" placeholder="Registration no…" />
+                                </x-slot>
+                                @foreach ($this->customerVehicles as $v)
+                                    <flux:select.option :value="$v['id']" wire:key="veh-{{ $v['id'] }}">{{ $v['label'] }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </div>
+                        @can('customer_vehicle_master.create')
+                            <flux:tooltip content="Quick add a new vehicle (creates the customer too)">
+                                <flux:button icon="plus" variant="ghost" type="button" x-on:click="$flux.modal('customer-vehicle-quick-add').show()" />
+                            </flux:tooltip>
+                        @endcan
+                    </div>
+                    <flux:error name="customer_vehicle_id" />
+                </flux:field>
             </div>
         </section>
 
@@ -128,31 +197,51 @@
                 <flux:text size="sm" class="mt-1 text-zinc-500">Where we collect from and where we return to. Distance sets the charge.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                @if ($this->customerAddresses->isNotEmpty())
-                    <flux:select wire:model.live="address_choice" variant="listbox" label="Pickup — saved address">
-                        @foreach ($this->customerAddresses as $addr)
-                            <flux:select.option :value="(string) $addr['id']" wire:key="paddr-{{ $addr['id'] }}">
-                                {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
-                            </flux:select.option>
-                        @endforeach
-                        <flux:select.option value="custom">Other / type a new address…</flux:select.option>
-                    </flux:select>
+                {{-- The type decides which addresses exist: pickup-only asks where
+                     to collect, drop-only where to return, both asks for both. --}}
+                @if (! $this->optionInvolvesPickup() && ! $this->optionInvolvesDrop())
+                    <flux:callout variant="secondary" icon="information-circle" inline>
+                        <flux:callout.text>Pick a Pickup/Drop Type above to capture addresses.</flux:callout.text>
+                    </flux:callout>
                 @endif
 
-                <flux:textarea wire:model="pickup_address" label="Pickup Address" placeholder="House / street / area / pincode" rows="2" />
+                @if ($this->optionInvolvesPickup())
+                    @if ($this->customerAddresses->isNotEmpty())
+                        <flux:select wire:model.live="address_choice" variant="listbox" label="Pickup — saved address">
+                            @foreach ($this->customerAddresses as $addr)
+                                <flux:select.option :value="(string) $addr['id']" wire:key="paddr-{{ $addr['id'] }}">
+                                    {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
+                                </flux:select.option>
+                            @endforeach
+                            <flux:select.option value="custom">Other / type a new address…</flux:select.option>
+                        </flux:select>
+                    @endif
 
-                @if ($this->customerAddresses->isNotEmpty())
-                    <flux:select wire:model.live="drop_address_choice" variant="listbox" label="Drop — saved address">
-                        @foreach ($this->customerAddresses as $addr)
-                            <flux:select.option :value="(string) $addr['id']" wire:key="daddr-{{ $addr['id'] }}">
-                                {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
-                            </flux:select.option>
-                        @endforeach
-                        <flux:select.option value="custom">Other / type a new address…</flux:select.option>
-                    </flux:select>
+                    <flux:textarea wire:model="pickup_address" label="Pickup Address" placeholder="House / street / area / pincode" rows="2" required />
+                    <flux:error name="pickup_address" />
+
+                    @include('partials.region-pickers', ['leg' => 'pickup'])
                 @endif
 
-                <flux:textarea wire:model="drop_address" label="Drop Address" placeholder="Leave blank if the same as pickup" rows="2" />
+                @if ($this->optionInvolvesDrop())
+                    <flux:separator variant="subtle" />
+
+                    @if ($this->customerAddresses->isNotEmpty())
+                        <flux:select wire:model.live="drop_address_choice" variant="listbox" label="Drop — saved address">
+                            @foreach ($this->customerAddresses as $addr)
+                                <flux:select.option :value="(string) $addr['id']" wire:key="daddr-{{ $addr['id'] }}">
+                                    {{ $addr['label'] ?? 'Address' }}{{ $addr['is_primary'] ? ' (Primary)' : '' }} — {{ \Illuminate\Support\Str::limit($addr['full'], 60) }}
+                                </flux:select.option>
+                            @endforeach
+                            <flux:select.option value="custom">Other / type a new address…</flux:select.option>
+                        </flux:select>
+                    @endif
+
+                    <flux:textarea wire:model="drop_address" label="Drop Address" placeholder="Where the vehicle should be returned" rows="2" required />
+                    <flux:error name="drop_address" />
+
+                    @include('partials.region-pickers', ['leg' => 'drop'])
+                @endif
 
                 <flux:field>
                     <flux:label>Contact Phone</flux:label>
@@ -210,22 +299,30 @@
                 <flux:error name="driver_employee_id" />
                 <flux:error name="vendor_courier_id" />
 
+                {{-- Dependency order: the department decides which service types
+                     and which advisors exist at all, so it is asked first. --}}
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select wire:model="advisor_employee_id" variant="listbox" searchable clearable label="Advisor" placeholder="Service advisor…">
-                        @foreach ($this->drivers as $d)
-                            <flux:select.option :value="$d->id" wire:key="adv-{{ $d->id }}">{{ $d->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-
-                    <flux:select wire:model="workshop_department_id" variant="listbox" clearable label="Department" placeholder="Department…">
+                    <flux:select wire:model.live="workshop_department_id" variant="listbox" searchable label="Department" placeholder="Department…" required>
                         @foreach ($this->departments as $dep)
                             <flux:select.option :value="$dep->id" wire:key="dep-{{ $dep->id }}">{{ $dep->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model="service_type_id" variant="listbox" clearable label="Service Type" placeholder="Service type…">
+                    <flux:select wire:model="service_type_id" variant="listbox" searchable clearable required
+                        label="Service Type"
+                        :placeholder="$workshop_department_id ? 'Service type…' : 'Pick a department first'"
+                        :disabled="! $workshop_department_id">
                         @foreach ($this->serviceTypes as $st)
                             <flux:select.option :value="$st->id" wire:key="st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:select wire:model="advisor_employee_id" variant="listbox" searchable clearable required
+                        label="Advisor"
+                        :placeholder="$workshop_department_id ? 'Service advisor…' : 'Pick a department first'"
+                        :disabled="! $workshop_department_id">
+                        @foreach ($this->advisors as $a)
+                            <flux:select.option :value="$a->id" wire:key="adv-{{ $a->id }}">{{ $a->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
@@ -238,32 +335,32 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Customer Complaints</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">What the customer reported when handing the vehicle over.</flux:text>
+                <flux:error name="complaints" />
+                <flux:text size="sm" class="mt-1 text-zinc-500">Tick the usual jobs for this department, then add anything the customer reported in their own words.</flux:text>
             </div>
-            <div class="space-y-3 min-w-0">
+            <div class="space-y-4 min-w-0">
+                @include('partials.quick-services')
+
+                {{-- Direct complaint entry — the customer's words, no dropdowns. --}}
                 @forelse ($complaints as $i => $complaint)
-                    <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end" wire:key="pdc-{{ $i }}">
-                        <flux:select wire:model="complaints.{{ $i }}.complaint_type_id" variant="listbox" searchable clearable label="Complaint Type" placeholder="Pick a type…">
-                            @foreach ($this->complaintTypes as $t)
-                                <flux:select.option :value="$t->id" wire:key="ct-{{ $i }}-{{ $t->id }}">{{ $t->name }}</flux:select.option>
-                            @endforeach
-                        </flux:select>
-                        <flux:select wire:model="complaints.{{ $i }}.job_description_id" variant="listbox" searchable clearable label="Job Description" placeholder="Optional…">
-                            @foreach ($this->jobDescriptions as $j)
-                                <flux:select.option :value="$j->id" wire:key="jd-{{ $i }}-{{ $j->id }}">{{ $j->name }}</flux:select.option>
-                            @endforeach
-                        </flux:select>
-                        <flux:button type="button" variant="ghost" icon="trash" wire:click="removeComplaint({{ $i }})" />
-                        <div class="md:col-span-3">
-                            <flux:input wire:model="complaints.{{ $i }}.description" placeholder="e.g. SUSPENSION NOISE OVER SPEED BREAKERS" required />
+                    <div class="flex items-end gap-2" wire:key="complaint-{{ $i }}">
+                        <div class="flex-1 min-w-0">
+                            <flux:input
+                                wire:model="complaints.{{ $i }}.description"
+                                placeholder="e.g. SUSPENSION NOISE OVER SPEED BREAKERS"
+                                required
+                            />
                             <flux:error name="complaints.{{ $i }}.description" />
                         </div>
+                        <flux:button type="button" variant="ghost" icon="trash" wire:click="removeComplaint({{ $i }})" />
                     </div>
                 @empty
                     <flux:text size="sm" class="text-zinc-500">No complaints recorded yet.</flux:text>
                 @endforelse
 
-                <flux:button type="button" variant="ghost" icon="plus" size="sm" wire:click="addComplaint">Add complaint</flux:button>
+                <flux:button type="button" variant="ghost" icon="plus" size="sm" wire:click="addComplaint">
+                    Add complaint
+                </flux:button>
             </div>
         </section>
 
@@ -369,4 +466,31 @@
             <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save Changes' : 'Schedule Pickup/Drop' }}</flux:button>
         </div>
     </form>
+
+    <flux:modal name="cancel-pickup-drop" class="md:w-96">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Cancel this job?</flux:heading>
+                <flux:subheading>The record stays on file and can be restored.</flux:subheading>
+            </div>
+
+            <flux:select wire:model="cancel_reason_id" variant="listbox" label="Cancel Reason" placeholder="Why is it being cancelled?">
+                @foreach ($this->cancelReasons as $r)
+                    <flux:select.option :value="$r->id" wire:key="cxl-{{ $r->id }}">{{ $r->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="cancel_reason_id" />
+
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button variant="ghost">Keep it</flux:button>
+                </flux:modal.close>
+                <flux:button variant="danger" wire:click="cancelPickupDrop">Cancel Job</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    @include('customer-master::_quick_add_modal')
+    @include('partials.quick-add-customer-vehicle-modal')
 </div>

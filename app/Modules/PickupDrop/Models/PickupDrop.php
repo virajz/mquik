@@ -5,7 +5,6 @@ namespace App\Modules\PickupDrop\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Modules\Appointment\Models\Appointment;
-use App\Modules\Appointment\Support\AppointmentStatus;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use App\Modules\CourierCompanyMaster\Models\CourierCompanyMaster;
@@ -19,6 +18,7 @@ use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Database\Factories\PickupDropFactory;
+use App\Modules\PickupDrop\Support\PickupDropStatus;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
 use App\Modules\RegionMaster\Models\RegionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
@@ -69,6 +69,12 @@ class PickupDrop extends Model
         'scheduled_at' => 'datetime',
         'rescheduled_from_at' => 'datetime',
         'pickup_otp_verified_at' => 'datetime',
+        'assigned_at' => 'datetime',
+        'departed_at' => 'datetime',
+        'reached_at' => 'datetime',
+        'collected_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'delivery_otp_verified_at' => 'datetime',
         'distance_km' => 'decimal:2',
         'distance_charge' => 'decimal:2',
@@ -83,11 +89,20 @@ class PickupDrop extends Model
 
     protected static function booted(): void
     {
-        // The driver's progress is the booking's progress up to collection.
-        static::saved(function (self $job) {
-            if ($job->appointment_id && $job->wasChanged('status')) {
-                AppointmentStatus::refresh($job->appointment);
+        // Who put which driver on the job, and when — stamped the moment the
+        // assignment changes, not typed by anyone.
+        static::saving(function (self $job) {
+            if (($job->isDirty('driver_employee_id') || $job->isDirty('vendor_courier_id'))
+                && ($job->driver_employee_id !== null || $job->vendor_courier_id !== null)) {
+                $job->assigned_at = now();
+                $job->assigned_by_user_id = auth()->id() ?? $job->assigned_by_user_id;
             }
+        });
+
+        // Status derives from the recorded facts; the refresh also nudges the
+        // linked appointment, whose ladder overlays this job's stage.
+        static::saved(function (self $job) {
+            PickupDropStatus::refresh($job);
         });
 
         static::created(function (self $row) {
@@ -224,6 +239,12 @@ class PickupDrop extends Model
     public function checklistTemplate(): BelongsTo
     {
         return $this->belongsTo(ChecklistTemplateMaster::class, 'checklist_template_id');
+    }
+
+    /** Jobs this trip is booked for, as opposed to what the customer complained about. */
+    public function services(): HasMany
+    {
+        return $this->hasMany(PickupDropService::class)->orderBy('sequence_no');
     }
 
     public function complaints(): HasMany

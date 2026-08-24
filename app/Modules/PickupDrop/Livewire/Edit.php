@@ -2,6 +2,11 @@
 
 namespace App\Modules\PickupDrop\Livewire;
 
+use App\Concerns\CanQuickAddCustomer;
+use App\Concerns\CanQuickAddCustomerVehicle;
+use App\Concerns\HasQuickCreate;
+use App\Concerns\PicksAddressRegions;
+use App\Concerns\PicksQuickServices;
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CancelReasonMaster\Models\CancelReasonMaster;
@@ -18,6 +23,8 @@ use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
+use App\Modules\PickupDrop\Models\PickupDropService;
+use App\Modules\PickupDrop\Support\PickupDropStatus;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\TimeSlotMaster\Models\TimeSlotMaster;
@@ -25,6 +32,7 @@ use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -38,6 +46,11 @@ use Livewire\WithFileUploads;
 #[Title('Pickup / Drop')]
 class Edit extends Component
 {
+    use CanQuickAddCustomer;
+    use CanQuickAddCustomerVehicle;
+    use HasQuickCreate;
+    use PicksAddressRegions;
+    use PicksQuickServices;
     use SearchesPickerOptions;
     use WithFileUploads;
 
@@ -45,6 +58,12 @@ class Edit extends Component
 
     public ?string $pickup_drop_no = null;
 
+    /**
+     * Derived from the Pickup/Drop Type, never picked by hand. A type that
+     * involves a pickup makes this the pickup leg; a drop-only type makes it the
+     * drop. A both-legs booking is the pickup — the return trip is entered later
+     * as its own job, usually days apart and often with a different driver.
+     */
     public string $direction = PickupDrop::DIRECTION_PICKUP;
 
     public ?int $pickup_drop_option_id = null;
@@ -78,8 +97,6 @@ class Edit extends Component
     /** Set when the pickup address is a saved customer address (resolved live). */
     public ?int $pickup_address_id = null;
 
-    public ?int $pickup_region_id = null;
-
     public ?string $drop_address = null;
 
     /** Set when the drop address is a saved customer address (resolved live). */
@@ -105,9 +122,17 @@ class Edit extends Component
 
     public ?string $distance_charge = null;
 
+    /** Derived, never edited — kept so the badge and reveal blocks can read it. */
     public string $status = PickupDrop::STATUS_PENDING;
 
+    public ?string $cancelled_at = null;
+
     public ?int $pending_reason_id = null;
+
+    /** Combobox text for the inline "Create …" options. */
+    public string $pendingReasonSearch = '';
+
+    public string $rescheduleReasonSearch = '';
 
     public ?int $reschedule_reason_id = null;
 
@@ -147,6 +172,7 @@ class Edit extends Component
     {
         if ($pickupDrop && $pickupDrop->exists) {
             $this->load($pickupDrop);
+            $this->guardDepartmentPairings();
 
             return;
         }
@@ -160,6 +186,8 @@ class Edit extends Component
         } elseif ($this->fromJobCard) {
             $this->prefillFromJobCard($this->fromJobCard);
         }
+
+        $this->guardDepartmentPairings();
     }
 
     protected function prefillFromJobCard(int $jobCardId): void
@@ -196,6 +224,8 @@ class Edit extends Component
         $this->drop_address = $p->drop_address;
         $this->drop_address_id = $p->drop_address_id;
         $this->drop_region_id = $p->drop_region_id;
+        $this->seedRegionPickers('pickup');
+        $this->seedRegionPickers('drop');
         $this->contact_phone = $p->contact_phone;
         // Reflect a linked saved pickup / drop address in each picker.
         if ($p->pickup_address_id) {
@@ -217,6 +247,8 @@ class Edit extends Component
         $this->status = $p->status;
         $this->pending_reason_id = $p->pending_reason_id;
         $this->reschedule_reason_id = $p->reschedule_reason_id;
+        $this->cancelled_at = $p->cancelled_at?->toDateTimeString();
+        $this->seedSelectedServices();
         $this->cancel_reason_id = $p->cancel_reason_id;
         // Column is DB-defaulted, so an in-memory model may not carry it yet.
         $this->otp_mode = $p->otp_mode ?? PickupDrop::OTP_OPTIONAL;
@@ -227,8 +259,6 @@ class Edit extends Component
 
         $this->complaints = $p->complaints()->get()->map(fn ($c) => [
             'id' => $c->id,
-            'complaint_type_id' => $c->complaint_type_id,
-            'job_description_id' => $c->job_description_id,
             'description' => $c->description,
         ])->all();
 
@@ -253,6 +283,150 @@ class Edit extends Component
      * "Add from Appointment" flow — copy customer, vehicle, schedule, routing and
      * the booked pickup/drop option across.
      */
+    public function optionInvolvesPickup(): bool
+    {
+        return (bool) ($this->pickup_drop_option_id
+            ? PickupDropOptionMaster::find($this->pickup_drop_option_id)?->involves_pickup
+            : false);
+    }
+
+    public function optionInvolvesDrop(): bool
+    {
+        return (bool) ($this->pickup_drop_option_id
+            ? PickupDropOptionMaster::find($this->pickup_drop_option_id)?->involves_drop
+            : false);
+    }
+
+    public function updatedPickupDropOptionId(): void
+    {
+        $this->deriveDirection();
+    }
+
+    protected function deriveDirection(): void
+    {
+        $option = $this->pickup_drop_option_id ? PickupDropOptionMaster::find($this->pickup_drop_option_id) : null;
+
+        if (! $option) {
+            return;
+        }
+
+        $this->direction = $option->involves_pickup
+            ? PickupDrop::DIRECTION_PICKUP
+            : PickupDrop::DIRECTION_DROP;
+    }
+
+    /** Quick-create for the two reason comboboxes — both draw on the pending-reason master. */
+    public function createPendingReason(): void
+    {
+        if ($this->quickCreate(PendingReasonMaster::class, 'pending_reason_id', 'pendingReasonSearch', 'pending_reason_master.create', label: 'Pending Reason')) {
+            unset($this->pendingReasons);
+        }
+    }
+
+    public function createRescheduleReason(): void
+    {
+        if ($this->quickCreate(PendingReasonMaster::class, 'reschedule_reason_id', 'rescheduleReasonSearch', 'pending_reason_master.create', label: 'Reschedule Reason')) {
+            unset($this->pendingReasons);
+        }
+    }
+
+    /**
+     * Driver progress is one tap per fact: left the workshop, reached the
+     * address, car changed hands. Each stamps its timestamp; status follows.
+     */
+    public function markDeparted(): void
+    {
+        $this->stampProgress('departed_at');
+    }
+
+    public function markReached(): void
+    {
+        $this->stampProgress('reached_at');
+    }
+
+    public function confirmHandover(): void
+    {
+        $this->stampProgress($this->direction === PickupDrop::DIRECTION_PICKUP ? 'collected_at' : 'delivered_at');
+    }
+
+    protected function stampProgress(string $column): void
+    {
+        $this->authorize('pickup_drop.update');
+
+        if (! $this->editingId) {
+            return;
+        }
+
+        $row = PickupDrop::findOrFail($this->editingId);
+
+        if ($row->{$column} !== null) {
+            return;
+        }
+
+        $row->forceFill([$column => now()])->save();
+        $this->status = $row->fresh()->status;
+
+        Flux::toast(text: ucfirst(str_replace('_at', '', $column)).' recorded.', variant: 'success');
+    }
+
+    /** Cancelling is a deliberate act with a reason — a flag, not a status pick. */
+    public function confirmCancel(): void
+    {
+        Flux::modal('cancel-pickup-drop')->show();
+    }
+
+    public function cancelPickupDrop(): void
+    {
+        $this->authorize('pickup_drop.update');
+
+        $this->validate([
+            'cancel_reason_id' => ['required', 'integer', Rule::exists('cancel_reasons', 'id')->where('is_active', true)],
+        ], attributes: ['cancel_reason_id' => 'cancel reason']);
+
+        $row = PickupDrop::findOrFail($this->editingId);
+        $row->forceFill(['cancelled_at' => now(), 'cancel_reason_id' => $this->cancel_reason_id])->save();
+
+        $this->cancelled_at = $row->cancelled_at->toDateTimeString();
+        $this->status = $row->fresh()->status;
+
+        Flux::modal('cancel-pickup-drop')->close();
+        Flux::toast(text: 'Pickup/Drop '.$row->pickup_drop_no.' cancelled.', variant: 'success');
+    }
+
+    public function restorePickupDrop(): void
+    {
+        $this->authorize('pickup_drop.update');
+
+        $row = PickupDrop::findOrFail($this->editingId);
+        $row->forceFill(['cancelled_at' => null, 'cancel_reason_id' => null])->save();
+
+        $this->cancelled_at = null;
+        $this->cancel_reason_id = null;
+        $this->status = $row->fresh()->status;
+
+        Flux::toast(text: 'Pickup/Drop restored.', variant: 'success');
+    }
+
+    /** Required by PicksQuickServices — the job's saved service rows. */
+    protected function savedServiceRows(): Collection
+    {
+        return $this->editingId
+            ? PickupDropService::where('pickup_drop_id', $this->editingId)->orderBy('sequence_no')->get()
+            : collect();
+    }
+
+    /** Required by CanQuickAddCustomer — receives the new customer's id. */
+    protected function quickCustomerTargetProperty(): string
+    {
+        return 'customer_id';
+    }
+
+    /** Required by CanQuickAddCustomerVehicle — receives the new vehicle's id. */
+    protected function quickCustomerVehicleTargetProperty(): string
+    {
+        return 'customer_vehicle_id';
+    }
+
     protected function prefillFromAppointment(int $appointmentId): void
     {
         $appointment = Appointment::find($appointmentId);
@@ -263,20 +437,26 @@ class Edit extends Component
         $this->appointment_id = $appointment->id;
         $this->customer_id = $appointment->customer_id;
         $this->customer_vehicle_id = $appointment->customer_vehicle_id;
-        $this->scheduled_date = $appointment->appointment_at?->format('Y-m-d') ?? $this->scheduled_date;
-        $this->scheduled_time = $appointment->appointment_at?->format('H:i') ?? $this->scheduled_time;
-        $this->time_slot_id = $appointment->time_slot_id;
         $this->pickup_drop_option_id = $appointment->pickup_drop_option_id;
         $this->advisor_employee_id = $appointment->assigned_advisor_id;
         $this->workshop_department_id = $appointment->workshop_department_id;
         $this->service_type_id = $appointment->service_type_id;
 
-        // The chosen option decides which leg this job is for.
-        if ($appointment->requiresPickup()) {
-            $this->direction = PickupDrop::DIRECTION_PICKUP;
-        } elseif ($appointment->requiresDrop()) {
-            $this->direction = PickupDrop::DIRECTION_DROP;
-        }
+        // The leg decides which slot applies, so it is derived first — a drop
+        // job must carry the appointment's Drop Time Slot, not its pickup one.
+        $this->deriveDirection();
+        $this->time_slot_id = $this->direction === PickupDrop::DIRECTION_DROP
+            ? $appointment->drop_time_slot_id
+            : $appointment->time_slot_id;
+
+        // The driver leaves for the slot's window, not for the workshop's service
+        // time — an appointment at 10:00 with an 09:00–10:00 pickup slot means
+        // the car is collected at 09:00.
+        $slot = $this->time_slot_id ? TimeSlotMaster::find($this->time_slot_id) : null;
+        $this->scheduled_date = $appointment->appointment_at?->format('Y-m-d') ?? $this->scheduled_date;
+        $this->scheduled_time = $slot
+            ? substr((string) $slot->slot_start_time, 0, 5)
+            : ($appointment->appointment_at?->format('H:i') ?? $this->scheduled_time);
 
         // Carry the live address link when the appointment used a saved address;
         // otherwise carry its custom text.
@@ -285,15 +465,34 @@ class Edit extends Component
             ? $appointment->pickupAddress?->fullAddress()
             : $appointment->pickup_address;
         $this->address_choice = $appointment->pickup_address_id ? (string) $appointment->pickup_address_id : 'custom';
+        $this->pickup_region_id = $appointment->pickup_region_id;
+
+        // A both-legs booking captured the return address up front — carry it so
+        // the driver's paperwork is complete without re-asking the customer.
+        $this->drop_address_id = $appointment->drop_address_id;
+        $this->drop_address = $appointment->drop_address_id
+            ? $appointment->dropAddress?->fullAddress()
+            : $appointment->drop_address;
+        $this->drop_address_choice = $appointment->drop_address_id ? (string) $appointment->drop_address_id : 'custom';
+        $this->drop_region_id = $appointment->drop_region_id;
+        $this->seedRegionPickers('pickup');
+        $this->seedRegionPickers('drop');
         // Carry an explicit contact override; a null here means "use the customer's live phone".
         $this->contact_phone = $appointment->pickup_contact_phone;
+
+        // The booking already says what the visit is for — inherit its jobs and
+        // complaints instead of asking the coordinator to re-enter them.
+        $this->fillServiceInputsFrom($appointment->services()->get());
+        $this->complaints = $appointment->complaints()->get()
+            ->map(fn ($c) => ['id' => null, 'description' => $c->description])
+            ->all();
     }
 
     protected function rules(): array
     {
         return [
             'direction' => ['required', Rule::in(array_keys(PickupDrop::directions()))],
-            'pickup_drop_option_id' => ['nullable', 'integer', Rule::exists('pickup_drop_options', 'id')->where('is_active', true)],
+            'pickup_drop_option_id' => ['required', 'integer', Rule::exists('pickup_drop_options', 'id')->where('is_active', true)],
             'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
             'job_card_id' => ['nullable', 'integer', 'exists:job_cards,id'],
             'customer_id' => ['required', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
@@ -303,39 +502,39 @@ class Edit extends Component
             ],
             'scheduled_date' => ['required', 'date_format:Y-m-d'],
             'scheduled_time' => ['required', 'date_format:H:i'],
-            'time_slot_id' => ['nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
-            // The leg being run decides which address is mandatory.
-            'pickup_address' => [Rule::requiredIf(fn () => $this->direction === PickupDrop::DIRECTION_PICKUP && $this->address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
+            'time_slot_id' => ['required', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
+            // The type decides which addresses exist at all — a both-legs booking
+            // captures the return address now, even though this job is the pickup.
+            'pickup_address' => [Rule::requiredIf(fn () => $this->optionInvolvesPickup() && $this->address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
             'pickup_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
             'pickup_region_id' => ['nullable', 'integer', 'exists:regions,id'],
-            'drop_address' => [Rule::requiredIf(fn () => $this->direction === PickupDrop::DIRECTION_DROP && $this->drop_address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
+            'drop_address' => [Rule::requiredIf(fn () => $this->optionInvolvesDrop() && $this->drop_address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
             'drop_address_id' => ['nullable', 'integer', Rule::exists('customer_addresses', 'id')],
             'drop_region_id' => ['nullable', 'integer', 'exists:regions,id'],
             'contact_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'driver_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
-            'advisor_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            'advisor_employee_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'vendor_courier_id' => ['nullable', 'integer', Rule::exists('courier_companies', 'id')->where('is_active', true)],
-            'workshop_department_id' => ['nullable', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
-            'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
+            'service_type_id' => [
+                'required', 'integer',
+                Rule::exists('service_types', 'id')
+                    ->where('is_active', true)
+                    ->where('workshop_department_id', $this->workshop_department_id),
+            ],
             'distance_km' => ['nullable', 'numeric', 'min:0', 'max:99999'],
             'distance_slab_id' => ['nullable', 'integer', Rule::exists('distance_slabs', 'id')->where('is_active', true)],
             'distance_charge' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['required', Rule::in(array_keys(PickupDrop::statuses()))],
+
             'pending_reason_id' => ['nullable', 'integer', Rule::exists('pending_reasons', 'id')->where('is_active', true)],
             'reschedule_reason_id' => ['nullable', 'integer', Rule::exists('pending_reasons', 'id')->where('is_active', true)],
-            'cancel_reason_id' => [
-                Rule::requiredIf(fn () => $this->status === PickupDrop::STATUS_CANCELLED),
-                'nullable', 'integer',
-                Rule::exists('cancel_reasons', 'id')->where('is_active', true),
-            ],
+            'cancel_reason_id' => ['nullable', 'integer', Rule::exists('cancel_reasons', 'id')->where('is_active', true)],
             'otp_mode' => ['required', Rule::in(array_keys(PickupDrop::otpModes()))],
             'pickup_otp' => ['nullable', 'string', 'max:10'],
             'delivery_otp' => ['nullable', 'string', 'max:10'],
             'checklist_template_id' => ['nullable', 'integer', Rule::exists('checklist_templates', 'id')->where('is_active', true)],
             'notes' => ['nullable', 'string', 'max:1000'],
             'complaints' => ['array'],
-            'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
-            'complaints.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
             'complaints.*.description' => ['required', 'string', 'max:500'],
             'documents' => ['array'],
             'documents.*.label' => ['required', 'string', 'max:255'],
@@ -386,6 +585,8 @@ class Edit extends Component
         if ($picked) {
             $this->pickup_address_id = (int) $value;
             $this->pickup_address = $picked['full'];
+            $this->pickup_region_id = $picked['region_id'];
+            $this->seedRegionPickers('pickup');
         }
     }
 
@@ -401,6 +602,8 @@ class Edit extends Component
         if ($picked) {
             $this->drop_address_id = (int) $value;
             $this->drop_address = $picked['full'];
+            $this->drop_region_id = $picked['region_id'];
+            $this->seedRegionPickers('drop');
         }
     }
 
@@ -465,7 +668,7 @@ class Edit extends Component
 
     public function addComplaint(): void
     {
-        $this->complaints[] = ['id' => null, 'complaint_type_id' => null, 'job_description_id' => null, 'description' => ''];
+        $this->complaints[] = ['id' => null, 'description' => ''];
     }
 
     public function removeComplaint(int $index): void
@@ -555,6 +758,7 @@ class Edit extends Component
                 'id' => $a->id,
                 'label' => $a->label,
                 'is_primary' => (bool) $a->is_primary,
+                'region_id' => $a->region_id,
                 'full' => trim(($a->address_line ?? '').($a->regionChain() ? ', '.$a->regionChain() : '')),
             ]);
     }
@@ -574,7 +778,13 @@ class Edit extends Component
     #[Computed]
     public function pickupDropOptions()
     {
-        return PickupDropOptionMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        // A type that drives no leg (customer self drop/pickup) has no job in
+        // this module, so it is not offered.
+        return PickupDropOptionMaster::query()
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->where('involves_pickup', true)->orWhere('involves_drop', true))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]
@@ -592,7 +802,76 @@ class Edit extends Component
     #[Computed]
     public function serviceTypes()
     {
-        return ServiceTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        if (! $this->workshop_department_id) {
+            return collect();
+        }
+
+        return ServiceTypeMaster::query()
+            ->where('is_active', true)
+            ->where('workshop_department_id', $this->workshop_department_id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /**
+     * Advisors of the chosen department — ADVISOR-designated staff only.
+     *
+     * `workshop_departments.department_id` mirrors the HR department, so this is
+     * a real link rather than a name comparison; drivers and technicians are not
+     * offered where an advisor is being picked.
+     *
+     * @return Collection<int, EmployeeMaster>
+     */
+    #[Computed]
+    public function advisors()
+    {
+        if (! $this->workshop_department_id) {
+            return collect();
+        }
+
+        $departmentId = WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('department_id');
+
+        if (! $departmentId) {
+            return collect();
+        }
+
+        return EmployeeMaster::query()
+            ->where('is_active', true)
+            ->where('department_id', $departmentId)
+            ->whereHas('designation', fn ($q) => $q->where('name', 'like', '%ADVISOR%'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Changing department invalidates the old department's service type and advisor. */
+    public function updatedWorkshopDepartmentId(): void
+    {
+        $this->service_type_id = null;
+        $this->advisor_employee_id = null;
+
+        unset($this->serviceTypes, $this->advisors, $this->frequentServiceGroups, $this->otherJobDescriptions);
+
+        // The quick-add checklist is department-scoped as well.
+        $this->dropServicesOutsideDepartment();
+    }
+
+    /**
+     * Legacy or handed-over rows can carry pairings the filtered pickers no
+     * longer offer; drop those rather than open a form that fails validation on
+     * a field nobody touched.
+     */
+    protected function guardDepartmentPairings(): void
+    {
+        if ($this->service_type_id && ! $this->serviceTypes->contains('id', $this->service_type_id)) {
+            $this->service_type_id = null;
+        }
+
+        // Only force a re-pick when the department actually offers advisors —
+        // wiping the saved one where the list is empty would strand the record
+        // behind a mandatory field with nothing to choose.
+        if ($this->advisor_employee_id && $this->advisors->isNotEmpty() && ! $this->advisors->contains('id', $this->advisor_employee_id)) {
+            $this->advisor_employee_id = null;
+        }
     }
 
     #[Computed]
@@ -641,9 +920,21 @@ class Edit extends Component
     {
         $this->authorize($this->editingId ? 'pickup_drop.update' : 'pickup_drop.create');
 
+        // The type is the sole authority on which leg this is — recomputed here
+        // so nothing stale survives however the option was set.
+        $this->deriveDirection();
+
         $data = $this->validate();
 
         if (! $this->validateAssignment()) {
+            return;
+        }
+
+        // The driver needs to know what the visit is for: at least one ticked
+        // service or one complaint in the customer's own words.
+        if ($this->selectedServiceCount() === 0 && $this->complaints === []) {
+            $this->addError('complaints', 'Tick at least one service, or add a customer complaint.');
+
             return;
         }
 
@@ -675,12 +966,10 @@ class Edit extends Component
             }
         }
 
-        // Reasons only belong to the state that asks for them.
-        if ($this->status !== PickupDrop::STATUS_CANCELLED) {
+        // Status derives on save from the recorded facts; the form never sends
+        // one. A cancel reason only means anything alongside the cancellation.
+        if ($this->cancelled_at === null) {
             $data['cancel_reason_id'] = null;
-        }
-        if ($this->status !== PickupDrop::STATUS_PENDING) {
-            $data['pending_reason_id'] = null;
         }
 
         $isCreate = $this->editingId === null;
@@ -702,6 +991,12 @@ class Edit extends Component
             $this->syncComplaints($row, $complaints);
             $this->syncDocuments($row, $documents);
             $this->syncPhotos($row, $photos);
+
+            $this->syncSelectedServices($row);
+
+            // Photos are a collection/delivery proof, so the ladder re-reads
+            // after they land — the model hook ran before they existed.
+            PickupDropStatus::refresh($row);
 
             return $row;
         });
@@ -727,8 +1022,6 @@ class Edit extends Component
         foreach (array_values($complaints) as $i => $line) {
             $kept[] = ChildRows::upsert($row->complaints(), $line['id'] ?? null,
                 [
-                    'complaint_type_id' => $line['complaint_type_id'] ?: null,
-                    'job_description_id' => $line['job_description_id'] ?: null,
                     'description' => strtoupper(trim($line['description'])),
                     'sequence_no' => $i + 1,
                 ],

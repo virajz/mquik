@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Modules\Appointment\Concerns;
+namespace App\Concerns;
 
-use App\Modules\Appointment\Models\Appointment;
-use App\Modules\Appointment\Models\AppointmentService;
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 
@@ -118,12 +118,37 @@ trait PicksQuickServices
         $this->manualRepairs = array_values($this->manualRepairs);
     }
 
-    /** Load an existing booking's jobs back into the three inputs. */
+    /**
+     * Saved service rows for the record being edited — each with a
+     * `job_description_id` and `name`. The host component provides them.
+     *
+     * @return \Illuminate\Support\Collection<int, Model>
+     */
+    abstract protected function savedServiceRows(): \Illuminate\Support\Collection;
+
+    /** Label for the checklist heading. */
+    #[Computed]
+    public function departmentName(): string
+    {
+        return $this->workshop_department_id
+            ? (string) WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('name')
+            : '';
+    }
+
+    /** Load an existing record's jobs back into the three inputs. */
     protected function seedSelectedServices(): void
     {
-        $rows = $this->editingId
-            ? AppointmentService::where('appointment_id', $this->editingId)->orderBy('sequence_no')->get()
-            : collect();
+        $this->fillServiceInputsFrom($this->savedServiceRows());
+    }
+
+    /**
+     * Split service rows into the three inputs — also used to inherit another
+     * record's jobs (a pickup created from an appointment carries its booking).
+     *
+     * @param  \Illuminate\Support\Collection<int, Model>  $rows
+     */
+    protected function fillServiceInputsFrom(\Illuminate\Support\Collection $rows): void
+    {
 
         $frequent = $this->frequentServiceGroups->flatten()->pluck('id')->map(fn ($id) => (int) $id)->all();
 
@@ -148,7 +173,7 @@ trait PicksQuickServices
      * Rewrite the booking's job list. Small and fully replaced each save — these
      * rows carry no state of their own worth preserving.
      */
-    protected function syncSelectedServices(Appointment $appointment): void
+    protected function syncSelectedServices(Model $record): void
     {
         $names = JobDescriptionMaster::whereIn('id', [...$this->selectedServiceIds, ...$this->requestedRepairIds])
             ->pluck('name', 'id');
@@ -168,8 +193,8 @@ trait PicksQuickServices
             $rows[] = ['job_description_id' => null, 'name' => $name, 'sequence_no' => $seq++];
         }
 
-        $appointment->services()->delete();
-        $appointment->services()->createMany($rows);
+        $record->services()->delete();
+        $record->services()->createMany($rows);
     }
 
     /** Drop anything the newly chosen department does not offer. */
