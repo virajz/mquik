@@ -71,6 +71,9 @@
 
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
                                             <div>
+                                                @if (($row['status'] ?? '') === 'received' && ! empty($row['received_at']))
+                                                    <div class="text-xs text-lime-700 dark:text-lime-400 mb-1">Received {{ \Illuminate\Support\Carbon::parse($row['received_at'])->format('d M Y, h:i A') }}</div>
+                                                @endif
                                                 @if (! empty($row['path']))
                                                     <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($row['path']) }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-mq-orange-600 hover:underline">
                                                         <flux:icon.paper-clip class="size-3.5" /> {{ $row['original_name'] ?? 'View file' }}
@@ -146,6 +149,53 @@
                                     @endforeach
                                 </flux:select>
                             </div>
+                            {{-- The chase log: every attempt, its channel, and what
+                                 the customer actually said. --}}
+                            <flux:field>
+                                <flux:label>Follow-up Log</flux:label>
+                                <div class="space-y-2">
+                                    @forelse ($followUps as $i => $fu)
+                                        <div class="grid grid-cols-1 md:grid-cols-[190px_1fr_1fr_1fr_auto] gap-2 items-end" wire:key="dc-fu-{{ $i }}">
+                                            <flux:input type="datetime-local" wire:model="followUps.{{ $i }}.followed_up_at" size="sm" label="When" />
+                                            <flux:select wire:model="followUps.{{ $i }}.followed_up_by_id" variant="listbox" searchable clearable size="sm" label="By" placeholder="Who called…">
+                                                @foreach ($this->employees as $e)
+                                                    <flux:select.option :value="$e->id" wire:key="dc-fu-by-{{ $i }}-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                            <flux:select wire:model="followUps.{{ $i }}.follow_up_mode_id" variant="listbox" clearable size="sm" label="Mode" placeholder="Call / SMS…">
+                                                @foreach ($this->followUpModes as $fm)
+                                                    <flux:select.option :value="$fm->id" wire:key="dc-fu-md-{{ $i }}-{{ $fm->id }}">{{ $fm->name }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                            <flux:input wire:model="followUps.{{ $i }}.customer_response" size="sm" label="Customer Response" placeholder="Will send by Friday…" />
+                                            <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removeFollowUp({{ $i }})" class="h-9!" />
+                                        </div>
+                                    @empty
+                                        <flux:text size="sm" class="text-zinc-500">No follow-ups recorded yet.</flux:text>
+                                    @endforelse
+                                    <flux:button type="button" variant="ghost" icon="plus" size="sm" wire:click="addFollowUp">Add follow-up</flux:button>
+                                </div>
+                            </flux:field>
+
+                            {{-- What the advisor actually sends: the outstanding list,
+                                 ready to paste or fire off on WhatsApp. --}}
+                            <flux:field>
+                                <flux:label>Request Message</flux:label>
+                                <div class="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-3 text-sm whitespace-pre-line font-mono">{{ $this->requestMessage }}</div>
+                                <div class="flex items-center gap-2 mt-2" x-data="{ copied: false }">
+                                    <flux:button size="sm" variant="outline" icon="clipboard"
+                                        x-on:click="navigator.clipboard.writeText(@js($this->requestMessage)); copied = true; setTimeout(() => copied = false, 2000)">
+                                        Copy message
+                                    </flux:button>
+                                    @if ($this->whatsAppUrl)
+                                        <flux:button size="sm" variant="outline" icon="chat-bubble-left-ellipsis" :href="$this->whatsAppUrl" target="_blank">
+                                            Send on WhatsApp
+                                        </flux:button>
+                                    @endif
+                                    <span x-show="copied" x-cloak class="text-xs text-lime-600 dark:text-lime-400">Copied!</span>
+                                </div>
+                            </flux:field>
+
                             <flux:textarea wire:model="notes" label="Notes" placeholder="Anything worth recording about this collection." rows="2" />
                         </div>
                     </section>
@@ -184,4 +234,7 @@
             <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save Changes' : 'Create Collection' }}</flux:button>
         </div>
     </form>
+
+    @include('customer-master::_quick_add_modal')
+    @include('partials.quick-add-customer-vehicle-modal')
 </div>

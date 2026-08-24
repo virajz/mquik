@@ -22,6 +22,7 @@ class DocumentCollectionItem extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'received_at' => 'datetime',
         'is_required' => 'boolean',
         'size_bytes' => 'integer',
         'sequence_no' => 'integer',

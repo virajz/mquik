@@ -7,9 +7,14 @@ use App\Modules\DocumentCollection\Livewire\Edit;
 use App\Modules\DocumentCollection\Livewire\Index;
 use App\Modules\DocumentCollection\Models\DocumentCollection;
 use App\Modules\DocumentRejectionReasonMaster\Models\DocumentRejectionReasonMaster;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\FollowUpModeMaster\Models\FollowUpModeMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -29,6 +34,25 @@ function dcTemplate(string $name = 'DOC SET'): ChecklistTemplateMaster
     ]);
 }
 
+/** The full mandatory set the form now enforces. */
+function validDC(Testable $c): Testable
+{
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $service = ServiceTypeMaster::factory()->create(['workshop_department_id' => $dept->id]);
+
+    return $c
+        ->set('customer_id', $customer->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('department_id', $dept->id)
+        ->set('service_type_id', $service->id)
+        ->set('created_by_advisor_id', EmployeeMaster::factory()->create()->id)
+        ->set('purpose', array_key_first(DocumentCollection::purposes()))
+        ->set('checklist_template_id', dcTemplate()->id)
+        ->set('verification_template_id', dcTemplate('VERIFY SET')->id);
+}
+
 it('renders the index page', function () {
     DocumentCollection::factory()->count(2)->create();
 
@@ -46,7 +70,7 @@ it('creates a collection, stamps DC number, and redirects into the editor', func
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
 
-    Livewire::test(Edit::class)
+    validDC(Livewire::test(Edit::class))
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('request_type', 'insurance_claim')
@@ -219,4 +243,191 @@ it('retires due collections via the scheduled command, cascading to items', func
 
     $trashed->restore();
     expect($trashed->items()->count())->toBe(1);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Stamps & derived status (rework chunk 2)
+|--------------------------------------------------------------------------
+*/
+
+it('stamps requested_at on create and derives requested status', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    validDC(Livewire::test(Edit::class))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $dc = DocumentCollection::firstOrFail();
+    expect($dc->requested_at)->not->toBeNull()
+        ->and($dc->status)->toBe(DocumentCollection::STATUS_REQUESTED);
+});
+
+it('stamps each document as it is received, and completes when all required are in', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    // validDC's template snapshots RC BOOK + INSURANCE POLICY as items 0 and 1.
+    $component = validDC(Livewire::test(Edit::class))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $dc = DocumentCollection::firstOrFail();
+    $dc->items()->update(['is_required' => true]);
+
+    // First document lands: its own stamp, header still open.
+    Livewire::test(Edit::class, ['documentCollection' => $dc->fresh()])
+        ->set('items.0.status', 'received')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $first = $dc->items()->orderBy('sequence_no')->first();
+    expect($first->received_at)->not->toBeNull()
+        ->and($dc->fresh()->status)->toBe(DocumentCollection::STATUS_REQUESTED)
+        ->and($dc->fresh()->received_at)->toBeNull();
+
+    // Second lands days apart — header completes with the LAST arrival.
+    Livewire::test(Edit::class, ['documentCollection' => $dc->fresh()])
+        ->set('items.1.status', 'received')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $fresh = $dc->fresh();
+    expect($fresh->status)->toBe(DocumentCollection::STATUS_RECEIVED)
+        ->and($fresh->received_at)->not->toBeNull();
+});
+
+it('keeps an already-received document\'s original stamp on later saves', function () {
+    $customer = CustomerMaster::factory()->create();
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+
+    validDC(Livewire::test(Edit::class))
+        ->set('items.0.status', 'received')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $dc = DocumentCollection::firstOrFail();
+    $original = $dc->items()->first()->received_at;
+    $dc->items()->first()->forceFill(['received_at' => now()->subDays(3)])->save();
+
+    Livewire::test(Edit::class, ['documentCollection' => $dc->fresh()])
+        ->set('notes', 'touched')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($dc->items()->first()->received_at->isSameDay(now()->subDays(3)))->toBeTrue();
+});
+
+it('no longer offers a status dropdown', function () {
+    expect(Livewire::test(Edit::class)->html())->not->toContain('wire:model="status"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Follow-up log & request message (rework chunk 3)
+|--------------------------------------------------------------------------
+*/
+
+it('records multiple follow-ups with who, mode, and the customer response', function () {
+    $mode = FollowUpModeMaster::factory()->create(['name' => 'WHATSAPP']);
+    $by = EmployeeMaster::factory()->create();
+
+    validDC(Livewire::test(Edit::class))
+        ->call('addFollowUp')
+        ->set('followUps.0.followed_up_by_id', $by->id)
+        ->set('followUps.0.follow_up_mode_id', $mode->id)
+        ->set('followUps.0.customer_response', 'will send by friday')
+        ->call('addFollowUp')
+        ->set('followUps.1.customer_response', 'not reachable')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $dc = DocumentCollection::firstOrFail();
+    expect($dc->followUps)->toHaveCount(2)
+        ->and($dc->followUps->pluck('customer_response'))->toContain('WILL SEND BY FRIDAY', 'NOT REACHABLE')
+        ->and($dc->followUps->firstWhere('customer_response', 'WILL SEND BY FRIDAY')->followed_up_by_id)->toBe($by->id);
+});
+
+it('composes the request message from the outstanding documents only', function () {
+    $component = validDC(Livewire::test(Edit::class))
+        ->set('items.0.status', 'received');
+
+    $message = $component->instance()->requestMessage;
+
+    expect($message)->toContain('INSURANCE POLICY')
+        ->and($message)->not->toContain('1. RC BOOK');
+});
+
+it('enforces the mandatory set', function () {
+    Livewire::test(Edit::class)
+        ->call('save')
+        ->assertHasErrors([
+            'customer_id', 'customer_vehicle_id', 'purpose',
+            'department_id', 'service_type_id', 'created_by_advisor_id',
+            'checklist_template_id', 'verification_template_id',
+        ]);
+});
+
+/*
+|--------------------------------------------------------------------------
+| History listing (rework chunk 4)
+|--------------------------------------------------------------------------
+*/
+
+it('defaults the history to open collections', function () {
+    DocumentCollection::factory()->create(['status' => 'requested']);
+    DocumentCollection::factory()->create(['status' => 'received']);
+
+    $component = Livewire::test(Index::class);
+
+    expect($component->get('statusFilter'))->toBe('open');
+    $component->assertViewHas('rows', fn ($rows) => $rows->total() === 1)
+        ->set('statusFilter', 'all')
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 2);
+});
+
+it('filters by department, created by, collected by, and requested date', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $advisor = EmployeeMaster::factory()->create();
+    DocumentCollection::factory()->create([
+        'department_id' => $dept->id,
+        'created_by_advisor_id' => $advisor->id,
+        'requested_at' => '2026-08-01 10:00:00',
+    ]);
+    DocumentCollection::factory()->create(['requested_at' => '2026-08-20 10:00:00']);
+
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
+        ->set('deptFilter', (string) $dept->id)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1)
+        ->set('deptFilter', 'all')
+        ->set('createdByFilter', (string) $advisor->id)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1)
+        ->set('createdByFilter', 'all')
+        ->set('dateFrom', '2026-08-15')
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1);
+});
+
+it('searches by the linked job card number', function () {
+    $jobCard = JobCard::factory()->create();
+    DocumentCollection::factory()->create(['job_card_id' => $jobCard->id]);
+    DocumentCollection::factory()->create();
+
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
+        ->set('search', $jobCard->job_card_no)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1);
+});
+
+it('sorts by a related column via subquery', function () {
+    $a = EmployeeMaster::factory()->create(['name' => 'AAA ADVISOR']);
+    $z = EmployeeMaster::factory()->create(['name' => 'ZZZ ADVISOR']);
+    DocumentCollection::factory()->create(['created_by_advisor_id' => $z->id]);
+    DocumentCollection::factory()->create(['created_by_advisor_id' => $a->id]);
+
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
+        ->call('sort', 'created_by')
+        ->assertViewHas('rows', fn ($rows) => $rows->first()->advisor->name === 'AAA ADVISOR');
 });

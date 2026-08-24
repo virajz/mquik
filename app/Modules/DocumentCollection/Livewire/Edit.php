@@ -2,6 +2,8 @@
 
 namespace App\Modules\DocumentCollection\Livewire;
 
+use App\Concerns\CanQuickAddCustomer;
+use App\Concerns\CanQuickAddCustomerVehicle;
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\ChecklistTemplateMaster\Models\ChecklistTemplateMaster;
 use App\Modules\ClaimTypeMaster\Models\ClaimTypeMaster;
@@ -18,6 +20,7 @@ use App\Modules\JobCard\Models\JobCard;
 use App\Modules\MissingDocumentReasonMaster\Models\MissingDocumentReasonMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\ChildRows;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +38,8 @@ use Livewire\WithFileUploads;
 #[Title('Document Collection')]
 class Edit extends Component
 {
+    use CanQuickAddCustomer;
+    use CanQuickAddCustomerVehicle;
     use SearchesPickerOptions;
     use WithFileUploads;
 
@@ -46,6 +51,9 @@ class Edit extends Component
 
     /** Search term for the server-backed customer picker (~9.7k rows). */
     public string $customerSearch = '';
+
+    /** Job-first entry: most collections start from a job card, not a customer. */
+    public string $jobSearch = '';
 
     public ?int $customer_vehicle_id = null;
 
@@ -82,6 +90,9 @@ class Edit extends Component
     public ?int $rejection_reason_id = null;
 
     public ?int $follow_up_mode_id = null;
+
+    /** @var list<array{id:?int, followed_up_at:string, followed_up_by_id:?int, follow_up_mode_id:?int, customer_response:?string}> */
+    public array $followUps = [];
 
     public ?string $reminder_frequency = null;
 
@@ -121,6 +132,8 @@ class Edit extends Component
     {
         if ($documentCollection && $documentCollection->exists) {
             $this->load($documentCollection);
+            // Legacy rows can hold a service type their department no longer offers.
+            $this->guardDepartmentPairing();
 
             return;
         }
@@ -159,6 +172,14 @@ class Edit extends Component
         $this->reminder_custom_days = $dc->reminder_custom_days;
         $this->retention = $dc->retention;
         $this->retention_days = $dc->retention_days;
+        $this->followUps = $dc->followUps()->get()->map(fn ($f) => [
+            'id' => $f->id,
+            'followed_up_at' => $f->followed_up_at?->format('Y-m-d\TH:i'),
+            'followed_up_by_id' => $f->followed_up_by_id,
+            'follow_up_mode_id' => $f->follow_up_mode_id,
+            'customer_response' => $f->customer_response,
+        ])->all();
+
         $this->requested_date = $dc->requested_at?->format('Y-m-d') ?? '';
         $this->requested_time = $dc->requested_at?->format('H:i') ?? '';
         $this->received_date = $dc->received_at?->format('Y-m-d') ?? '';
@@ -170,6 +191,7 @@ class Edit extends Component
             'label' => $i->label,
             'is_required' => (bool) $i->is_required,
             'status' => $i->status,
+            'received_at' => $i->received_at?->toDateTimeString(),
             'rejection_reason_id' => $i->rejection_reason_id,
             'notes' => $i->notes,
             'path' => $i->path,
@@ -282,22 +304,30 @@ class Edit extends Component
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'customer_vehicle_id' => ['required', 'integer', 'exists:customer_vehicles,id'],
             'job_card_id' => ['nullable', 'integer', 'exists:job_cards,id'],
-            'department_id' => ['nullable', 'integer', 'exists:workshop_departments,id'],
-            'service_type_id' => ['nullable', 'integer', 'exists:service_types,id'],
-            'created_by_advisor_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'department_id' => ['required', 'integer', 'exists:workshop_departments,id'],
+            'service_type_id' => [
+                'required', 'integer',
+                Rule::exists('service_types', 'id')->where('workshop_department_id', $this->department_id),
+            ],
+            'created_by_advisor_id' => ['required', 'integer', 'exists:employees,id'],
             'collected_by_driver_id' => ['nullable', 'integer', 'exists:employees,id'],
             'request_type' => ['required', Rule::in(array_keys(DocumentCollection::requestTypes()))],
-            'purpose' => ['nullable', Rule::in(array_keys(DocumentCollection::purposes()))],
-            'status' => ['required', Rule::in(array_keys(DocumentCollection::statuses()))],
+            'purpose' => ['required', Rule::in(array_keys(DocumentCollection::purposes()))],
+
             'insurance_company_id' => ['nullable', 'integer', 'exists:insurance_companies,id'],
             'insurance_policy_type_id' => ['nullable', 'integer', 'exists:insurance_policy_types,id'],
             'claim_type_id' => ['nullable', 'integer', 'exists:claim_types,id'],
             'policy_no' => ['nullable', 'string', 'max:60'],
-            'checklist_template_id' => ['nullable', 'integer', 'exists:checklist_templates,id'],
-            'verification_template_id' => ['nullable', 'integer', 'exists:checklist_templates,id'],
+            'checklist_template_id' => ['required', 'integer', 'exists:checklist_templates,id'],
+            'verification_template_id' => ['required', 'integer', 'exists:checklist_templates,id'],
             'missing_document_reason_id' => ['nullable', 'integer', 'exists:missing_document_reasons,id'],
             'rejection_reason_id' => ['nullable', 'integer', 'exists:document_rejection_reasons,id'],
             'follow_up_mode_id' => ['nullable', 'integer', 'exists:follow_up_modes,id'],
+            'followUps' => ['array'],
+            'followUps.*.followed_up_at' => ['required', 'date'],
+            'followUps.*.followed_up_by_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'followUps.*.follow_up_mode_id' => ['nullable', 'integer', 'exists:follow_up_modes,id'],
+            'followUps.*.customer_response' => ['nullable', 'string', 'max:500'],
             'reminder_frequency' => ['nullable', Rule::in(array_keys(DocumentCollection::reminderFrequencies()))],
             'reminder_custom_days' => [
                 Rule::requiredIf(fn () => $this->reminder_frequency === DocumentCollection::REMINDER_CUSTOM),
@@ -367,18 +397,81 @@ class Edit extends Component
             ]);
     }
 
+    /**
+     * Job-first: the picker searches every job card by number, reg or customer,
+     * labelled "JC-92100 — MARUTI SWIFT — GJ 05 RD 1234" so the advisor can
+     * confirm they have the right car before anything auto-fills.
+     */
     #[Computed]
     public function jobCardOptions()
     {
-        if (! $this->customer_vehicle_id) {
-            return collect();
-        }
+        $term = trim($this->jobSearch);
 
         return JobCard::query()
-            ->where('customer_vehicle_id', $this->customer_vehicle_id)
+            ->with(['customerVehicle:id,registration_no,model_id', 'customerVehicle.model:id,name,brand_id', 'customerVehicle.model.brand:id,name'])
+            ->when($term !== '', fn ($q) => $q->search($term))
+            ->when($term === '' && $this->customer_vehicle_id, fn ($q) => $q->where('customer_vehicle_id', $this->customer_vehicle_id))
             ->orderByDesc('opened_at')
-            ->limit(50)
-            ->get(['id', 'job_card_no']);
+            ->limit(25)
+            ->get(['id', 'job_card_no', 'customer_vehicle_id'])
+            ->map(fn ($jc) => [
+                'id' => $jc->id,
+                'label' => collect([
+                    $jc->job_card_no,
+                    trim(($jc->customerVehicle?->model?->brand?->name ?? '').' '.($jc->customerVehicle?->model?->name ?? '')) ?: null,
+                    $jc->customerVehicle?->registration_no,
+                ])->filter()->implode(' — '),
+            ]);
+    }
+
+    /** Picking a job fills everything the job already knows. */
+    public function updatedJobCardId(): void
+    {
+        if (! $this->job_card_id) {
+            return;
+        }
+
+        $jc = JobCard::find($this->job_card_id);
+
+        if (! $jc) {
+            return;
+        }
+
+        $this->customer_id = $jc->customer_id;
+        $this->customer_vehicle_id = $jc->customer_vehicle_id;
+        $this->department_id = $jc->workshop_department_id ?? $this->department_id;
+        $this->service_type_id = $jc->service_type_id ?? $this->service_type_id;
+        $this->created_by_advisor_id = $this->created_by_advisor_id ?? $jc->assigned_advisor_id;
+
+        unset($this->serviceTypes);
+        $this->guardDepartmentPairing();
+    }
+
+    /** House convention: the department decides which service types exist. */
+    public function updatedDepartmentId(): void
+    {
+        $this->service_type_id = null;
+
+        unset($this->serviceTypes);
+    }
+
+    protected function guardDepartmentPairing(): void
+    {
+        if ($this->service_type_id && ! $this->serviceTypes->contains('id', $this->service_type_id)) {
+            $this->service_type_id = null;
+        }
+    }
+
+    /** Required by CanQuickAddCustomer — receives the new customer's id. */
+    protected function quickCustomerTargetProperty(): string
+    {
+        return 'customer_id';
+    }
+
+    /** Required by CanQuickAddCustomerVehicle — receives the new vehicle's id. */
+    protected function quickCustomerVehicleTargetProperty(): string
+    {
+        return 'customer_vehicle_id';
     }
 
     #[Computed]
@@ -396,7 +489,15 @@ class Edit extends Component
     #[Computed]
     public function serviceTypes()
     {
-        return ServiceTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        if (! $this->department_id) {
+            return collect();
+        }
+
+        return ServiceTypeMaster::query()
+            ->where('is_active', true)
+            ->where('workshop_department_id', $this->department_id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]
@@ -452,11 +553,17 @@ class Edit extends Component
         $data = $this->validate();
         $items = $data['items'] ?? [];
         $verifications = $data['verifications'] ?? [];
-        unset($data['items'], $data['verifications'], $data['itemFiles'], $data['signatureUpload']);
+        $followUps = $data['followUps'] ?? [];
+        unset($data['items'], $data['verifications'], $data['followUps'], $data['itemFiles'], $data['signatureUpload']);
 
-        $data['requested_at'] = $this->combineDateTime($data['requested_date'] ?? '', $data['requested_time'] ?? '');
-        $data['received_at'] = $this->combineDateTime($data['received_date'] ?? '', $data['received_time'] ?? '');
+        // Requested is stamped when the record is created — asking for documents
+        // IS the request. Received is per-document now; the header stamp derives
+        // as "the moment the last required document landed".
         unset($data['requested_date'], $data['requested_time'], $data['received_date'], $data['received_time']);
+
+        if ($this->editingId === null) {
+            $data['requested_at'] = now();
+        }
 
         foreach (['policy_no', 'notes'] as $k) {
             if (filled($data[$k] ?? null)) {
@@ -466,7 +573,7 @@ class Edit extends Component
 
         $isCreate = $this->editingId === null;
 
-        $dc = DB::transaction(function () use ($data, $items, $verifications, $isCreate) {
+        $dc = DB::transaction(function () use ($data, $items, $verifications, $followUps, $isCreate) {
             if ($isCreate) {
                 $data['entry_at'] = now();
                 $row = DocumentCollection::create($data);
@@ -478,6 +585,8 @@ class Edit extends Component
 
             $this->syncItems($row, $items);
             $this->syncVerifications($row, $verifications);
+            $this->syncFollowUps($row, $followUps);
+            $this->deriveStatus($row);
             $this->syncSignature($row);
 
             return $row;
@@ -508,6 +617,106 @@ class Edit extends Component
     /**
      * @param  array<int, array<string, mixed>>  $rows
      */
+    /**
+     * Status reads off the documents, never off a dropdown:
+     * cancelled and rejected stay deliberate; received means every required
+     * document is in (stamping the header with the last arrival); requested is
+     * the base state — the record existing IS the request.
+     */
+    public function addFollowUp(): void
+    {
+        $this->followUps[] = [
+            'id' => null,
+            'followed_up_at' => now()->format('Y-m-d\TH:i'),
+            'followed_up_by_id' => $this->created_by_advisor_id,
+            'follow_up_mode_id' => $this->follow_up_mode_id,
+            'customer_response' => null,
+        ];
+    }
+
+    public function removeFollowUp(int $index): void
+    {
+        unset($this->followUps[$index]);
+        $this->followUps = array_values($this->followUps);
+    }
+
+    protected function syncFollowUps(DocumentCollection $dc, array $rows): void
+    {
+        $kept = [];
+
+        foreach (array_values($rows) as $row) {
+            $kept[] = ChildRows::upsert($dc->followUps(), $row['id'] ?? null, [
+                'followed_up_at' => $row['followed_up_at'],
+                'followed_up_by_id' => $row['followed_up_by_id'] ?: null,
+                'follow_up_mode_id' => $row['follow_up_mode_id'] ?: null,
+                'customer_response' => filled($row['customer_response'] ?? null) ? strtoupper((string) $row['customer_response']) : null,
+            ])->id;
+        }
+
+        $dc->followUps()->whereKeyNot($kept)->delete();
+    }
+
+    /**
+     * The message an advisor sends the customer: which documents are still
+     * outstanding, for which vehicle. Plain text so it pastes anywhere;
+     * the WhatsApp link is just this, URL-encoded.
+     */
+    #[Computed]
+    public function requestMessage(): string
+    {
+        $vehicle = $this->customer_vehicle_id
+            ? CustomerVehicleMaster::with('model.brand')->find($this->customer_vehicle_id)
+            : null;
+
+        $pendingDocs = collect($this->items)
+            ->filter(fn ($i) => ($i['status'] ?? 'pending') !== DocumentCollectionItem::STATUS_RECEIVED)
+            ->pluck('label')
+            ->filter()
+            ->values();
+
+        $lines = collect([
+            'Dear Customer,',
+            'We need the following documents for your vehicle'
+                .($vehicle ? ' '.trim(($vehicle->model?->brand?->name ?? '').' '.($vehicle->model?->name ?? '')).' ('.$vehicle->registration_no.')' : '').':',
+        ])->merge($pendingDocs->map(fn ($d, $i) => ($i + 1).'. '.$d))
+            ->push('Please share them at the earliest. Thank you — '.config('app.name'));
+
+        return $lines->implode("\n");
+    }
+
+    /** wa.me link with the message pre-filled, when the customer has a phone. */
+    #[Computed]
+    public function whatsAppUrl(): ?string
+    {
+        $phone = $this->customer_id ? CustomerMaster::whereKey($this->customer_id)->value('phone') : null;
+
+        return $phone
+            ? 'https://wa.me/91'.preg_replace('/\D/', '', $phone).'?text='.rawurlencode($this->requestMessage)
+            : null;
+    }
+
+    protected function deriveStatus(DocumentCollection $dc): void
+    {
+        if (in_array($dc->status, [DocumentCollection::STATUS_CANCELLED, DocumentCollection::STATUS_REJECTED], true)) {
+            return;
+        }
+
+        $items = $dc->items()->get();
+        $required = $items->where('is_required', true);
+        $pool = $required->isNotEmpty() ? $required : $items;
+
+        $allIn = $pool->isNotEmpty() && $pool->every(
+            fn ($i) => $i->status === DocumentCollectionItem::STATUS_RECEIVED,
+        );
+
+        $dc->forceFill([
+            'status' => $allIn ? DocumentCollection::STATUS_RECEIVED : DocumentCollection::STATUS_REQUESTED,
+            'received_at' => $allIn ? $pool->max('received_at') : null,
+        ])->saveQuietly();
+
+        $this->status = $dc->status;
+    }
+
     protected function syncItems(DocumentCollection $dc, array $rows): void
     {
         $keptIds = [];
@@ -525,6 +734,15 @@ class Edit extends Component
 
             $existingId = $this->items[$i]['id'] ?? null;
             $item = ($existingId ? $dc->items()->whereKey($existingId)->first() : null) ?? $dc->items()->make();
+
+            // Each document stamps its own arrival the moment it flips to
+            // received — the RC book on Monday, the policy on Thursday.
+            $payload['received_at'] = match (true) {
+                $row['status'] !== DocumentCollectionItem::STATUS_RECEIVED => null,
+                $item->exists && $item->status === DocumentCollectionItem::STATUS_RECEIVED => $item->received_at,
+                default => now(),
+            };
+
             $item->fill($payload);
 
             // Attach a newly-staged file for this row.

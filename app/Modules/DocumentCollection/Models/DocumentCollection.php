@@ -70,7 +70,12 @@ class DocumentCollection extends Model
         'uploaded_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['doc_collection_no', 'policy_no', 'notes', 'customer.first_name', 'customer.phone', 'customerVehicle.registration_no'];
+    protected static array $searchableFields = [
+        'doc_collection_no', 'policy_no', 'notes',
+        'customer.first_name', 'customer.last_name', 'customer.phone',
+        'customerVehicle.registration_no', 'customerVehicle.model.name', 'customerVehicle.model.brand.name',
+        'jobCard.job_card_no',
+    ];
 
     protected static function newFactory(): DocumentCollectionFactory
     {
@@ -149,6 +154,12 @@ class DocumentCollection extends Model
             'archive' => 'Archive',
             'delete' => 'Auto-delete',
         ];
+    }
+
+    /** The chase log: every attempt at getting the documents in. */
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(DocumentCollectionFollowUp::class)->orderByDesc('followed_up_at');
     }
 
     public function items(): HasMany
