@@ -18,7 +18,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save" class="space-y-6">
+    <form wire:submit="save" novalidate class="space-y-6">
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10">
             <div>
                 <flux:heading size="lg">Structure</flux:heading>
@@ -31,7 +31,7 @@
                             <flux:select.option :value="$e['id']" wire:key="emp-{{ $e['id'] }}">{{ $e['label'] }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:date-picker wire:model="effective_from" label="Effective From" required with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="effective_from" label="Effective From" required with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <flux:error name="employee_id" />
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

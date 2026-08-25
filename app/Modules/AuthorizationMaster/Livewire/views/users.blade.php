@@ -108,7 +108,7 @@
                     </flux:table.cell>
 
                     <flux:table.cell class="text-zinc-500 text-xs">
-                        {{ $row->created_at?->format('d M Y') ?? '—' }}
+                        {{ $row->created_at?->format('d/m/Y') ?? '—' }}
                     </flux:table.cell>
 
                     <flux:table.cell>

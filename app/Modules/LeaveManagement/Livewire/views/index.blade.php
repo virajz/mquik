@@ -66,8 +66,8 @@
                     <flux:table.cell class="font-mono text-xs text-zinc-500">#{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}</flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $row->employee?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell><flux:badge color="zinc" size="sm">{{ $row->leave_type }}</flux:badge></flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $row->from_date?->format('d M Y') }}</flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $row->to_date?->format('d M Y') }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->from_date?->format('d/m/Y') }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->to_date?->format('d/m/Y') }}</flux:table.cell>
                     <flux:table.cell class="text-center font-mono text-sm">{{ rtrim(rtrim(number_format($row->days_count, 1), '0'), '.') }}</flux:table.cell>
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) { 'pending' => 'amber', 'approved' => 'lime', 'rejected' => 'red', 'cancelled' => 'zinc', default => 'zinc' })

@@ -83,7 +83,7 @@
                     <flux:table.cell class="text-sm">{{ $row->vendor?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="font-mono text-xs">{{ $row->jobCard?->job_card_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-end font-mono text-sm">{{ $row->scopes_count }}</flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">{{ $row->promised_to?->format('d M Y, H:i') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">{{ $row->promised_to?->format('d/m/Y, H:i') ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {
                             'work_order_issued' => 'lime',

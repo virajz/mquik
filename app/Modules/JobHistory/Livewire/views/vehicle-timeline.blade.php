@@ -10,7 +10,7 @@
             <flux:text size="sm" class="mt-1 text-zinc-500">
                 Everything that has happened to this vehicle, oldest first.
                 @if ($firstAt && $lastAt)
-                    · {{ $firstAt->format('d M Y') }} → {{ $lastAt->format('d M Y') }}
+                    · {{ $firstAt->format('d/m/Y') }} → {{ $lastAt->format('d/m/Y') }}
                 @endif
             </flux:text>
         </div>
@@ -69,7 +69,7 @@
                 </div>
                 <flux:text size="sm" class="mt-0.5">{{ $e->summary }}</flux:text>
                 <flux:text size="sm" class="mt-0.5 text-zinc-400">
-                    {{ $e->occurred_at?->format('d M Y, h:i A') }}
+                    {{ $e->occurred_at?->format('d/m/Y, h:i A') }}
                     @if ($e->actor)· {{ $e->actor->name }}@endif
                 </flux:text>
             </div>

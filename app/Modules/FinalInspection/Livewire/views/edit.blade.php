@@ -16,7 +16,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save">
+    <form wire:submit="save" novalidate>
         @if (! $editingId)
             @include('final-inspection::partials.section-details')
             <flux:callout class="mt-6" icon="information-circle" variant="secondary">
@@ -161,14 +161,14 @@
                                             <div>
                                                 <flux:label class="text-xs! mb-1">Paused</flux:label>
                                                 <div class="grid grid-cols-2 gap-1">
-                                                    <flux:date-picker wire:model="pauses.{{ $i }}.paused_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
+                                                    <flux:date-picker locale="en-IN" wire:model="pauses.{{ $i }}.paused_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
                                                     <flux:time-picker wire:model="pauses.{{ $i }}.paused_time" size="sm" placeholder="Time" />
                                                 </div>
                                             </div>
                                             <div>
                                                 <flux:label class="text-xs! mb-1">Resumed</flux:label>
                                                 <div class="grid grid-cols-2 gap-1">
-                                                    <flux:date-picker wire:model="pauses.{{ $i }}.resumed_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
+                                                    <flux:date-picker locale="en-IN" wire:model="pauses.{{ $i }}.resumed_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
                                                     <flux:time-picker wire:model="pauses.{{ $i }}.resumed_time" size="sm" placeholder="Time" />
                                                 </div>
                                             </div>

@@ -1,6 +1,6 @@
 @php($AR = \App\Modules\AdvanceReceipt\Models\AdvanceReceipt::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('advance-receipt.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Advance Receipt Entry
@@ -99,7 +99,7 @@
                             <flux:select.option :value="$b->id" wire:key="bk-{{ $b->id }}">{{ $b->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:date-picker wire:model="received_at" label="Received At" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker locale="en-IN" wire:model="received_at" label="Received At" with-today selectable-header fixed-weeks type="input" clearable />
                 </div>
 
                 <div x-show="$wire.payment_status === 'cancelled'" x-cloak>
@@ -135,7 +135,7 @@
             <div class="space-y-4 min-w-0">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <flux:input wire:model="cheque_no" label="Cheque No" placeholder="Number" class:input="font-mono" />
-                    <flux:date-picker wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker locale="en-IN" wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" clearable />
                     <flux:select wire:model.live="cheque_status" variant="listbox" clearable label="Cheque Status" placeholder="Received / Cleared…">
                         @foreach ($AR::chequeStatuses() as $key => $label)
                             <flux:select.option :value="$key">{{ $label }}</flux:select.option>

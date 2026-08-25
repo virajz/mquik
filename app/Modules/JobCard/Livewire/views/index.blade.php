@@ -38,8 +38,8 @@
                 <flux:select.option :value="(string) $d->id">{{ $d->name }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:date-picker wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
-        <flux:date-picker wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
+        <flux:date-picker locale="en-IN" wire:model.live="dateFrom" placeholder="From date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
+        <flux:date-picker locale="en-IN" wire:model.live="dateTo" placeholder="To date" with-today selectable-header fixed-weeks type="input" clearable class="max-w-44" />
         @if ($search || $statusFilter !== 'pending' || $advisorFilter !== 'all' || $technicianFilter !== 'all' || $deptFilter !== 'all' || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
@@ -62,7 +62,7 @@
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs">{{ $row->job_card_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->opened_at?->format('d M Y') }}</div>
+                        <div class="font-medium">{{ $row->opened_at?->format('d/m/Y') }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->opened_at?->format('h:i A') }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
@@ -90,7 +90,7 @@
                     </flux:table.cell>
                     <flux:table.cell class="text-sm">
                         @if ($row->promised_at)
-                            <div class="font-medium">{{ $row->promised_at->format('d M Y') }}</div>
+                            <div class="font-medium">{{ $row->promised_at->format('d/m/Y') }}</div>
                             <div class="text-xs text-zinc-500 mt-0.5">{{ $row->promised_at->format('h:i A') }}</div>
                         @else
                             <span class="text-zinc-400">—</span>
@@ -148,7 +148,7 @@
 
     {{-- Shared Cancel Job Card modal — driven by openCancelModal($id) → confirmCancel() --}}
     <flux:modal name="job-card-cancel" class="md:w-lg">
-        <form wire:submit="confirmCancel" class="space-y-5">
+        <form wire:submit="confirmCancel" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">Cancel Job Card</flux:heading>
                 <flux:subheading>Capture the reason and any context so the audit trail is clean.</flux:subheading>

@@ -1,6 +1,6 @@
 @use(App\Modules\FinalWorkOrder\Models\FinalWorkOrder)
 <div>
-    <form wire:submit="save" class="max-w-7xl">
+    <form wire:submit="save" novalidate class="max-w-7xl">
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('final-work-order.index')" variant="ghost" class="text-xs">
@@ -289,14 +289,14 @@
                                             <div>
                                                 <flux:label class="text-xs! mb-1">Paused</flux:label>
                                                 <div class="grid grid-cols-2 gap-1">
-                                                    <flux:date-picker wire:model="pauses.{{ $i }}.paused_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
+                                                    <flux:date-picker locale="en-IN" wire:model="pauses.{{ $i }}.paused_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
                                                     <flux:time-picker wire:model="pauses.{{ $i }}.paused_time" size="sm" placeholder="Time" />
                                                 </div>
                                             </div>
                                             <div>
                                                 <flux:label class="text-xs! mb-1">Resumed</flux:label>
                                                 <div class="grid grid-cols-2 gap-1">
-                                                    <flux:date-picker wire:model="pauses.{{ $i }}.resumed_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
+                                                    <flux:date-picker locale="en-IN" wire:model="pauses.{{ $i }}.resumed_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
                                                     <flux:time-picker wire:model="pauses.{{ $i }}.resumed_time" size="sm" placeholder="Time" />
                                                 </div>
                                             </div>

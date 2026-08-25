@@ -1,6 +1,6 @@
 @php($DD = \App\Modules\DocumentDelivery\Models\DocumentDelivery::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('document-delivery.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Document Delivery
@@ -148,7 +148,7 @@
                         @endforeach
                     </flux:select>
                     <div x-show="$wire.status === 'delivered'" x-cloak>
-                        <flux:date-picker wire:model="delivered_at" label="Delivered At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:date-picker locale="en-IN" wire:model="delivered_at" label="Delivered At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                         <flux:error name="delivered_at" />
                     </div>
                 </div>

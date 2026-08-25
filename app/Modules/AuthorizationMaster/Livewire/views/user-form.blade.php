@@ -30,7 +30,7 @@
                 </div>
             </div>
         @else
-            <form wire:submit="save" class="space-y-5">
+            <form wire:submit="save" novalidate class="space-y-5">
                 <div>
                     <flux:heading size="lg">New user</flux:heading>
                     <flux:subheading>
@@ -68,6 +68,15 @@
                                         wire:click="$dispatch('authorization-master:quick-add-person', { type: 'employee' })" />
                                 </flux:tooltip>
                             @endcan
+                            @can('employee_master.view')
+                                {{-- New tab on purpose: looking someone up must not
+                                     cost the admin the half-filled user form. --}}
+                                <flux:tooltip content="Open Employee Master in a new tab">
+                                    <flux:button type="button" icon="arrow-top-right-on-square" variant="ghost"
+                                        :href="$employeeId ? route('employee-master.edit', $employeeId) : route('employee-master.index')"
+                                        target="_blank" />
+                                </flux:tooltip>
+                            @endcan
                         </div>
                         <flux:description>Only employees without a login are listed.</flux:description>
                         <flux:error name="employeeId" />
@@ -92,6 +101,13 @@
                                         wire:click="$dispatch('authorization-master:quick-add-person', { type: 'contractor' })" />
                                 </flux:tooltip>
                             @endcan
+                            @can('vendor_master.view')
+                                <flux:tooltip content="Open Vendor Master in a new tab">
+                                    <flux:button type="button" icon="arrow-top-right-on-square" variant="ghost"
+                                        :href="$vendorId ? route('vendor-master.edit', $vendorId) : route('vendor-master.index')"
+                                        target="_blank" />
+                                </flux:tooltip>
+                            @endcan
                         </div>
                         <flux:description>Vendors filed as “Service Contractor”, without a login.</flux:description>
                         <flux:error name="vendorId" />
@@ -102,8 +118,11 @@
                     :readonly="$userType !== 'manual'"
                     :description="$userType !== 'manual' ? 'From the master record.' : null" />
 
+                {{-- One of the two is enough: whichever exists receives the
+                     login code. No password anywhere. --}}
                 <flux:input wire:model="email" type="email" label="Email" placeholder="name@workshop.com"
-                    icon="envelope" required />
+                    icon="envelope" />
+                <flux:error name="email" />
 
                 <flux:field>
                     <flux:label>Phone</flux:label>
@@ -111,7 +130,7 @@
                         <flux:input.group.prefix>+91</flux:input.group.prefix>
                         <flux:input wire:model="phone" mask="99999 99999" inputmode="numeric" placeholder="98765 43210" />
                     </flux:input.group>
-                    <flux:description>The verification code is sent here.</flux:description>
+                    <flux:description>Mobile or email — at least one. The sign-in code goes to whichever is on file.</flux:description>
                     <flux:error name="phone" />
                 </flux:field>
 

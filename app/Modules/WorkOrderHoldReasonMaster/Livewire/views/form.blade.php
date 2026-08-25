@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="work-order-hold-reason-master-form" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">
                     {{ $editingId ? 'Edit Work Order Hold Reason' : 'New Work Order Hold Reason' }}

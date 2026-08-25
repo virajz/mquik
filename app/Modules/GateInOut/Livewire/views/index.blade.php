@@ -63,16 +63,16 @@
                 <flux:field>
                     <flux:label>Inward date</flux:label>
                     <div class="grid grid-cols-2 gap-2">
-                        <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
-                        <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker locale="en-IN" wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker locale="en-IN" wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
                     </div>
                 </flux:field>
 
                 <flux:field>
                     <flux:label>Outward date</flux:label>
                     <div class="grid grid-cols-2 gap-2">
-                        <flux:date-picker wire:model.live="outDateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
-                        <flux:date-picker wire:model.live="outDateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker locale="en-IN" wire:model.live="outDateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker locale="en-IN" wire:model.live="outDateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
                     </div>
                 </flux:field>
             </flux:popover>
@@ -103,14 +103,14 @@
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs">{{ $row->gate_event_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->entered_at?->format('d M Y') }}</div>
+                        <div class="font-medium">{{ $row->entered_at?->format('d/m/Y') }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">
                             {{ $row->entered_at?->format('h:i A') }}{{ $row->entryGate ? ' · '.$row->entryGate->name : '' }}
                         </div>
                     </flux:table.cell>
                     <flux:table.cell class="text-sm">
                         @if ($row->exited_at)
-                            <div class="font-medium">{{ $row->exited_at->format('d M Y') }}</div>
+                            <div class="font-medium">{{ $row->exited_at->format('d/m/Y') }}</div>
                             <div class="text-xs text-zinc-500 mt-0.5">
                                 {{ $row->exited_at->format('h:i A') }}{{ $row->exitGate ? ' · '.$row->exitGate->name : '' }}
                             </div>

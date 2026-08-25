@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrderItem::class)
 @php($ATT = \App\Modules\VendorPurchaseOrder\Models\VendorPurchaseOrderAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('vendor-purchase-order.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Vendor Purchase Orders
@@ -256,7 +256,7 @@
                         <flux:input wire:model="delivery_custom_days" type="number" min="1" max="365" label="Custom (days)" class:input="font-mono" />
                         <flux:error name="delivery_custom_days" />
                     </div>
-                    <flux:date-picker wire:model="expected_delivery_date" label="Expected Delivery Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="expected_delivery_date" label="Expected Delivery Date" with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <flux:textarea wire:model="terms_conditions" label="T&Cs / SLA" placeholder="Delivery commitments, penalty rules, service-level terms…" rows="2" />
             </div>
@@ -289,7 +289,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <flux:input wire:model="courier_company" label="Courier Company" placeholder="Bluedart / DTDC…" />
                     <flux:input wire:model="consignment_no" label="Consignment No" placeholder="AWB / LR no" class:input="font-mono" />
-                    <flux:date-picker wire:model="consignment_date" label="Consignment Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="consignment_date" label="Consignment Date" with-today selectable-header fixed-weeks type="input" />
                 </div>
             </div>
         </section>

@@ -27,7 +27,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save">
+    <form wire:submit="save" novalidate>
         @if (! $editingId)
             @include('internal-part-order::partials.section-details')
             <flux:callout class="mt-6" icon="information-circle" variant="secondary">
@@ -285,7 +285,7 @@
                                     <span class="font-mono">{{ $layer['batch_no'] ?? 'No batch' }}</span>
                                     @if ($layer['expiry_date'])
                                         <flux:badge :color="$layer['expired'] ? 'red' : 'zinc'" size="sm" inset="top bottom">
-                                            {{ $layer['expired'] ? 'Expired' : 'Expires' }} {{ \Carbon\Carbon::parse($layer['expiry_date'])->format('d M Y') }}
+                                            {{ $layer['expired'] ? 'Expired' : 'Expires' }} {{ \Carbon\Carbon::parse($layer['expiry_date'])->format('d/m/Y') }}
                                         </flux:badge>
                                     @endif
                                 </div>

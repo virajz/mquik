@@ -4,7 +4,7 @@
     <flux:heading class="sr-only">{{ __('Workshop settings') }}</flux:heading>
 
     <x-settings.layout :heading="__('Workshop')" :subheading="__('Behaviour you can tune without a deploy')">
-        <form wire:submit="save" class="my-6 w-full space-y-6">
+        <form wire:submit="save" novalidate class="my-6 w-full space-y-6">
             <div>
                 <flux:heading size="sm">{{ __('Service history') }}</flux:heading>
                 <flux:subheading>

@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="authorization-master-user-roles" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">Manage Roles</flux:heading>
                 <flux:subheading>

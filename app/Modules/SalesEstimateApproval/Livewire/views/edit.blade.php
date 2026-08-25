@@ -1,7 +1,7 @@
 @php($SEA = \App\Modules\SalesEstimateApproval\Models\SalesEstimateApproval::class)
 @php($ITEM = \App\Modules\SalesEstimateApproval\Models\SalesEstimateApprovalItem::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('sales-estimate-approval.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Sales Estimate Approval
@@ -216,8 +216,8 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:date-picker wire:model="customer_approved_at" label="Customer Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
-                    <flux:date-picker wire:model="insurance_approved_at" label="Insurance Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="customer_approved_at" label="Customer Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="insurance_approved_at" label="Insurance Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">

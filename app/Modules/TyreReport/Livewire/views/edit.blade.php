@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('tyre-report.index')" variant="ghost" class="text-xs">
@@ -62,7 +62,7 @@
                         <flux:error name="odometer_km" />
                     </flux:field>
 
-                    <flux:date-picker wire:model="reported_on" label="Report Date" required with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="reported_on" label="Report Date" required with-today selectable-header fixed-weeks type="input" />
                 </div>
             </div>
         </section>

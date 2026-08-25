@@ -15,7 +15,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save">
+    <form wire:submit="save" novalidate>
         @if (! $editingId)
             @include('purchase-entry::partials.section-details')
             <flux:callout class="mt-6" icon="information-circle" variant="secondary">
@@ -94,7 +94,7 @@
                                     @if ($this->needsBatchFields($item['spare_id'] ?? null))
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                                             <flux:input wire:model="items.{{ $i }}.batch_no" size="sm" label="Batch No." placeholder="As printed on the pack" class:input="font-mono" />
-                                            <flux:date-picker
+                                            <flux:date-picker locale="en-IN"
                                                 wire:model.live="items.{{ $i }}.manufacturing_date"
                                                 size="sm"
                                                 label="Mfg. Date"
@@ -105,7 +105,7 @@
                                                 type="input"
                                                 clearable
                                             />
-                                            <flux:date-picker
+                                            <flux:date-picker locale="en-IN"
                                                 wire:model="items.{{ $i }}.expiry_date"
                                                 size="sm"
                                                 label="Expiry Date"

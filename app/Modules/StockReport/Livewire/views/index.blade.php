@@ -78,7 +78,7 @@
                                 <flux:table.cell class="font-medium">{{ $b->spare_name }}</flux:table.cell>
                                 <flux:table.cell class="font-mono text-xs">{{ $b->batch_no ?? '—' }}</flux:table.cell>
                                 <flux:table.cell class="text-sm">
-                                    {{ \Carbon\Carbon::parse($b->expiry_date)->format('d M Y') }}
+                                    {{ \Carbon\Carbon::parse($b->expiry_date)->format('d/m/Y') }}
                                     <flux:badge :color="$daysLeft < 0 ? 'red' : ($daysLeft <= 30 ? 'amber' : 'zinc')" size="sm" inset="top bottom">
                                         {{ $daysLeft < 0 ? abs($daysLeft).'d ago' : $daysLeft.'d left' }}
                                     </flux:badge>

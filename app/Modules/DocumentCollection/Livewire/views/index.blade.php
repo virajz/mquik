@@ -61,8 +61,8 @@
                 <flux:field>
                     <flux:label>Requested date</flux:label>
                     <div class="grid grid-cols-2 gap-2">
-                        <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
-                        <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker locale="en-IN" wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                        <flux:date-picker locale="en-IN" wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
                     </div>
                 </flux:field>
             </flux:popover>
@@ -94,10 +94,10 @@
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs text-zinc-500">{{ $row->doc_collection_no }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->requested_at?->format('d M Y') ?? '—' }}</div>
+                        <div class="font-medium">{{ $row->requested_at?->format('d/m/Y') ?? '—' }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->requested_at?->format('h:i A') }}</div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">{{ $row->received_at?->format('d M Y') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">{{ $row->received_at?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         <div class="font-medium">{{ $row->customer ? trim($row->customer->first_name.' '.($row->customer->last_name ?? '')) : '—' }}</div>
                         <div class="text-xs text-zinc-500">

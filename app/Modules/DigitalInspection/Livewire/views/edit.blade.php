@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-5xl">
+    <form wire:submit="save" novalidate class="max-w-5xl">
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('digital-inspection.index')" variant="ghost" class="text-xs">

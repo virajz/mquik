@@ -1,7 +1,7 @@
 @php($IWO = \App\Modules\InternalWorkOrder\Models\InternalWorkOrder::class)
 @php($ATT = \App\Modules\InternalWorkOrder\Models\InternalWorkOrderAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('internal-work-order.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Internal Work Order
@@ -64,7 +64,7 @@
                     <flux:select wire:model.live="status" variant="listbox" label="IWO Status" required>
                         @foreach ($IWO::statuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>
-                    <flux:date-picker wire:model="due_at" label="Due By" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="due_at" label="Due By" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

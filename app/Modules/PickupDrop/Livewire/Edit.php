@@ -36,6 +36,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -88,6 +89,9 @@ class Edit extends Component
     public string $scheduled_time = '';
 
     public ?int $time_slot_id = null;
+
+    /** The return leg's window — captured on a both-legs booking for the later drop job. */
+    public ?int $drop_time_slot_id = null;
 
     public string $address_choice = 'custom';
 
@@ -234,6 +238,7 @@ class Edit extends Component
         $this->scheduled_date = $p->scheduled_at?->format('Y-m-d') ?? '';
         $this->scheduled_time = $p->scheduled_at?->format('H:i') ?? '';
         $this->time_slot_id = $p->time_slot_id;
+        $this->drop_time_slot_id = $p->drop_time_slot_id;
         $this->pickup_address = $p->pickup_address;
         $this->pickup_address_id = $p->pickup_address_id;
         $this->pickup_region_id = $p->pickup_region_id;
@@ -270,8 +275,8 @@ class Edit extends Component
         $this->otp_mode = $p->otp_mode ?? PickupDrop::OTP_OPTIONAL;
         $this->pickup_otp = $p->pickup_otp;
         $this->delivery_otp = $p->delivery_otp;
-        $this->pickup_otp_verified_at = $p->pickup_otp_verified_at?->format('d M Y, h:i A');
-        $this->delivery_otp_verified_at = $p->delivery_otp_verified_at?->format('d M Y, h:i A');
+        $this->pickup_otp_verified_at = $p->pickup_otp_verified_at?->format('d/m/Y, h:i A');
+        $this->delivery_otp_verified_at = $p->delivery_otp_verified_at?->format('d/m/Y, h:i A');
         $this->checklist_template_id = $p->checklist_template_id;
         $this->notes = $p->notes;
 
@@ -338,6 +343,8 @@ class Edit extends Component
     {
         if ($this->quickCreate(PendingReasonMaster::class, 'pending_reason_id', 'pendingReasonSearch', 'pending_reason_master.create', label: 'Pending Reason')) {
             unset($this->pendingReasons);
+        } else {
+            Flux::toast(text: 'Type the new reason into the picker first, then hit +.', variant: 'warning');
         }
     }
 
@@ -345,6 +352,8 @@ class Edit extends Component
     {
         if ($this->quickCreate(PendingReasonMaster::class, 'reschedule_reason_id', 'rescheduleReasonSearch', 'pending_reason_master.create', label: 'Reschedule Reason')) {
             unset($this->pendingReasons);
+        } else {
+            Flux::toast(text: 'Type the new reason into the picker first, then hit +.', variant: 'warning');
         }
     }
 
@@ -438,7 +447,7 @@ class Edit extends Component
 
         $row->forceFill([$column.'_verified_at' => now()])->save();
         $this->{$column} = $row->{$column};
-        $this->{$column.'_verified_at'} = $row->fresh()->{$column.'_verified_at'}?->format('d M Y, h:i A');
+        $this->{$column.'_verified_at'} = $row->fresh()->{$column.'_verified_at'}?->format('d/m/Y, h:i A');
         $this->otpEntry = null;
         $this->status = $row->fresh()->status;
 
@@ -530,6 +539,9 @@ class Edit extends Component
         $this->time_slot_id = $this->direction === PickupDrop::DIRECTION_DROP
             ? $appointment->drop_time_slot_id
             : $appointment->time_slot_id;
+        $this->drop_time_slot_id = $this->direction === PickupDrop::DIRECTION_PICKUP
+            ? $appointment->drop_time_slot_id
+            : null;
 
         // The driver leaves for the slot's window, not for the workshop's service
         // time — an appointment at 10:00 with an 09:00–10:00 pickup slot means
@@ -585,6 +597,10 @@ class Edit extends Component
             'scheduled_date' => ['required', 'date_format:Y-m-d'],
             'scheduled_time' => ['required', 'date_format:H:i'],
             'time_slot_id' => ['required', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true)],
+            'drop_time_slot_id' => [
+                Rule::requiredIf(fn () => $this->optionInvolvesPickup() && $this->optionInvolvesDrop()),
+                'nullable', 'integer', Rule::exists('time_slots', 'id')->where('is_active', true),
+            ],
             // The type decides which addresses exist at all — a both-legs booking
             // captures the return address now, even though this job is the pickup.
             'pickup_address' => [Rule::requiredIf(fn () => $this->optionInvolvesPickup() && $this->address_choice === 'custom'), 'nullable', 'string', 'max:1000'],
@@ -869,10 +885,42 @@ class Edit extends Component
             ->get(['id', 'name']);
     }
 
+    /**
+     * Slots with how many jobs already sit in each on the chosen date, so the
+     * coordinator sees "2 left" before promising a window. Advisory, like the
+     * Appointment screen — a full slot warns, it does not block.
+     *
+     * @return Collection<int, array{id:int, label:string, booked:int, capacity:int, isFull:bool}>
+     */
     #[Computed]
     public function timeSlots()
     {
-        return TimeSlotMaster::query()->where('is_active', true)->orderBy('slot_start_time')->get();
+        $slots = TimeSlotMaster::query()->where('is_active', true)->orderBy('slot_start_time')->get();
+
+        if ($slots->isEmpty()) {
+            return collect();
+        }
+
+        $counts = PickupDrop::query()
+            ->whereDate('scheduled_at', $this->scheduled_date ?: now()->toDateString())
+            ->whereNull('cancelled_at')
+            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
+            ->selectRaw('time_slot_id, count(*) as aggregate')
+            ->groupBy('time_slot_id')
+            ->pluck('aggregate', 'time_slot_id');
+
+        return $slots->map(function (TimeSlotMaster $slot) use ($counts) {
+            $booked = (int) ($counts[$slot->id] ?? 0);
+            $capacity = (int) $slot->max_vehicles_per_slot;
+
+            return [
+                'id' => $slot->id,
+                'label' => $slot->window(),
+                'booked' => $booked,
+                'capacity' => $capacity,
+                'isFull' => $capacity > 0 && $booked >= $capacity,
+            ];
+        });
     }
 
     #[Computed]
@@ -931,7 +979,7 @@ class Edit extends Component
         $this->service_type_id = null;
         $this->advisor_employee_id = null;
 
-        unset($this->serviceTypes, $this->advisors, $this->frequentServiceGroups, $this->otherJobDescriptions);
+        unset($this->serviceTypes, $this->advisors, $this->frequentServiceGroups, $this->frequentServiceGroupsByDepartment, $this->otherJobDescriptions);
 
         // The quick-add checklist is department-scoped as well.
         $this->dropServicesOutsideDepartment();
@@ -1012,7 +1060,14 @@ class Edit extends Component
         // so nothing stale survives however the option was set.
         $this->deriveDirection();
 
-        $data = $this->validate();
+        try {
+            $data = $this->validate();
+        } catch (ValidationException $e) {
+            // A long form fails quietly when the broken field is off-screen.
+            Flux::toast(text: 'Cannot schedule yet — '.count($e->errors()).' field(s) need attention. See the list above the Save button.', variant: 'warning');
+
+            throw $e;
+        }
 
         if (! $this->validateAssignment()) {
             return;

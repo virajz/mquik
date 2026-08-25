@@ -1,7 +1,7 @@
 @php($VAR = \App\Modules\VendorAdvanceRequest\Models\VendorAdvanceRequest::class)
 @php($ATT = \App\Modules\VendorAdvanceRequest\Models\VendorAdvanceRequestAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('vendor-advance-request.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Vendor Advance Request

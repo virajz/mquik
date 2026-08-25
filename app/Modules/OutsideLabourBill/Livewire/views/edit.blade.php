@@ -1,7 +1,7 @@
 @php($OLB = \App\Modules\OutsideLabourBill\Models\OutsideLabourBill::class)
 @php($ATT = \App\Modules\OutsideLabourBill\Models\OutsideLabourBillAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('outside-labour-bill.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Outside Labour Bill Verification
@@ -45,7 +45,7 @@
                         @endforeach
                     </flux:select>
                     <flux:input wire:model="vendor_bill_no" label="Vendor Bill No" placeholder="Invoice no" class:input="font-mono" />
-                    <flux:date-picker wire:model="bill_date" label="Bill Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="bill_date" label="Bill Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:input.group label="Bill Amount">
                         <flux:input.group.prefix>₹</flux:input.group.prefix>
                         <flux:input wire:model="bill_amount" type="number" step="0.01" min="0" class:input="text-right font-mono" />

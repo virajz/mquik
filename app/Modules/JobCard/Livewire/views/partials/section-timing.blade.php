@@ -10,14 +10,14 @@
                  promise and the expected completion are the advisor's to move. --}}
             <flux:field>
                 <flux:label>Opened Date</flux:label>
-                <flux:input :value="\Illuminate\Support\Carbon::parse($opened_date)->format('d M Y')" readonly class:input="text-zinc-500" />
+                <flux:input :value="\Illuminate\Support\Carbon::parse($opened_date)->format('d/m/Y')" readonly class:input="text-zinc-500" />
             </flux:field>
             <flux:field>
                 <flux:label>Opened Time</flux:label>
                 <flux:input :value="$opened_time" readonly class:input="text-zinc-500 font-mono" />
                 <flux:description>Recorded automatically — cannot be changed.</flux:description>
             </flux:field>
-            <flux:date-picker wire:model="promised_date" label="Promised Date" placeholder="Tomorrow" with-today selectable-header fixed-weeks type="input" />
+            <flux:date-picker locale="en-IN" wire:model="promised_date" label="Promised Date" placeholder="Tomorrow" with-today selectable-header fixed-weeks type="input" />
             <flux:time-picker wire:model="promised_time" label="Promised Time" type="input" />
         </div>
 

@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\GoodsHandover\Models\GoodsHandoverItem::class)
 @php($ATT = \App\Modules\GoodsHandover\Models\GoodsHandoverAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('goods-handover.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Goods Handover / Parts Return

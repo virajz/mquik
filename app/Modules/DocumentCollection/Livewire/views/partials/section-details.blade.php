@@ -183,7 +183,7 @@
                      Each document stamps its own received moment in the checklist. --}}
                 <flux:field>
                     <flux:label>Requested Date</flux:label>
-                    <flux:input :value="$requested_date ? \Illuminate\Support\Carbon::parse($requested_date)->format('d M Y') : now()->format('d M Y')" readonly class:input="text-zinc-500" />
+                    <flux:input :value="$requested_date ? \Illuminate\Support\Carbon::parse($requested_date)->format('d/m/Y') : now()->format('d/m/Y')" readonly class:input="text-zinc-500" />
                 </flux:field>
                 <flux:field>
                     <flux:label>Requested Time</flux:label>

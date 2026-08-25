@@ -11,8 +11,8 @@
 
     <div class="mb-4 flex items-center gap-3 flex-wrap">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by report no, customer or reg no…" icon="magnifying-glass" clearable class="max-w-md" />
-        <flux:date-picker wire:model.live="dateFrom" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
-        <flux:date-picker wire:model.live="dateTo" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker locale="en-IN" wire:model.live="dateFrom" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker locale="en-IN" wire:model.live="dateTo" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
         @if ($search || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
@@ -32,7 +32,7 @@
             @forelse ($rows as $row)
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs">{{ $row->report_no ?? '—' }}</flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $row->reported_on?->format('d M Y') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->reported_on?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         <div class="font-medium">{{ trim($row->customer?->first_name.' '.($row->customer?->last_name ?? '')) ?: '—' }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">

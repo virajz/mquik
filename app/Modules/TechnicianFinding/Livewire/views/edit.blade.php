@@ -1,6 +1,6 @@
 @use(App\Modules\TechnicianFinding\Models\TechnicianFinding)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('technician-finding.index')" variant="ghost" class="text-xs">

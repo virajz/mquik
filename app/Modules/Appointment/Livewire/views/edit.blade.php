@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         {{-- Page header --}}
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
@@ -58,7 +58,7 @@
                 {{-- One grid for the whole section: every field shares the same two
                      column edges, so nothing sits at its own width. --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:date-picker
+                    <flux:date-picker locale="en-IN"
                         wire:model.live="appointment_date"
                         label="Appointment Date"
                         placeholder="Select date"
@@ -92,11 +92,37 @@
 
                     {{-- Setting a reason here is what puts the booking in Pending; clearing
                          it lets the status fall back to whatever the car is actually doing. --}}
-                    <flux:select wire:model="pending_reason_id" variant="listbox" label="Pending Reason" placeholder="Not specified">
-                        @foreach ($this->pendingReasons as $reason)
-                            <flux:select.option :value="$reason->id" wire:key="pnd-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+                    <flux:field>
+                        <flux:label>Pending Reason</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex-1 min-w-0">
+                                <flux:select wire:model="pending_reason_id" variant="combobox" clearable class="w-full">
+                                    <x-slot name="input">
+                                        <flux:select.input wire:model="pendingReasonSearch" placeholder="Pick or type to add…" />
+                                    </x-slot>
+                                    @foreach ($this->pendingReasons as $reason)
+                                        <flux:select.option :value="$reason->id" wire:key="pnd-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
+                                    @endforeach
+                                    @can('pending_reason_master.create')
+                                        <flux:select.option.create wire:click="createPendingReason" min-length="2">
+                                            Create "<span wire:text="pendingReasonSearch"></span>"
+                                        </flux:select.option.create>
+                                    @endcan
+                                </flux:select>
+                            </div>
+                            @can('pending_reason_master.create')
+                                <flux:tooltip content="Save what you typed as a new reason">
+                                    <flux:button icon="plus" variant="ghost" type="button" wire:click="createPendingReason" />
+                                </flux:tooltip>
+                            @endcan
+                            @can('pending_reason_master.view')
+                                <flux:tooltip content="Open Pending Reason Master in a new tab">
+                                    <flux:button icon="arrow-top-right-on-square" variant="ghost" type="button"
+                                        :href="route('pending-reason-master.index')" target="_blank" />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                    </flux:field>
                 </div>
             </div>
         </section>
@@ -212,16 +238,18 @@
                      so asking for the service type before it would offer a list the
                      next answer can invalidate. --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model.live="workshop_department_id" variant="listbox" searchable label="Department" placeholder="Pick a department…" required>
+                    {{-- A visit can span departments; the first picked is the
+                         primary that routes the job card. --}}
+                    <flux:select wire:model.live="department_ids" variant="listbox" multiple searchable label="Departments" placeholder="Pick one or more…" required>
                         @foreach ($this->workshopDepartments as $d)
-                            <flux:select.option :value="$d->id" wire:key="wd-{{ $d->id }}">{{ $d->name }}</flux:select.option>
+                            <flux:select.option :value="(string) $d->id" wire:key="wd-{{ $d->id }}">{{ $d->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
                     <flux:select wire:model="service_type_id" variant="listbox" searchable clearable
                         label="Service Type"
-                        :placeholder="$workshop_department_id ? 'Pick a service type…' : 'Pick a department first'"
-                        :disabled="! $workshop_department_id">
+                        :placeholder="count($department_ids) ? 'Pick a service type…' : 'Pick a department first'"
+                        :disabled="! count($department_ids)">
                         @foreach ($this->serviceTypes as $st)
                             <flux:select.option :value="$st->id" wire:key="st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
                         @endforeach

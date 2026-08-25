@@ -66,7 +66,7 @@
                         @php($pc = match ($row->amc_package) { 'platinum' => 'zinc', 'gold' => 'amber', 'silver' => 'sky', default => 'zinc' })
                         <flux:badge :color="$pc" size="sm">{{ $packages[$row->amc_package] ?? '—' }}</flux:badge>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm {{ $due ? 'text-amber-600 dark:text-amber-400 font-medium' : '' }}">{{ $row->end_date?->format('d M Y') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm {{ $due ? 'text-amber-600 dark:text-amber-400 font-medium' : '' }}">{{ $row->end_date?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {
                             'active' => 'lime',

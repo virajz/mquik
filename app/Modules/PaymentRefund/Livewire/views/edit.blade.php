@@ -1,7 +1,7 @@
 @php($PR = \App\Modules\PaymentRefund\Models\PaymentRefund::class)
 @php($ATT = \App\Modules\PaymentRefund\Models\PaymentRefundAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('payment-refund.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Payment Refund
@@ -112,7 +112,7 @@
                 {{-- Cheque block --}}
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                     <flux:input wire:model="cheque_no" label="Cheque No" placeholder="If by cheque" class:input="font-mono" />
-                    <flux:date-picker wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="cheque_date" label="Cheque Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:select wire:model.live="cheque_status" variant="listbox" clearable label="Cheque Status" placeholder="Cleared / Bounce">
                         @foreach ($PR::chequeStatuses() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>

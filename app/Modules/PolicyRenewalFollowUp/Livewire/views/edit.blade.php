@@ -1,7 +1,7 @@
 @php($PRF = \App\Modules\PolicyRenewalFollowUp\Models\PolicyRenewalFollowUp::class)
 @php($ATT = \App\Modules\PolicyRenewalFollowUp\Models\PolicyRenewalFollowUpAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('policy-renewal-follow-up.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Policy Renewal Follow-Ups
@@ -42,8 +42,8 @@
                     <flux:input wire:model="policy_number" label="Policy No" placeholder="Policy number" class:input="font-mono" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <flux:date-picker wire:model="policy_start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
-                    <flux:date-picker wire:model="policy_end_date" label="End Date (Expiry)" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="policy_start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="policy_end_date" label="End Date (Expiry)" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="renewal_reference" label="Renewal Ref" placeholder="Ref" class:input="font-mono" />
                     <flux:input.group label="Renewal Premium">
                         <flux:input.group.prefix>₹</flux:input.group.prefix>

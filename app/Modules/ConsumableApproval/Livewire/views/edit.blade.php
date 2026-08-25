@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\ConsumableApproval\Models\ConsumableApprovalItem::class)
 @php($ATT = \App\Modules\ConsumableApproval\Models\ConsumableApprovalAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('consumable-approval.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Consumable Approval

@@ -1,6 +1,6 @@
 @php($CI = \App\Modules\ClaimIntimation\Models\ClaimIntimation::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('claim-intimation.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Claim Intimation
@@ -119,7 +119,7 @@
                 </div>
 
                 <div x-show="$wire.status === 'intimated'" x-cloak>
-                    <flux:date-picker wire:model="intimated_at" label="Intimated At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" class="md:max-w-xs" />
+                    <flux:date-picker locale="en-IN" wire:model="intimated_at" label="Intimated At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" class="md:max-w-xs" />
                     <flux:error name="intimated_at" />
                 </div>
 

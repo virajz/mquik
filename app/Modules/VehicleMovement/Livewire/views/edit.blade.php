@@ -1,7 +1,7 @@
 @php($VM = \App\Modules\VehicleMovement\Models\VehicleMovement::class)
 @php($ATT = \App\Modules\VehicleMovement\Models\VehicleMovementAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('vehicle-movement.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Vehicle Inward / Outward
@@ -85,12 +85,12 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div class="grid grid-cols-2 gap-2">
-                        <flux:date-picker wire:model="entry_at" label="Entry Date & Time" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:date-picker locale="en-IN" wire:model="entry_at" label="Entry Date & Time" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                         <flux:time-picker wire:model="entry_at_time" label="Time" />
                     </div>
                     <div>
                         <div class="grid grid-cols-2 gap-2">
-                            <flux:date-picker wire:model="exit_at" label="Exit Date & Time" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                            <flux:date-picker locale="en-IN" wire:model="exit_at" label="Exit Date & Time" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                             <flux:time-picker wire:model="exit_at_time" label="Time" />
                         </div>
                         <flux:error name="exit_at" />

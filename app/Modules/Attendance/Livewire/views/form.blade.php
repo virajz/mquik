@@ -2,7 +2,7 @@
 ?>
 <div>
     <flux:modal name="attendance-form" :dismissible="false" class="md:w-lg">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">
                     {{ $editingId ? 'Edit Attendance' : 'New Attendance Punch' }}
@@ -22,7 +22,7 @@
                 </flux:select>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:date-picker wire:model="punched_date" label="Punch Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="punched_date" label="Punch Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:time-picker wire:model="punched_time" label="Punch Time" type="input" />
                 </div>
 

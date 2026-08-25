@@ -56,7 +56,7 @@
                         <div>{{ trim(($row->customer?->first_name ?? '').' '.($row->customer?->last_name ?? '')) ?: '—' }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->assignedTo?->name ?? '' }}</div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $row->arrival_at?->format('d M Y, H:i') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->arrival_at?->format('d/m/Y, H:i') ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {
                             'job_card_created' => 'lime',

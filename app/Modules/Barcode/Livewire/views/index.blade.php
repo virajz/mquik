@@ -207,7 +207,7 @@
 
     {{-- Generate modal --}}
     <flux:modal name="barcode-generate" class="md:w-lg">
-        <form wire:submit="generate" class="space-y-5">
+        <form wire:submit="generate" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">Generate Barcode Label</flux:heading>
                 <flux:subheading>Select a spare and configure the label.</flux:subheading>

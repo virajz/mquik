@@ -26,6 +26,7 @@ use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Appointment extends Model
@@ -130,6 +131,12 @@ class Appointment extends Model
     public function services(): HasMany
     {
         return $this->hasMany(AppointmentService::class)->orderBy('sequence_no');
+    }
+
+    /** All departments this visit spans; `workshop_department_id` stays the primary. */
+    public function workshopDepartments(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkshopDepartmentMaster::class, 'appointment_workshop_department', 'appointment_id', 'workshop_department_id');
     }
 
     public function customer(): BelongsTo

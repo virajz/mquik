@@ -1,7 +1,7 @@
 @php($G = \App\Modules\GateInOut\Models\GateInOut::class)
 @php($MOVE = \App\Modules\GateInOut\Models\GateVisitMovement::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('gate-in-out.index')" variant="ghost" class="text-xs">
@@ -50,7 +50,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:field>
                         <flux:label>Entry Date</flux:label>
-                        <flux:input :value="\Illuminate\Support\Carbon::parse($entered_date)->format('d M Y')" readonly class:input="text-zinc-500" />
+                        <flux:input :value="\Illuminate\Support\Carbon::parse($entered_date)->format('d/m/Y')" readonly class:input="text-zinc-500" />
                     </flux:field>
                     <flux:field>
                         <flux:label>Entry Time</flux:label>
@@ -184,9 +184,9 @@
                                         @if ($m->jobCard)<flux:badge size="sm" color="zinc">{{ $m->jobCard->job_card_no }}</flux:badge>@endif
                                     </div>
                                     <flux:text size="sm" class="mt-0.5 text-zinc-500">
-                                        Out {{ $m->out_at?->format('d M, h:i A') }}
-                                        @if ($m->in_at) · back {{ $m->in_at->format('d M, h:i A') }}
-                                        @elseif ($m->expected_back_at) · due {{ $m->expected_back_at->format('d M, h:i A') }}
+                                        Out {{ $m->out_at?->format('d/m, h:i A') }}
+                                        @if ($m->in_at) · back {{ $m->in_at->format('d/m, h:i A') }}
+                                        @elseif ($m->expected_back_at) · due {{ $m->expected_back_at->format('d/m, h:i A') }}
                                         @endif
                                         @if ($m->vendor) · {{ $m->vendor->name }} @endif
                                         @if ($m->driver) · {{ $m->driver->name }} @endif
@@ -224,7 +224,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <flux:field>
                         <flux:label>Exit Date</flux:label>
-                        <flux:input :value="$exited_date ? \Illuminate\Support\Carbon::parse($exited_date)->format('d M Y') : '— not yet —'" readonly class:input="text-zinc-500" />
+                        <flux:input :value="$exited_date ? \Illuminate\Support\Carbon::parse($exited_date)->format('d/m/Y') : '— not yet —'" readonly class:input="text-zinc-500" />
                     </flux:field>
                     <flux:field>
                         <flux:label>Exit Time</flux:label>
@@ -359,7 +359,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:date-picker wire:model="tripExpectedBackDate" label="Expected Back — Date"
+                    <flux:date-picker locale="en-IN" wire:model="tripExpectedBackDate" label="Expected Back — Date"
                         placeholder="When is it due" with-today selectable-header fixed-weeks type="input" clearable />
                     <flux:time-picker wire:model="tripExpectedBackTime" label="Expected Back — Time"
                         placeholder="Optional" type="input" clearable />

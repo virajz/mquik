@@ -377,3 +377,29 @@ it('returns 401 for Livewire requests when the user is deactivated mid-session',
         ->get(route('customer-master.index'))
         ->assertStatus(401);
 });
+
+/*
+|--------------------------------------------------------------------------
+| OTP sign-in — mobile or email, no password
+|--------------------------------------------------------------------------
+*/
+
+it('creates a user with only a phone, and requires at least one identifier', function () {
+    $this->actingAs(adminUser());
+
+    Livewire::test(UserForm::class)
+        ->set('userType', 'manual')
+        ->set('name', 'PHONE ONLY GUARD')
+        ->set('phone', '9797979797')
+        ->set('selectedRoles', [Role::first()->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(User::where('phone', '9797979797')->value('email'))->toBeNull();
+
+    Livewire::test(UserForm::class)
+        ->set('userType', 'manual')
+        ->set('name', 'UNREACHABLE')
+        ->call('save')
+        ->assertHasErrors(['email', 'phone']);
+});

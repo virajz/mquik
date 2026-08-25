@@ -57,7 +57,7 @@
                         <div>{{ $row->storageLocation?->name ?? '—' }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->inventoryGroup?->name ?? '' }}</div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $row->count_start_date?->format('d M Y') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->count_start_date?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-end font-mono text-sm">{{ $row->items_count }}</flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->verification_status) {

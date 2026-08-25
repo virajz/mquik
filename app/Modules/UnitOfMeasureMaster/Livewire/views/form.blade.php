@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="unit-of-measure-master-form" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">
                     {{ $editingId ? 'Edit Unit of Measure' : 'New Unit of Measure' }}

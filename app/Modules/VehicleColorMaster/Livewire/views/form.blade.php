@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="vehicle-color-master-form" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Color' : 'New Color' }}</flux:heading>
                 <flux:subheading>Vehicle paint color used on registration documents.</flux:subheading>

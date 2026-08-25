@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="holiday-master-form" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">
                     {{ $editingId ? 'Edit Holiday' : 'New Holiday' }}
@@ -39,7 +39,7 @@
                             <flux:select.option :value="$k">{{ $l }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:date-picker
+                    <flux:date-picker locale="en-IN"
                         wire:model="holiday_date"
                         label="Date"
                         placeholder="Pick a date"

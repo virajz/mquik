@@ -119,7 +119,7 @@
                         {{ $row->requestedBy?->name ?? '—' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-zinc-500 text-sm">
-                        {{ $row->requested_at?->format('d M Y H:i') }}
+                        {{ $row->requested_at?->format('d/m/Y H:i') }}
                     </flux:table.cell>
                     <flux:table.cell class="text-end font-mono text-sm">
                         {{ $row->items_count }}

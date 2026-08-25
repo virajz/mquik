@@ -78,7 +78,9 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // en_IN: Indian date order (DD/MM/YYYY) in browser-formatted controls
+    // like the Flux date-pickers; translations fall back to plain 'en'.
+    'locale' => env('APP_LOCALE', 'en_IN'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 

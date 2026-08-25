@@ -37,8 +37,8 @@
                 <flux:select.option :value="$key">{{ $label }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable class="max-w-40" />
-        <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable class="max-w-40" />
+        <flux:date-picker locale="en-IN" wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable class="max-w-40" />
+        <flux:date-picker locale="en-IN" wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable class="max-w-40" />
         @if ($search || $employeeFilter !== 'all' || $typeFilter !== 'all' || $dateFrom || $dateTo)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif
@@ -60,7 +60,7 @@
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs text-zinc-500">#{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->punched_at?->format('d M Y') }}</div>
+                        <div class="font-medium">{{ $row->punched_at?->format('d/m/Y') }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->punched_at?->format('h:i A') }}</div>
                     </flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $row->employee?->name ?? '—' }}</flux:table.cell>

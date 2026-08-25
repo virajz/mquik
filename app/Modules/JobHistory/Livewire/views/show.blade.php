@@ -44,7 +44,7 @@
                                 <span class="text-xs font-medium {{ $isCurrent || $isDone ? '' : 'text-zinc-500' }}">{{ $stage->name }}</span>
                             </div>
                             <div class="mt-0.5 text-[11px] text-zinc-400">
-                                {{ $enteredAt?->format('d M, H:i') ?? '—' }}
+                                {{ $enteredAt?->format('d/m, H:i') ?? '—' }}
                             </div>
                         </div>
                         @if (! $loop->last)
@@ -69,7 +69,7 @@
                     <span class="absolute -left-2 flex size-4 items-center justify-center rounded-full bg-mq-orange-500"></span>
                     <div class="flex items-baseline gap-3 flex-wrap">
                         <flux:heading size="sm">{{ $types[$event->event_type] ?? ucfirst(str_replace('_', ' ', $event->event_type)) }}</flux:heading>
-                        <flux:text size="xs" class="text-zinc-500">{{ $event->occurred_at?->format('d M Y, H:i') }}</flux:text>
+                        <flux:text size="xs" class="text-zinc-500">{{ $event->occurred_at?->format('d/m/Y, H:i') }}</flux:text>
                     </div>
                     <flux:text size="sm" class="mt-1">{{ $event->summary }}</flux:text>
                     @if ($event->actor)

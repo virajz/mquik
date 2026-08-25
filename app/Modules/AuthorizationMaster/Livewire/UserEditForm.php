@@ -38,8 +38,9 @@ class UserEditForm extends Component
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId)],
-            'phone' => ['required', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')->ignore($this->userId)],
+            // One reachable identifier is enough — either receives the login OTP.
+            'email' => ['required_without:phone', 'nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId)],
+            'phone' => ['required_without:email', 'nullable', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')->ignore($this->userId)],
             'isActive' => ['boolean'],
         ];
     }
@@ -72,14 +73,14 @@ class UserEditForm extends Component
         $this->authorize('authorization_master.update');
 
         $data = $this->validate();
-        $phone = preg_replace('/\D/', '', $data['phone']);
+        $phone = filled($data['phone'] ?? null) ? preg_replace('/\D/', '', $data['phone']) : null;
 
         $user = User::with(['employee', 'vendor'])->findOrFail($this->userId);
 
         DB::transaction(function () use ($user, $data, $phone) {
             $user->forceFill([
                 'name' => $data['name'],
-                'email' => mb_strtolower($data['email']),
+                'email' => filled($data['email'] ?? null) ? mb_strtolower($data['email']) : null,
                 'phone' => $phone,
                 'is_active' => $data['isActive'],
             ])->save();
@@ -91,7 +92,7 @@ class UserEditForm extends Component
             $master?->forceFill([
                 'name' => mb_strtoupper($data['name']),
                 'phone' => $phone,
-                'email' => mb_strtolower($data['email']),
+                'email' => filled($data['email'] ?? null) ? mb_strtolower($data['email']) : null,
             ])->save();
         });
 

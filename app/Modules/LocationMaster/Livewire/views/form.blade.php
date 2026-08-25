@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="location-master-form" :dismissible="false" class="md:w-2xl">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Location' : 'New Location' }}</flux:heading>
                 <flux:subheading>Workshop branches — used by Job Cards, Inventory, Invoicing for branch-level reporting.</flux:subheading>

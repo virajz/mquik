@@ -224,7 +224,7 @@ class Edit extends Component
         $this->customer_approval_type_id = $jc->customer_approval_type_id;
         $this->assigned_advisor_id = $jc->assigned_advisor_id;
         $this->assigned_technician_id = $jc->assigned_technician_id;
-        $this->technician_assigned_at = $jc->technician_assigned_at?->format('d M Y, h:i A');
+        $this->technician_assigned_at = $jc->technician_assigned_at?->format('d/m/Y, h:i A');
         $this->opened_date = $jc->opened_at?->format('Y-m-d') ?? '';
         $this->opened_time = $jc->opened_at?->format('H:i') ?? '';
         $this->promised_date = $jc->promised_at?->format('Y-m-d') ?? '';
@@ -709,7 +709,7 @@ class Edit extends Component
             ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)
             ->latest('occurred_at')
             ->value('occurred_at')
-            ?->format('d M Y, h:i A');
+            ?->format('d/m/Y, h:i A');
     }
 
     /**

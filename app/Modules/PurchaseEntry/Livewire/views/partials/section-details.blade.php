@@ -28,7 +28,7 @@
                 @endforeach
             </flux:select>
             <flux:input wire:model="invoice_no" label="Invoice No." placeholder="Vendor invoice" class:input="font-mono uppercase" />
-            <flux:date-picker wire:model="invoice_date" label="Invoice Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+            <flux:date-picker locale="en-IN" wire:model="invoice_date" label="Invoice Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         {{-- Page header --}}
         <div class="mb-8">
             <flux:link :href="route('spare-master.index')" variant="ghost" class="text-xs">
@@ -315,7 +315,7 @@
                                 ? round(((float) $revision->rate_before_tax - (float) $previous->rate_before_tax) / (float) $previous->rate_before_tax * 100, 1)
                                 : null)
                             <flux:table.row wire:key="rate-{{ $revision->id }}">
-                                <flux:table.cell>{{ $revision->effective_from?->format('d M Y') ?? '—' }}</flux:table.cell>
+                                <flux:table.cell>{{ $revision->effective_from?->format('d/m/Y') ?? '—' }}</flux:table.cell>
                                 <flux:table.cell align="end" class="font-mono">₹{{ number_format((float) $revision->rate_before_tax, 2) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="font-mono">{{ $revision->mrp === null ? '—' : '₹'.number_format((float) $revision->mrp, 2) }}</flux:table.cell>
                                 <flux:table.cell align="end">
@@ -480,7 +480,7 @@
                 </flux:field>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                    <flux:date-picker
+                    <flux:date-picker locale="en-IN"
                         wire:model.live="manufacturing_date"
                         label="Manufacturing Date"
                         placeholder="Select a date"
@@ -491,7 +491,7 @@
                         clearable
                     />
 
-                    <flux:date-picker
+                    <flux:date-picker locale="en-IN"
                         wire:model="expiry_date"
                         label="Expiry Date"
                         placeholder="Select a date"

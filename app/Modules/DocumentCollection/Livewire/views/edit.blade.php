@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-7xl">
+    <form wire:submit="save" novalidate class="max-w-7xl">
         {{-- HEADER --}}
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -72,7 +72,7 @@
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
                                             <div>
                                                 @if (($row['status'] ?? '') === 'received' && ! empty($row['received_at']))
-                                                    <div class="text-xs text-lime-700 dark:text-lime-400 mb-1">Received {{ \Illuminate\Support\Carbon::parse($row['received_at'])->format('d M Y, h:i A') }}</div>
+                                                    <div class="text-xs text-lime-700 dark:text-lime-400 mb-1">Received {{ \Illuminate\Support\Carbon::parse($row['received_at'])->format('d/m/Y, h:i A') }}</div>
                                                 @endif
                                                 @if (! empty($row['path']))
                                                     <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($row['path']) }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-mq-orange-600 hover:underline">

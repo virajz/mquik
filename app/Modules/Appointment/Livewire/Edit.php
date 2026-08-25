@@ -3,6 +3,7 @@
 namespace App\Modules\Appointment\Livewire;
 
 use App\Concerns\CanQuickAddCustomer;
+use App\Concerns\HasQuickCreate;
 use App\Concerns\PicksAddressRegions;
 use App\Concerns\PicksQuickServices;
 use App\Concerns\SearchesPickerOptions;
@@ -40,6 +41,7 @@ use Livewire\Component;
 class Edit extends Component
 {
     use CanQuickAddCustomer;
+    use HasQuickCreate;
     use PicksAddressRegions;
     use PicksQuickServices;
     use SearchesPickerOptions;
@@ -83,6 +85,10 @@ class Edit extends Component
 
     public ?int $service_type_id = null;
 
+    /** Every department this visit spans; the first is the primary. */
+    public array $department_ids = [];
+
+    /** Derived: the primary department — what downstream readers consume. */
     public ?int $workshop_department_id = null;
 
     public ?int $assigned_advisor_id = null;
@@ -125,6 +131,9 @@ class Edit extends Component
 
     public ?int $pending_reason_id = null;
 
+    /** Combobox text for the inline "Create …" option. */
+    public string $pendingReasonSearch = '';
+
     /**
      * Customer complaints captured at booking time.
      *
@@ -164,6 +173,8 @@ class Edit extends Component
         $this->customer_id = $a->customer_id;
         $this->customer_vehicle_id = $a->customer_vehicle_id;
         $this->workshop_department_id = $a->workshop_department_id;
+        $ids = $a->workshopDepartments()->pluck('workshop_departments.id')->map(fn ($id) => (string) $id)->all();
+        $this->department_ids = $ids !== [] ? $ids : array_filter([(string) ($a->workshop_department_id ?? '')]);
         // Rows saved before service types were scoped to a department can hold a
         // pairing the form no longer offers. Drop it rather than open a form that
         // fails validation on a field nobody touched.
@@ -236,9 +247,10 @@ class Edit extends Component
                 // past the dropdown that no longer offers it.
                 Rule::exists('service_types', 'id')
                     ->where('is_active', true)
-                    ->where('workshop_department_id', $this->workshop_department_id),
+                    ->whereIn('workshop_department_id', $this->selectedDepartmentIdInts()),
             ],
-            'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
+            'department_ids' => ['required', 'array', 'min:1'],
+            'department_ids.*' => ['integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'pickup_drop_option_id' => ['required', 'integer', Rule::exists('pickup_drop_options', 'id')->where('is_active', true)],
@@ -345,15 +357,34 @@ class Edit extends Component
             : collect();
     }
 
-    /** Changing department invalidates a service type belonging to the old one. */
-    public function updatedWorkshopDepartmentId(): void
+    /** @return list<int> */
+    protected function selectedDepartmentIdInts(): array
     {
-        $this->service_type_id = null;
+        return array_values(array_map('intval', $this->department_ids));
+    }
 
-        unset($this->serviceTypes, $this->frequentServiceGroups, $this->otherJobDescriptions);
+    /** The checklist and pickers draw from every selected department. */
+    protected function serviceDepartmentIds(): array
+    {
+        return $this->selectedDepartmentIdInts();
+    }
 
-        // The checklist is scoped to the department, so jobs picked for the old
-        // one no longer belong on this booking.
+    /** Changing the selection invalidates anything the dropped departments owned. */
+    public function updatedDepartmentIds(): void
+    {
+        $ids = $this->selectedDepartmentIdInts();
+        $this->workshop_department_id = $ids[0] ?? null;
+
+        if ($this->service_type_id && ! in_array(
+            (int) ServiceTypeMaster::whereKey($this->service_type_id)->value('workshop_department_id'),
+            $ids,
+            true,
+        )) {
+            $this->service_type_id = null;
+        }
+
+        unset($this->serviceTypes, $this->frequentServiceGroups, $this->frequentServiceGroupsByDepartment, $this->otherJobDescriptions, $this->departmentName);
+
         $this->dropServicesOutsideDepartment();
     }
 
@@ -524,6 +555,15 @@ class Edit extends Component
         Flux::toast(text: 'Appointment restored.', variant: 'success');
     }
 
+    public function createPendingReason(): void
+    {
+        if ($this->quickCreate(PendingReasonMaster::class, 'pending_reason_id', 'pendingReasonSearch', 'pending_reason_master.create', label: 'Pending Reason')) {
+            unset($this->pendingReasons);
+        } else {
+            Flux::toast(text: 'Type the new reason into the picker first, then hit +.', variant: 'warning');
+        }
+    }
+
     /** Required by CanQuickAddCustomer — receives the new customer's id. */
     protected function quickCustomerTargetProperty(): string
     {
@@ -584,13 +624,15 @@ class Edit extends Component
     #[Computed]
     public function serviceTypes()
     {
-        if (! $this->workshop_department_id) {
+        $ids = $this->selectedDepartmentIdInts();
+
+        if ($ids === []) {
             return collect();
         }
 
         return ServiceTypeMaster::query()
             ->where('is_active', true)
-            ->where('workshop_department_id', $this->workshop_department_id)
+            ->whereIn('workshop_department_id', $ids)
             ->orderBy('name')
             ->get(['id', 'name']);
     }
@@ -700,7 +742,7 @@ class Edit extends Component
                 ->first();
 
             if ($holiday) {
-                $warnings[] = $date->format('d M Y').' is a non-working day ('.$holiday->name.').';
+                $warnings[] = $date->format('d/m/Y').' is a non-working day ('.$holiday->name.').';
             }
         }
 
@@ -804,13 +846,19 @@ class Edit extends Component
         // form never sends one. A cancel reason only means anything alongside the
         // cancellation itself, which is its own action.
         unset($data['status']);
+
+        // The selection is the input; the single FK stays the primary for every
+        // downstream reader (job-card handoff, routing, filters).
+        $departmentIds = array_map('intval', $data['department_ids']);
+        unset($data['department_ids']);
+        $data['workshop_department_id'] = $departmentIds[0] ?? null;
         if ($this->cancelled_at === null) {
             $data['cancel_reason_id'] = null;
         }
 
         $isCreate = $this->editingId === null;
 
-        $appointment = DB::transaction(function () use ($data, $complaints, $isCreate) {
+        $appointment = DB::transaction(function () use ($data, $complaints, $isCreate, $departmentIds) {
             if ($isCreate) {
                 $appointment = Appointment::create($data);
             } else {
@@ -826,6 +874,7 @@ class Edit extends Component
 
             $this->syncComplaints($appointment, $complaints);
             $this->syncSelectedServices($appointment);
+            $appointment->workshopDepartments()->sync($departmentIds);
 
             return $appointment;
         });

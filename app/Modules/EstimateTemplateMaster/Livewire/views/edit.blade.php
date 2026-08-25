@@ -1,6 +1,6 @@
 @php($ETM = \App\Modules\EstimateTemplateMaster\Models\EstimateTemplateMaster::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-6">
             <flux:link :href="route('estimate-template-master.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Estimate Templates
@@ -19,7 +19,7 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <flux:date-picker wire:model="effective_date" label="Effective Date" placeholder="From when" with-today selectable-header fixed-weeks type="input" clearable />
+                <flux:date-picker locale="en-IN" wire:model="effective_date" label="Effective Date" placeholder="From when" with-today selectable-header fixed-weeks type="input" clearable />
                 <flux:select wire:model="category" variant="listbox" clearable label="Template Category" placeholder="PMS / Brake / …">
                     @foreach ($ETM::categories() as $key => $label)
                         <flux:select.option :value="$key">{{ $label }}</flux:select.option>

@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('employee-master.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Employees
@@ -33,7 +33,7 @@
                         <flux:select.option value="female">Female</flux:select.option>
                         <flux:select.option value="other">Other</flux:select.option>
                     </flux:select>
-                    <flux:date-picker wire:model="date_of_birth" label="Date of Birth" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="date_of_birth" label="Date of Birth" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="city" label="City" placeholder="e.g. AHMEDABAD" />
                 </div>
             </div>
@@ -125,8 +125,8 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:date-picker wire:model="joining_date" label="Joining Date" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
-                    <flux:date-picker wire:model="exit_date" label="Exit Date" placeholder="Still employed" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="joining_date" label="Joining Date" placeholder="Select date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="exit_date" label="Exit Date" placeholder="Still employed" with-today selectable-header fixed-weeks type="input" />
                 </div>
             </div>
         </section>

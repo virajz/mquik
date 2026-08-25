@@ -1,6 +1,6 @@
 @php($PD = \App\Modules\PickupDrop\Models\PickupDrop::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('pickup-drop.index')" variant="ghost" class="text-xs">
@@ -48,27 +48,33 @@
                         @endforeach
                     </flux:select>
 
-{{-- The leg is read off the type — a pickup-involving type IS the
-                         pickup leg; the return trip is its own job later. --}}
-                    <flux:field>
-                        <flux:label>This Job Is</flux:label>
-                        <div class="flex items-center h-10">
-                            <flux:badge color="{{ $direction === \App\Modules\PickupDrop\Models\PickupDrop::DIRECTION_PICKUP ? 'blue' : 'indigo' }}" size="sm">
-                                {{ \App\Modules\PickupDrop\Models\PickupDrop::directions()[$direction] ?? $direction }}
-                            </flux:badge>
-                        </div>
-                        <flux:description>Derived from the type above.</flux:description>
-                    </flux:field>
+
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:date-picker wire:model="scheduled_date" label="Entry Date" placeholder="Select date" required with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model.live="scheduled_date" label="Entry Date" placeholder="Select date" required with-today selectable-header fixed-weeks type="input" />
                     <flux:time-picker wire:model="scheduled_time" label="Entry Time" placeholder="Select time" required type="input" />
-                    <flux:select wire:model="time_slot_id" variant="listbox" label="Time Slot" placeholder="Pick a slot" required>
+                    <flux:select wire:model="time_slot_id" variant="listbox" required
+                        :label="$direction === $PD::DIRECTION_DROP ? 'Drop Time Slot' : 'Pickup Time Slot'"
+                        placeholder="Pick a slot">
                         @foreach ($this->timeSlots as $slot)
-                            <flux:select.option :value="$slot->id" wire:key="slot-{{ $slot->id }}">{{ $slot->window() }}</flux:select.option>
+                            <flux:select.option :value="$slot['id']" wire:key="slot-{{ $slot['id'] }}">
+                                {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                            </flux:select.option>
                         @endforeach
                     </flux:select>
+
+                    @if ($this->optionInvolvesPickup() && $this->optionInvolvesDrop())
+                        {{-- The return window, captured now so the drop job created
+                             later inherits it instead of re-asking the customer. --}}
+                        <flux:select wire:model="drop_time_slot_id" variant="listbox" label="Drop Time Slot" placeholder="Pick a slot" required>
+                            @foreach ($this->timeSlots as $slot)
+                                <flux:select.option :value="$slot['id']" wire:key="dslot-{{ $slot['id'] }}">
+                                    {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    @endif
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -99,7 +105,11 @@
                     @endif
 
                     @if ($status === $PD::STATUS_PENDING)
-                        <flux:select wire:model="pending_reason_id" variant="combobox" clearable label="Pending Reason">
+                        <flux:field>
+                        <flux:label>Pending Reason</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex-1 min-w-0">
+                                <flux:select wire:model="pending_reason_id" variant="combobox" clearable class="w-full">
                             <x-slot name="input">
                                 <flux:select.input wire:model="pendingReasonSearch" placeholder="Pick or type to add…" />
                             </x-slot>
@@ -112,9 +122,27 @@
                                 </flux:select.option.create>
                             @endcan
                         </flux:select>
+                            </div>
+                            @can('pending_reason_master.create')
+                                <flux:tooltip content="Save what you typed as a new reason">
+                                    <flux:button icon="plus" variant="ghost" type="button" wire:click="createPendingReason" />
+                                </flux:tooltip>
+                            @endcan
+                            @can('pending_reason_master.view')
+                                <flux:tooltip content="Open Pending Reason Master in a new tab">
+                                    <flux:button icon="arrow-top-right-on-square" variant="ghost" type="button"
+                                        :href="route('pending-reason-master.index')" target="_blank" />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                    </flux:field>
                     @endif
 
-                    <flux:select wire:model="reschedule_reason_id" variant="combobox" clearable label="Reschedule Reason">
+                    <flux:field>
+                        <flux:label>Reschedule Reason</flux:label>
+                        <div class="flex items-stretch gap-2">
+                            <div class="flex-1 min-w-0">
+                                <flux:select wire:model="reschedule_reason_id" variant="combobox" clearable class="w-full">
                         <x-slot name="input">
                             <flux:select.input wire:model="rescheduleReasonSearch" placeholder="Only if moved — pick or type to add…" />
                         </x-slot>
@@ -127,6 +155,20 @@
                             </flux:select.option.create>
                         @endcan
                     </flux:select>
+                            </div>
+                            @can('pending_reason_master.create')
+                                <flux:tooltip content="Save what you typed as a new reason">
+                                    <flux:button icon="plus" variant="ghost" type="button" wire:click="createRescheduleReason" />
+                                </flux:tooltip>
+                            @endcan
+                            @can('pending_reason_master.view')
+                                <flux:tooltip content="Open Pending Reason Master in a new tab">
+                                    <flux:button icon="arrow-top-right-on-square" variant="ghost" type="button"
+                                        :href="route('pending-reason-master.index')" target="_blank" />
+                                </flux:tooltip>
+                            @endcan
+                        </div>
+                    </flux:field>
                 </div>
             </div>
         </section>
@@ -484,6 +526,17 @@
         </section>
 
         <flux:separator />
+
+        @if ($errors->any())
+            <flux:callout variant="warning" icon="exclamation-triangle" class="mb-4">
+                <flux:callout.heading>Cannot schedule yet</flux:callout.heading>
+                <flux:callout.text>
+                    @foreach ($errors->all() as $message)
+                        <div>{{ $message }}</div>
+                    @endforeach
+                </flux:callout.text>
+            </flux:callout>
+        @endif
 
         <div class="flex items-center justify-end gap-2 py-6">
             <flux:button :href="route('pickup-drop.index')" variant="ghost" wire:navigate>Cancel</flux:button>

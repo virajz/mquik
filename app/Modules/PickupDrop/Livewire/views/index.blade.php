@@ -71,8 +71,8 @@
                 </flux:select>
 
                 <div class="grid grid-cols-2 gap-2">
-                    <flux:date-picker wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
-                    <flux:date-picker wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker locale="en-IN" wire:model.live="dateFrom" placeholder="From" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker locale="en-IN" wire:model.live="dateTo" placeholder="To" with-today selectable-header fixed-weeks type="input" clearable />
                 </div>
             </flux:popover>
         </flux:dropdown>
@@ -140,11 +140,11 @@
                 <flux:table.row :key="$row->id">
                     <flux:table.cell class="font-mono text-xs">{{ $row->pickup_drop_no ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->scheduled_at?->format('d M Y') }}</div>
+                        <div class="font-medium">{{ $row->scheduled_at?->format('d/m/Y') }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">
                             {{ $row->scheduled_at?->format('h:i A') }}{{ $row->timeSlot ? ' · '.$row->timeSlot->name : '' }}
                         </div>
-                        <div class="text-xs text-zinc-400 mt-0.5">Entered {{ $row->created_at?->format('d M Y') }}</div>
+                        <div class="text-xs text-zinc-400 mt-0.5">Entered {{ $row->created_at?->format('d/m/Y') }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
                         <flux:badge :color="$row->direction === 'pickup' ? 'blue' : 'sky'" size="sm">{{ $directions[$row->direction] ?? $row->direction }}</flux:badge>

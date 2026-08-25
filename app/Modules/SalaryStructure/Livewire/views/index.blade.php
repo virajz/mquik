@@ -45,7 +45,7 @@
                         <div class="text-sm font-medium">{{ $row->employee?->name ?? '—' }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5 font-mono">{{ $row->employee?->employee_code }}</div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $row->effective_from?->format('M Y') }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $row->effective_from?->format('m/Y') }}</flux:table.cell>
                     <flux:table.cell class="text-center font-mono text-sm">{{ $row->lines_count }}</flux:table.cell>
                     <flux:table.cell class="text-right font-mono text-sm font-medium">{{ number_format((float) $row->net_salary, 2) }}</flux:table.cell>
                     <flux:table.cell>

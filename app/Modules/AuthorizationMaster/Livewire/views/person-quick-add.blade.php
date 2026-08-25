@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="authorization-master-person-quick-add" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">
                     {{ $type === 'employee' ? 'New employee' : 'New service contractor' }}

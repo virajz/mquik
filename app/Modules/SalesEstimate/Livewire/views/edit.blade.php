@@ -27,7 +27,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save">
+    <form wire:submit="save" novalidate>
         @if (! $editingId)
             {{-- LEAN CREATE --}}
             @include('sales-estimate::partials.section-details')

@@ -1,7 +1,7 @@
 @php($IPI = \App\Modules\InternalPartsInquiry\Models\InternalPartsInquiry::class)
 @php($ITEM = \App\Modules\InternalPartsInquiry\Models\InternalPartsInquiryItem::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('internal-parts-inquiry.index')" variant="ghost" class="text-xs">
@@ -258,8 +258,8 @@
             </div>
             <div class="space-y-4 min-w-0" x-data>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <flux:date-picker wire:model="requested_at" label="Requested At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" required />
-                    <flux:date-picker wire:model="needed_by" label="Needed By" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="requested_at" label="Requested At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" required />
+                    <flux:date-picker locale="en-IN" wire:model="needed_by" label="Needed By" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
                 <flux:error name="needed_by" />
 

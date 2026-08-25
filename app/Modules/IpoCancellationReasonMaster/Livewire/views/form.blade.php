@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="ipo-cancellation-reason-master-form" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">
                     {{ $editingId ? 'Edit IPO Cancellation Reason' : 'New IPO Cancellation Reason' }}

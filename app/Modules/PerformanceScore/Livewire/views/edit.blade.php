@@ -18,7 +18,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save" class="space-y-6">
+    <form wire:submit="save" novalidate class="space-y-6">
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10">
             <div>
                 <flux:heading size="lg">Period</flux:heading>

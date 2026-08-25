@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\GoodsReceipt\Models\GoodsReceiptItem::class)
 @php($ATT = \App\Modules\GoodsReceipt\Models\GoodsReceiptAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>
                 <flux:link :href="route('goods-receipt.index')" variant="ghost" class="text-xs">

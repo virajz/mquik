@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\SurveyorInspection\Models\SurveyorInspectionItem::class)
 @php($ATT = \App\Modules\SurveyorInspection\Models\SurveyorInspectionAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('surveyor-inspection.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Surveyor Inspection
@@ -150,7 +150,7 @@
                     </flux:select>
                     <div x-show="$wire.status === 'completed'" x-cloak>
                         <div class="grid grid-cols-2 gap-2">
-                            <flux:date-picker wire:model="surveyed_at" label="Surveyed At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                            <flux:date-picker locale="en-IN" wire:model="surveyed_at" label="Surveyed At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                             <flux:time-picker wire:model="surveyed_at_time" label="Time" />
                         </div>
                         <flux:error name="surveyed_at" />

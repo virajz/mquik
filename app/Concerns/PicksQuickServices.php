@@ -3,9 +3,12 @@
 namespace App\Concerns;
 
 use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use Flux\Flux;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 
 /**
@@ -47,6 +50,21 @@ trait PicksQuickServices
     {
         return $this->jobDescriptionsForDepartment('frequent')
             ->groupBy(fn (JobDescriptionMaster $jd) => $jd->serviceType?->name ?? 'Other');
+    }
+
+    /**
+     * The checklist, one box per department: dept name → (service-type group → jobs).
+     * Single-department hosts get exactly one box.
+     *
+     * @return Collection<string, Collection<string, Collection<int, JobDescriptionMaster>>>
+     */
+    #[Computed]
+    public function frequentServiceGroupsByDepartment(): Collection
+    {
+        return $this->jobDescriptionsForDepartment('frequent')
+            ->groupBy(fn (JobDescriptionMaster $jd) => $jd->serviceType?->workshopDepartment?->name ?? 'Other')
+            ->sortKeys()
+            ->map(fn ($jobs) => $jobs->groupBy(fn (JobDescriptionMaster $jd) => $jd->serviceType?->name ?? 'Other'));
     }
 
     /** @return Collection<int, JobDescriptionMaster> */
@@ -97,6 +115,85 @@ trait PicksQuickServices
             : array_values(array_unique([...$current, ...$ids])));
     }
 
+    /** Quick-add modal state for a new Job Description. */
+    public string $jdQuickName = '';
+
+    public ?int $jdQuickServiceTypeId = null;
+
+    public string $jdQuickCategory = 'general';
+
+    /** Opens pre-filled with whatever was typed in the manual box. */
+    public function openJobDescriptionQuickAdd(): void
+    {
+        $this->jdQuickName = trim($this->manualRepairInput);
+        $this->jdQuickServiceTypeId = property_exists($this, 'service_type_id') && $this->service_type_id
+            ? (int) $this->service_type_id
+            : null;
+        $this->jdQuickCategory = 'general';
+
+        $this->resetErrorBag(['jdQuickName', 'jdQuickServiceTypeId']);
+
+        Flux::modal('job-description-quick-add')->show();
+    }
+
+    /** @return Collection<int, ServiceTypeMaster> service types the selection offers */
+    #[Computed]
+    public function jdQuickServiceTypes(): Collection
+    {
+        $ids = $this->serviceDepartmentIds();
+
+        return $ids === []
+            ? collect()
+            : ServiceTypeMaster::query()
+                ->where('is_active', true)
+                ->whereIn('workshop_department_id', $ids)
+                ->with('workshopDepartment:id,name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'workshop_department_id']);
+    }
+
+    /**
+     * File it as a real Job Description — next booking, it shows up in the
+     * picker for everyone — and select it on this record.
+     */
+    public function createJobDescription(): void
+    {
+        $this->authorize('job_description_master.create');
+
+        $this->validate([
+            'jdQuickName' => ['required', 'string', 'max:255'],
+            'jdQuickServiceTypeId' => ['required', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'jdQuickCategory' => ['required', Rule::in(['general', 'frequent'])],
+        ], attributes: [
+            'jdQuickName' => 'job description',
+            'jdQuickServiceTypeId' => 'service type',
+        ]);
+
+        $job = JobDescriptionMaster::firstOrCreate(
+            ['service_type_id' => $this->jdQuickServiceTypeId, 'name' => strtoupper($this->jdQuickName)],
+            ['category' => $this->jdQuickCategory, 'is_active' => true],
+        );
+
+        // A frequent job lands as a ticked checkbox; a general one as a picked repair.
+        if ($job->category === 'frequent') {
+            $this->selectedServiceIds = array_values(array_unique([
+                ...array_map('strval', $this->selectedServiceIds), (string) $job->id,
+            ]));
+        } else {
+            $this->requestedRepairIds = array_values(array_unique([
+                ...array_map('strval', $this->requestedRepairIds), (string) $job->id,
+            ]));
+        }
+
+        $this->manualRepairInput = '';
+        $this->jdQuickName = '';
+
+        unset($this->otherJobDescriptions, $this->frequentServiceGroups, $this->frequentServiceGroupsByDepartment);
+
+        Flux::modal('job-description-quick-add')->close();
+        Flux::toast(text: 'Job Description "'.$job->name.'" saved to the master and selected.', variant: 'success');
+    }
+
     /** Add a job the master does not carry, typed by the advisor. */
     public function addManualRepair(): void
     {
@@ -122,17 +219,30 @@ trait PicksQuickServices
      * Saved service rows for the record being edited — each with a
      * `job_description_id` and `name`. The host component provides them.
      *
-     * @return \Illuminate\Support\Collection<int, Model>
+     * @return Collection<int, Model>
      */
-    abstract protected function savedServiceRows(): \Illuminate\Support\Collection;
+    abstract protected function savedServiceRows(): Collection;
 
-    /** Label for the checklist heading. */
+    /**
+     * Which departments the checklist draws from. Hosts with a single
+     * department field get it for free; a multi-department host overrides this.
+     *
+     * @return list<int>
+     */
+    protected function serviceDepartmentIds(): array
+    {
+        return $this->workshop_department_id ? [(int) $this->workshop_department_id] : [];
+    }
+
+    /** Label for the checklist heading — every selected department. */
     #[Computed]
     public function departmentName(): string
     {
-        return $this->workshop_department_id
-            ? (string) WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('name')
-            : '';
+        $ids = $this->serviceDepartmentIds();
+
+        return $ids === []
+            ? ''
+            : WorkshopDepartmentMaster::whereIn('id', $ids)->orderBy('name')->pluck('name')->implode(', ');
     }
 
     /** Load an existing record's jobs back into the three inputs. */
@@ -145,9 +255,9 @@ trait PicksQuickServices
      * Split service rows into the three inputs — also used to inherit another
      * record's jobs (a pickup created from an appointment carries its booking).
      *
-     * @param  \Illuminate\Support\Collection<int, Model>  $rows
+     * @param  Collection<int, Model>  $rows
      */
-    protected function fillServiceInputsFrom(\Illuminate\Support\Collection $rows): void
+    protected function fillServiceInputsFrom(Collection $rows): void
     {
 
         $frequent = $this->frequentServiceGroups->flatten()->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -216,15 +326,17 @@ trait PicksQuickServices
     /** @return Collection<int, JobDescriptionMaster> */
     protected function jobDescriptionsForDepartment(string $category): Collection
     {
-        if (! $this->workshop_department_id) {
+        $ids = $this->serviceDepartmentIds();
+
+        if ($ids === []) {
             return collect();
         }
 
         return JobDescriptionMaster::query()
             ->where('is_active', true)
             ->where('category', $category)
-            ->whereHas('serviceType', fn ($q) => $q->where('workshop_department_id', $this->workshop_department_id))
-            ->with('serviceType:id,name')
+            ->whereHas('serviceType', fn ($q) => $q->whereIn('workshop_department_id', $ids))
+            ->with(['serviceType:id,name,workshop_department_id', 'serviceType.workshopDepartment:id,name'])
             ->orderBy('name')
             ->get();
     }

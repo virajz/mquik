@@ -44,7 +44,7 @@ class ApplyDocumentRetention extends Command
             $this->line(sprintf(
                 '  %s — due %s%s',
                 $dc->doc_collection_no,
-                $dc->retentionDueAt()?->format('d M Y') ?? '—',
+                $dc->retentionDueAt()?->format('d/m/Y') ?? '—',
                 $dryRun ? ' (dry run)' : '',
             ));
 

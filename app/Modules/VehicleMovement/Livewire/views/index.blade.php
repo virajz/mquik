@@ -63,8 +63,8 @@
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->jobCard?->job_card_no ?? '' }}</div>
                     </flux:table.cell>
                     <flux:table.cell class="text-xs text-zinc-500">
-                        <div>{{ $row->entry_at?->format('d M, H:i') ?? '—' }}</div>
-                        <div>{{ $row->exit_at?->format('d M, H:i') ?? '—' }}</div>
+                        <div>{{ $row->entry_at?->format('d/m, H:i') ?? '—' }}</div>
+                        <div>{{ $row->exit_at?->format('d/m, H:i') ?? '—' }}</div>
                     </flux:table.cell>
                     <flux:table.cell class="font-mono text-sm">{{ $row->tatLabel() ?? '—' }}</flux:table.cell>
                     <flux:table.cell>

@@ -6,7 +6,7 @@
         </div>
     </div>
 
-    <form wire:submit="save" class="space-y-5 max-w-4xl">
+    <form wire:submit="save" novalidate class="space-y-5 max-w-4xl">
         {{-- IDENTITY --}}
         <div>
             <flux:heading size="lg">Identity</flux:heading>

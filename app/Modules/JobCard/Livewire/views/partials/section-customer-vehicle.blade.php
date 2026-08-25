@@ -27,7 +27,7 @@
                             </div>
                             <div class="text-xs text-zinc-500">
                                 {{ $g->gate_event_no }}
-                                @if ($g->entered_at) · in {{ $g->entered_at->format('d M, h:i A') }} @endif
+                                @if ($g->entered_at) · in {{ $g->entered_at->format('d/m, h:i A') }} @endif
                             </div>
                         </div>
                     </flux:select.option>

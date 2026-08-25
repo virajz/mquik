@@ -4,7 +4,7 @@
     with inline create-options on Brand and Model.
 --}}
 <flux:modal name="vehicle-quick-add" class="md:w-lg">
-    <form wire:submit.prevent="createQuickVehicle" class="space-y-5">
+    <form wire:submit.prevent="createQuickVehicle" novalidate class="space-y-5">
         <div>
             <flux:heading size="lg">Quick add Vehicle</flux:heading>
             <flux:subheading>Brand → Model → Variant. New brands and models can be added inline.</flux:subheading>

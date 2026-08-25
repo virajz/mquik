@@ -1,7 +1,7 @@
 @php($VCR = \App\Modules\VpoCancelRequest\Models\VpoCancelRequest::class)
 @php($ATT = \App\Modules\VpoCancelRequest\Models\VpoCancelRequestAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('vpo-cancel-request.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> VPO Cancel Requests

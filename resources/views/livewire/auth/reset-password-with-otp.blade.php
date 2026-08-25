@@ -3,7 +3,7 @@
             <x-auth-header :title="__('Reset password')"
                 :description="__('Enter your phone number and we will text you a code')" />
 
-            <form wire:submit="sendCode" class="flex flex-col gap-6">
+            <form wire:submit="sendCode" novalidate class="flex flex-col gap-6">
                 <flux:field>
                     <flux:label>{{ __('Phone') }}</flux:label>
                     <flux:input.group>
@@ -34,7 +34,7 @@
                 </flux:callout>
             @endif
 
-            <form wire:submit="verify" class="flex flex-col gap-6">
+            <form wire:submit="verify" novalidate class="flex flex-col gap-6">
                 <flux:input wire:model="code" :label="__('6-digit code')" placeholder="000000"
                     maxlength="6" inputmode="numeric" class:input="text-center font-mono text-lg tracking-[0.4em]" autofocus />
 

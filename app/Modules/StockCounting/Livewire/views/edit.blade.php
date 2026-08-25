@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\StockCounting\Models\StockCountItem::class)
 @php($ATT = \App\Modules\StockCounting\Models\StockCountAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('stock-counting.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Stock Counting
@@ -32,9 +32,9 @@
                     </flux:select>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <flux:date-picker wire:model="count_start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="count_start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
                     <div>
-                        <flux:date-picker wire:model="count_end_date" label="End Date" with-today selectable-header fixed-weeks type="input" />
+                        <flux:date-picker locale="en-IN" wire:model="count_end_date" label="End Date" with-today selectable-header fixed-weeks type="input" />
                         <flux:error name="count_end_date" />
                     </div>
                     <flux:select wire:model="verification_status" variant="listbox" label="Verification Status" required>

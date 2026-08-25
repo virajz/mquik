@@ -44,6 +44,12 @@
                 <flux:link :href="route('password.otp')" wire:navigate>{{ __('Reset with a code sent to your phone') }}</flux:link>
             </flux:text>
         @endif
+
+        {{-- The passwordless path is the norm for staff — password sign-in
+             stays for the accounts that still have one. --}}
+        <flux:button :href="route('login.otp')" variant="outline" class="w-full" icon="device-phone-mobile" wire:navigate>
+            {{ __('Sign in with a code (no password)') }}
+        </flux:button>
             </div>
 
             <!-- Remember Me -->

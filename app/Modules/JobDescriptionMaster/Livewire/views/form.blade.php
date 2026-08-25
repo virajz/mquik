@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="job-description-master-form" :dismissible="false" class="md:w-2xl">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Job Description' : 'New Job Description' }}</flux:heading>
                 <flux:subheading>Catalog of jobs the workshop performs — used by job cards and estimates.</flux:subheading>

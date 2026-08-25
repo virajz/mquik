@@ -36,8 +36,8 @@
             @endforeach
         </flux:select>
 
-        <flux:date-picker wire:model.live="fromDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
-        <flux:date-picker wire:model.live="toDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker locale="en-IN" wire:model.live="fromDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker locale="en-IN" wire:model.live="toDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
 
         @if ($search || $statusFilter !== 'all' || $typeFilter !== 'all' || $vendorFilter !== 'all' || $fromDate || $toDate)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
@@ -61,7 +61,7 @@
                     <flux:table.cell class="text-sm">{{ $row->inquiryType?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-sm">{{ $row->vendor?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="font-mono text-xs">{{ $row->jobCard?->job_card_no ?? '—' }}</flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">{{ $row->promised_to?->format('d M Y, H:i') ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">{{ $row->promised_to?->format('d/m/Y, H:i') ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {
                             'work_order_issued' => 'lime',

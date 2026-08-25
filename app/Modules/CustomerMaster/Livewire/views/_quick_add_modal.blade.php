@@ -5,7 +5,7 @@
     action. Modal name is fixed so the +button can call $flux.modal('customer-quick-add').show().
 --}}
 <flux:modal name="customer-quick-add" class="md:w-md">
-    <form wire:submit.prevent="createQuickCustomer" class="space-y-5">
+    <form wire:submit.prevent="createQuickCustomer" novalidate class="space-y-5">
         <div>
             <flux:heading size="lg">Quick add Customer</flux:heading>
             <flux:subheading>Just the essentials. Fill the rest later from the Customers page.</flux:subheading>

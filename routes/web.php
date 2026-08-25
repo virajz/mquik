@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Auth\LoginWithOtp;
 use App\Livewire\Auth\ResetPasswordWithOtp;
 use Illuminate\Support\Facades\Route;
 
@@ -15,3 +16,8 @@ require __DIR__.'/settings.php';
 Route::livewire('reset-password-otp', ResetPasswordWithOtp::class)
     ->middleware('guest')
     ->name('password.otp');
+
+// Passwordless sign-in: a code to the user's mobile or email.
+Route::livewire('login-otp', LoginWithOtp::class)
+    ->middleware('guest')
+    ->name('login.otp');

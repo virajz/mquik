@@ -2,7 +2,7 @@
 ?>
 <div>
     <flux:modal name="smart-salary-form" :dismissible="false" class="md:w-lg">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit KPI Definition' : 'New KPI Definition' }}</flux:heading>
                 <flux:subheading>Register a KPI the Performance Score engine measures. Positive KPIs earn points, negative ones deduct — the net drives each employee's incentive.</flux:subheading>

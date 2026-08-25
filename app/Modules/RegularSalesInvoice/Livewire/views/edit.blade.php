@@ -23,7 +23,7 @@
 
     <flux:separator class="mb-6" />
 
-    <form wire:submit="save">
+    <form wire:submit="save" novalidate>
         @if (! $editingId)
             @include('regular-sales-invoice::partials.section-details')
             <flux:callout class="mt-6" icon="information-circle" variant="secondary">

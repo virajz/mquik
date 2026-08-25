@@ -1,7 +1,7 @@
 @php($PFA = \App\Modules\ProformaApproval\Models\ProformaApproval::class)
 @php($ATT = \App\Modules\ProformaApproval\Models\ProformaApprovalAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('proforma-approval.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Proforma Approval
@@ -161,9 +161,9 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <flux:date-picker wire:model="store_approved_at" label="Store Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
-                    <flux:date-picker wire:model="advisor_approved_at" label="Advisor Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
-                    <flux:date-picker wire:model="admin_approved_at" label="Admin Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="store_approved_at" label="Store Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="advisor_approved_at" label="Advisor Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="admin_approved_at" label="Admin Approved At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                 </div>
 
                 {{-- Attachments --}}

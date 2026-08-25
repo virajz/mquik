@@ -1,6 +1,6 @@
 <div>
     <flux:modal name="authorization-master-user-edit" :dismissible="false" class="md:w-lg">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">Edit user</flux:heading>
                 <flux:subheading>

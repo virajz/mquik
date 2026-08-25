@@ -1,6 +1,6 @@
 @php($ICR = \App\Modules\IpoCancelApproval\Models\IpoCancelApproval::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('ipo-cancel-approval.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> IPO Cancel Approval
@@ -139,7 +139,7 @@
                 </div>
 
                 <div x-show="['approved','rejected'].includes($wire.status)" x-cloak>
-                    <flux:date-picker wire:model="decided_at" label="Decided At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" class="md:max-w-xs" />
+                    <flux:date-picker locale="en-IN" wire:model="decided_at" label="Decided At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" class="md:max-w-xs" />
                     <flux:error name="decided_at" />
                 </div>
 

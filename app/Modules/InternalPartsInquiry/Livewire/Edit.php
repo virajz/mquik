@@ -138,7 +138,7 @@ class Edit extends Component
         }
         $this->requested_at = $inquiry->requested_at?->format('Y-m-d');
         $this->needed_by = $inquiry->needed_by?->format('Y-m-d');
-        $this->responded_at = $inquiry->responded_at?->format('d M Y, h:i A');
+        $this->responded_at = $inquiry->responded_at?->format('d/m/Y, h:i A');
 
         $this->items = $inquiry->items->map(fn (InternalPartsInquiryItem $i) => [
             'id' => $i->id,

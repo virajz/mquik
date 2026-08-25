@@ -1,7 +1,7 @@
 @php($VPA = \App\Modules\VpoApproval\Models\VpoApproval::class)
 @php($ATT = \App\Modules\VpoApproval\Models\VpoApprovalAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('vpo-approval.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> VPO Approval

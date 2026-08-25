@@ -64,7 +64,7 @@
                         <div class="text-xs text-zinc-500 mt-0.5 font-mono">{{ $row->customerVehicle?->registration_no ?? '' }}</div>
                     </flux:table.cell>
                     <flux:table.cell class="text-sm {{ $overdue ? 'text-red-600 dark:text-red-400 font-medium' : '' }}">
-                        {{ $row->due_date?->format('d M Y') ?? '—' }}
+                        {{ $row->due_date?->format('d/m/Y') ?? '—' }}
                         @if ($overdue)<flux:icon.exclamation-triangle class="inline size-3 -mt-0.5 ml-0.5" />@endif
                     </flux:table.cell>
                     <flux:table.cell>

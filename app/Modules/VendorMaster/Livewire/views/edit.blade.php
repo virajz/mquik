@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         {{-- Page header --}}
         <div class="mb-8">
             <flux:link :href="route('vendor-master.index')" variant="ghost" class="text-xs">
@@ -39,7 +39,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <flux:input wire:model="legal_name" label="Legal Name" placeholder="Registered legal name" />
-                    <flux:date-picker wire:model="registration_date" label="Date of Registration" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="registration_date" label="Date of Registration" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="reference" label="Reference" placeholder="Referred by / source" />
                 </div>
 
@@ -670,7 +670,7 @@
     {{-- Quick-add modals (outside the main form so submitting them doesn't post the parent). --}}
     @can('vendor_type_master.create')
         <flux:modal name="vendor-type-quick-add" class="md:w-md">
-            <form wire:submit.prevent="createVendorType" class="space-y-5">
+            <form wire:submit.prevent="createVendorType" novalidate class="space-y-5">
                 <div>
                     <flux:heading size="lg">Quick add Vendor Type</flux:heading>
                     <flux:subheading>Just the name. Add more details later from the Vendor Types page.</flux:subheading>
@@ -693,7 +693,7 @@
 
     @can('spare_brand_master.create')
         <flux:modal name="spare-brand-quick-add" class="md:w-md">
-            <form wire:submit.prevent="createSpareBrand" class="space-y-5">
+            <form wire:submit.prevent="createSpareBrand" novalidate class="space-y-5">
                 <div>
                     <flux:heading size="lg">Quick add Parts Brand</flux:heading>
                     <flux:subheading>Just the name. Add more details later from the Parts Brands page.</flux:subheading>

@@ -2,7 +2,7 @@
 ?>
 <div>
     <flux:modal name="late-memo-form" :dismissible="false" class="md:w-md">
-        <form wire:submit="save" class="space-y-5">
+        <form wire:submit="save" novalidate class="space-y-5">
             <div>
                 <flux:heading size="lg">{{ $editingId ? 'Edit Late Memo' : 'New Late Memo' }}</flux:heading>
                 <flux:subheading>Issue a memo for an employee who came in late.</flux:subheading>
@@ -17,7 +17,7 @@
                     @endforeach
                 </flux:select>
 
-                <flux:date-picker wire:model="memo_date" label="Date" with-today selectable-header fixed-weeks type="input" required />
+                <flux:date-picker locale="en-IN" wire:model="memo_date" label="Date" with-today selectable-header fixed-weeks type="input" required />
 
                 <flux:input.group label="Late by">
                     <flux:input wire:model="late_by_minutes" type="number" min="0" max="720" placeholder="30" class:input="text-right font-mono" required />

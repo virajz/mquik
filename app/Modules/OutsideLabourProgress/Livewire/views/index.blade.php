@@ -25,8 +25,8 @@
                 <flux:select.option :value="(string) $v->id" wire:key="vf-{{ $v->id }}">{{ $v->name }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:date-picker wire:model.live="fromDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
-        <flux:date-picker wire:model.live="toDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker locale="en-IN" wire:model.live="fromDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
+        <flux:date-picker locale="en-IN" wire:model.live="toDate" class="max-w-40" with-today selectable-header fixed-weeks type="input" />
         @if ($search || $statusFilter !== 'all' || $vendorFilter !== 'all' || $fromDate || $toDate)
             <flux:button variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">Clear</flux:button>
         @endif

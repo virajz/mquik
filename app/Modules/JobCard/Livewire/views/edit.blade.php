@@ -94,7 +94,7 @@
         <flux:separator />
 
         <div class="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-8 mt-6">
-        <form wire:submit="save" class="min-w-0">
+        <form wire:submit="save" novalidate class="min-w-0">
         @if (! $editingId)
             {{-- ============ LEAN CREATE ============ --}}
             @include('job-card::partials.section-customer-vehicle')
@@ -531,7 +531,7 @@
                                         @endif
                                     </span>
                                     <span class="shrink-0 text-xs text-zinc-500">
-                                        {{ $s['last_done_at']?->format('d M Y') ?? '—' }}
+                                        {{ $s['last_done_at']?->format('d/m/Y') ?? '—' }}
                                         @if ($s['last_km'])· {{ number_format($s['last_km']) }} km @endif
                                     </span>
                                     {{-- Says what is overdue and by how much, rather than just how old it is. --}}
@@ -562,7 +562,7 @@
                                 }" size="sm">{{ \App\Modules\JobCard\Models\JobCard::statuses()[$vjc->status] ?? $vjc->status }}</flux:badge>
                             </div>
                             <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
-                                <span>{{ $vjc->opened_at?->format('d M Y') ?? '—' }}</span>
+                                <span>{{ $vjc->opened_at?->format('d/m/Y') ?? '—' }}</span>
                                 @if ($vjc->currentStage)<span>· {{ $vjc->currentStage->name }}</span>@endif
                                 @if ($vjc->workshopDepartment)<span>· {{ $vjc->workshopDepartment->name }}</span>@endif
                                 @if ($vjc->advisor)<span>· {{ $vjc->advisor->name }}</span>@endif

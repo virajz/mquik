@@ -4,7 +4,7 @@
 @php($VENDOR = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryVendor::class)
 @php($QUOTE = \App\Modules\VendorPurchaseInquiry\Models\VendorPurchaseInquiryQuote::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         {{-- A disabled fieldset turns off every control inside it natively, so a
              read-only viewer cannot edit anything without duplicating the form. --}}
         <fieldset @disabled(! $this->canEdit) class="min-w-0">
@@ -124,7 +124,7 @@
                             label="Customer Approval" placeholder="Not approved yet…">
                             @foreach ($this->customerApprovals as $ap)
                                 <flux:select.option :value="$ap->id" wire:key="ca-{{ $ap->id }}">
-                                    {{ $ap->approval_no }}{{ $ap->customer_approved_at ? ' · approved '.$ap->customer_approved_at->format('d M Y') : ' · pending' }}
+                                    {{ $ap->approval_no }}{{ $ap->customer_approved_at ? ' · approved '.$ap->customer_approved_at->format('d/m/Y') : ' · pending' }}
                                 </flux:select.option>
                             @endforeach
                         </flux:select>

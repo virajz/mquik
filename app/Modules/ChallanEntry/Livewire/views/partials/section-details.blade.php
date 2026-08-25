@@ -46,7 +46,7 @@
                 @endforeach
             </flux:select>
             <flux:input wire:model="po_reference" label="PO Reference" placeholder="Optional" class:input="font-mono uppercase" />
-            <flux:date-picker wire:model="challan_date" label="Challan Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+            <flux:date-picker locale="en-IN" wire:model="challan_date" label="Challan Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

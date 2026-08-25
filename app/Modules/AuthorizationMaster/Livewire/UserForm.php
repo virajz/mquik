@@ -74,8 +74,9 @@ class UserForm extends Component
                 Rule::unique('users', 'vendor_id'),
             ],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
-            'phone' => ['required', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')],
+            // One reachable identifier is enough — either receives the login OTP.
+            'email' => ['required_without:phone', 'nullable', 'email', 'max:255', Rule::unique('users', 'email')],
+            'phone' => ['required_without:email', 'nullable', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')],
             'selectedRoles' => ['array'],
             'selectedRoles.*' => ['integer', Rule::exists('roles', 'id')],
         ];
@@ -159,8 +160,8 @@ class UserForm extends Component
 
         $user = User::create([
             'name' => $data['name'],
-            'email' => mb_strtolower($data['email']),
-            'phone' => preg_replace('/\D/', '', $data['phone']),
+            'email' => filled($data['email'] ?? null) ? mb_strtolower($data['email']) : null,
+            'phone' => filled($data['phone'] ?? null) ? preg_replace('/\D/', '', $data['phone']) : null,
             'user_type' => $data['userType'],
             'employee_id' => $data['userType'] === self::TYPE_EMPLOYEE ? $data['employeeId'] : null,
             'vendor_id' => $data['userType'] === self::TYPE_CONTRACTOR ? $data['vendorId'] : null,

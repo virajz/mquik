@@ -2,7 +2,7 @@
 @php($ITEM = \App\Modules\VehicleAmc\Models\VehicleAmcItem::class)
 @php($ATT = \App\Modules\VehicleAmc\Models\VehicleAmcAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('vehicle-amc.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Vehicle AMC
@@ -46,9 +46,9 @@
                     <flux:input wire:model="services_availed" type="number" min="0" label="Services Availed" class:input="text-right font-mono" required />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <flux:date-picker wire:model="start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="start_date" label="Start Date" with-today selectable-header fixed-weeks type="input" />
                     <div>
-                        <flux:date-picker wire:model="end_date" label="End Date" with-today selectable-header fixed-weeks type="input" />
+                        <flux:date-picker locale="en-IN" wire:model="end_date" label="End Date" with-today selectable-header fixed-weeks type="input" />
                         <flux:error name="end_date" />
                     </div>
                     <flux:input.group label="AMC Amount">

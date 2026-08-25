@@ -49,7 +49,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <flux:input wire:model="invoice_no" label="Invoice No." placeholder="Vendor invoice" class:input="font-mono uppercase" />
-            <flux:date-picker wire:model="invoice_date" label="Invoice Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+            <flux:date-picker locale="en-IN" wire:model="invoice_date" label="Invoice Date" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
             <flux:select wire:model="transport_mode_id" variant="listbox" searchable clearable label="Transport Mode" placeholder="Courier / Porter…">
                 @foreach ($this->transportModes as $tm)
                     <flux:select.option :value="$tm->id" wire:key="tm-{{ $tm->id }}">{{ $tm->name }}</flux:select.option>

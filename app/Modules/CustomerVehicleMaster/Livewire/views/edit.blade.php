@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         {{-- Page header --}}
         <div class="mb-8 flex items-start justify-between gap-4">
             <div>

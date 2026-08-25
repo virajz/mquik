@@ -1,6 +1,6 @@
 @php($OLI = \App\Modules\OutsideLabourInquiry\Models\OutsideLabourInquiry::class)
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('outside-labour-inquiry.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Outside Labour Inquiries
@@ -182,11 +182,11 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div class="grid grid-cols-2 gap-2">
-                        <flux:date-picker wire:model="promised_from" label="Promised From" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:date-picker locale="en-IN" wire:model="promised_from" label="Promised From" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                         <flux:time-picker wire:model="promised_from_time" label="Time" />
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <flux:date-picker wire:model="promised_to" label="Promised To" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                        <flux:date-picker locale="en-IN" wire:model="promised_to" label="Promised To" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                         <flux:time-picker wire:model="promised_to_time" label="Time" />
                     </div>
                 </div>

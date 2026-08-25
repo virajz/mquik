@@ -1,7 +1,7 @@
 @php($SDF = \App\Modules\ServiceDueFollowUp\Models\ServiceDueFollowUp::class)
 @php($ATT = \App\Modules\ServiceDueFollowUp\Models\ServiceDueFollowUpAttachment::class)
 <div>
-    <form wire:submit="save" class="max-w-4xl">
+    <form wire:submit="save" novalidate class="max-w-4xl">
         <div class="mb-8">
             <flux:link :href="route('service-due-follow-up.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Service Due Follow-Ups
@@ -37,7 +37,7 @@
                         @foreach ($SDF::intervalMethods() as $key => $label)<flux:select.option :value="$key">{{ $label }}</flux:select.option>@endforeach
                     </flux:select>
                     <flux:input wire:model="service_interval" label="Service Interval" placeholder="10000 / 6_month" class:input="font-mono" />
-                    <flux:date-picker wire:model="due_date" label="Due Date" with-today selectable-header fixed-weeks type="input" />
+                    <flux:date-picker locale="en-IN" wire:model="due_date" label="Due Date" with-today selectable-header fixed-weeks type="input" />
                     <flux:input wire:model="odometer" type="number" min="0" label="Odometer" class:input="text-right font-mono" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -75,7 +75,7 @@
                     </flux:select>
                     <div x-show="$wire.status === 'appointment_booked'" x-cloak>
                         <div class="grid grid-cols-2 gap-2">
-                            <flux:date-picker wire:model="appointment_at" label="Appointment At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
+                            <flux:date-picker locale="en-IN" wire:model="appointment_at" label="Appointment At" placeholder="Optional" with-today selectable-header fixed-weeks type="input" />
                             <flux:time-picker wire:model="appointment_at_time" label="Time" />
                         </div>
                     </div>

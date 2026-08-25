@@ -90,8 +90,8 @@
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500">{{ $row->technician?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-xs text-zinc-500">
-                        <div>{{ $row->promised_delivery_at?->format('d M, H:i') ?? '—' }}</div>
-                        <div>{{ $row->expected_completion_at?->format('d M, H:i') ?? '' }}</div>
+                        <div>{{ $row->promised_delivery_at?->format('d/m, H:i') ?? '—' }}</div>
+                        <div>{{ $row->expected_completion_at?->format('d/m, H:i') ?? '' }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
                         @php($sc = match ($row->status) {

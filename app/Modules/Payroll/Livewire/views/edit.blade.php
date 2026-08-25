@@ -1,5 +1,5 @@
 <div>
-    <form wire:submit="save" class="max-w-3xl">
+    <form wire:submit="save" novalidate class="max-w-3xl">
         <div class="mb-8">
             <flux:link :href="route('payroll.index')" variant="ghost" class="text-xs">
                 <flux:icon.chevron-left class="inline size-3 -mt-0.5" /> Payroll
@@ -86,7 +86,7 @@
                             <flux:select.option :value="$k">{{ $v }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:date-picker wire:model="payment_date" label="Payment Date" with-today selectable-header fixed-weeks type="input" clearable />
+                    <flux:date-picker locale="en-IN" wire:model="payment_date" label="Payment Date" with-today selectable-header fixed-weeks type="input" clearable />
                 </div>
                 <flux:textarea wire:model="notes" label="Notes" placeholder="Optional notes" rows="2" />
             </div>

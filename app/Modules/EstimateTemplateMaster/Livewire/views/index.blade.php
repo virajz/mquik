@@ -37,7 +37,7 @@
                                 <flux:badge color="sky" size="sm">{{ \App\Modules\EstimateTemplateMaster\Models\EstimateTemplateMaster::categories()[$row->category] ?? $row->category }}</flux:badge>
                             @endif
                             @if ($row->effective_date)
-                                <span>w.e.f. {{ $row->effective_date->format('d M Y') }}</span>
+                                <span>w.e.f. {{ $row->effective_date->format('d/m/Y') }}</span>
                             @endif
                         </div>
                     </flux:table.cell>

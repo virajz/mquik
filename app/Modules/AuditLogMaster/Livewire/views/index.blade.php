@@ -56,7 +56,7 @@
             @endforeach
         </flux:select>
 
-        <flux:date-picker
+        <flux:date-picker locale="en-IN"
             wire:model.live="dateFrom"
             placeholder="From"
             type="input"
@@ -66,7 +66,7 @@
             class="max-w-44"
         />
 
-        <flux:date-picker
+        <flux:date-picker locale="en-IN"
             wire:model.live="dateTo"
             placeholder="To"
             type="input"

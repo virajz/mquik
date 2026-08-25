@@ -9,6 +9,8 @@ class UserOtp extends Model
 {
     public const PURPOSE_PASSWORD_RESET = 'password_reset';
 
+    public const PURPOSE_LOGIN = 'login';
+
     public const PURPOSE_PHONE_VERIFICATION = 'phone_verification';
 
     /** A code is useless after this many wrong guesses. */

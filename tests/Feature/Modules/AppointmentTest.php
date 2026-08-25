@@ -14,6 +14,7 @@ use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\HolidayMaster\Models\HolidayMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\JobDescriptionMaster\Models\JobDescriptionMaster;
 use App\Modules\PendingReasonMaster\Models\PendingReasonMaster;
 use App\Modules\PickupDrop\Models\PickupDrop;
 use App\Modules\PickupDropOptionMaster\Models\PickupDropOptionMaster;
@@ -55,7 +56,7 @@ function fillValidAppointment(Testable $component): Testable
     return $component
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
-        ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
+        ->set('department_ids', [(string) WorkshopDepartmentMaster::factory()->create()->id])
         ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
         ->set('booking_channel_id', channel()->id)
         ->set('priority_id', PriorityMaster::firstOrCreate(['name' => 'NORMAL'], ['is_active' => true])->id)
@@ -144,7 +145,7 @@ it('requires a booking channel and a pickup/drop option', function () {
     Livewire::test(Edit::class)
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
-        ->set('workshop_department_id', WorkshopDepartmentMaster::factory()->create()->id)
+        ->set('department_ids', [(string) WorkshopDepartmentMaster::factory()->create()->id])
         ->set('assigned_advisor_id', EmployeeMaster::factory()->create()->id)
         ->call('save')
         ->assertHasErrors(['booking_channel_id', 'pickup_drop_option_id']);
@@ -700,7 +701,7 @@ it('offers only the chosen department\'s service types', function () {
     ServiceTypeMaster::factory()->create(['workshop_department_id' => $bodyshop->id, 'is_active' => true]);
 
     $offered = Livewire::test(Edit::class)
-        ->set('workshop_department_id', $mechanical->id)
+        ->set('department_ids', [(string) $mechanical->id])
         ->instance()->serviceTypes;
 
     expect($offered->pluck('id')->all())->toBe([$mine->id]);
@@ -712,9 +713,9 @@ it('clears a service type belonging to the previous department', function () {
     $mine = ServiceTypeMaster::factory()->create(['workshop_department_id' => $mechanical->id, 'is_active' => true]);
 
     $component = Livewire::test(Edit::class)
-        ->set('workshop_department_id', $mechanical->id)
+        ->set('department_ids', [(string) $mechanical->id])
         ->set('service_type_id', $mine->id)
-        ->set('workshop_department_id', $bodyshop->id);
+        ->set('department_ids', [(string) $bodyshop->id]);
 
     expect($component->get('service_type_id'))->toBeNull();
 });
@@ -725,7 +726,7 @@ it('rejects a service type from another department on save', function () {
     $theirs = ServiceTypeMaster::factory()->create(['workshop_department_id' => $bodyshop->id, 'is_active' => true]);
 
     fillValidAppointment(Livewire::test(Edit::class))
-        ->set('workshop_department_id', $mechanical->id)
+        ->set('department_ids', [(string) $mechanical->id])
         ->set('service_type_id', $theirs->id)
         ->call('save')
         ->assertHasErrors(['service_type_id']);
@@ -746,4 +747,41 @@ it('drops a legacy mismatched pairing when the form opens', function () {
 
     expect($component->get('service_type_id'))->toBeNull()
         ->and($component->get('workshop_department_id'))->toBe($mechanical->id);
+});
+
+it('books a visit spanning multiple departments and reloads the selection', function () {
+    $svc = WorkshopDepartmentMaster::factory()->create();
+    $tyre = WorkshopDepartmentMaster::factory()->create();
+    ServiceTypeMaster::factory()->create(['workshop_department_id' => $svc->id]);
+
+    fillValidAppointment(Livewire::test(Edit::class))
+        ->set('department_ids', [(string) $svc->id, (string) $tyre->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $appointment = Appointment::latest('id')->first();
+
+    expect($appointment->workshop_department_id)->toBe($svc->id) // primary = first picked
+        ->and($appointment->workshopDepartments->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$svc->id, $tyre->id])->sort()->values()->all());
+
+    $reopened = Livewire::test(Edit::class, ['appointment' => $appointment]);
+
+    expect(collect($reopened->get('department_ids'))->map(fn ($id) => (int) $id)->sort()->values()->all())
+        ->toBe(collect([$svc->id, $tyre->id])->sort()->values()->all());
+});
+
+it('offers the checklist grouped per department', function () {
+    $a = WorkshopDepartmentMaster::factory()->create(['name' => 'AAA DEPT']);
+    $b = WorkshopDepartmentMaster::factory()->create(['name' => 'BBB DEPT']);
+    foreach ([$a, $b] as $dept) {
+        $st = ServiceTypeMaster::factory()->create(['workshop_department_id' => $dept->id]);
+        JobDescriptionMaster::factory()->create(['service_type_id' => $st->id, 'category' => 'frequent', 'is_active' => true]);
+    }
+
+    $boxes = Livewire::test(Edit::class)
+        ->set('department_ids', [(string) $a->id, (string) $b->id])
+        ->instance()->frequentServiceGroupsByDepartment;
+
+    expect($boxes->keys()->all())->toBe(['AAA DEPT', 'BBB DEPT']);
 });
