@@ -4,9 +4,14 @@ namespace App\Modules\VehicleInspectionOrder\Livewire;
 
 use App\Concerns\ScopesToRecord;
 use App\Modules\BayMaster\Models\BayMaster;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\JobCard\Models\JobCard;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
+use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -37,13 +42,42 @@ class Index extends Component
     #[Url(as: 'bay')]
     public string $bayFilter = 'all';
 
+    #[Url(as: 'dept')]
+    public string $departmentFilter = 'all';
+
+    #[Url(as: 'stype')]
+    public string $serviceTypeFilter = 'all';
+
+    #[Url(as: 'advisor')]
+    public string $advisorFilter = 'all';
+
+    #[Url(as: 'from')]
+    public string $dateFrom = '';
+
+    #[Url(as: 'to')]
+    public string $dateTo = '';
+
+    /** Which stamp the date range applies to — ordered, started or completed. */
+    #[Url(as: 'on')]
+    public string $dateField = 'ordered_at';
+
     #[Url(as: 'sort')]
     public string $sortBy = 'created_at';
 
     #[Url(as: 'dir')]
     public string $sortDirection = 'desc';
 
-    protected array $sortable = ['id', 'order_no', 'status', 'priority_id', 'created_at', 'started_at', 'ended_at'];
+    /**
+     * Every column heading sorts. Related names cannot be ordered by their
+     * foreign key — that sorts by row id, not alphabetically — so they get a
+     * correlated subquery instead; see `sortExpression()`.
+     */
+    protected array $sortable = [
+        'order_no', 'ordered_at', 'created_at', 'started_at', 'ended_at',
+        'status', 'priority_id', 'items_count',
+        'job_card_no', 'registration_no', 'vehicle_name',
+        'department', 'service_type', 'advisor', 'technician', 'bay',
+    ];
 
     public function updatingSearch(): void
     {
@@ -70,6 +104,36 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatingDepartmentFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingServiceTypeFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingAdvisorFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDateTo(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDateField(): void
+    {
+        $this->resetPage();
+    }
+
     public function sort(string $column): void
     {
         if (! in_array($column, $this->sortable, true)) {
@@ -84,6 +148,49 @@ class Index extends Component
         }
     }
 
+    /**
+     * How a sortable column becomes something the database can order by.
+     *
+     * Relation columns return a correlated subquery: ordering by `technician_id`
+     * would sort by row id, which is not alphabetical and reads as random.
+     */
+    protected function sortExpression(): mixed
+    {
+        return match ($this->sortBy) {
+            'job_card_no' => JobCard::select('job_card_no')
+                ->whereColumn('job_cards.id', 'vehicle_inspection_orders.job_card_id')
+                ->limit(1),
+            'registration_no' => CustomerVehicleMaster::select('registration_no')
+                ->join('job_cards', 'job_cards.customer_vehicle_id', '=', 'customer_vehicles.id')
+                ->whereColumn('job_cards.id', 'vehicle_inspection_orders.job_card_id')
+                ->limit(1),
+            'vehicle_name' => VehicleModelMaster::select('vehicle_models.name')
+                ->join('customer_vehicles', 'customer_vehicles.model_id', '=', 'vehicle_models.id')
+                ->join('job_cards', 'job_cards.customer_vehicle_id', '=', 'customer_vehicles.id')
+                ->whereColumn('job_cards.id', 'vehicle_inspection_orders.job_card_id')
+                ->limit(1),
+            'department' => WorkshopDepartmentMaster::select('name')
+                ->whereColumn('workshop_departments.id', 'vehicle_inspection_orders.department_id')
+                ->limit(1),
+            'service_type' => ServiceTypeMaster::select('name')
+                ->whereColumn('service_types.id', 'vehicle_inspection_orders.service_type_id')
+                ->limit(1),
+            'advisor' => EmployeeMaster::select('name')
+                ->whereColumn('employees.id', 'vehicle_inspection_orders.advisor_id')
+                ->limit(1),
+            'technician' => EmployeeMaster::select('name')
+                ->whereColumn('employees.id', 'vehicle_inspection_orders.technician_id')
+                ->limit(1),
+            'bay' => BayMaster::select('name')
+                ->whereColumn('bays.id', 'vehicle_inspection_orders.bay_id')
+                ->limit(1),
+            'priority_id' => PriorityMaster::select('name')
+                ->whereColumn('priorities.id', 'vehicle_inspection_orders.priority_id')
+                ->limit(1),
+            default => $this->sortBy,
+        };
+    }
+
     public function delete(int $id): void
     {
         $this->authorize('vehicle_inspection_order.delete');
@@ -93,9 +200,18 @@ class Index extends Component
         Flux::toast(text: 'Work Order #'.$id.' deleted.', variant: 'success');
     }
 
+    public function clearDateRange(): void
+    {
+        $this->reset(['dateFrom', 'dateTo']);
+        $this->resetPage();
+    }
+
     public function clearFilters(): void
     {
-        $this->reset(['search', 'statusFilter', 'priorityFilter', 'technicianFilter', 'bayFilter']);
+        $this->reset([
+            'search', 'statusFilter', 'priorityFilter', 'technicianFilter', 'bayFilter',
+            'departmentFilter', 'serviceTypeFilter', 'advisorFilter', 'dateFrom', 'dateTo', 'dateField',
+        ]);
         $this->resetPage();
     }
 
@@ -103,6 +219,22 @@ class Index extends Component
     public function technicians()
     {
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function departments()
+    {
+        return WorkshopDepartmentMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function serviceTypes()
+    {
+        return ServiceTypeMaster::query()
+            ->where('is_active', true)
+            ->when($this->departmentFilter !== 'all', fn ($q) => $q->where('workshop_department_id', (int) $this->departmentFilter))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     #[Computed]
@@ -134,6 +266,14 @@ class Index extends Component
         ];
     }
 
+    /** Whitelisted so the range can never be pointed at an arbitrary column. */
+    protected function dateColumn(): string
+    {
+        return in_array($this->dateField, ['ordered_at', 'started_at', 'ended_at', 'created_at'], true)
+            ? $this->dateField
+            : 'ordered_at';
+    }
+
     public function render()
     {
         $search = trim($this->search);
@@ -146,6 +286,10 @@ class Index extends Component
                 'technician:id,name',
                 'priority:id,name',
                 'bay:id,name',
+                'advisor:id,name',
+                'department:id,name',
+                'serviceType:id,name',
+                'jobCard.customerVehicle.model:id,name',
                 'template:id,name',
             ])
             ->withCount('items')
@@ -154,7 +298,12 @@ class Index extends Component
             ->when($this->priorityFilter !== 'all', fn ($q) => $q->where('priority_id', (int) $this->priorityFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('technician_id', (int) $this->technicianFilter))
             ->when($this->bayFilter !== 'all', fn ($q) => $q->where('bay_id', (int) $this->bayFilter))
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->when($this->departmentFilter !== 'all', fn ($q) => $q->where('department_id', (int) $this->departmentFilter))
+            ->when($this->serviceTypeFilter !== 'all', fn ($q) => $q->where('service_type_id', (int) $this->serviceTypeFilter))
+            ->when($this->advisorFilter !== 'all', fn ($q) => $q->where('advisor_id', (int) $this->advisorFilter))
+            ->when($this->dateFrom !== '', fn ($q) => $q->whereDate($this->dateColumn(), '>=', $this->dateFrom))
+            ->when($this->dateTo !== '', fn ($q) => $q->whereDate($this->dateColumn(), '<=', $this->dateTo))
+            ->orderBy($this->sortExpression(), $this->sortDirection)
             ->tap(fn ($q) => $this->applyRecordScope($q))
             ->paginate(20);
 
@@ -163,6 +312,7 @@ class Index extends Component
             'statuses' => VehicleInspectionOrder::statuses(),
             'priorities' => PriorityMaster::forScope(PriorityMaster::APPLIES_WORKSHOP)->pluck('name', 'id'),
             'kpis' => $this->kpis(),
+            'advisors' => $this->technicians,
         ]);
     }
 }

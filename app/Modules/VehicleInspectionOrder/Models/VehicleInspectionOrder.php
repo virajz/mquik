@@ -18,6 +18,7 @@ use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Database\Factories\VehicleInspectionOrderFactory;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\FinancialYear;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,13 +47,27 @@ class VehicleInspectionOrder extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'ordered_at' => 'datetime',
         'assigned_at' => 'datetime',
         'accepted_at' => 'datetime',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['order_no', 'notes', 'registration_no', 'jobCard.job_card_no'];
+    /**
+     * `registration_no` is not a column here — the plate lives on the vehicle,
+     * so it is reached through the job card. Same for the model and brand, which
+     * is what makes "SWIFT KA01" or "711%Q7" find the right order.
+     */
+    protected static array $searchableFields = [
+        'order_no', 'notes',
+        'jobCard.job_card_no',
+        'jobCard.customerVehicle.registration_no',
+        'jobCard.customerVehicle.vin',
+        'jobCard.customerVehicle.model.name',
+        'jobCard.customerVehicle.model.brand.name',
+        'jobCard.customer.first_name', 'jobCard.customer.last_name',
+    ];
 
     protected static function newFactory(): VehicleInspectionOrderFactory
     {
@@ -64,7 +79,15 @@ class VehicleInspectionOrder extends Model
         static::created(function (self $row) {
             if ($row->order_no === null) {
                 $row->forceFill([
-                    'order_no' => 'VIO-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
+                    'fy_label' => $fy = FinancialYear::label($row->ordered_at ?? $row->created_at),
+                    // Continue from the highest number issued this FY. A count
+                    // would collide the moment the sequence has any gap in it.
+                    'order_no' => 'MQ/VIO/'.$fy.'/'.str_pad(
+                        (string) (((int) static::where('fy_label', $fy)
+                            ->selectRaw("max(cast(split_part(order_no, '/', 4) as integer)) as top")
+                            ->value('top')) + 1),
+                        5, '0', STR_PAD_LEFT,
+                    ),
                 ])->saveQuietly();
             }
 

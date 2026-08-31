@@ -30,6 +30,9 @@ trait ManagesScopeTimers
             'technician_id' => $technicianId,
             'work_status' => VehicleInspectionOrderScope::STATUS_IN_PROGRESS,
             'run_started_at' => now(),
+            // Only the first start: resuming after a pause must not move the
+            // time work began, or the TAT shrinks every time they take a break.
+            'work_started_at' => $scope->work_started_at ?? now(),
             'completed_at' => null,
         ])->save();
     }

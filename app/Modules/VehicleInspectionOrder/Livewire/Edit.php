@@ -20,10 +20,12 @@ use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Concerns\ManagesScopeTimers;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrderScope;
+use App\Modules\VehicleInspectionOrder\Support\InspectionOrderStatus;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use App\Support\ChildRows;
 use Flux\Flux;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -57,6 +59,11 @@ class Edit extends Component
     public ?int $technician_id = null;
 
     public ?int $bay_id = null;
+
+    /** When this work order was raised — the advisor's statement, not a guess. */
+    public string $ordered_date = '';
+
+    public string $ordered_time = '';
 
     public ?int $inspection_template_id = null;
 
@@ -104,6 +111,10 @@ class Edit extends Component
 
     public function mount(?VehicleInspectionOrder $vehicleInspectionOrder = null): void
     {
+        $now = now();
+        $this->ordered_date = $now->format('Y-m-d');
+        $this->ordered_time = $now->format('H:i');
+
         if ($vehicleInspectionOrder && $vehicleInspectionOrder->exists) {
             $this->load($vehicleInspectionOrder);
 
@@ -120,6 +131,12 @@ class Edit extends Component
     public function updatedJobCardId(): void
     {
         $this->prefillFromJobCard();
+
+        // A fresh order starts from the card's own to-do list; an order that
+        // already has scope keeps whatever someone put on it.
+        if ($this->job_card_id && $this->workScopes === []) {
+            $this->fetchScopeFromJobCard();
+        }
     }
 
     protected function prefillFromJobCard(): void
@@ -150,6 +167,8 @@ class Edit extends Component
         $this->technician_id = $order->technician_id;
         $this->bay_id = $order->bay_id;
         $this->inspection_template_id = $order->inspection_template_id;
+        $this->ordered_date = $order->ordered_at?->format('Y-m-d') ?? $this->ordered_date;
+        $this->ordered_time = $order->ordered_at?->format('H:i') ?? $this->ordered_time;
         $this->priority_id = $order->priority_id;
         $this->status = $order->status;
         $this->completion_type = $order->completion_type;
@@ -159,6 +178,7 @@ class Edit extends Component
         $this->notes = $order->notes;
 
         $this->items = $order->items->map(fn ($i) => [
+            'inspection_template_id' => $i->inspection_template_id,
             'id' => $i->id,
             'inspection_item_id' => $i->inspection_item_id,
             'inspection_item_group_id' => $i->inspection_item_group_id,
@@ -182,6 +202,9 @@ class Edit extends Component
         ])->all();
 
         $this->workScopes = $order->workScopes->map(fn ($s) => [
+            'is_chargeable' => (bool) $s->is_chargeable,
+            'approved_by_id' => $s->approved_by_id,
+            'approved_at' => $s->approved_at?->format('Y-m-d H:i:s'),
             'id' => $s->id,
             'complaint_type_id' => $s->complaint_type_id,
             'job_description_id' => $s->job_description_id,
@@ -192,6 +215,7 @@ class Edit extends Component
             'is_additional' => (bool) $s->is_additional,
             'description' => $s->description,
             'work_status' => $s->work_status ?? 'pending',
+            'completion_type' => $s->completion_type,
             'run_started_at' => $s->run_started_at?->getTimestamp(),
             'duration_seconds' => (int) $s->duration_seconds,
         ])->all();
@@ -207,44 +231,72 @@ class Edit extends Component
     /**
      * On create, snapshot every template item into $items with result=pending.
      */
-    public function updatedInspectionTemplateId(): void
+    /**
+     * The technician adds a checklist for what they are actually doing — PMS,
+     * tyre, whatever — and one order can carry several. Appended, never
+     * replacing, and each item remembers which template it came from.
+     */
+    public string $addTemplateId = '';
+
+    public function addTemplateItems(): void
     {
-        if ($this->editingId) {
+        if ($this->addTemplateId === '') {
+            Flux::toast(text: 'Pick a checklist to add.', variant: 'warning');
+
             return;
         }
 
-        $this->items = [];
+        $template = InspectionTemplateMaster::with(['items.group'])->find($this->addTemplateId);
 
-        if (! $this->inspection_template_id) {
-            return;
-        }
-
-        $template = InspectionTemplateMaster::with(['items.group'])->find($this->inspection_template_id);
         if (! $template) {
             return;
         }
 
-        $seq = 1;
+        $already = collect($this->items)->pluck('inspection_template_id')->filter()->contains((int) $template->id);
+
+        if ($already) {
+            Flux::toast(text: $template->name.' is already on this order.', variant: 'warning');
+
+            return;
+        }
+
+        $seq = count($this->items);
+
         foreach ($template->items as $tplItem) {
             $this->items[] = [
                 'id' => null,
+                'inspection_template_id' => $template->id,
                 'inspection_item_id' => $tplItem->id,
                 'inspection_item_group_id' => $tplItem->inspection_item_group_id,
                 'label' => $tplItem->name,
                 'group_name' => $tplItem->group?->name,
                 'result' => 'pending',
                 'notes' => null,
-                'sequence_no' => $seq++,
+                'sequence_no' => ++$seq,
                 'before_photo_path' => null,
                 'after_photo_path' => null,
             ];
         }
+
+        $this->addTemplateId = '';
+
+        Flux::toast(text: $template->name.' checklist added.', variant: 'success');
+    }
+
+    /** Drop every checkpoint that came from one template. */
+    public function removeTemplateItems(int $templateId): void
+    {
+        $this->items = array_values(array_filter(
+            $this->items,
+            fn ($item) => (int) ($item['inspection_template_id'] ?? 0) !== $templateId,
+        ));
     }
 
     public function addItem(): void
     {
         $this->items[] = [
             'id' => null,
+            'inspection_template_id' => null,
             'inspection_item_id' => null,
             'inspection_item_group_id' => null,
             'label' => '',
@@ -278,8 +330,9 @@ class Edit extends Component
         $this->workScopes[] = [
             'id' => null, 'complaint_type_id' => null, 'job_description_id' => null,
             'service_package_id' => null, 'labour_id' => null, 'requested_repair_id' => null,
-            'technician_id' => null, 'is_additional' => false, 'description' => '',
-            'work_status' => 'pending', 'run_started_at' => null, 'duration_seconds' => 0,
+            'technician_id' => null, 'is_additional' => false, 'is_chargeable' => false,
+            'approved_by_id' => null, 'approved_at' => null, 'description' => '',
+            'work_status' => 'pending', 'completion_type' => null, 'run_started_at' => null, 'duration_seconds' => 0,
         ];
     }
 
@@ -367,28 +420,11 @@ class Edit extends Component
         $this->photoFiles = array_values($this->photoFiles);
     }
 
-    public function addPause(): void
-    {
-        $this->pauses[] = [
-            'id' => null,
-            'hold_reason_id' => null,
-            'paused_date' => null,
-            'paused_time' => null,
-            'resumed_date' => null,
-            'resumed_time' => null,
-            'notes' => null,
-        ];
-    }
-
-    public function removePause(int $index): void
-    {
-        unset($this->pauses[$index]);
-        $this->pauses = array_values($this->pauses);
-    }
-
     protected function rules(): array
     {
         return [
+            'ordered_date' => ['required', 'date_format:Y-m-d'],
+            'ordered_time' => ['required', 'date_format:H:i'],
             'job_card_id' => ['required', 'integer', 'exists:job_cards,id'],
             'department_id' => ['nullable', 'integer', 'exists:workshop_departments,id'],
             'service_type_id' => ['nullable', 'integer', 'exists:service_types,id'],
@@ -398,7 +434,6 @@ class Edit extends Component
             'inspection_template_id' => ['nullable', 'integer', Rule::exists('inspection_templates', 'id')->where('is_active', true)],
             'priority_id' => ['nullable', 'integer', Rule::exists('priorities', 'id')->where('is_active', true)],
             'status' => ['required', Rule::in(array_keys(VehicleInspectionOrder::statuses()))],
-            'completion_type' => ['nullable', Rule::in(array_keys(VehicleInspectionOrder::completionTypes()))],
             'hold_reason_id' => ['nullable', 'integer', 'exists:work_order_hold_reasons,id'],
             'rework_reason_id' => ['nullable', 'integer', 'exists:rework_reasons,id'],
             'delay_reason_id' => ['nullable', 'integer', 'exists:delay_reasons,id'],
@@ -406,10 +441,10 @@ class Edit extends Component
 
             'items' => ['array'],
             'items.*.label' => ['required', 'string', 'max:255'],
+            'items.*.inspection_template_id' => ['nullable', 'integer', 'exists:inspection_templates,id'],
             'items.*.result' => ['required', Rule::in(array_keys(VehicleInspectionOrder::results()))],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
 
-            'itemBeforeFiles' => ['array'],
             'workScopes' => ['array'],
             'workScopes.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'workScopes.*.job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
@@ -418,22 +453,13 @@ class Edit extends Component
             'workScopes.*.requested_repair_id' => ['nullable', 'integer', Rule::exists('requested_repairs', 'id')->where('is_active', true)],
             'workScopes.*.technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
             'workScopes.*.is_additional' => ['boolean'],
+            'workScopes.*.is_chargeable' => ['boolean'],
             'workScopes.*.description' => ['required', 'string', 'max:500'],
             'photos' => ['array'],
             'photos.*.photo_type_id' => ['nullable', 'integer', Rule::exists('photo_types', 'id')->where('is_active', true)],
             'photos.*.notes' => ['nullable', 'string', 'max:255'],
             'photoFiles.*' => ['nullable', 'image', 'max:8192'],
-            'itemBeforeFiles.*' => ['image', 'max:8192'],
-            'itemAfterFiles' => ['array'],
-            'itemAfterFiles.*' => ['image', 'max:8192'],
 
-            'pauses' => ['array'],
-            'pauses.*.hold_reason_id' => ['nullable', 'integer', 'exists:work_order_hold_reasons,id'],
-            'pauses.*.paused_date' => ['nullable', 'date'],
-            'pauses.*.paused_time' => ['nullable', 'string'],
-            'pauses.*.resumed_date' => ['nullable', 'date'],
-            'pauses.*.resumed_time' => ['nullable', 'string'],
-            'pauses.*.notes' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -529,8 +555,13 @@ class Edit extends Component
     #[Computed]
     public function labours()
     {
+        // The department comes along: it is what tells an alignment job from an
+        // AC job, and therefore which technician it belongs to.
         return LabourMaster::query()
-            ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+            ->where('is_active', true)
+            ->with('workshopDepartment:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'workshop_department_id']);
     }
 
     #[Computed]
@@ -562,40 +593,159 @@ class Edit extends Component
             ->get();
     }
 
+    /**
+     * The job card already lists what the customer asked for. Pull those
+     * complaints and requested repairs in as the technician's to-do list rather
+     * than making someone re-pick them from six dropdowns.
+     */
+    public function fetchScopeFromJobCard(): void
+    {
+        if (! $this->job_card_id) {
+            Flux::toast(text: 'Pick a job card first.', variant: 'warning');
+
+            return;
+        }
+
+        $card = JobCard::with(['complaints.requestedRepair', 'requestedRepairs'])->find($this->job_card_id);
+
+        if (! $card) {
+            return;
+        }
+
+        // Whatever is already on the order stays; this only adds what is missing.
+        // Matched on the repair where there is one and on the text otherwise —
+        // older complaints predate the repair link and carry only words.
+        $seen = collect($this->workScopes)
+            ->map(fn ($s) => [
+                'repair' => (int) ($s['requested_repair_id'] ?? 0),
+                'text' => mb_strtoupper(trim((string) ($s['description'] ?? ''))),
+            ]);
+
+        $isNew = function (?int $repairId, string $text) use (&$seen) {
+            $text = mb_strtoupper(trim($text));
+
+            $known = $seen->contains(
+                fn ($s) => ($repairId && $s['repair'] === $repairId) || ($text !== '' && $s['text'] === $text),
+            );
+
+            if ($known) {
+                return false;
+            }
+
+            $seen->push(['repair' => (int) $repairId, 'text' => $text]);
+
+            return true;
+        };
+
+        $added = 0;
+
+        foreach ($card->complaints as $complaint) {
+            // Prefer what the complaint actually says; fall back to the repair's name.
+            $text = trim((string) $complaint->description) ?: (string) $complaint->requestedRepair?->name;
+
+            if ($text === '' || ! $isNew($complaint->requested_repair_id, $text)) {
+                continue;
+            }
+
+            $this->workScopes[] = array_merge($this->blankScope(), [
+                'complaint_type_id' => $complaint->complaint_type_id,
+                'requested_repair_id' => $complaint->requested_repair_id,
+                'description' => $text,
+            ]);
+            $added++;
+        }
+
+        foreach ($card->requestedRepairs as $repair) {
+            if (! $isNew($repair->id, $repair->name)) {
+                continue;
+            }
+
+            $this->workScopes[] = array_merge($this->blankScope(), [
+                'requested_repair_id' => $repair->id,
+                'description' => $repair->name,
+            ]);
+            $added++;
+        }
+
+        Flux::toast(
+            text: $added ? $added.' item(s) pulled from '.$card->job_card_no.'.' : 'Nothing new on that job card.',
+            variant: $added ? 'success' : 'warning',
+        );
+    }
+
+    /** @return array<string, mixed> */
+    protected function blankScope(): array
+    {
+        return [
+            'id' => null, 'complaint_type_id' => null, 'job_description_id' => null,
+            'service_package_id' => null, 'labour_id' => null, 'requested_repair_id' => null,
+            'technician_id' => null, 'is_additional' => false, 'is_chargeable' => false,
+            'approved_by_id' => null, 'approved_at' => null, 'description' => '',
+            'work_status' => 'pending', 'completion_type' => null, 'run_started_at' => null, 'duration_seconds' => 0,
+        ];
+    }
+
+    /**
+     * An additional check the technician found is theirs to raise; a chargeable
+     * one is not theirs to bill. The advisor confirms it, and that confirmation
+     * is stamped with who gave it.
+     */
+    public function approveAdditionalWork(int $index): void
+    {
+        $this->authorize('vehicle_inspection_order.update');
+
+        if (! isset($this->workScopes[$index])) {
+            return;
+        }
+
+        $this->workScopes[$index]['approved_by_id'] = $this->advisor_id;
+        $this->workScopes[$index]['approved_at'] = now()->format('Y-m-d H:i:s');
+
+        Flux::toast(text: 'Additional work approved — it can now be billed.', variant: 'success');
+    }
+
+    public function revokeAdditionalWork(int $index): void
+    {
+        $this->authorize('vehicle_inspection_order.update');
+
+        if (! isset($this->workScopes[$index])) {
+            return;
+        }
+
+        $this->workScopes[$index]['approved_by_id'] = null;
+        $this->workScopes[$index]['approved_at'] = null;
+    }
+
+    #[Computed]
+    public function statusExplanation(): string
+    {
+        return InspectionOrderStatus::explain(
+            $this->editingId ? VehicleInspectionOrder::find($this->editingId) : null
+        );
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'vehicle_inspection_order.update' : 'vehicle_inspection_order.create');
 
         $data = $this->validate();
         $items = $data['items'] ?? [];
-        $pauses = $data['pauses'] ?? [];
         // Use the component array (not the validated copy) so each scope keeps its
         // `id` — validate() drops unruled keys, which would delete+recreate rows and
         // wipe their timer state. syncWorkScopes only writes the descriptive columns.
         $workScopes = $this->workScopes;
         $photos = $data['photos'] ?? [];
+        $data['ordered_at'] = Carbon::parse($data['ordered_date'].' '.$data['ordered_time'].':00');
         unset($data['items'], $data['pauses'], $data['workScopes'], $data['photos'],
+            $data['ordered_date'], $data['ordered_time'],
             $data['itemBeforeFiles'], $data['itemAfterFiles'], $data['photoFiles']);
 
-        // Stamp lifecycle timestamps on status transitions.
-        $existing = $this->editingId ? VehicleInspectionOrder::find($this->editingId) : null;
-        if ($data['status'] === VehicleInspectionOrder::STATUS_ASSIGNED && (! $existing || ! $existing->assigned_at)) {
-            $data['assigned_at'] = now();
-        }
-        if ($data['status'] === VehicleInspectionOrder::STATUS_WIP && (! $existing || ! $existing->started_at)) {
-            $data['started_at'] = now();
-        }
-        if ($data['status'] === VehicleInspectionOrder::STATUS_COMPLETED) {
-            $data['ended_at'] = now();
-        }
+        // Status is derived from the bench, never typed: keep whatever it is now
+        // and let InspectionOrderStatus recompute once the scopes are written.
+        $data['status'] = $existing?->status ?? VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING;
+        $data['completion_type'] = $existing?->completion_type;
 
-        if (isset($data['notes']) && is_string($data['notes'])) {
-            $data['notes'] = strtoupper($data['notes']);
-        }
-
-        $isCreate = $this->editingId === null;
-
-        $order = DB::transaction(function () use ($data, $items, $pauses, $workScopes, $photos, $isCreate) {
+        $order = DB::transaction(function () use ($data, $items, $workScopes, $photos, $isCreate) {
             if ($isCreate) {
                 $row = VehicleInspectionOrder::create($data);
                 $this->editingId = $row->id;
@@ -606,12 +756,14 @@ class Edit extends Component
             }
 
             $this->syncItems($row, $items);
-            $this->syncPauses($row, $pauses);
             $this->syncWorkScopes($row, $workScopes);
             $this->syncPhotos($row, $photos);
 
             return $row;
         });
+
+        InspectionOrderStatus::refresh($order);
+        $this->status = $order->fresh()->status;
 
         $this->itemBeforeFiles = [];
         $this->itemAfterFiles = [];
@@ -656,6 +808,7 @@ class Edit extends Component
             }
 
             $payload = [
+                'inspection_template_id' => $local['inspection_template_id'] ?? null,
                 'inspection_item_id' => $local['inspection_item_id'] ?? null,
                 'inspection_item_group_id' => $local['inspection_item_group_id'] ?? null,
                 'label' => strtoupper((string) $row['label']),
@@ -691,42 +844,6 @@ class Edit extends Component
     /**
      * @param  array<int, array{hold_reason_id?: int|null, paused_at?: string|null, resumed_at?: string|null, notes?: string|null}>  $rows
      */
-    protected function syncPauses(VehicleInspectionOrder $order, array $rows): void
-    {
-        $keptIds = [];
-
-        foreach ($rows as $i => $row) {
-            $local = $this->pauses[$i] ?? [];
-            $pausedAt = ! empty($row['paused_date']) ? trim($row['paused_date'].' '.($row['paused_time'] ?: '00:00')) : null;
-            $resumedAt = ! empty($row['resumed_date']) ? trim($row['resumed_date'].' '.($row['resumed_time'] ?: '00:00')) : null;
-            $payload = [
-                'hold_reason_id' => $row['hold_reason_id'] ?? null,
-                'paused_at' => $pausedAt,
-                'resumed_at' => $resumedAt,
-                'notes' => isset($row['notes']) && is_string($row['notes']) ? strtoupper($row['notes']) : null,
-            ];
-
-            if (! empty($local['id'])) {
-                $existing = $order->pauses()->whereKey($local['id'])->first();
-                if ($existing) {
-                    $existing->update($payload);
-                    $keptIds[] = $existing->id;
-
-                    continue;
-                }
-            }
-
-            $created = $order->pauses()->create($payload);
-            $keptIds[] = $created->id;
-            $this->pauses[$i]['id'] = $created->id;
-        }
-
-        $order->pauses()->whereNotIn('id', $keptIds)->delete();
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $rows
-     */
     protected function syncWorkScopes(VehicleInspectionOrder $order, array $rows): void
     {
         $keptIds = [];
@@ -742,8 +859,13 @@ class Edit extends Component
                     'service_package_id' => $row['service_package_id'] ?: null,
                     'labour_id' => $row['labour_id'] ?: null,
                     'requested_repair_id' => $row['requested_repair_id'] ?: null,
-                    'technician_id' => $row['technician_id'] ?: null,
+                    // The order's technician owns the whole order; a scope line
+                    // does not carry its own.
+                    'technician_id' => null,
                     'is_additional' => (bool) ($row['is_additional'] ?? false),
+                    'is_chargeable' => (bool) ($row['is_chargeable'] ?? false),
+                    'approved_by_id' => $row['approved_by_id'] ?: null,
+                    'approved_at' => $row['approved_at'] ?: null,
                     'description' => strtoupper(trim($row['description'])),
                     'sequence_no' => $i + 1,
                 ],

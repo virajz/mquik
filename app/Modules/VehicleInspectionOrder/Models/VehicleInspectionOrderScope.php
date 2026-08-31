@@ -10,6 +10,7 @@ use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One line of what this order is inspecting. A line may point at a complaint,
@@ -23,9 +24,13 @@ class VehicleInspectionOrderScope extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'completed_at' => 'datetime',
+        'is_chargeable' => 'boolean',
+        'approved_at' => 'datetime',
         'sequence_no' => 'integer',
         'is_additional' => 'boolean',
         'run_started_at' => 'datetime',
+        'work_started_at' => 'datetime',
         'completed_at' => 'datetime',
         'duration_seconds' => 'integer',
     ];
@@ -62,6 +67,13 @@ class VehicleInspectionOrderScope extends Model
         return $this->isRunning()
             ? $base + max(0, now()->getTimestamp() - $this->run_started_at->getTimestamp())
             : $base;
+    }
+
+    /** Before/after evidence for this line — several of each is normal. */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(VehicleInspectionOrderScopePhoto::class, 'vehicle_inspection_order_scope_id')
+            ->orderBy('stage')->orderBy('sequence_no');
     }
 
     public function order(): BelongsTo

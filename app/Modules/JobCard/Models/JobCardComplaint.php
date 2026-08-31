@@ -5,6 +5,7 @@ namespace App\Modules\JobCard\Models;
 use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,12 @@ class JobCardComplaint extends Model
                 );
             }
         });
+    }
+
+    /** The master entry this complaint was picked from. */
+    public function requestedRepair(): BelongsTo
+    {
+        return $this->belongsTo(RequestedRepairMaster::class, 'requested_repair_id');
     }
 
     public function jobCard(): BelongsTo

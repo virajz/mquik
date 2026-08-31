@@ -4,6 +4,7 @@ namespace App\Modules\VehicleInspectionOrder\Models;
 
 use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
+use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -26,5 +27,11 @@ class VehicleInspectionOrderItem extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(InspectionItemGroupMaster::class, 'inspection_item_group_id');
+    }
+
+    /** Which inspection checklist this checkpoint came from. */
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(InspectionTemplateMaster::class, 'inspection_template_id');
     }
 }

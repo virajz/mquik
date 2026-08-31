@@ -54,65 +54,86 @@
                         <div>
                             <flux:heading size="lg">Work Scope</flux:heading>
                             <flux:text size="sm" class="mt-1 text-zinc-500">
-                                What this order covers — a complaint, a job description, or a service / combo / AMC package.
+                                The technician's to-do list for this order. Pulled from the job card's complaints and requested repairs — classify a line only if you need to.
                             </flux:text>
                         </div>
-                        <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addWorkScope">Add scope</flux:button>
+                        <div class="flex items-center gap-2">
+                            <flux:button type="button" size="sm" variant="outline" icon="arrow-down-tray" wire:click="fetchScopeFromJobCard">Pull from job card</flux:button>
+                            <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addWorkScope">Add scope</flux:button>
+                        </div>
                     </div>
 
                     @forelse ($workScopes as $i => $scope)
                         <div wire:key="scope-{{ $i }}" class="space-y-3 p-3 mb-3 rounded-md border border-zinc-200 dark:border-zinc-800">
-                            <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
-                                <flux:select wire:model="workScopes.{{ $i }}.complaint_type_id" variant="listbox" size="sm" searchable clearable label="Complaint" placeholder="Optional…">
-                                    @foreach ($this->complaintTypes as $t)
-                                        <flux:select.option :value="$t->id" wire:key="sct-{{ $i }}-{{ $t->id }}">{{ $t->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-
-                                <flux:select wire:model="workScopes.{{ $i }}.job_description_id" variant="listbox" size="sm" searchable clearable label="Job Description" placeholder="Optional…">
-                                    @foreach ($this->jobDescriptions as $j)
-                                        <flux:select.option :value="$j->id" wire:key="sjd-{{ $i }}-{{ $j->id }}">{{ $j->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-
-                                <flux:select wire:model="workScopes.{{ $i }}.service_package_id" variant="listbox" size="sm" searchable clearable label="Package" placeholder="Service / Combo / AMC…">
-                                    @foreach ($this->servicePackages as $pkg)
-                                        <flux:select.option :value="$pkg->id" wire:key="spk-{{ $i }}-{{ $pkg->id }}">
-                                            {{ $pkg->name }}{{ $pkg->packageType ? ' · '.$pkg->packageType->name : '' }}
-                                        </flux:select.option>
-                                    @endforeach
-                                </flux:select>
-
+                            {{-- The task itself, in the technician's words, comes
+                                 first. Everything that classifies it for billing
+                                 is folded away until an advisor needs it. --}}
+                            <div class="flex items-start gap-2">
+                                <div class="flex-1 min-w-0">
+                                    <flux:input wire:model="workScopes.{{ $i }}.description" size="sm"
+                                        placeholder="e.g. PMS, FR SIDE NOISE, REAR SIDE NOISE" required />
+                                    <flux:error name="workScopes.{{ $i }}.description" />
+                                </div>
                                 <flux:button type="button" variant="ghost" icon="trash" wire:click="removeWorkScope({{ $i }})" />
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <flux:select wire:model="workScopes.{{ $i }}.labour_id" variant="listbox" size="sm" searchable clearable label="Labour" placeholder="PMS, Wheel Alignment…">
-                                    @foreach ($this->labours as $l)
-                                        <flux:select.option :value="$l->id" wire:key="slab-{{ $i }}-{{ $l->id }}">{{ $l->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <flux:select wire:model="workScopes.{{ $i }}.requested_repair_id" variant="listbox" size="sm" searchable clearable label="Requested Repair" placeholder="Optional…">
-                                    @foreach ($this->requestedRepairs as $r)
-                                        <flux:select.option :value="$r->id" wire:key="srr-{{ $i }}-{{ $r->id }}">{{ $r->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <flux:select wire:model="workScopes.{{ $i }}.technician_id" variant="listbox" size="sm" searchable clearable label="Technician" placeholder="Defaults to order tech…">
-                                    @foreach ($this->employees as $e)
-                                        <flux:select.option :value="$e->id" wire:key="stech-{{ $i }}-{{ $e->id }}">{{ $e->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            </div>
-
-                            <flux:input wire:model="workScopes.{{ $i }}.description" size="sm" placeholder="e.g. PMS, FR SIDE NOISE, REAR SIDE NOISE" required />
-                            <flux:error name="workScopes.{{ $i }}.description" />
+                            <details class="group">
+                                <summary class="cursor-pointer text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 select-none">
+                                    Classify this line — complaint, job description, package, labour, technician
+                                </summary>
+                                <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    <flux:select wire:model="workScopes.{{ $i }}.complaint_type_id" variant="listbox" size="sm" searchable clearable label="Complaint" placeholder="Optional…">
+                                        @foreach ($this->complaintTypes as $t)
+                                            <flux:select.option :value="$t->id" wire:key="sct-{{ $i }}-{{ $t->id }}">{{ $t->name }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                    <flux:select wire:model="workScopes.{{ $i }}.job_description_id" variant="listbox" size="sm" searchable clearable label="Job Description" placeholder="Optional…">
+                                        @foreach ($this->jobDescriptions as $j)
+                                            <flux:select.option :value="$j->id" wire:key="sjd-{{ $i }}-{{ $j->id }}">{{ $j->name }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                    {{-- Labour, not package: a technician acts on
+                                         "wheel alignment", and the labour's own
+                                         department is what routes it to the right one. --}}
+                                    <flux:select wire:model="workScopes.{{ $i }}.labour_id" variant="listbox" size="sm" searchable clearable label="Labour" placeholder="PMS, Wheel Alignment…">
+                                        @foreach ($this->labours as $l)
+                                            <flux:select.option :value="$l->id" wire:key="slab-{{ $i }}-{{ $l->id }}">
+                                                {{ $l->name }}@if ($l->workshopDepartment) · {{ $l->workshopDepartment->name }} @endif
+                                            </flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                    <flux:select wire:model="workScopes.{{ $i }}.requested_repair_id" variant="listbox" size="sm" searchable clearable label="Requested Repair" placeholder="Optional…">
+                                        @foreach ($this->requestedRepairs as $r)
+                                            <flux:select.option :value="$r->id" wire:key="srr-{{ $i }}-{{ $r->id }}">{{ $r->name }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                </div>
+                            </details>
 
                             <div class="flex flex-wrap items-center justify-between gap-3">
-                                <flux:checkbox
-                                    wire:model="workScopes.{{ $i }}.is_additional"
-                                    label="Additional work performed"
-                                    description="Discovered during inspection, beyond the originally-booked work."
-                                />
+                                {{-- Raised by the technician mid-job. Chargeable work
+                                     is not theirs to bill, so the advisor confirms it
+                                     before it can reach an invoice. --}}
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <flux:checkbox wire:model.live="workScopes.{{ $i }}.is_additional" label="Additional check" />
+
+                                    @if (! empty($scope['is_additional']))
+                                        <flux:checkbox wire:model.live="workScopes.{{ $i }}.is_chargeable" label="Chargeable" />
+
+                                        @if (! empty($scope['is_chargeable']))
+                                            @if (! empty($scope['approved_at']))
+                                                <flux:badge color="lime" size="sm">Advisor approved</flux:badge>
+                                                <flux:button type="button" size="xs" variant="ghost" wire:click="revokeAdditionalWork({{ $i }})">Revoke</flux:button>
+                                            @else
+                                                <flux:badge color="amber" size="sm">Awaiting advisor</flux:badge>
+                                                @can('vehicle_inspection_order.update')
+                                                    <flux:button type="button" size="xs" variant="primary" icon="check"
+                                                        wire:click="approveAdditionalWork({{ $i }})">Approve</flux:button>
+                                                @endcan
+                                            @endif
+                                        @endif
+                                    @endif
+                                </div>
 
                                 {{-- Per-task timer --}}
                                 @if (! empty($scope['id']))
@@ -148,7 +169,7 @@
                         </div>
                     @empty
                         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
-                            No work scope recorded yet.
+                            No work scope yet. <span class="font-medium">Pull from job card</span> brings in its complaints and requested repairs.
                         </div>
                     @endforelse
                 </flux:tab.panel>
@@ -195,7 +216,8 @@
                     <div class="mb-3">
                         <flux:heading size="lg">Additional Work / Technician Findings</flux:heading>
                         <flux:text size="sm" class="mt-1 text-zinc-500">
-                            Extra spares or labour raised against this order. Managed in Technician Findings.
+                            Raised on the Technician Bench while the work happens. Nothing is entered here — the advisor's job is to
+                            confirm anything major that will be charged on the bill.
                         </flux:text>
                     </div>
 
@@ -209,40 +231,80 @@
                                     @if ($finding->estimated_amount) · ₹{{ number_format((float) $finding->estimated_amount, 2) }} @endif
                                 </div>
                             </div>
-                            <flux:badge size="sm" :color="match ($finding->status) {
-                                'approved' => 'lime', 'rejected' => 'red', default => 'amber',
-                            }">{{ ucfirst($finding->status) }}</flux:badge>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <flux:badge size="sm" :color="match ($finding->status) {
+                                    'approved' => 'lime', 'rejected' => 'red', default => 'amber',
+                                }">{{ ucfirst($finding->status) }}</flux:badge>
+                                @if ($finding->status === 'approved')
+                                    <flux:button type="button" size="xs" variant="ghost" wire:click="revokeAdditionalWork({{ $finding->id }})">Revoke</flux:button>
+                                @else
+                                    <flux:button type="button" size="xs" variant="primary" icon="check" wire:click="approveAdditionalWork({{ $finding->id }})">Approve</flux:button>
+                                @endif
+                            </div>
                         </div>
                     @empty
-                        <flux:text size="sm" class="text-zinc-500">No additional work raised on this order.</flux:text>
+                        <flux:text size="sm" class="text-zinc-500">Nothing raised on this order yet.</flux:text>
                     @endforelse
                 </flux:tab.panel>
 
                 <flux:tab.panel name="checklist" class="pt-6">
                     <div class="flex items-center justify-between mb-4">
                         <div>
-                            <flux:heading size="lg">Checklist &amp; Photo Evidence</flux:heading>
-                            <flux:text size="sm" class="mt-1 text-zinc-500">Mark each item OK / Immediate Action / Future Action, with before &amp; after photos.</flux:text>
+                            <flux:heading size="lg">Checklist</flux:heading>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">
+                                The advisor adds the templates; the technician works through them and records what they found.
+                                Before/after photos belong to the work scope, on the bench.
+                            </flux:text>
                         </div>
-                        <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addItem">Add item</flux:button>
+
+                        <div class="flex flex-wrap items-end gap-2 mb-4">
+                            {{-- The technician picks the checklist that matches what
+                                 they are doing; several can sit on one order. --}}
+                            <div class="w-64">
+                                <flux:select wire:model="addTemplateId" variant="listbox" searchable size="sm"
+                                    label="Add a checklist" placeholder="PMS, Tyre, Bodyshop…">
+                                    @foreach ($this->templates as $t)
+                                        <flux:select.option :value="(string) $t->id" wire:key="addtpl-{{ $t->id }}">{{ $t->name }} ({{ strtoupper($t->applies_to) }})</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                            <flux:button type="button" size="sm" variant="outline" icon="plus" wire:click="addTemplateItems">Add</flux:button>
+
+                            @php($onOrder = collect($items)->pluck('inspection_template_id')->filter()->unique())
+                            @if ($onOrder->isNotEmpty())
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    @foreach ($this->templates->whereIn('id', $onOrder) as $t)
+                                        <flux:badge size="sm" wire:key="ontpl-{{ $t->id }}">
+                                            {{ $t->name }}
+                                            <flux:badge.close wire:click="removeTemplateItems({{ $t->id }})" />
+                                        </flux:badge>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
                     </div>
 
                     @if (count($items) === 0)
                         <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
-                            No checklist items. Pick a template on the Details tab, or add items manually.
+                            No checklist yet. Use <span class="font-medium">Add a checklist</span> above — the technician works through whatever is added here.
                         </div>
                     @else
                         <div class="space-y-3">
                             @foreach ($items as $i => $item)
                                 <div wire:key="item-{{ $i }}" class="space-y-3 p-3 rounded-md border border-zinc-200 dark:border-zinc-800">
-                                    <div class="grid grid-cols-1 md:grid-cols-[1fr_160px_auto] gap-2 items-end">
-                                        <flux:input wire:model="items.{{ $i }}.label" size="sm" label="Item" placeholder="Checkpoint" />
+                                    <div class="grid grid-cols-1 md:grid-cols-[1fr_160px] gap-2 items-end">
+                                        {{-- The checkpoint's wording belongs to the
+                                             template the advisor added; the technician
+                                             records what they found, not what to check. --}}
+                                        <flux:field>
+                                            <flux:label>Item</flux:label>
+                                            <div class="flex items-center h-9 text-sm font-medium">{{ $item['label'] }}</div>
+                                        </flux:field>
                                         <flux:select wire:model="items.{{ $i }}.result" variant="listbox" size="sm" label="Result">
                                             @foreach (VehicleInspectionOrder::results() as $key => $label)
                                                 <flux:select.option :value="$key" wire:key="res-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
-                                        <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removeItem({{ $i }})" />
                                     </div>
 
                                     @if ($item['group_name'])
@@ -251,35 +313,7 @@
 
                                     <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Technician note / observation" />
 
-                                    {{-- Before / After photos --}}
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                                        <div class="space-y-1">
-                                            <flux:text size="xs" class="font-medium text-zinc-600 dark:text-zinc-400">Before</flux:text>
-                                            <div class="flex items-center gap-2">
-                                                @if (! empty($item['before_photo_path']))
-                                                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['before_photo_path']) }}" alt="Before" class="size-12 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
-                                                    <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="clearItemPhoto({{ $i }}, 'before')" />
-                                                @elseif (! empty($itemBeforeFiles[$i]))
-                                                    <img src="{{ $itemBeforeFiles[$i]->temporaryUrl() }}" alt="" class="size-12 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
-                                                @endif
-                                                <flux:input type="file" wire:model="itemBeforeFiles.{{ $i }}" accept="image/*" size="sm" class:input="text-xs" />
-                                            </div>
-                                            <flux:error name="itemBeforeFiles.{{ $i }}" />
-                                        </div>
-                                        <div class="space-y-1">
-                                            <flux:text size="xs" class="font-medium text-zinc-600 dark:text-zinc-400">After</flux:text>
-                                            <div class="flex items-center gap-2">
-                                                @if (! empty($item['after_photo_path']))
-                                                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['after_photo_path']) }}" alt="After" class="size-12 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
-                                                    <flux:button type="button" size="xs" variant="ghost" icon="trash" wire:click="clearItemPhoto({{ $i }}, 'after')" />
-                                                @elseif (! empty($itemAfterFiles[$i]))
-                                                    <img src="{{ $itemAfterFiles[$i]->temporaryUrl() }}" alt="" class="size-12 rounded object-cover border border-zinc-200 dark:border-zinc-800" />
-                                                @endif
-                                                <flux:input type="file" wire:model="itemAfterFiles.{{ $i }}" accept="image/*" size="sm" class:input="text-xs" />
-                                            </div>
-                                            <flux:error name="itemAfterFiles.{{ $i }}" />
-                                        </div>
-                                    </div>
+                                                                        </div>
                                 </div>
                             @endforeach
                         </div>
@@ -290,28 +324,27 @@
                     <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10">
                         <div>
                             <flux:heading size="lg">Status &amp; Time Tracking</flux:heading>
-                            <flux:text size="sm" class="mt-1 text-zinc-500">Move the order through its lifecycle. Assigned / Started / Ended stamps are set automatically.</flux:text>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">
+                                Read-only. The status follows the technician's timers, and every pause carries the reason they gave.
+                            </flux:text>
                         </div>
                         <div class="space-y-4 min-w-0">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <flux:select wire:model="status" variant="listbox" label="Status" required>
-                                    @foreach (VehicleInspectionOrder::statuses() as $key => $label)
-                                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <flux:select wire:model="completion_type" variant="listbox" clearable label="Completion Type" placeholder="On completion…">
-                                    @foreach (VehicleInspectionOrder::completionTypes() as $key => $label)
-                                        <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            </div>
+                            <flux:field>
+                                <flux:label>Status</flux:label>
+                                <div class="flex items-center gap-2 h-9">
+                                    <flux:badge size="sm" :color="match ($status) {
+                                        'assigned' => 'blue',
+                                        'wip' => 'sky',
+                                        'on_hold' => 'amber',
+                                        'completed' => 'lime',
+                                        'cancelled' => 'zinc',
+                                        default => 'zinc',
+                                    }">{{ VehicleInspectionOrder::statuses()[$status] ?? $status }}</flux:badge>
+                                    <flux:text size="sm" class="text-zinc-500">{{ $this->statusExplanation }}</flux:text>
+                                </div>
+                            </flux:field>
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <flux:select wire:model="hold_reason_id" variant="listbox" searchable clearable label="Hold Reason" placeholder="If on hold…">
-                                    @foreach ($this->holdReasons as $r)
-                                        <flux:select.option :value="$r->id" wire:key="hr-{{ $r->id }}">{{ $r->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
                                 <flux:select wire:model="delay_reason_id" variant="listbox" searchable clearable label="Delay Reason" placeholder="If delayed…">
                                     @foreach ($this->delayReasons as $r)
                                         <flux:select.option :value="$r->id" wire:key="dr-{{ $r->id }}">{{ $r->name }}</flux:select.option>
@@ -326,36 +359,48 @@
 
                             <flux:separator variant="subtle" />
 
-                            <div class="flex items-center justify-between">
-                                <flux:heading size="sm">Pause / Resume Log</flux:heading>
-                                <flux:button type="button" size="xs" variant="ghost" icon="plus" wire:click="addPause">Add pause</flux:button>
-                            </div>
-                            @if (count($pauses) === 0)
-                                <flux:text size="sm" class="text-zinc-500">No pauses logged.</flux:text>
+                            {{-- Completion type is recorded per line by whoever did the
+                                 work, so one job can be done while another is reworked. --}}
+                            <flux:heading size="sm">Completion by work scope line</flux:heading>
+                            @if (count($workScopes) === 0)
+                                <flux:text size="sm" class="text-zinc-500">No work scope on this order yet.</flux:text>
                             @else
-                                <div class="space-y-2">
+                                <div class="rounded-md border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+                                    @foreach ($workScopes as $i => $scope)
+                                        <div wire:key="ct-sum-{{ $i }}" class="px-3 py-2 flex items-center justify-between gap-3 text-sm">
+                                            <span class="truncate">{{ $scope['description'] ?: '—' }}</span>
+                                            <span class="shrink-0 text-zinc-500">
+                                                {{ ($scope['completion_type'] ?? null)
+                                                    ? (VehicleInspectionOrder::completionTypes()[$scope['completion_type']] ?? $scope['completion_type'])
+                                                    : 'Not finished' }}
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <flux:separator variant="subtle" />
+
+                            <flux:heading size="sm">Pause / Resume Log</flux:heading>
+                            @if (count($pauses) === 0)
+                                <flux:text size="sm" class="text-zinc-500">No pauses logged. The technician's Pause button writes these.</flux:text>
+                            @else
+                                <div class="rounded-md border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
                                     @foreach ($pauses as $i => $pause)
-                                        <div wire:key="pause-{{ $i }}" class="grid grid-cols-1 md:grid-cols-[1.4fr_1.4fr_1fr_auto] gap-2 items-end p-2 rounded-md border border-zinc-200 dark:border-zinc-800">
+                                        <div wire:key="pause-{{ $i }}" class="px-3 py-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                                             <div>
-                                                <flux:label class="text-xs! mb-1">Paused</flux:label>
-                                                <div class="grid grid-cols-2 gap-1">
-                                                    <flux:date-picker locale="en-IN" wire:model="pauses.{{ $i }}.paused_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
-                                                    <flux:time-picker wire:model="pauses.{{ $i }}.paused_time" size="sm" placeholder="Time" />
-                                                </div>
+                                                <span class="text-zinc-500">Paused</span>
+                                                {{ $pause['paused_date'] ? \Illuminate\Support\Carbon::parse($pause['paused_date'])->format('d/m/Y') : '—' }}
+                                                {{ $pause['paused_time'] }}
                                             </div>
                                             <div>
-                                                <flux:label class="text-xs! mb-1">Resumed</flux:label>
-                                                <div class="grid grid-cols-2 gap-1">
-                                                    <flux:date-picker locale="en-IN" wire:model="pauses.{{ $i }}.resumed_date" size="sm" placeholder="Date" with-today selectable-header fixed-weeks type="input" />
-                                                    <flux:time-picker wire:model="pauses.{{ $i }}.resumed_time" size="sm" placeholder="Time" />
-                                                </div>
+                                                <span class="text-zinc-500">Resumed</span>
+                                                {{ $pause['resumed_date'] ? \Illuminate\Support\Carbon::parse($pause['resumed_date'])->format('d/m/Y') : 'still paused' }}
+                                                {{ $pause['resumed_time'] }}
                                             </div>
-                                            <flux:select wire:model="pauses.{{ $i }}.hold_reason_id" variant="listbox" searchable clearable size="sm" label="Reason" placeholder="Reason…">
-                                                @foreach ($this->holdReasons as $r)
-                                                    <flux:select.option :value="$r->id" wire:key="phr-{{ $i }}-{{ $r->id }}">{{ $r->name }}</flux:select.option>
-                                                @endforeach
-                                            </flux:select>
-                                            <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removePause({{ $i }})" />
+                                            <div class="text-zinc-500">
+                                                {{ $this->holdReasons->firstWhere('id', $pause['hold_reason_id'])?->name ?? '—' }}
+                                            </div>
                                         </div>
                                     @endforeach
                                 </div>

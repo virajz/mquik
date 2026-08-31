@@ -58,7 +58,11 @@
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <div class="font-mono text-xs text-zinc-500">{{ $task->order?->order_no }}</div>
+                            {{-- The full response page for this order: vehicle,
+                                 todo list, findings and the closing remark. --}}
+                            <flux:link :href="route('technician-bench.response', $task->order)" wire:navigate class="font-mono text-xs">
+                                {{ $task->order?->order_no }}
+                            </flux:link>
                             @if ($task->order?->jobCard?->job_card_no)
                                 <div class="text-xs text-zinc-400">{{ $task->order->jobCard->job_card_no }}</div>
                             @endif
@@ -81,16 +85,59 @@
                                     @if ($task->work_status === $SCOPE::STATUS_COMPLETED)
                                         <flux:text size="sm" class="text-zinc-400">Done</flux:text>
                                     @elseif ($task->isRunning())
-                                        <flux:button size="xs" variant="ghost" icon="pause" wire:click="pause({{ $task->id }})">Pause</flux:button>
-                                        <flux:button size="xs" variant="primary" icon="check" wire:click="complete({{ $task->id }})">Complete</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="pause" wire:click="askPauseReason({{ $task->id }})">Pause</flux:button>
+                                        <flux:button size="xs" variant="primary" icon="check" wire:click="askCompletionType({{ $task->id }})">Complete</flux:button>
                                     @else
                                         <flux:button size="xs" variant="primary" icon="play" wire:click="start({{ $task->id }})">
                                             {{ $task->duration_seconds > 0 ? 'Resume' : 'Start' }}
                                         </flux:button>
-                                        <flux:button size="xs" variant="ghost" icon="check" wire:click="complete({{ $task->id }})">Complete</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="check" wire:click="askCompletionType({{ $task->id }})">Complete</flux:button>
                                     @endif
                                 </div>
                             @endcan
+                        </flux:table.cell>
+                    </flux:table.row>
+
+                    {{-- Evidence belongs to the work, not to a checklist tick:
+                         several before and after shots per line. --}}
+                    <flux:table.row wire:key="evidence-{{ $task->id }}">
+                        <flux:table.cell colspan="5" class="bg-zinc-50/60 dark:bg-zinc-800/30">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                @foreach (['before' => 'Before', 'after' => 'After'] as $stage => $label)
+                                    <div>
+                                        <div class="flex items-center justify-between gap-2 mb-1">
+                                            <flux:text size="sm" class="font-medium">{{ $label }}</flux:text>
+                                            @can('technician_bench.update')
+                                                <div class="flex items-center gap-1">
+                                                    <flux:input type="file" size="sm" multiple accept="image/*" capture="environment"
+                                                        wire:model="scopePhotoFiles.{{ $task->id }}.{{ $stage }}" class="max-w-44" />
+                                                    <flux:button size="xs" variant="ghost" icon="arrow-up-tray"
+                                                        wire:click="uploadScopePhotos({{ $task->id }}, '{{ $stage }}')">Save</flux:button>
+                                                </div>
+                                            @endcan
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            @forelse ($task->photos->where('stage', $stage) as $photo)
+                                                <div class="relative" wire:key="photo-{{ $photo->id }}">
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($photo->path) }}"
+                                                        alt="{{ $label }}" class="h-16 w-16 object-cover rounded border border-zinc-200 dark:border-zinc-700" />
+                                                    @can('technician_bench.update')
+                                                        <button type="button" wire:click="removeScopePhoto({{ $photo->id }})"
+                                                            class="absolute -top-1.5 -end-1.5 rounded-full bg-zinc-900/80 text-white size-4 text-[10px] leading-none">×</button>
+                                                    @endcan
+                                                </div>
+                                            @empty
+                                                <flux:text size="xs" class="text-zinc-400">No {{ strtolower($label) }} photos yet.</flux:text>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            @if ($task->completion_type)
+                                <flux:text size="xs" class="text-zinc-500 mt-2">
+                                    Completed as {{ \App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder::completionTypes()[$task->completion_type] ?? $task->completion_type }}
+                                </flux:text>
+                            @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -109,4 +156,44 @@
             </flux:table.rows>
         </flux:table>
     @endif
+
+    <flux:modal name="technician-pause-reason" class="md:w-96">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Why are you pausing?</flux:heading>
+                <flux:subheading>The gap is recorded with its reason and reopened when you resume.</flux:subheading>
+            </div>
+            <flux:select wire:model="pauseReasonId" variant="listbox" searchable label="Reason" placeholder="Waiting for parts, bay taken…">
+                @foreach ($this->pauseReasons as $reason)
+                    <flux:select.option :value="$reason->id" wire:key="pr-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="pauseReasonId" />
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close><flux:button variant="ghost">Keep working</flux:button></flux:modal.close>
+                <flux:button variant="primary" wire:click="pause">Pause</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="technician-completion-type" class="md:w-96">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">How did this finish?</flux:heading>
+                <flux:subheading>Recorded per line — one job can be done while another is reworked.</flux:subheading>
+            </div>
+            <flux:select wire:model="completionType" variant="listbox" label="Completion type" placeholder="Pick one…">
+                @foreach (\App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder::completionTypes() as $key => $label)
+                    <flux:select.option :value="$key" wire:key="ct-{{ $key }}">{{ $label }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="completionType" />
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                <flux:button variant="primary" wire:click="complete">Complete</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>
