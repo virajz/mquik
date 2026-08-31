@@ -56,6 +56,8 @@ class JobCard extends Model
     protected $guarded = [];
 
     protected $casts = [
+        // Populated by the listing's subquery, not a real column.
+        'pending_since' => 'datetime',
         // Populated by the service-history subquery, not a real column.
         'billed_at' => 'datetime',
         'opened_at' => 'datetime',

@@ -6,6 +6,7 @@ use App\Concerns\ScopesToRecord;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
+use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
@@ -197,7 +198,15 @@ class Index extends Component
                 'workshopDepartment:id,name',
                 'advisor:id,name',
                 'technician:id,name',
+                'currentStage:id,name',
+                'pendingReason:id,name',
             ])
+            // When the card was last parked, so the listing can say how long it
+            // has been stuck rather than only that it is.
+            ->addSelect(['pending_since' => JobCardHistoryEvent::select('occurred_at')
+                ->whereColumn('job_card_history_events.job_card_id', 'job_cards.id')
+                ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)
+                ->latest('occurred_at')->limit(1)])
             ->withCount(['complaints', 'inventoryItems'])
             ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter === 'pending', fn ($q) => $q->whereIn('status', JobCard::pendingStatuses()))

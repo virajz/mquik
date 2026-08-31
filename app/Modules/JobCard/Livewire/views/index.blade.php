@@ -54,6 +54,8 @@
             <flux:table.column class="w-20 text-center">Issues</flux:table.column>
             <flux:table.column class="w-44" sortable :sorted="$sortBy === 'promised_at'" :direction="$sortDirection" wire:click="sort('promised_at')">Promised</flux:table.column>
             <flux:table.column class="w-32" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
+            <flux:table.column class="w-32">Stage</flux:table.column>
+            <flux:table.column class="w-44">Pending Reason</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
@@ -104,6 +106,22 @@
                         })
                         <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
                     </flux:table.cell>
+
+                    {{-- Status says whether it moves; stage says where it is. --}}
+                    <flux:table.cell class="text-sm">{{ $row->currentStage?->name ?? '—' }}</flux:table.cell>
+
+                    {{-- Why it is parked, and since when — what this list is scanned for. --}}
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if ($row->pendingReason)
+                            <div class="text-zinc-700 dark:text-zinc-300">{{ $row->pendingReason->name }}</div>
+                            @if ($row->pending_since)
+                                <div class="text-xs">since {{ $row->pending_since->format('d/m/Y, h:i A') }}</div>
+                            @endif
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
+
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
                             @can('job_card.update')
@@ -134,7 +152,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="10" class="text-center text-zinc-500 py-12">
                         <flux:icon.clipboard-document-list class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No job cards yet</div>
                         <flux:text class="mt-1">Open a card from an appointment, gate event, or directly here.</flux:text>
