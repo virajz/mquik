@@ -4,10 +4,14 @@ namespace App\Modules\JobCard\Concerns;
 
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\RegularSalesInvoice\Models\RegularSalesInvoice;
+use App\Modules\RegularSalesInvoice\Models\RegularSalesInvoiceItem;
 use App\Modules\ServiceIntervalMaster\Models\ServiceIntervalMaster;
+use App\Modules\ServiceRecommendationFollowUp\Models\ServiceRecommendationFollowUp;
 use App\Support\AppSettings;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 
 /**
@@ -23,6 +27,106 @@ trait ShowsServiceHistory
     /** Free-text filter over the vehicle's past work — e.g. "oil change". */
     public string $historySearch = '';
 
+    /** One of: pms, oil, alignment — a canned filter over the parts and labour actually billed. */
+    public string $historyPreset = '';
+
+    /**
+     * The words that identify each canned filter in a bill line. Kept here
+     * rather than in the view so the advisor's shortcut and any report agree.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function historyPresets(): array
+    {
+        return [
+            'pms' => ['PMS', 'PERIODIC', 'PAID SERVICE', 'FREE SERVICE'],
+            'oil' => ['ENGINE OIL', 'OIL CHANGE', 'OIL FILTER'],
+            'alignment' => ['ALIGNMENT', 'BALANC'],
+        ];
+    }
+
+    public function setHistoryPreset(string $preset): void
+    {
+        // Tapping the active one clears it — the button is a toggle.
+        $this->historyPreset = $this->historyPreset === $preset ? '' : $preset;
+
+        unset($this->vehicleJobCards);
+    }
+
+    /** The last time each canned service was actually billed on this vehicle. */
+    #[Computed]
+    public function lastServiceMarkers(): array
+    {
+        if (! $this->customer_vehicle_id) {
+            return [];
+        }
+
+        $markers = [];
+
+        foreach (self::historyPresets() as $key => $words) {
+            $row = RegularSalesInvoiceItem::query()
+                ->join('regular_sales_invoices as inv', 'inv.id', '=', 'regular_sales_invoice_items.regular_sales_invoice_id')
+                ->join('job_cards as jc', 'jc.id', '=', 'inv.job_card_id')
+                ->where('jc.customer_vehicle_id', $this->customer_vehicle_id)
+                ->when($this->editingId, fn ($q) => $q->where('jc.id', '!=', $this->editingId))
+                ->where(function ($q) use ($words) {
+                    foreach ($words as $word) {
+                        $q->orWhereRaw('upper(regular_sales_invoice_items.description) like ?', ['%'.$word.'%']);
+                    }
+                })
+                ->orderByDesc('inv.invoiced_at')
+                ->first(['inv.invoiced_at', 'jc.km_at_service']);
+
+            if ($row) {
+                // Selected through a join, so it arrives as a raw string.
+                $markers[$key] = [
+                    'at' => $row->invoiced_at ? Carbon::parse($row->invoiced_at) : null,
+                    'km' => $row->km_at_service ? (int) $row->km_at_service : null,
+                ];
+            }
+        }
+
+        return $markers;
+    }
+
+    /**
+     * What was last recommended to this customer for this vehicle and never
+     * acted on — the upsell the advisor is meant to raise at the counter.
+     *
+     * @return Collection<int, ServiceRecommendationFollowUp>
+     */
+    #[Computed]
+    public function lastRecommendations(): Collection
+    {
+        if (! $this->customer_vehicle_id) {
+            return collect();
+        }
+
+        return ServiceRecommendationFollowUp::query()
+            ->where('customer_vehicle_id', $this->customer_vehicle_id)
+            ->orderByDesc('recommended_at')
+            ->limit(10)
+            ->get();
+    }
+
+    /** Odometer reading at the vehicle's last billed visit — context for today's. */
+    #[Computed]
+    public function lastServiceKm(): ?int
+    {
+        if (! $this->customer_vehicle_id) {
+            return null;
+        }
+
+        $km = JobCard::query()
+            ->where('customer_vehicle_id', $this->customer_vehicle_id)
+            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
+            ->whereNotNull('km_at_service')
+            ->orderByDesc('opened_at')
+            ->value('km_at_service');
+
+        return $km ? (int) $km : null;
+    }
+
     /** Past cards for this vehicle, newest first, optionally filtered by service. */
     #[Computed]
     public function vehicleJobCards()
@@ -36,7 +140,15 @@ trait ShowsServiceHistory
         return JobCard::query()
             ->where('customer_vehicle_id', $this->customer_vehicle_id)
             ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
-            ->when($term !== '', fn ($q) => $q->search($term))
+            // Free text also reaches the parts and labour actually billed — an
+            // advisor searches "oil change", not a job-card number.
+            ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->whereIn('id', JobCard::query()->select('id')->search($term))
+                ->orWhereIn('id', self::billLineJobCardIds([$term]))))
+            ->when($this->historyPreset !== '', fn ($q) => $q->whereIn(
+                'id',
+                self::billLineJobCardIds(self::historyPresets()[$this->historyPreset] ?? []),
+            ))
             ->with([
                 'advisor:id,name',
                 'currentStage:id,name',
@@ -57,6 +169,25 @@ trait ShowsServiceHistory
             ->orderByDesc('opened_at')
             ->limit((int) AppSettings::int('service_history.visits_listed', 50))
             ->get(['id', 'job_card_no', 'status', 'current_stage_id', 'assigned_advisor_id', 'workshop_department_id', 'opened_at', 'promised_at', 'closed_at', 'km_at_service']);
+    }
+
+    /**
+     * Job-card ids whose bill mentions any of these words, in either a spare or
+     * a labour line.
+     *
+     * @param  list<string>  $words
+     */
+    protected static function billLineJobCardIds(array $words): Builder
+    {
+        return DB::table('regular_sales_invoice_items as li')
+            ->join('regular_sales_invoices as inv', 'inv.id', '=', 'li.regular_sales_invoice_id')
+            ->whereNotNull('inv.job_card_id')
+            ->where(function ($q) use ($words) {
+                foreach ($words as $word) {
+                    $q->orWhereRaw('upper(li.description) like ?', ['%'.mb_strtoupper(trim($word)).'%']);
+                }
+            })
+            ->select('inv.job_card_id');
     }
 
     /**

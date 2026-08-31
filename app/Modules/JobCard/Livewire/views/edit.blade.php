@@ -122,40 +122,6 @@
                 <flux:tab.panel name="details">
                     @include('job-card::partials.section-customer-vehicle')
                     <flux:separator />
-                    @include('job-card::partials.section-timing', ['lean' => false])
-                    <flux:separator />
-
-                    <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-6">
-                        <div>
-                            <flux:heading size="lg">Insurance &amp; Authorisation</flux:heading>
-                            <flux:text size="sm" class="mt-1 text-zinc-500">For insurance jobs, outside-vendor work, and how the customer authorised the repair.</flux:text>
-                        </div>
-                        <div class="space-y-4 min-w-0">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable label="Insurance Company" placeholder="For insurance jobs…">
-                                    @foreach ($this->insuranceCompanies as $ic)
-                                        <flux:select.option :value="$ic->id" wire:key="ic-{{ $ic->id }}">{{ $ic->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <flux:input wire:model="policy_no" label="Policy No." placeholder="Insurance policy number" class:input="font-mono uppercase" />
-                                <flux:select wire:model="vendor_id" variant="listbox" searchable clearable label="Vendor" placeholder="Outside / parts vendor…" :filter="false">
-                                <x-slot name="search">
-                                    <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Type a vendor name or code…" />
-                                </x-slot>
-                                    @foreach ($this->vendors as $v)
-                                        <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <flux:select wire:model="customer_approval_type_id" variant="listbox" searchable clearable label="Customer Approval Option" placeholder="How approval was taken…">
-                                    @foreach ($this->customerApprovalTypes as $ca)
-                                        <flux:select.option :value="$ca->id" wire:key="ca-{{ $ca->id }}">{{ $ca->name }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            </div>
-                        </div>
-                    </section>
-
-                    <flux:separator />
 
                     <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-6">
                         <div>
@@ -164,8 +130,14 @@
                         </div>
                         <div class="space-y-4 min-w-0">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <flux:input.group label="Odometer In (km)">
-                                    <flux:input wire:model="km_at_service" type="number" min="0" placeholder="45000" class:input="text-right font-mono" />
+                                {{-- The last reading sits in the label: "45,000 km"
+                                     means nothing without what it was last time. --}}
+                                <flux:input.group :label="$this->lastServiceKm
+                                    ? 'Odometer In (km) · last service '.number_format($this->lastServiceKm).' km'
+                                    : 'Odometer In (km)'">
+                                    <flux:input wire:model="km_at_service" type="number" min="0"
+                                        :placeholder="$this->lastServiceKm ? number_format($this->lastServiceKm) : '45000'"
+                                        class:input="text-right font-mono" />
                                     <flux:input.group.suffix>km</flux:input.group.suffix>
                                 </flux:input.group>
                                 <flux:input.group label="Odometer Out (km)">
@@ -194,6 +166,83 @@
                             </div>
                         </div>
                     </section>
+
+                    <flux:separator />
+                    @include('job-card::partials.section-timing', ['lean' => false])
+                    <flux:separator />
+
+                    <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-6">
+                        <div>
+                            <flux:heading size="lg">Insurance &amp; Authorisation</flux:heading>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">Who does the work — in-house or out — and, for bodyshop jobs, who is paying for it.</flux:text>
+                        </div>
+                        <div class="space-y-4 min-w-0">
+                            {{-- Insurance is a bodyshop concern; a service card never
+                                 needs an insurer, so it is not asked for. --}}
+                            @if ($this->isBodyshopDepartment)
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable label="Insurance Company" placeholder="For insurance jobs…">
+                                        @foreach ($this->insuranceCompanies as $ic)
+                                            <flux:select.option :value="$ic->id" wire:key="ic-{{ $ic->id }}">{{ $ic->name }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                    <flux:input wire:model="policy_no" label="Policy No." placeholder="Insurance policy number" class:input="font-mono uppercase" />
+                                </div>
+                            @endif
+
+                            {{-- One or the other: the job is done in-house by a
+                                 technician, or sent out to a contractor. Picking
+                                 either side clears the other. --}}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <flux:select wire:model.live="assigned_technician_id" variant="listbox" searchable clearable
+                                    label="In-house Technician"
+                                    :placeholder="$workshop_department_id ? 'Assign a technician…' : 'Pick a department first'"
+                                    :disabled="! $workshop_department_id || (bool) $vendor_id">
+                                    @foreach ($this->employeesByDepartment['technicians'] as $e)
+                                        <flux:select.option :value="$e->id" wire:key="tech2-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+
+                                <flux:select wire:model.live="vendor_id" variant="listbox" searchable clearable :filter="false"
+                                    label="Service Contractor / Outside Labour"
+                                    :placeholder="$assigned_technician_id ? 'Doing it in-house' : 'Send the work out…'"
+                                    :disabled="(bool) $assigned_technician_id">
+                                    <x-slot name="search">
+                                        <flux:select.search wire:model.live.debounce.250ms="vendorSearch" placeholder="Contractor or vendor name…" />
+                                    </x-slot>
+                                    @foreach ($this->outsideVendors as $v)
+                                        <flux:select.option :value="$v->id" wire:key="ven-{{ $v->id }}">{{ $v->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </div>
+                            <flux:text size="sm" class="text-zinc-500">
+                                Either an in-house technician or an outside contractor — not both.
+                            </flux:text>
+
+                            {{-- The customer's signature IS the approval record; a
+                                 dropdown saying how they approved proved nothing. --}}
+                            <flux:field>
+                                <flux:label>Customer Approval</flux:label>
+                                @php $sig = $this->existingSignaturePath(); @endphp
+                                @if ($sig && ! $clearSignature)
+                                    <div class="flex items-center gap-3">
+                                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($sig) }}" alt="Customer signature"
+                                            class="h-16 w-auto rounded border border-zinc-200 dark:border-zinc-800 bg-white p-1" />
+                                        <flux:badge color="lime" size="sm">Signed</flux:badge>
+                                        <flux:button size="xs" variant="ghost" wire:click="markClearSignature">Replace</flux:button>
+                                    </div>
+                                @else
+                                    <flux:file-upload wire:model="signatureUpload" accept="image/*" />
+                                    <flux:description>The signature on the printed job card is the authorisation — capture or photograph it here.</flux:description>
+                                @endif
+                                <flux:error name="signatureUpload" />
+                            </flux:field>
+                        </div>
+                    </section>
+
+                    <flux:separator />
+
+                    
                 </flux:tab.panel>
 
                 {{-- COMPLAINTS & REPAIRS --}}

@@ -353,10 +353,10 @@ class Edit extends Component
             'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
             'service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
             'job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
+            // Insurance belongs to bodyshop work only.
             'insurance_company_id' => ['nullable', 'integer', Rule::exists('insurance_companies', 'id')->where('is_active', true)],
             'policy_no' => ['nullable', 'string', 'max:60'],
             'vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')->where('is_active', true)],
-            'customer_approval_type_id' => ['nullable', 'integer', Rule::exists('customer_approval_types', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'opened_date' => ['required', 'date_format:Y-m-d'],
@@ -492,6 +492,63 @@ class Edit extends Component
         }
 
         unset($this->vehiclePickerOptions);
+    }
+
+    /**
+     * Insurance only matters for bodyshop work, so the insurer and policy are
+     * asked for there and nowhere else. Matched on the department name — the
+     * master carries no explicit flag for it.
+     */
+    #[Computed]
+    public function isBodyshopDepartment(): bool
+    {
+        if (! $this->workshop_department_id) {
+            return false;
+        }
+
+        $name = (string) WorkshopDepartmentMaster::whereKey($this->workshop_department_id)->value('name');
+
+        return str_contains(mb_strtoupper($name), 'BODYSHOP');
+    }
+
+    /**
+     * Outside help for this card: service contractors and outside-labour
+     * vendors. The advisor picks one of these OR an in-house technician —
+     * "vendor" on its own was too vague to route work by.
+     */
+    #[Computed]
+    public function outsideVendors()
+    {
+        return $this->pickerOptions(
+            query: VendorMaster::query()
+                ->where('is_active', true)
+                ->whereHas('vendorTypes', fn ($q) => $q->where(function ($w) {
+                    $w->where('name', 'like', '%SERVICE CONTRACTOR%')->orWhere('name', 'like', '%OUTSIDE LABOUR%')->orWhere('name', 'like', 'OSL%');
+                }))
+                ->with('vendorTypes:id,name')
+                ->orderBy('name'),
+            searchColumns: ['name', 'code'],
+            term: $this->vendorSearch,
+            selected: $this->vendor_id,
+            columns: ['id', 'name'],
+            limit: 30,
+        );
+    }
+
+    /** Work goes to one place: in-house, or out. Picking one clears the other. */
+    public function updatedAssignedTechnicianId(): void
+    {
+        if ($this->assigned_technician_id) {
+            $this->vendor_id = null;
+        }
+    }
+
+    public function updatedVendorId(): void
+    {
+        if ($this->vendor_id) {
+            $this->assigned_technician_id = null;
+            $this->technician_assigned_at = null;
+        }
     }
 
     #[Computed]
@@ -741,6 +798,15 @@ class Edit extends Component
      */
     public function updatedWorkshopDepartmentId(): void
     {
+        unset($this->isBodyshopDepartment);
+
+        // Insurance is a bodyshop concern; moving off it must not leave an
+        // insurer and policy quietly attached to a service card.
+        if (! $this->isBodyshopDepartment) {
+            $this->insurance_company_id = null;
+            $this->policy_no = null;
+        }
+
         $this->service_type_id = null;
         $this->assigned_advisor_id = null;
         $this->assigned_technician_id = null;

@@ -82,13 +82,45 @@
         </flux:select>
         <flux:error name="customer_vehicle_id" />
 
-        @if ($customer_vehicle_id && $this->vehicleJobCards->isNotEmpty())
+        @if ($customer_vehicle_id && ($this->vehicleJobCards->isNotEmpty() || $historySearch !== '' || $historyPreset !== ''))
             {{-- What this car has been in for before — the question an advisor asks
                  the moment the vehicle is known, not three tabs later. --}}
             <div class="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                 <div class="flex items-center justify-between gap-3 px-3 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                     <flux:heading size="sm">Vehicle History ({{ $this->vehicleJobCards->count() }})</flux:heading>
-                    <flux:link :href="route('job-history.vehicle-timeline', $customer_vehicle_id)" wire:navigate class="text-xs">Full timeline</flux:link>
+                    <div class="flex items-center gap-2">
+                        <flux:modal.trigger name="last-recommended-service">
+                            <flux:button size="xs" variant="ghost" icon="light-bulb">Last recommended</flux:button>
+                        </flux:modal.trigger>
+                        <flux:link :href="route('job-history.vehicle-timeline', $customer_vehicle_id)" wire:navigate class="text-xs">Full timeline</flux:link>
+                    </div>
+                </div>
+
+                {{-- Search reaches the parts and labour actually billed, so "oil
+                     change" finds the visit even when the job card never said it.
+                     The three buttons are the questions asked most at the desk. --}}
+                <div class="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 space-y-2">
+                    <flux:input wire:model.live.debounce.300ms="historySearch" size="sm" icon="magnifying-glass" clearable
+                        placeholder="Search past spares, labour or complaints…" />
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        @foreach ([
+                            'pms' => 'Last PMS',
+                            'oil' => 'Oil Change',
+                            'alignment' => 'Alignment / Balancing',
+                        ] as $key => $label)
+                            @php($marker = $this->lastServiceMarkers[$key] ?? null)
+                            <flux:button size="xs" wire:key="preset-{{ $key }}"
+                                variant="{{ $historyPreset === $key ? 'primary' : 'ghost' }}"
+                                wire:click="setHistoryPreset('{{ $key }}')">
+                                {{ $label }}
+                                @if ($marker)
+                                    <span class="text-xs opacity-70">
+                                        · {{ $marker['at']?->format('d/m/y') }}@if ($marker['km']) · {{ number_format($marker['km']) }} km @endif
+                                    </span>
+                                @endif
+                            </flux:button>
+                        @endforeach
+                    </div>
                 </div>
                 <div class="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-64 overflow-y-auto">
                     @foreach ($this->vehicleJobCards as $vjc)
@@ -108,8 +140,59 @@
                             </div>
                         </div>
                     @endforeach
+                    @if ($this->vehicleJobCards->isEmpty())
+                        <div class="px-3 py-4 text-sm text-zinc-500">Nothing matches that search.</div>
+                    @endif
                 </div>
             </div>
         @endif
     </div>
 </section>
+
+{{-- What we told this customer last time and they did not do — the conversation
+     to have while the car is here, not after it leaves. --}}
+<flux:modal name="last-recommended-service" class="md:w-2xl">
+    <div class="space-y-6">
+        <div>
+            <flux:heading size="lg">Last Recommended Services</flux:heading>
+            <flux:subheading>Raised on earlier visits for this vehicle.</flux:subheading>
+        </div>
+
+        @forelse ($this->lastRecommendations as $rec)
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3" wire:key="rec-{{ $rec->id }}">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="font-medium">{{ $rec->recommended_service ?: '—' }}</div>
+                        <div class="text-xs text-zinc-500 mt-0.5">
+                            {{ $rec->recommended_at?->format('d/m/Y') }}
+                            @if ($rec->recommendation_reason) · {{ $rec->recommendation_reason }} @endif
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        @if ($rec->estimated_value)
+                            <span class="text-sm font-mono">₹{{ number_format((float) $rec->estimated_value, 2) }}</span>
+                        @endif
+                        <flux:badge size="sm" :color="match ($rec->status) {
+                            'converted', 'accepted' => 'lime',
+                            'lost', 'declined' => 'zinc',
+                            default => 'amber',
+                        }">{{ Str::headline($rec->status ?? 'open') }}</flux:badge>
+                    </div>
+                </div>
+                @if ($rec->customer_response)
+                    <div class="mt-2 text-xs text-zinc-500">Customer said: {{ $rec->customer_response }}</div>
+                @endif
+            </div>
+        @empty
+            <flux:callout variant="secondary" icon="information-circle" inline>
+                <flux:callout.text>Nothing has been recommended for this vehicle yet.</flux:callout.text>
+            </flux:callout>
+        @endforelse
+
+        <div class="flex justify-end">
+            <flux:modal.close>
+                <flux:button variant="ghost">Close</flux:button>
+            </flux:modal.close>
+        </div>
+    </div>
+</flux:modal>
