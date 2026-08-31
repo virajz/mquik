@@ -555,6 +555,33 @@
 
     {{-- VEHICLE HISTORY DRAWER --}}
     @if ($editingId)
+        {{-- A complaint the master has never seen: filed with its group so the category
+             fills itself here and on every future card. --}}
+        <flux:modal name="job-card-complaint-quick-add" class="md:w-96">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">New Complaint</flux:heading>
+                    <flux:subheading>Added to the Requested Repair master and selected on this row.</flux:subheading>
+                </div>
+
+                <flux:input wire:model="quickComplaintName" label="Complaint" placeholder="e.g. STEERING VIBRATION AT SPEED" required />
+
+                <flux:select wire:model="quickComplaintGroupId" variant="listbox" searchable label="Group (category)" placeholder="Which group does it belong to…" required>
+                    @foreach ($this->complaintTypes as $ct)
+                        <flux:select.option :value="$ct->id" wire:key="qct-{{ $ct->id }}">{{ $ct->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <div class="flex gap-2">
+                    <flux:spacer />
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" wire:click="createComplaintOption">Save &amp; select</flux:button>
+                </div>
+            </div>
+        </flux:modal>
+
         <flux:modal name="vehicle-history" variant="flyout" class="w-full max-w-lg">
             <div class="space-y-5">
                 <div>

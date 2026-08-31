@@ -140,7 +140,7 @@ class Edit extends Component
     #[Url(as: 'tab')]
     public string $activeTab = 'details';
 
-    /** @var list<array{id: ?int, complaint_type_id: ?int, description: string, severity: string, sequence_no: int}> */
+    /** @var list<array{id: ?int, requested_repair_id: ?int, complaint_type_id: ?int, description: string, reported_at: ?string, is_repeat_job: bool, sequence_no: int}> */
     public array $complaints = [];
 
     /** @var array<int, array{status: string, damage_type_id: ?int, condition_notes: ?string}>  keyed by vehicle_inventory_item_id */
@@ -251,9 +251,10 @@ class Edit extends Component
             ->map(fn ($c) => [
                 'id' => $c->id,
                 'complaint_type_id' => $c->complaint_type_id,
-                'standard_observation_id' => $c->standard_observation_id,
+                'requested_repair_id' => $c->requested_repair_id,
                 'description' => $c->description,
-                'severity' => $c->severity,
+                'reported_at' => $c->reported_at?->format('Y-m-d\TH:i'),
+                'is_repeat_job' => (bool) $c->is_repeat_job,
                 'sequence_no' => (int) $c->sequence_no,
             ])->all();
 
@@ -379,9 +380,10 @@ class Edit extends Component
             'notes' => ['nullable', 'string', 'max:2000'],
 
             'complaints' => ['array'],
-            'complaints.*.standard_observation_id' => ['required', 'integer', Rule::exists('standard_observations', 'id')->where('is_active', true)],
+            'complaints.*.requested_repair_id' => ['required', 'integer', Rule::exists('requested_repairs', 'id')->where('is_active', true)],
+            'complaints.*.reported_at' => ['nullable', 'date'],
+            'complaints.*.is_repeat_job' => ['boolean'],
             'complaints.*.description' => ['nullable', 'string', 'max:1000'],
-            'complaints.*.severity' => ['required', 'string', 'in:low,medium,high'],
             'complaints.*.complaint_type_id' => ['nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
             'complaints.*.sequence_no' => ['integer', 'min:1', 'max:99'],
 
@@ -424,9 +426,10 @@ class Edit extends Component
         $this->complaints[] = [
             'id' => null,
             'complaint_type_id' => null,
-            'standard_observation_id' => null,
+            'requested_repair_id' => null,
             'description' => '',
-            'severity' => 'medium',
+            'reported_at' => now()->format('Y-m-d\\TH:i'),
+            'is_repeat_job' => false,
             'sequence_no' => count($this->complaints) + 1,
         ];
     }
@@ -549,6 +552,94 @@ class Edit extends Component
             $this->assigned_technician_id = null;
             $this->technician_assigned_at = null;
         }
+    }
+
+    /**
+     * Complaints are picked from the Requested Repair master — that is the list
+     * a customer's words map onto. Standard observations belong to checklist
+     * templates, which is a different conversation.
+     *
+     * @return Collection<int, RequestedRepairMaster>
+     */
+    #[Computed]
+    public function complaintOptions()
+    {
+        return RequestedRepairMaster::query()
+            ->where('is_active', true)
+            ->when($this->workshop_department_id, fn ($q) => $q->whereHas(
+                'workshopDepartments',
+                fn ($d) => $d->where('workshop_departments.id', $this->workshop_department_id),
+            ))
+            ->with('complaintType:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'complaint_type_id']);
+    }
+
+    /** Picking a complaint fills its group; the advisor never sets the category by hand. */
+    public function updatedComplaints($value, string $key): void
+    {
+        if (! str_ends_with($key, '.requested_repair_id')) {
+            return;
+        }
+
+        $index = (int) explode('.', $key)[0];
+
+        $this->complaints[$index]['complaint_type_id'] = $value
+            ? RequestedRepairMaster::whereKey($value)->value('complaint_type_id')
+            : null;
+    }
+
+    // ---- Quick-create a complaint into the master, group and all ------------
+
+    public string $quickComplaintName = '';
+
+    public ?int $quickComplaintGroupId = null;
+
+    public function openComplaintQuickAdd(int $index): void
+    {
+        $this->quickComplaintIndex = $index;
+        $this->quickComplaintName = '';
+        $this->quickComplaintGroupId = null;
+
+        $this->resetErrorBag(['quickComplaintName', 'quickComplaintGroupId']);
+
+        Flux::modal('job-card-complaint-quick-add')->show();
+    }
+
+    public ?int $quickComplaintIndex = null;
+
+    public function createComplaintOption(): void
+    {
+        $this->authorize('requested_repair_master.create');
+
+        $this->validate([
+            'quickComplaintName' => ['required', 'string', 'max:255'],
+            'quickComplaintGroupId' => ['required', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
+        ], attributes: [
+            'quickComplaintName' => 'complaint',
+            'quickComplaintGroupId' => 'group',
+        ]);
+
+        $repair = RequestedRepairMaster::firstOrCreate(
+            ['name' => mb_strtoupper(trim($this->quickComplaintName))],
+            ['complaint_type_id' => $this->quickComplaintGroupId, 'is_active' => true],
+        );
+
+        // A new complaint belongs to the department being worked, or it will not
+        // show up in this picker the next time round.
+        if ($this->workshop_department_id) {
+            $repair->workshopDepartments()->syncWithoutDetaching([$this->workshop_department_id]);
+        }
+
+        if ($this->quickComplaintIndex !== null && isset($this->complaints[$this->quickComplaintIndex])) {
+            $this->complaints[$this->quickComplaintIndex]['requested_repair_id'] = $repair->id;
+            $this->complaints[$this->quickComplaintIndex]['complaint_type_id'] = $repair->complaint_type_id;
+        }
+
+        unset($this->complaintOptions);
+
+        Flux::modal('job-card-complaint-quick-add')->close();
+        Flux::toast(text: 'Complaint "'.$repair->name.'" added to the master.', variant: 'success');
     }
 
     #[Computed]
@@ -1101,7 +1192,7 @@ class Edit extends Component
         // never silently deleted — validation makes the user pick a phrase instead.
         $this->complaints = array_values(array_filter(
             $this->complaints,
-            fn ($c) => filled($c['standard_observation_id'] ?? null) || filled($c['id'] ?? null),
+            fn ($c) => filled($c['requested_repair_id'] ?? null) || filled($c['id'] ?? null),
         ));
 
         $data = $this->validate();
@@ -1301,24 +1392,27 @@ class Edit extends Component
     }
 
     /**
-     * @param  array<int, array{id?: int|null, complaint_type_id?: int|null, standard_observation_id?: int|null, description?: string, severity: string, sequence_no?: int}>  $rows
+     * @param  array<int, array{id?: int|null, complaint_type_id?: int|null, requested_repair_id?: int|null, description?: string, reported_at?: string|null, is_repeat_job?: bool, sequence_no?: int}>  $rows
      */
     protected function syncComplaints(JobCard $jc, array $rows): void
     {
         $keptIds = [];
 
-        // Common-complaint phrases, keyed by id — the picked observation is the
-        // authoritative complaint text (users pick, they don't type).
-        $observations = StandardObservationMaster::query()
-            ->pluck('name', 'id');
+        // The picked repair is the authoritative complaint text — users pick,
+        // they don't type — and it carries its own group.
+        $repairs = RequestedRepairMaster::query()->get(['id', 'name', 'complaint_type_id'])->keyBy('id');
 
         foreach ($rows as $i => $row) {
-            $observationId = $row['standard_observation_id'] ?? null;
+            $repairId = $row['requested_repair_id'] ?? null;
+            $repair = $repairId ? $repairs->get($repairId) : null;
+
             $payload = [
-                'complaint_type_id' => $row['complaint_type_id'] ?? null,
-                'standard_observation_id' => $observationId,
-                'description' => strtoupper((string) ($observations[$observationId] ?? $row['description'] ?? '')),
-                'severity' => $row['severity'],
+                // The group follows the repair, falling back to whatever was set.
+                'complaint_type_id' => $repair?->complaint_type_id ?? ($row['complaint_type_id'] ?? null),
+                'requested_repair_id' => $repairId,
+                'description' => strtoupper((string) ($repair?->name ?? $row['description'] ?? '')),
+                'reported_at' => $row['reported_at'] ?: now(),
+                'is_repeat_job' => (bool) ($row['is_repeat_job'] ?? false),
                 'sequence_no' => (int) ($row['sequence_no'] ?? $i + 1),
             ];
 

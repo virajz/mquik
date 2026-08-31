@@ -17,6 +17,8 @@ class JobCardComplaint extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'reported_at' => 'datetime',
+        'is_repeat_job' => 'boolean',
         'is_resolved' => 'boolean',
     ];
 
