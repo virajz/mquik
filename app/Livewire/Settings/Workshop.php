@@ -29,6 +29,9 @@ class Workshop extends Component
 
     public ?int $sessionLifetime = null;
 
+    /** The T&Cs a customer accepts on a job card — editable as policy changes. */
+    public string $jobCardTerms = '';
+
     public function mount(): void
     {
         $this->servicesShown = AppSettings::int('service_history.services_shown');
@@ -37,11 +40,13 @@ class Workshop extends Component
         $this->defaultOverdueMonths = AppSettings::int('service_history.default_overdue_months');
         $this->sortMode = (string) AppSettings::get('service_history.sort_mode', 'due_first');
         $this->sessionLifetime = AppSettings::int('security.session_lifetime') ?: config('session.lifetime');
+        $this->jobCardTerms = (string) AppSettings::get('terms.job_card', '');
     }
 
     protected function rules(): array
     {
         return [
+            'jobCardTerms' => ['nullable', 'string', 'max:5000'],
             'servicesShown' => ['required', 'integer', 'min:1', 'max:50'],
             'visitsScanned' => ['required', 'integer', 'min:10', 'max:500'],
             'visitsListed' => ['required', 'integer', 'min:5', 'max:200'],
@@ -55,6 +60,7 @@ class Workshop extends Component
 
     public function save(): void
     {
+        AppSettings::set('terms.job_card', $this->jobCardTerms);
         $this->authorize('company_master.settings');
 
         $this->validate();

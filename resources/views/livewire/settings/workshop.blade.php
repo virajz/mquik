@@ -45,6 +45,17 @@
                 description="Applies to everyone. Shared floor terminals are the reason to keep this short."
                 required />
 
+            <flux:separator variant="subtle" />
+
+            <div>
+                <flux:heading size="sm">{{ __('Job Card Terms & Conditions') }}</flux:heading>
+                <flux:subheading>What a customer — or their reference — accepts on the job card. Edit it here as policy changes; it applies to cards accepted from now on.</flux:subheading>
+            </div>
+
+            <flux:textarea wire:model="jobCardTerms" rows="6"
+                :label="__('Terms text')"
+                placeholder="The workshop is authorised to carry out the repairs listed…" />
+
             <div class="flex items-center gap-4">
                 <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
             </div>

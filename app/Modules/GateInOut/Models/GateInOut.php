@@ -16,6 +16,7 @@ use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
 use App\Modules\ParkingSlotMaster\Models\ParkingSlotMaster;
 use App\Modules\PickupDrop\Support\PickupDropStatus;
+use App\Support\RegistrationNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -64,6 +65,11 @@ class GateInOut extends Model
 
     protected static function booted(): void
     {
+        // One spelling for a plate, wherever it is typed.
+        static::saving(function (self $row) {
+            $row->registration_no = RegistrationNumber::format($row->registration_no);
+        });
+
         // An inward means the car is physically here, which moves any open
         // booking for that vehicle to Arrived.
         static::saved(function (self $visit) {

@@ -49,12 +49,16 @@
         <flux:table.columns>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'job_card_no'" :direction="$sortDirection" wire:click="sort('job_card_no')">JC No.</flux:table.column>
             <flux:table.column class="w-44" sortable :sorted="$sortBy === 'opened_at'" :direction="$sortDirection" wire:click="sort('opened_at')">Opened</flux:table.column>
+            <flux:table.column class="w-36">Inward</flux:table.column>
             <flux:table.column>Customer / Vehicle</flux:table.column>
             <flux:table.column class="w-44">Advisor / Tech</flux:table.column>
             <flux:table.column class="w-20 text-center">Issues</flux:table.column>
             <flux:table.column class="w-44" sortable :sorted="$sortBy === 'promised_at'" :direction="$sortDirection" wire:click="sort('promised_at')">Promised</flux:table.column>
             <flux:table.column class="w-32" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
+            <flux:table.column class="w-44">Current Status</flux:table.column>
             <flux:table.column class="w-32">Stage</flux:table.column>
+            <flux:table.column class="w-28">T&amp;C</flux:table.column>
+            <flux:table.column class="w-36">Insurer</flux:table.column>
             <flux:table.column class="w-44">Pending Reason</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
         </flux:table.columns>
@@ -67,15 +71,32 @@
                         <div class="font-medium">{{ $row->opened_at?->format('d/m/Y') }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5">{{ $row->opened_at?->format('h:i A') }}</div>
                     </flux:table.cell>
+                    {{-- When the car actually arrived, from the gate visit. --}}
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if ($row->inward_at)
+                            <div>{{ $row->inward_at->format('d/m/Y') }}</div>
+                            <div class="text-xs">{{ $row->inward_at->format('h:i A') }}</div>
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
+
                     <flux:table.cell>
                         <div class="font-medium">{{ trim($row->customer?->first_name.' '.($row->customer?->last_name ?? '')) }}</div>
                         <div class="text-xs text-zinc-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                            {{-- Both numbers: the one that answers is not always the first. --}}
                             @if ($row->customer?->phone) <span class="font-mono">+91 {{ $row->customer->phone }}</span> @endif
+                            @if ($row->customer?->alternate_phone)
+                                <span>/</span>
+                                <span class="font-mono">+91 {{ $row->customer->alternate_phone }}</span>
+                            @endif
                             @if ($row->customerVehicle)
                                 <span>·</span>
                                 <span class="font-mono">{{ $row->customerVehicle->registration_no }}</span>
+                                {{-- Model only: the brand repeats down every row and
+                                     crowds out the part that tells them apart. --}}
                                 <span>·</span>
-                                <span>{{ trim(($row->customerVehicle->model?->brand?->name ?? '').' '.($row->customerVehicle->model?->name ?? '')) }}</span>
+                                <span>{{ $row->customerVehicle->model?->name }}</span>
                             @endif
                         </div>
                     </flux:table.cell>
@@ -107,8 +128,30 @@
                         <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
                     </flux:table.cell>
 
+                    {{-- Not just the status: when it last moved, and what happened. --}}
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if ($row->status_since)
+                            <div>{{ $row->status_since->format('d/m/Y, h:i A') }}</div>
+                            @if ($row->status_note)
+                                <div class="text-xs truncate" title="{{ $row->status_note }}">{{ Str::limit($row->status_note, 34) }}</div>
+                            @endif
+                        @else
+                            —
+                        @endif
+                    </flux:table.cell>
+
                     {{-- Status says whether it moves; stage says where it is. --}}
                     <flux:table.cell class="text-sm">{{ $row->currentStage?->name ?? '—' }}</flux:table.cell>
+
+                    <flux:table.cell>
+                        @if ($row->terms_accepted)
+                            <flux:badge color="lime" size="sm">{{ $row->terms_accepted_by === 'reference' ? 'Ref' : 'Signed' }}</flux:badge>
+                        @else
+                            <flux:badge color="amber" size="sm">Pending</flux:badge>
+                        @endif
+                    </flux:table.cell>
+
+                    <flux:table.cell class="text-sm">{{ $row->insuranceCompany?->name ?? '—' }}</flux:table.cell>
 
                     {{-- Why it is parked, and since when — what this list is scanned for. --}}
                     <flux:table.cell class="text-sm text-zinc-500">
@@ -124,6 +167,44 @@
 
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
+                            {{-- Quick jump: start the next document from this card,
+                                 prefilled with its customer, vehicle and lines —
+                                 the advisor never re-keys what the card knows. --}}
+                            <flux:dropdown position="bottom" align="end">
+                                <flux:button size="sm" variant="ghost" icon="arrow-top-right-on-square" />
+                                <flux:menu>
+                                    <flux:menu.group heading="Create from this card">
+                                        @foreach ([
+                                            ['vehicle-inspection-order.create', 'VIO — Work Order', 'clipboard-document-check', 'vehicle_inspection_order.create'],
+                                            ['consumable.create', 'CMS — Consumable Slip', 'beaker', 'consumable.create'],
+                                            ['internal-parts-inquiry.create', 'IPI — Parts Inquiry', 'cube', 'internal_parts_inquiry.create'],
+                                            ['sales-estimate.create', 'Estimate', 'calculator', 'sales_estimate.create'],
+                                            ['internal-part-order.create', 'IPO — Part Order', 'inbox-arrow-down', 'internal_part_order.create'],
+                                            ['proforma.create', 'Proforma', 'document-text', 'proforma.create'],
+                                            ['regular-sales-invoice.create', 'Invoice', 'document-currency-rupee', 'regular_sales_invoice.create'],
+                                            ['document-collection.create', 'Document Collection', 'folder-open', 'document_collection.create'],
+                                        ] as [$route, $label, $icon, $permission])
+                                            @can($permission)
+                                                <flux:menu.item :icon="$icon" wire:key="qj-{{ $row->id }}-{{ $route }}"
+                                                    :href="route($route, ['from-job-card' => $row->id])" wire:navigate>{{ $label }}</flux:menu.item>
+                                            @endcan
+                                        @endforeach
+                                    </flux:menu.group>
+
+                                    {{-- Masters, not documents: no job card carries
+                                         into them, they just save a trip to the menu. --}}
+                                    <flux:menu.separator />
+                                    <flux:menu.group heading="Masters">
+                                        @can('customer_master.create')
+                                            <flux:menu.item icon="user-plus" :href="route('customer-master.create')" wire:navigate>New Customer</flux:menu.item>
+                                        @endcan
+                                        @can('customer_vehicle_master.create')
+                                            <flux:menu.item icon="truck" :href="route('customer-vehicle-master.create')" wire:navigate>New Customer Vehicle</flux:menu.item>
+                                        @endcan
+                                    </flux:menu.group>
+                                </flux:menu>
+                            </flux:dropdown>
+
                             @can('job_card.update')
                                 <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('job-card.edit', $row)" wire:navigate>Edit</flux:button>
                             @endcan
@@ -152,7 +233,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="10" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="14" class="text-center text-zinc-500 py-12">
                         <flux:icon.clipboard-document-list class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No job cards yet</div>
                         <flux:text class="mt-1">Open a card from an appointment, gate event, or directly here.</flux:text>

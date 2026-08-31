@@ -140,10 +140,26 @@
                                         class:input="text-right font-mono" />
                                     <flux:input.group.suffix>km</flux:input.group.suffix>
                                 </flux:input.group>
-                                <flux:input.group label="Odometer Out (km)">
-                                    <flux:input wire:model="odometer_out" type="number" min="0" placeholder="—" class:input="text-right font-mono" />
-                                    <flux:input.group.suffix>km</flux:input.group.suffix>
-                                </flux:input.group>
+                                {{-- Belongs to the Proforma — the reading taken when
+                                     the car goes back out. Saved on its own so the
+                                     cashier does not have to submit the whole card. --}}
+                                <flux:field>
+                                    <flux:label>Odometer Out (km)</flux:label>
+                                    <div class="flex items-stretch gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <flux:input.group>
+                                                <flux:input wire:model="odometer_out" type="number" min="0" placeholder="—" class:input="text-right font-mono" />
+                                                <flux:input.group.suffix>km</flux:input.group.suffix>
+                                            </flux:input.group>
+                                        </div>
+                                        @if ($editingId)
+                                            <flux:tooltip content="Save just this reading">
+                                                <flux:button type="button" size="sm" variant="outline" icon="check" wire:click="saveOdometerOut" />
+                                            </flux:tooltip>
+                                        @endif
+                                    </div>
+                                    <flux:error name="odometer_out" />
+                                </flux:field>
                                 <flux:select wire:model="fuel_level" variant="listbox" clearable label="Fuel Level" placeholder="—">
                                     @foreach (\App\Modules\JobCard\Models\JobCard::fuelLevels() as $key => $label)
                                         <flux:select.option :value="$key">{{ $label }}</flux:select.option>
@@ -179,15 +195,32 @@
                         <div class="space-y-4 min-w-0">
                             {{-- Insurance is a bodyshop concern; a service card never
                                  needs an insurer, so it is not asked for. --}}
+                            {{-- Order follows the decision: the service type says
+                                 whether this is an insurance job at all, and only
+                                 then does the insurer matter. --}}
                             @if ($this->isBodyshopDepartment)
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable label="Insurance Company" placeholder="For insurance jobs…">
+                                    <flux:select wire:model.live="service_type_id" variant="listbox" searchable clearable
+                                        label="Service Type"
+                                        :placeholder="$workshop_department_id ? 'Pick a service type…' : 'Pick a department first'"
+                                        :disabled="! $workshop_department_id" required>
+                                        @foreach ($this->serviceTypesForDepartment as $st)
+                                            <flux:select.option :value="$st->id" wire:key="ins-st-{{ $st->id }}">{{ $st->name }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+
+                                    <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable
+                                        label="Insurance Company"
+                                        :placeholder="$this->isInsuranceServiceType() ? 'Who is paying…' : 'Only for an insurance job'"
+                                        :required="$this->isInsuranceServiceType()">
                                         @foreach ($this->insuranceCompanies as $ic)
                                             <flux:select.option :value="$ic->id" wire:key="ic-{{ $ic->id }}">{{ $ic->name }}</flux:select.option>
                                         @endforeach
                                     </flux:select>
-                                    <flux:input wire:model="policy_no" label="Policy No." placeholder="Insurance policy number" class:input="font-mono uppercase" />
                                 </div>
+                                <flux:text size="sm" class="text-zinc-500">
+                                    Policy number is captured on the Claim Intimation, where the claim is actually raised.
+                                </flux:text>
                             @endif
 
                             {{-- One or the other: the job is done in-house by a
@@ -281,7 +314,7 @@
                                 </div>
                             @else
                                 @foreach ($this->inventoryChecklist as $item)
-                                    @php $status = data_get($inventoryItems, $item->id.'.status', 'present'); @endphp
+                                    @php $status = data_get($inventoryItems, $item->id.'.status'); @endphp
                                     <div wire:key="inv-{{ $item->id }}" class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center py-2 border-b border-zinc-100 dark:border-zinc-800/60 last:border-0">
                                         <div class="text-sm font-medium">{{ $item->name }}</div>
                                         <flux:radio.group wire:model.live="inventoryItems.{{ $item->id }}.status" variant="segmented" size="sm">
@@ -290,7 +323,7 @@
                                             <flux:radio value="damaged" label="Damaged" />
                                         </flux:radio.group>
 
-                                        @if ($status !== 'present')
+                                        @if ($status && $status !== 'present')
                                             <div class="md:col-span-2 grid grid-cols-1 {{ $status === 'damaged' ? 'md:grid-cols-[200px_1fr]' : '' }} gap-2 pl-1">
                                                 @if ($status === 'damaged')
                                                     <flux:select wire:model="inventoryItems.{{ $item->id }}.damage_type_id" variant="listbox" searchable clearable size="sm" placeholder="Damage type…">
@@ -467,13 +500,13 @@
                     <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-6">
                         <div>
                             <flux:heading size="lg">Advisor Notes</flux:heading>
-                            <flux:text size="sm" class="mt-1 text-zinc-500">Suggested services and any internal notes for the technician.</flux:text>
+                            <flux:text size="sm" class="mt-1 text-zinc-500">What the customer told us, and any internal notes for the technician.</flux:text>
                         </div>
                         <div class="space-y-4 min-w-0">
                             <flux:textarea
                                 wire:model="suggested_services"
-                                label="Suggested Services"
-                                placeholder="e.g. Recommended brake fluid change due to age + alignment check."
+                                label="Customer Notes"
+                                placeholder="e.g. Pulls left under braking; noise only when cold."
                                 rows="3"
                             />
                             <flux:textarea
@@ -499,11 +532,46 @@
                             <flux:text size="sm" class="mt-1 text-zinc-500">Customer's acceptance of the workshop's standard T&Cs, plus their signature on the printed job card.</flux:text>
                         </div>
                         <div class="space-y-4 min-w-0">
-                            <flux:switch
-                                wire:model="terms_accepted"
-                                label="Customer accepted T&Cs"
-                                description="Stamps the acceptance time on save."
-                            />
+                            {{-- The terms themselves, so nobody accepts something
+                                 they cannot read. Edited in Settings → Workshop. --}}
+                            @if ($this->jobCardTerms !== '')
+                                <div class="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 p-3 max-h-40 overflow-y-auto text-sm text-zinc-600 dark:text-zinc-300 whitespace-pre-line">{{ $this->jobCardTerms }}</div>
+                            @endif
+
+                            {{-- Someone has to accept: the customer, or a reference
+                                 standing in when they are not here. --}}
+                            <flux:radio.group wire:model.live="terms_accepted_by" variant="segmented" size="sm" label="Accepted by">
+                                <flux:radio value="customer" label="Customer" />
+                                <flux:radio value="reference" label="Reference" />
+                            </flux:radio.group>
+
+                            @if ($terms_accepted_by === 'reference')
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <flux:input wire:model="reference_name" size="sm" label="Reference Name"
+                                        placeholder="Who is standing in for the customer…" required />
+                                    <flux:field>
+                                        <flux:label>Reference Contact No.</flux:label>
+                                        <flux:input.group>
+                                            <flux:input.group.prefix>+91</flux:input.group.prefix>
+                                            <flux:input wire:model="reference_phone" mask="99999 99999" inputmode="numeric" placeholder="98765 43210" />
+                                        </flux:input.group>
+                                        <flux:error name="reference_phone" />
+                                    </flux:field>
+                                </div>
+                                <flux:error name="reference_name" />
+                            @endif
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <flux:switch
+                                    wire:model="terms_accepted"
+                                    label="T&Cs accepted"
+                                    description="Stamps the acceptance time on save."
+                                />
+                                @unless ($terms_accepted)
+                                    <flux:button type="button" size="sm" variant="primary" icon="check"
+                                        wire:click="quickApproveTerms">Quick approve</flux:button>
+                                @endunless
+                            </div>
 
                             @php $existingSig = $this->existingSignaturePath(); @endphp
                             @if ($existingSig && ! $clearSignature)

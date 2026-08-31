@@ -57,6 +57,21 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Job card terms & conditions
+    |--------------------------------------------------------------------------
+    |
+    | The text a customer (or their reference) accepts on the job card. Edited
+    | in Settings → Workshop so it can change without a deploy; this is only the
+    | fallback for a fresh install.
+    |
+    */
+
+    'terms' => [
+        'job_card' => env('MQUIK_JOB_CARD_TERMS', 'The workshop is authorised to carry out the repairs listed on this job card, including road-testing the vehicle. Estimates are indicative; any additional work will be confirmed before it is carried out. The workshop is not responsible for articles left in the vehicle. Vehicles not collected within 7 days of completion may attract parking charges.'),
+    ],
+
     'service_history' => [
 
         /*

@@ -30,6 +30,8 @@ use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\AppSettings;
+use App\Support\RegistrationNumber;
 use Flux\Flux;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -83,8 +85,6 @@ class Edit extends Component
     public ?int $job_description_id = null;
 
     public ?int $insurance_company_id = null;
-
-    public ?string $policy_no = null;
 
     public ?int $vendor_id = null;
 
@@ -167,6 +167,13 @@ class Edit extends Component
     /** @var array<int, int>  ids of existing photos the user removed during this edit */
     public array $removedPhotoIds = [];
 
+    /** Who accepted: the customer themselves, or a named reference standing in. */
+    public string $terms_accepted_by = 'customer';
+
+    public ?string $reference_name = null;
+
+    public ?string $reference_phone = null;
+
     public ?UploadedFile $signatureUpload = null;
 
     public bool $clearSignature = false;
@@ -221,7 +228,6 @@ class Edit extends Component
         $this->service_package_id = $jc->service_package_id;
         $this->job_description_id = $jc->job_description_id;
         $this->insurance_company_id = $jc->insurance_company_id;
-        $this->policy_no = $jc->policy_no;
         $this->vendor_id = $jc->vendor_id;
         $this->customer_approval_type_id = $jc->customer_approval_type_id;
         $this->assigned_advisor_id = $jc->assigned_advisor_id;
@@ -242,6 +248,9 @@ class Edit extends Component
         $this->legacy_bill_no = $jc->legacy_bill_no;
         $this->suggested_services = $jc->suggested_services;
         $this->terms_accepted = (bool) $jc->terms_accepted;
+        $this->terms_accepted_by = $jc->terms_accepted_by ?: 'customer';
+        $this->reference_name = $jc->reference_name;
+        $this->reference_phone = $jc->reference_phone;
         $this->status = $jc->status;
         $this->current_stage_id = $jc->current_stage_id;
         $this->pending_reason_id = $jc->pending_reason_id;
@@ -284,6 +293,26 @@ class Edit extends Component
      * the form shows every item from day one. Each item defaults to "present" —
      * the advisor only flags the exceptions (missing / damaged).
      */
+    /**
+     * Switching an item's status wipes what the previous status collected —
+     * a missing-quantity note reappearing as a damage description is worse
+     * than no note at all.
+     */
+    public function updatedInventoryItems($value, string $key): void
+    {
+        if (! str_ends_with($key, '.status')) {
+            return;
+        }
+
+        $itemId = explode('.', $key)[0];
+
+        $this->inventoryItems[$itemId]['condition_notes'] = null;
+
+        if ($value !== JobCardInventoryItem::STATUS_DAMAGED) {
+            $this->inventoryItems[$itemId]['damage_type_id'] = null;
+        }
+    }
+
     protected function seedInventoryChecklist(): void
     {
         $items = VehicleInventoryItemMaster::query()
@@ -293,8 +322,10 @@ class Edit extends Component
 
         foreach ($items as $item) {
             if (! isset($this->inventoryItems[$item->id])) {
+                // Nothing is pre-picked: an untouched row must be visibly
+                // unanswered, not silently "present".
                 $this->inventoryItems[$item->id] = [
-                    'status' => JobCardInventoryItem::STATUS_PRESENT,
+                    'status' => null,
                     'damage_type_id' => null,
                     'condition_notes' => null,
                 ];
@@ -351,29 +382,45 @@ class Edit extends Component
                 Rule::exists('customer_vehicles', 'id')->where(fn ($q) => $q->where('customer_id', $this->customer_id)->where('is_active', true)),
             ],
             'workshop_department_id' => ['required', 'integer', Rule::exists('workshop_departments', 'id')->where('is_active', true)],
-            'service_type_id' => ['nullable', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
+            'service_type_id' => ['required', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
             'service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
             'job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
-            // Insurance belongs to bodyshop work only.
-            'insurance_company_id' => ['nullable', 'integer', Rule::exists('insurance_companies', 'id')->where('is_active', true)],
-            'policy_no' => ['nullable', 'string', 'max:60'],
+
+            // An insurance job is not an insurance job without the insurer.
+            'insurance_company_id' => [
+                Rule::requiredIf(fn () => $this->isBodyshopDepartment && $this->isInsuranceServiceType()),
+                'nullable', 'integer', Rule::exists('insurance_companies', 'id')->where('is_active', true),
+            ],
             'vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
-            'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            // The work needs an owner: an in-house technician or an outside
+            // contractor. Either satisfies it; neither does not.
+            'assigned_technician_id' => [
+                Rule::requiredIf(fn () => ! $this->vendor_id),
+                'nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true),
+            ],
+            'vendor_id' => [
+                Rule::requiredIf(fn () => ! $this->assigned_technician_id),
+                'nullable', 'integer', Rule::exists('vendors', 'id'),
+            ],
             'opened_date' => ['required', 'date_format:Y-m-d'],
             'opened_time' => ['required', 'date_format:H:i'],
-            'promised_date' => ['nullable', 'date_format:Y-m-d'],
-            'promised_time' => ['nullable', 'date_format:H:i'],
+            'promised_date' => ['required', 'date_format:Y-m-d'],
+            'promised_time' => ['required', 'date_format:H:i'],
             'expected_completion_date' => ['nullable', 'date_format:Y-m-d'],
             'expected_completion_time' => ['nullable', 'date_format:H:i'],
             'km_at_service' => ['nullable', 'integer', 'min:0', 'max:9999999'],
-            'fuel_level' => ['nullable', Rule::in(array_keys(JobCard::fuelLevels()))],
+            'fuel_level' => ['required', Rule::in(array_keys(JobCard::fuelLevels()))],
             'odometer_out' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'avg_mileage' => ['nullable', 'integer', 'min:0', 'max:32767'],
             'brought_by' => ['nullable', Rule::in(array_keys(JobCard::broughtByOptions()))],
             'additional_work' => ['nullable', 'string', 'max:2000'],
             'suggested_services' => ['nullable', 'string', 'max:2000'],
             'terms_accepted' => ['boolean'],
+            'terms_accepted_by' => ['required', 'in:customer,reference'],
+            // A reference stands in for the customer, so we need to know who.
+            'reference_name' => [Rule::requiredIf(fn () => $this->terms_accepted && $this->terms_accepted_by === 'reference'), 'nullable', 'string', 'max:255'],
+            'reference_phone' => ['nullable', 'string', 'min:10', 'max:20'],
             'status' => ['required', Rule::in(array_keys(JobCard::statuses()))],
             'current_stage_id' => ['nullable', 'integer', Rule::exists('job_stages', 'id')->where('is_active', true)],
             'pending_reason_id' => ['nullable', 'integer', Rule::exists('job_card_pending_reasons', 'id')->where('is_active', true)],
@@ -388,7 +435,8 @@ class Edit extends Component
             'complaints.*.sequence_no' => ['integer', 'min:1', 'max:99'],
 
             'inventoryItems' => ['array'],
-            'inventoryItems.*.status' => ['required', Rule::in(array_keys(JobCardInventoryItem::statuses()))],
+            // Unanswered is a legitimate state now that nothing is pre-picked.
+            'inventoryItems.*.status' => ['nullable', Rule::in([JobCardInventoryItem::STATUS_PRESENT, JobCardInventoryItem::STATUS_MISSING, JobCardInventoryItem::STATUS_DAMAGED])],
             'inventoryItems.*.damage_type_id' => ['nullable', 'integer', Rule::exists('damage_types', 'id')->where('is_active', true)],
             'inventoryItems.*.condition_notes' => ['nullable', 'string', 'max:500'],
 
@@ -480,6 +528,64 @@ class Edit extends Component
         ));
     }
 
+    /**
+     * Accept the T&Cs in one tap. The customer's own details fill a customer
+     * acceptance; a reference acceptance keeps whoever the advisor named.
+     */
+    public function quickApproveTerms(): void
+    {
+        $this->validate([
+            'terms_accepted_by' => ['required', 'in:customer,reference'],
+            'reference_name' => [Rule::requiredIf(fn () => $this->terms_accepted_by === 'reference'), 'nullable', 'string', 'max:255'],
+            'reference_phone' => ['nullable', 'string', 'min:10', 'max:20'],
+        ], attributes: [
+            'reference_name' => 'reference name',
+            'reference_phone' => 'reference contact no.',
+        ]);
+
+        $this->terms_accepted = true;
+
+        Flux::toast(
+            text: $this->terms_accepted_by === 'reference'
+                ? 'T&Cs accepted by '.$this->reference_name.'.'
+                : 'T&Cs accepted by the customer.',
+            variant: 'success',
+        );
+    }
+
+    /** The current T&C text — edited in Settings, so it changes without a deploy. */
+    #[Computed]
+    public function jobCardTerms(): string
+    {
+        return (string) AppSettings::get('terms.job_card', config('mquik.terms.job_card', ''));
+    }
+
+    /**
+     * The out-reading is taken at the counter as the car leaves, often by
+     * someone who has no business submitting the whole job card — so it saves
+     * on its own.
+     */
+    public function saveOdometerOut(): void
+    {
+        $this->authorize('job_card.update');
+
+        if (! $this->editingId) {
+            return;
+        }
+
+        $this->validate(
+            ['odometer_out' => ['nullable', 'integer', 'min:0', 'max:9999999']],
+            attributes: ['odometer_out' => 'odometer out'],
+        );
+
+        JobCard::whereKey($this->editingId)->update(['odometer_out' => $this->odometer_out ?: null]);
+
+        Flux::toast(
+            text: $this->odometer_out ? 'Odometer out saved: '.number_format((int) $this->odometer_out).' km.' : 'Odometer out cleared.',
+            variant: 'success',
+        );
+    }
+
     public function markClearSignature(): void
     {
         $this->clearSignature = true;
@@ -536,6 +642,18 @@ class Edit extends Component
             columns: ['id', 'name'],
             limit: 30,
         );
+    }
+
+    /** Is the chosen service type an insurance job? Matched on its name. */
+    public function isInsuranceServiceType(): bool
+    {
+        if (! $this->service_type_id) {
+            return false;
+        }
+
+        $name = (string) ServiceTypeMaster::whereKey($this->service_type_id)->value('name');
+
+        return str_contains(mb_strtoupper($name), 'INSURANCE');
     }
 
     /** Work goes to one place: in-house, or out. Picking one clears the other. */
@@ -895,7 +1013,6 @@ class Edit extends Component
         // insurer and policy quietly attached to a service card.
         if (! $this->isBodyshopDepartment) {
             $this->insurance_company_id = null;
-            $this->policy_no = null;
         }
 
         $this->service_type_id = null;
@@ -940,12 +1057,25 @@ class Edit extends Component
     {
         $term = trim($this->gateVisitSearch);
 
+        // A plate typed "711%Q7" or "gj05" must find one stored "GJ 05 AR 1234",
+        // so both sides are compared with their spacing and punctuation removed.
+        $compact = RegistrationNumber::compact($term);
+
         return GateInOut::query()
-            // The "keep the chosen one visible" clause only belongs inside a
-            // search — on its own it collapses the list to that single visit.
+            // Only cars still with us: a delivered visit cannot take a new card.
+            ->whereNull('exited_at')
+            // The chosen visit stays visible even once it has been delivered —
+            // an existing card must not lose the inward it was raised against.
+            ->when($this->gate_event_id, fn ($q) => $q->orWhere('id', $this->gate_event_id))
             ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->whereLike('gate_event_no', '%'.$term.'%', caseSensitive: false)
-                ->orWhereLike('registration_no', '%'.$term.'%', caseSensitive: false)
+                ->orWhereRaw(
+                    "upper(regexp_replace(registration_no, '[^A-Za-z0-9]', '', 'g')) like ?",
+                    ['%'.$compact.'%'],
+                )
+                ->orWhereHas('customer', fn ($c) => $c
+                    ->whereLike('first_name', '%'.$term.'%', caseSensitive: false)
+                    ->orWhereLike('last_name', '%'.$term.'%', caseSensitive: false))
                 ->when($this->gate_event_id, fn ($k) => $k->orWhere('id', $this->gate_event_id))))
             // The plate alone does not tell an advisor which car this is.
             ->with(['customerVehicle:id,registration_no,model_id', 'customerVehicle.model:id,name,brand_id', 'customerVehicle.model.brand:id,name'])
@@ -1232,9 +1362,16 @@ class Edit extends Component
 
         if ($data['terms_accepted']) {
             $data['terms_accepted_at'] = $data['terms_accepted_at'] ?? now();
+
+            // A customer acceptance carries no reference; keeping one would
+            // leave a stale name attached to a signature that isn't theirs.
+            if ($data['terms_accepted_by'] === 'customer') {
+                $data['reference_name'] = null;
+                $data['reference_phone'] = null;
+            }
         }
 
-        foreach (['suggested_services', 'notes', 'policy_no'] as $k) {
+        foreach (['suggested_services', 'notes'] as $k) {
             if (isset($data[$k]) && is_string($data[$k])) {
                 $data[$k] = strtoupper($data[$k]);
             }
@@ -1444,7 +1581,13 @@ class Edit extends Component
         $keptIds = [];
 
         foreach ($this->inventoryItems as $vehicleInventoryItemId => $state) {
-            $status = $state['status'] ?? JobCardInventoryItem::STATUS_PRESENT;
+            $status = $state['status'] ?? null;
+
+            // Unanswered rows are not a record of anything — skip them.
+            if ($status === null) {
+                continue;
+            }
+
             $notes = $state['condition_notes'] ?? null;
             $damageTypeId = $status === JobCardInventoryItem::STATUS_DAMAGED
                 ? ($state['damage_type_id'] ?? null)

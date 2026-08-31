@@ -4,6 +4,7 @@ namespace App\Modules\JobCard\Livewire;
 
 use App\Concerns\ScopesToRecord;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCardCancelReasonMaster\Models\JobCardCancelReasonMaster;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
@@ -200,9 +201,23 @@ class Index extends Component
                 'technician:id,name',
                 'currentStage:id,name',
                 'pendingReason:id,name',
+                'insuranceCompany:id,name',
+                'customerVehicle.customer:id,phone',
             ])
             // When the card was last parked, so the listing can say how long it
             // has been stuck rather than only that it is.
+            ->addSelect([
+                // The gate visit this card was raised against — when the car arrived.
+                'inward_at' => GateInOut::select('entered_at')
+                    ->whereColumn('gate_visits.id', 'job_cards.gate_event_id')->limit(1),
+                // When the card last actually moved, and what happened.
+                'status_since' => JobCardHistoryEvent::select('occurred_at')
+                    ->whereColumn('job_card_history_events.job_card_id', 'job_cards.id')
+                    ->latest('occurred_at')->limit(1),
+                'status_note' => JobCardHistoryEvent::select('summary')
+                    ->whereColumn('job_card_history_events.job_card_id', 'job_cards.id')
+                    ->latest('occurred_at')->limit(1),
+            ])
             ->addSelect(['pending_since' => JobCardHistoryEvent::select('occurred_at')
                 ->whereColumn('job_card_history_events.job_card_id', 'job_cards.id')
                 ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)

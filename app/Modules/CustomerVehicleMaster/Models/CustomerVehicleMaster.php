@@ -13,6 +13,7 @@ use App\Modules\RegistrationTypeMaster\Models\RegistrationTypeMaster;
 use App\Modules\VehicleColorMaster\Models\VehicleColorMaster;
 use App\Modules\VehicleModelMaster\Models\VehicleModelMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use App\Support\RegistrationNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -40,6 +41,14 @@ class CustomerVehicleMaster extends Model
 
     /** Plate type for a vehicle that has no registration number yet. */
     public const PLATE_UNREGISTERED = 'UNREGISTERED';
+
+    protected static function booted(): void
+    {
+        // One spelling for a plate, wherever it is typed.
+        static::saving(function (self $row) {
+            $row->registration_no = RegistrationNumber::format($row->registration_no);
+        });
+    }
 
     public function isUnregistered(): bool
     {

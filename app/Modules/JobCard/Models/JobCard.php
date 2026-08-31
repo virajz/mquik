@@ -25,6 +25,7 @@ use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\FinancialYear;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,6 +57,9 @@ class JobCard extends Model
     protected $guarded = [];
 
     protected $casts = [
+        // Populated by the listing's subqueries, not real columns.
+        'inward_at' => 'datetime',
+        'status_since' => 'datetime',
         // Populated by the listing's subquery, not a real column.
         'pending_since' => 'datetime',
         // Populated by the service-history subquery, not a real column.
@@ -78,7 +82,9 @@ class JobCard extends Model
     protected static array $searchableFields = [
         'job_card_no', 'suggested_services', 'notes',
         'customer.first_name', 'customer.last_name', 'customer.phone',
-        'customerVehicle.registration_no', 'customerVehicle.model.name', 'customerVehicle.model.brand.name',
+        'customerVehicle.registration_no', 'customerVehicle.vin',
+        'customerVehicle.model.name', 'customerVehicle.model.brand.name',
+        'insuranceCompany.name', 'policy_no',
         'complaints.description', 'requestedRepairs.name',
     ];
 
@@ -107,7 +113,15 @@ class JobCard extends Model
         static::created(function (self $row) {
             if ($row->job_card_no === null) {
                 $row->forceFill([
-                    'job_card_no' => 'JC-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
+                    'fy_label' => $fy = FinancialYear::label($row->opened_at ?? $row->created_at),
+                    // Continue from the highest number issued this FY. A count
+                    // would collide the moment the sequence has any gap in it.
+                    'job_card_no' => 'MQ/JC/'.$fy.'/'.str_pad(
+                        (string) (((int) static::where('fy_label', $fy)
+                            ->selectRaw("max(cast(split_part(job_card_no, '/', 4) as integer)) as top")
+                            ->value('top')) + 1),
+                        4, '0', STR_PAD_LEFT,
+                    ),
                 ])->saveQuietly();
             }
 

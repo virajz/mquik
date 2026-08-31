@@ -35,8 +35,44 @@
             </flux:select>
             <flux:error name="gate_event_id" />
             <flux:text size="sm" class="mt-1 text-zinc-500">
+                Only vehicles still on site are listed.
                 Not arrived yet? <a href="{{ route('gate-in-out.create') }}" class="underline" wire:navigate>Record the inward first</a>.
             </flux:text>
+
+            {{-- The guard captures a plate and little else. These jump straight
+                 to the master, pre-searched on that plate, so the advisor
+                 completes the record instead of hunting for it. --}}
+            @if ($gate_event_id)
+                @php($gv = $this->gateVisits->firstWhere('id', $gate_event_id))
+                @if ($gv)
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        @if ($gv->customer_vehicle_id)
+                            @can('customer_vehicle_master.update')
+                                <flux:button size="xs" variant="ghost" icon="pencil-square" target="_blank"
+                                    :href="route('customer-vehicle-master.edit', $gv->customer_vehicle_id)">Complete vehicle details</flux:button>
+                            @endcan
+                            @if ($gv->customer_id)
+                                @can('customer_master.update')
+                                    <flux:button size="xs" variant="ghost" icon="user" target="_blank"
+                                        :href="route('customer-master.edit', $gv->customer_id)">Complete customer details</flux:button>
+                                @endcan
+                            @endif
+                        @else
+                            {{-- Walk-in the guard could not match: land on the master
+                                 already searching for the plate they wrote down. --}}
+                            <flux:badge size="sm" color="amber">Unmatched walk-in</flux:badge>
+                            @can('customer_vehicle_master.view')
+                                <flux:button size="xs" variant="ghost" icon="magnifying-glass" target="_blank"
+                                    :href="route('customer-vehicle-master.index', ['q' => $gv->registration_no])">Find “{{ $gv->registration_no }}”</flux:button>
+                            @endcan
+                            @can('customer_vehicle_master.create')
+                                <flux:button size="xs" variant="ghost" icon="plus" target="_blank"
+                                    :href="route('customer-vehicle-master.create')">Add this vehicle</flux:button>
+                            @endcan
+                        @endif
+                    </div>
+                @endif
+            @endif
         </div>
 
         {{-- Two pickers, not one: the advisor usually knows the customer, and the

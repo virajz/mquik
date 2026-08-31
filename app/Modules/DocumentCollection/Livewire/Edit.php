@@ -125,6 +125,10 @@ class Edit extends Component
 
     public bool $clearSignature = false;
 
+    /** ?int — passed via ?from-job-card=ID for the JobCard → Document Collection handoff. */
+    #[Url(as: 'from-job-card')]
+    public ?int $fromJobCard = null;
+
     #[Url(as: 'tab')]
     public string $activeTab = 'details';
 
@@ -141,6 +145,32 @@ class Edit extends Component
         $now = now();
         $this->requested_date = $now->format('Y-m-d');
         $this->requested_time = $now->format('H:i');
+
+        if ($this->fromJobCard) {
+            $this->prefillFromJobCard($this->fromJobCard);
+        }
+
+        $this->guardDepartmentPairing();
+    }
+
+    /** The card already knows whose documents these are — inherit rather than re-ask. */
+    protected function prefillFromJobCard(int $jobCardId): void
+    {
+        $jobCard = JobCard::find($jobCardId);
+
+        if (! $jobCard) {
+            return;
+        }
+
+        $this->job_card_id = $jobCard->id;
+        $this->customer_id = $jobCard->customer_id;
+        $this->customer_vehicle_id = $jobCard->customer_vehicle_id;
+        $this->department_id = $jobCard->workshop_department_id ?? $this->department_id;
+        $this->service_type_id = $jobCard->service_type_id ?? $this->service_type_id;
+        $this->created_by_advisor_id = $jobCard->assigned_advisor_id ?? $this->created_by_advisor_id;
+        $this->insurance_company_id = $jobCard->insurance_company_id ?? $this->insurance_company_id;
+
+        unset($this->serviceTypes);
     }
 
     protected function load(DocumentCollection $dc): void
