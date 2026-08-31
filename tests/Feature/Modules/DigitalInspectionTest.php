@@ -75,6 +75,9 @@ it('persists item outcomes and notes on save', function () {
     Livewire::test(Edit::class)
         ->set('job_card_id', $jc->id)
         ->set('inspection_template_id', $template->id)
+        // Mandatory on the setup: somebody does the work, somebody owns it.
+        ->set('assigned_technician_id', EmployeeMaster::factory()->technician()->create(['is_active' => true])->id)
+        ->set('floor_incharge_id', EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true])->id)
         ->set('items.0.outcome', 'rep')
         ->set('items.0.notes', 'pad worn through')
         ->set('items.1.outcome', 'ok')
@@ -98,6 +101,9 @@ it('persists row-11 recommendation, severity and observation per item', function
     Livewire::test(Edit::class)
         ->set('job_card_id', $jc->id)
         ->set('inspection_template_id', $template->id)
+        // Mandatory on the setup: somebody does the work, somebody owns it.
+        ->set('assigned_technician_id', EmployeeMaster::factory()->technician()->create(['is_active' => true])->id)
+        ->set('floor_incharge_id', EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true])->id)
         ->set('items.0.outcome', 'poor')
         ->set('items.0.recommendation', 'urgent')
         ->set('items.0.severity', 'critical')
@@ -225,6 +231,9 @@ it('saves a per-item evidence image and stamps image_path on the row', function 
     Livewire::test(Edit::class)
         ->set('job_card_id', $jobCard->id)
         ->set('inspection_template_id', $template->id)  // seeds $items
+        // Mandatory on the setup: somebody does the work, somebody owns it.
+        ->set('assigned_technician_id', EmployeeMaster::factory()->technician()->create(['is_active' => true])->id)
+        ->set('floor_incharge_id', EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true])->id)
         ->set("itemImages.{$item->id}", UploadedFile::fake()->image('brakes-worn.jpg', 800, 600))
         ->set('items.0.outcome', 'rep')
         ->call('save')
@@ -402,6 +411,9 @@ it('works the status out from the checklist rather than taking it from the form'
     $component = Livewire::test(Edit::class)
         ->set('job_card_id', JobCard::factory()->create(['status' => JobCard::STATUS_OPEN])->id)
         ->set('inspection_template_id', $template->id)
+        // Mandatory on the setup: somebody does the work, somebody owns it.
+        ->set('assigned_technician_id', EmployeeMaster::factory()->technician()->create(['is_active' => true])->id)
+        ->set('floor_incharge_id', EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true])->id)
         // Typed status is ignored: the sheet decides.
         ->set('status', DigitalInspection::STATUS_COMPLETED)
         ->call('save')
@@ -519,7 +531,10 @@ function inspectionWithOneItem(): Testable
 
     return Livewire::test(Edit::class)
         ->set('job_card_id', JobCard::factory()->create(['status' => JobCard::STATUS_OPEN])->id)
-        ->set('inspection_template_id', $template->id);
+        ->set('inspection_template_id', $template->id)
+        // Mandatory on the setup: somebody does the work, somebody owns it.
+        ->set('assigned_technician_id', EmployeeMaster::factory()->technician()->create(['is_active' => true])->id)
+        ->set('floor_incharge_id', EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true])->id);
 }
 
 // ---------------------------------------------------------------------------
@@ -716,4 +731,52 @@ it('refuses a quick-add sub category that belongs to a different category', func
         ->set('quickRecName', 'something')
         ->call('createRecommendationDescription')
         ->assertHasErrors('quickRecSubCategoryId');
+});
+
+// ---------------------------------------------------------------------------
+// Mandatory setup fields, and the two notes boxes
+// ---------------------------------------------------------------------------
+
+it('will not save without a job card, template or technician', function () {
+    Livewire::test(Edit::class)
+        ->call('save')
+        ->assertHasErrors(['job_card_id', 'inspection_template_id', 'assigned_technician_id']);
+});
+
+it('needs a floor in-charge or an advisor — either will do, neither will not', function () {
+    $jobCard = JobCard::factory()->create(['status' => JobCard::STATUS_OPEN]);
+    $template = InspectionTemplateMaster::factory()->create(['is_active' => true]);
+    $tech = EmployeeMaster::factory()->technician()->create(['is_active' => true]);
+
+    $base = fn () => Livewire::test(Edit::class)
+        ->set('job_card_id', $jobCard->id)
+        ->set('inspection_template_id', $template->id)
+        ->set('assigned_technician_id', $tech->id);
+
+    $base()->call('save')->assertHasErrors(['floor_incharge_id', 'advisor_id']);
+
+    $base()
+        ->set('floor_incharge_id', EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true])->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $base()
+        ->set('advisor_id', EmployeeMaster::factory()->advisor()->create(['is_active' => true])->id)
+        ->call('save')
+        ->assertHasNoErrors();
+});
+
+it('keeps internal notes apart from the notes the customer reads', function () {
+    $di = DigitalInspection::factory()->create();
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set('summary_notes', 'gearbox is on its way out, quote next visit')
+        ->set('customer_notes', 'brake pads have about 6 months left')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $di->refresh();
+
+    expect($di->summary_notes)->toBe('GEARBOX IS ON ITS WAY OUT, QUOTE NEXT VISIT')
+        ->and($di->customer_notes)->toBe('BRAKE PADS HAVE ABOUT 6 MONTHS LEFT');
 });

@@ -41,9 +41,14 @@ class Edit extends Component
 
     public ?int $floor_incharge_id = null;
 
+    public ?int $advisor_id = null;
+
     public string $status = DigitalInspection::STATUS_PENDING;
 
     public ?string $summary_notes = null;
+
+    /** Printed on the customer's copy of the checklist, unlike the internal notes. */
+    public ?string $customer_notes = null;
 
     // ---- Customer explanation & approval (mirrors the physical checklist) ----
     public bool $explained_on_lift = false;
@@ -119,8 +124,10 @@ class Edit extends Component
         $this->inspection_template_id = $di->inspection_template_id;
         $this->assigned_technician_id = $di->assigned_technician_id;
         $this->floor_incharge_id = $di->floor_incharge_id;
+        $this->advisor_id = $di->advisor_id;
         $this->status = $di->status;
         $this->summary_notes = $di->summary_notes;
+        $this->customer_notes = $di->customer_notes;
         $this->explained_on_lift = (bool) $di->explained_on_lift;
         $this->media_shared = (bool) $di->media_shared;
         $this->questions_answered = (bool) $di->questions_answered;
@@ -210,10 +217,21 @@ class Edit extends Component
         return [
             'job_card_id' => ['required', 'integer', 'exists:job_cards,id'],
             'inspection_template_id' => ['required', 'integer', Rule::exists('inspection_templates', 'id')->where('is_active', true)],
-            'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
-            'floor_incharge_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            // Somebody has to do the work.
+            'assigned_technician_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
+            // And somebody has to answer for it — the floor or the front desk.
+            // Either satisfies this; neither does not.
+            'floor_incharge_id' => [
+                Rule::requiredIf(fn () => ! $this->advisor_id),
+                'nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true),
+            ],
+            'advisor_id' => [
+                Rule::requiredIf(fn () => ! $this->floor_incharge_id),
+                'nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true),
+            ],
             'status' => ['required', Rule::in(array_keys(DigitalInspection::allStatuses()))],
             'summary_notes' => ['nullable', 'string', 'max:2000'],
+            'customer_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['array'],
             'items.*.inspection_item_id' => ['required', 'integer', 'exists:inspection_items,id'],
             'explained_on_lift' => ['boolean'],
@@ -522,6 +540,15 @@ class Edit extends Component
         );
     }
 
+    /** @return array<string, string> */
+    protected function messages(): array
+    {
+        return [
+            'floor_incharge_id.required' => 'Name a floor in-charge or an advisor.',
+            'advisor_id.required' => 'Name a floor in-charge or an advisor.',
+        ];
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'digital_inspection.update' : 'digital_inspection.create');
@@ -555,8 +582,11 @@ class Edit extends Component
             default => $existing?->customer_approval_at ?? now(),
         };
 
-        if (isset($data['summary_notes']) && is_string($data['summary_notes'])) {
-            $data['summary_notes'] = strtoupper($data['summary_notes']);
+        // Workshop convention: capital typing on free text, customer copy included.
+        foreach (['summary_notes', 'customer_notes'] as $field) {
+            if (isset($data[$field]) && is_string($data[$field])) {
+                $data[$field] = strtoupper($data[$field]);
+            }
         }
 
         $isCreate = $this->editingId === null;

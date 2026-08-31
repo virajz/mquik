@@ -102,17 +102,33 @@
                 @endif
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="Technician" placeholder="Pick a technician…">
+                    <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable required label="Technician" placeholder="Pick a technician…">
                         @foreach ($this->technicians as $e)
                             <flux:select.option :value="$e->id" wire:key="tech-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:select wire:model="floor_incharge_id" variant="listbox" searchable clearable label="Floor In-charge" placeholder="Optional…">
+                    {{-- Floor or front desk: either owns the sheet, so either
+                         satisfies the rule and neither does not. --}}
+                    <flux:select wire:model.live="floor_incharge_id" variant="listbox" searchable clearable
+                        label="Floor In-charge" :required="! $advisor_id"
+                        :placeholder="$advisor_id ? 'Optional — advisor owns this' : 'Pick a floor in-charge…'">
                         @foreach ($this->floorIncharges as $e)
                             <flux:select.option :value="$e->id" wire:key="fi-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:select wire:model.live="advisor_id" variant="listbox" searchable clearable
+                        label="Advisor" :required="! $floor_incharge_id"
+                        :placeholder="$floor_incharge_id ? 'Optional — floor owns this' : 'Pick an advisor…'">
+                        @foreach ($this->advisors as $e)
+                            <flux:select.option :value="$e->id" wire:key="ad-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+                <flux:error name="floor_incharge_id" />
+                <flux:error name="advisor_id" />
             </div>
         </section>
 
@@ -138,7 +154,9 @@
                     @endphp
                     @foreach ($grouped as $groupName => $groupItems)
                         <div class="space-y-3">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-zinc-400">{{ $groupName ?? 'General' }}</div>
+                            <div class="text-base font-bold uppercase tracking-wide text-[var(--color-mq-orange-600)] dark:text-[var(--color-mq-orange-400)]">
+                                {{ $groupName ?? 'General' }}
+                            </div>
                             @foreach ($groupItems as $item)
                                 @php($i = collect($items)->search(fn ($x) => $x['inspection_item_id'] === $item['inspection_item_id']))
                                 @php($itemId = (int) $item['inspection_item_id'])
@@ -150,7 +168,7 @@
                                             <div class="font-medium text-sm truncate">{{ $item['name'] }}</div>
                                         </div>
                                         <div class="w-56 shrink-0">
-                                            <flux:select wire:model.live="items.{{ $i }}.outcome" variant="listbox" size="sm">
+                                            <flux:select wire:model.live="items.{{ $i }}.outcome" variant="listbox" size="sm" required label="Action Type">
                                                 @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::outcomes() as $key => $label)
                                                     <flux:select.option :value="$key" wire:key="oc-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
                                                 @endforeach
@@ -210,7 +228,15 @@
                                                 <flux:button type="button" size="xs" variant="ghost" wire:click="selectAllRecommendations({{ $i }})">Select all</flux:button>
                                                 <flux:button type="button" size="xs" variant="ghost" wire:click="clearRecommendations({{ $i }})">Clear</flux:button>
                                                 @can('recommendation_description_master.create')
-                                                    <flux:button type="button" size="xs" variant="outline" icon="plus" wire:click="openRecommendationQuickAdd({{ $i }})">Quick add</flux:button>
+                                                    <flux:tooltip content="Add wording and tick it here">
+                                                        <flux:button type="button" size="xs" variant="outline" icon="plus" wire:click="openRecommendationQuickAdd({{ $i }})">Quick add</flux:button>
+                                                    </flux:tooltip>
+                                                @endcan
+                                                @can('recommendation_description_master.view')
+                                                    <flux:tooltip content="Open Recommendation Descriptions in a new tab">
+                                                        <flux:button type="button" size="xs" variant="ghost" icon="arrow-top-right-on-square"
+                                                            :href="route('recommendation-description-master.index')" target="_blank" />
+                                                    </flux:tooltip>
                                                 @endcan
                                             </div>
 
@@ -264,13 +290,24 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Summary</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Wrap-up notes for the advisor when the inspection completes.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    Two audiences, two boxes: what the workshop tells itself, and what the customer reads on their copy.
+                </flux:text>
             </div>
             <div class="space-y-4 min-w-0">
                 <flux:textarea
                     wire:model="summary_notes"
-                    label="Summary Notes"
+                    label="Internal Notes"
+                    description="Stays inside the workshop — never printed."
                     placeholder="Overall vehicle condition + key findings."
+                    rows="3"
+                />
+
+                <flux:textarea
+                    wire:model="customer_notes"
+                    label="Customer Notes"
+                    description="Printed on the customer's copy of the checklist."
+                    placeholder="What you want the customer to read and keep."
                     rows="3"
                 />
             </div>

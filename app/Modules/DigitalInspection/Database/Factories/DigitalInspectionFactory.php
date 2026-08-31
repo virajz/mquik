@@ -3,6 +3,7 @@
 namespace App\Modules\DigitalInspection\Database\Factories;
 
 use App\Modules\DigitalInspection\Models\DigitalInspection;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,6 +20,10 @@ class DigitalInspectionFactory extends Factory
         return [
             'job_card_id' => JobCard::factory(),
             'inspection_template_id' => InspectionTemplateMaster::factory(),
+            // A sheet always has somebody doing the work and somebody answering
+            // for it, so a factory-made one can be reopened and saved.
+            'assigned_technician_id' => EmployeeMaster::factory()->technician(),
+            'floor_incharge_id' => EmployeeMaster::factory()->floorIncharge(),
             'status' => DigitalInspection::STATUS_PENDING,
         ];
     }

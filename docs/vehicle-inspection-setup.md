@@ -196,3 +196,51 @@ Each row's picker is filtered to the right designation.
 5. **Inspection Item Groups** — change an Order value and reload a new inspection: the groups move.
 6. At the foot of the sheet, tick the customer section and name a technician in Internal Control.
    Save, reopen, save again — the sign-off time must not have moved.
+
+---
+
+# Vehicle Inspection — notes, headings, mandatory fields
+
+| # | Requirement | Status |
+| --- | --- | --- |
+| 1 | Rename "Summary Notes" → "Internal Notes"; new Customer Notes that prints on the checklist | ✅ Done |
+| 2 | Group names — bigger, in the logo orange | ✅ Done |
+| 3 | Mandatory: Job Card, Template, Technician, floor in-charge **or** advisor, Action Type | ✅ Done |
+| 4 | Shortcut button — Recommendation Desc | ✅ Done |
+
+## What changed
+
+**Two notes boxes, two audiences.** `summary_notes` is now labelled **Internal Notes** ("stays inside
+the workshop — never printed"), and a new `customer_notes` column holds what prints on the
+customer's copy. One box for both meant either the workshop censored itself or the customer read
+something written for the bay. Both follow the app's capital-typing convention.
+
+**Group headings** went from `text-xs … text-zinc-400` to `text-base font-bold` in the brand orange
+(`--color-mq-orange-600`, lightened to `-400` in dark mode so it stays readable).
+
+**Mandatory fields.** Job Card and Template were already required. Technician now is too. Floor
+In-charge and Advisor are an either/or — the same `Rule::requiredIf` shape the job card uses for
+technician-or-vendor — with one shared message ("Name a floor in-charge or an advisor") so it reads
+as one rule rather than two failures. **Advisor is a new column**; the setup had no field for it.
+
+Action Type carries its label and required marker on every checklist row. It stays answerable as
+*Pending* while the sheet is in progress — making IA/FA/NA mandatory at save time would make the
+In Progress status unreachable, since a sheet is only Completed once every row is answered. That
+rule already enforces the intent: an inspection cannot finish with an unanswered checkpoint.
+
+**Shortcut** — an open-in-new-tab button beside Quick add on every checklist row, going to
+Recommendation Descriptions. Same pattern as the master shortcuts on appointments.
+
+## Knock-on
+
+`DigitalInspectionFactory` now supplies a technician and a floor in-charge, so a factory-made sheet
+can be reopened and saved. Five existing tests were updated to fill the newly mandatory fields.
+
+## How to check on the UI
+
+1. **Digital Inspections → New** — Save with nothing filled: Job Card, Template and Technician all
+   complain. Add those three and save again: it asks for a floor in-charge or an advisor. Fill
+   either one — it saves.
+2. Group headings on the checklist are noticeably larger and orange.
+3. On a checklist row, the arrow button opens Recommendation Descriptions in a new tab.
+4. At the foot: **Internal Notes** and **Customer Notes** are separate boxes.
