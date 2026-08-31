@@ -65,6 +65,20 @@ trait SearchesPickerOptions
                         }
 
                         $inner->orWhereLike($column, '%'.$term.'%', caseSensitive: false);
+
+                        // Plates are stored spaced ("GJ 01 ZZ 9999") but typed
+                        // compact, and vice versa. Compare both sides stripped so
+                        // "GJ01ZZ9999" and "GJ 01 ZZ 9999" find each other.
+                        if (str_ends_with($column, 'registration_no')) {
+                            $compact = preg_replace('/[^A-Za-z0-9]/', '', $term);
+
+                            if ($compact !== '') {
+                                $inner->orWhereRaw(
+                                    "replace(replace(replace(upper({$column}), ' ', ''), '-', ''), '.', '') like ?",
+                                    ['%'.mb_strtoupper($compact).'%'],
+                                );
+                            }
+                        }
                     }
                 });
             })

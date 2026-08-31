@@ -5,7 +5,9 @@ namespace App\Modules\JobCard\Database\Factories;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -25,6 +27,15 @@ class JobCardFactory extends Factory
         return [
             'customer_id' => $customer->id,
             'customer_vehicle_id' => $vehicle->id,
+            // A card always comes off a gate entry now, so the factory gives it
+            // one — the same vehicle, or the card would describe two cars.
+            'gate_event_id' => GateInOut::factory()->create([
+                'customer_id' => $customer->id,
+                'customer_vehicle_id' => $vehicle->id,
+            ]),
+            'service_type_id' => ServiceTypeMaster::factory(),
+            'assigned_technician_id' => EmployeeMaster::factory(),
+            'terms_accepted_by' => 'customer',
             'workshop_department_id' => WorkshopDepartmentMaster::factory(),
             'assigned_advisor_id' => EmployeeMaster::factory(),
             'opened_at' => $opened,

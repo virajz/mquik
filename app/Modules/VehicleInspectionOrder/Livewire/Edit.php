@@ -740,6 +740,9 @@ class Edit extends Component
             $data['ordered_date'], $data['ordered_time'],
             $data['itemBeforeFiles'], $data['itemAfterFiles'], $data['photoFiles']);
 
+        $existing = $this->editingId ? VehicleInspectionOrder::find($this->editingId) : null;
+        $isCreate = $this->editingId === null;
+
         // Status is derived from the bench, never typed: keep whatever it is now
         // and let InspectionOrderStatus recompute once the scopes are written.
         $data['status'] = $existing?->status ?? VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING;

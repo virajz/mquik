@@ -83,8 +83,10 @@ class VehicleInspectionOrder extends Model
                     // Continue from the highest number issued this FY. A count
                     // would collide the moment the sequence has any gap in it.
                     'order_no' => 'MQ/VIO/'.$fy.'/'.str_pad(
+                        // Everything after the "MQ/VIO/26-27/" prefix (13 chars);
+                        // `split_part` is Postgres-only and the tests use SQLite.
                         (string) (((int) static::where('fy_label', $fy)
-                            ->selectRaw("max(cast(split_part(order_no, '/', 4) as integer)) as top")
+                            ->selectRaw('max(cast(substr(order_no, 14) as integer)) as top')
                             ->value('top')) + 1),
                         5, '0', STR_PAD_LEFT,
                     ),

@@ -24,15 +24,17 @@ return new class extends Migration
 
         // Best available truth for lines already running or already worked: the
         // current segment's start, else the first pause recorded against it.
+        // No table alias in the UPDATE: Postgres allows it, SQLite does not,
+        // and the suite runs on SQLite.
         DB::statement(<<<'SQL'
-            update vehicle_inspection_order_scopes s
+            update vehicle_inspection_order_scopes
             set work_started_at = coalesce(
-                s.run_started_at,
+                run_started_at,
                 (select min(p.paused_at) from vehicle_inspection_order_pauses p
-                  where p.vehicle_inspection_order_scope_id = s.id)
+                  where p.vehicle_inspection_order_scope_id = vehicle_inspection_order_scopes.id)
             )
-            where s.work_started_at is null
-              and (s.run_started_at is not null or s.duration_seconds > 0)
+            where work_started_at is null
+              and (run_started_at is not null or duration_seconds > 0)
         SQL);
     }
 

@@ -117,8 +117,11 @@ class JobCard extends Model
                     // Continue from the highest number issued this FY. A count
                     // would collide the moment the sequence has any gap in it.
                     'job_card_no' => 'MQ/JC/'.$fy.'/'.str_pad(
+                        // Everything after the "MQ/JC/26-27/" prefix (12 chars).
+                        // `split_part` would be neater but is Postgres-only, and
+                        // the test suite runs on SQLite.
                         (string) (((int) static::where('fy_label', $fy)
-                            ->selectRaw("max(cast(split_part(job_card_no, '/', 4) as integer)) as top")
+                            ->selectRaw('max(cast(substr(job_card_no, 13) as integer)) as top')
                             ->value('top')) + 1),
                         4, '0', STR_PAD_LEFT,
                     ),

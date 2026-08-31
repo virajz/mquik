@@ -3,6 +3,7 @@
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\TechnicianBench\Livewire\Index;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
+use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -48,7 +49,12 @@ it('starts then pauses a task, accumulating elapsed seconds', function () {
         ->and($scope->run_started_at)->not->toBeNull();
 
     $this->travel(5)->seconds();
-    $component->call('pause', $scope->id);
+    // Pausing now goes through the reason picker — a gap without a reason
+    // explains nothing when the advisor reads it back.
+    $component->call('askPauseReason', $scope->id)
+        ->set('pauseReasonId', WorkOrderHoldReasonMaster::factory()->create(['is_active' => true])->id)
+        ->call('pause')
+        ->assertHasNoErrors();
 
     $scope->refresh();
     expect($scope->work_status)->toBe('paused')
@@ -80,11 +86,16 @@ it('completes a task and stamps completed_at', function () {
 
     Livewire::test(Index::class)
         ->set('technicianId', $tech->id)
-        ->call('complete', $scope->id);
+        ->call('askCompletionType', $scope->id)
+        ->set('completionType', 'fully')
+        ->call('complete')
+        ->assertHasNoErrors();
 
     $scope->refresh();
     expect($scope->work_status)->toBe('completed')
-        ->and($scope->completed_at)->not->toBeNull();
+        ->and($scope->completed_at)->not->toBeNull()
+        // Completion type is recorded per line, by whoever did the work.
+        ->and($scope->completion_type)->toBe('fully');
 });
 
 it('refuses to touch a task assigned to somebody else', function () {

@@ -9,12 +9,14 @@ use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\PriorityMaster\Models\PriorityMaster;
 use App\Modules\ServicePackageMaster\Models\ServicePackageMaster;
+use App\Modules\TechnicianBench\Livewire\Index as TechnicianBench;
 use App\Modules\TechnicianFinding\Models\TechnicianFinding;
 use App\Modules\VehicleInspectionOrder\Livewire\Edit;
 use App\Modules\VehicleInspectionOrder\Livewire\Index;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\WorkOrderHoldReasonMaster\Models\WorkOrderHoldReasonMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\FinancialYear;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -51,22 +53,31 @@ it('creates a work order, stamps VIO number, and redirects into the editor', fun
         ->assertRedirect();
 
     $order = VehicleInspectionOrder::firstOrFail();
-    expect($order->order_no)->toBe('VIO-'.str_pad((string) $order->id, 5, '0', STR_PAD_LEFT))
+    expect($order->order_no)->toBe('MQ/VIO/'.FinancialYear::label($order->ordered_at ?? $order->created_at).'/00001')
         ->and($order->priority->name)->toBe('HIGH')
-        ->and($order->status)->toBe(VehicleInspectionOrder::STATUS_ASSIGNMENT_PENDING);
+        // Status is derived, never typed: the job card brought a technician with
+        // it, so the order is already assigned rather than waiting for one.
+        ->and($order->status)->toBe(VehicleInspectionOrder::STATUS_ASSIGNED);
 });
 
-it('snapshots template items into the checklist when a template is picked', function () {
-    $template = InspectionTemplateMaster::factory()->create(['is_active' => true]);
+it('adds a named checklist to the order, and can take it back off again', function () {
+    $template = InspectionTemplateMaster::factory()->create(['is_active' => true, 'name' => 'PMS STANDARD']);
     $a = InspectionItemMaster::factory()->create(['name' => 'BRAKE PADS']);
     $b = InspectionItemMaster::factory()->create(['name' => 'OIL LEVEL']);
     $template->items()->attach([$a->id => ['position' => 1], $b->id => ['position' => 2]]);
 
-    $component = Livewire::test(Edit::class)->set('inspection_template_id', $template->id);
+    $component = Livewire::test(Edit::class)
+        ->set('addTemplateId', (string) $template->id)
+        ->call('addTemplateItems');
 
     expect($component->get('items'))->toHaveCount(2)
         ->and($component->get('items')[0]['label'])->toBe('BRAKE PADS')
-        ->and($component->get('items')[0]['result'])->toBe('pending');
+        ->and($component->get('items')[0]['result'])->toBe('pending')
+        ->and($component->get('items')[0]['inspection_template_id'])->toBe($template->id);
+
+    // Several checklists can sit on one order, so each is removable by name.
+    $component->call('removeTemplateItems', $template->id);
+    expect($component->get('items'))->toHaveCount(0);
 });
 
 it('saves checklist items with results and before/after photos', function () {
@@ -94,16 +105,22 @@ it('saves checklist items with results and before/after photos', function () {
     Storage::disk('public')->assertExists($brake->after_photo_path);
 });
 
-it('logs a work order started history event on the job card when status moves to wip', function () {
+it('derives WIP and logs the history event when a technician starts a line', function () {
     $jobCard = JobCard::factory()->create();
-    $order = VehicleInspectionOrder::factory()->create(['job_card_id' => $jobCard->id]);
+    $order = VehicleInspectionOrder::factory()->create([
+        'job_card_id' => $jobCard->id,
+        'status' => VehicleInspectionOrder::STATUS_ASSIGNED,
+    ]);
+    $tech = EmployeeMaster::factory()->create(['is_active' => true]);
+    // The bench only shows work that reaches this technician.
+    $scope = $order->workScopes()->create(['description' => 'CLUTCH JUDDER', 'sequence_no' => 1, 'technician_id' => $tech->id]);
 
-    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
-        ->set('status', VehicleInspectionOrder::STATUS_WIP)
-        ->call('save')
-        ->assertHasNoErrors();
+    Livewire::test(TechnicianBench::class)
+        ->set('technicianId', $tech->id)
+        ->call('start', $scope->id);
 
-    expect($order->fresh()->started_at)->not->toBeNull();
+    expect($order->fresh()->status)->toBe(VehicleInspectionOrder::STATUS_WIP)
+        ->and($order->fresh()->started_at)->not->toBeNull();
 
     $event = JobCardHistoryEvent::where('job_card_id', $jobCard->id)
         ->where('event_type', JobCardHistoryEvent::TYPE_WORK_ORDER_STARTED)
@@ -111,21 +128,50 @@ it('logs a work order started history event on the job card when status moves to
     expect($event)->not->toBeNull();
 });
 
-it('saves the pause/resume log', function () {
+it('records a pause with its reason when the technician pauses, and closes it on resume', function () {
     $order = VehicleInspectionOrder::factory()->wip()->create();
-    $reason = WorkOrderHoldReasonMaster::factory()->create(['name' => 'WAITING FOR PARTS']);
+    $reason = WorkOrderHoldReasonMaster::factory()->create(['name' => 'WAITING FOR PARTS', 'is_active' => true]);
+    $tech = EmployeeMaster::factory()->create(['is_active' => true]);
+    // The bench only shows work that reaches this technician.
+    $scope = $order->workScopes()->create(['description' => 'CLUTCH JUDDER', 'sequence_no' => 1, 'technician_id' => $tech->id]);
 
-    Livewire::test(Edit::class, ['vehicleInspectionOrder' => $order])
-        ->set('pauses', [
-            ['id' => null, 'hold_reason_id' => $reason->id, 'paused_date' => '2026-06-21', 'paused_time' => '10:00', 'resumed_date' => '2026-06-21', 'resumed_time' => '10:30', 'notes' => 'tea'],
-        ])
-        ->call('save')
+    $bench = Livewire::test(TechnicianBench::class)
+        ->set('technicianId', $tech->id)
+        ->call('start', $scope->id)
+        ->call('askPauseReason', $scope->id)
+        ->set('pauseReasonId', $reason->id)
+        ->call('pause')
         ->assertHasNoErrors();
 
     $order->refresh()->load('pauses');
     expect($order->pauses)->toHaveCount(1)
         ->and($order->pauses->first()->hold_reason_id)->toBe($reason->id)
-        ->and($order->pauses->first()->notes)->toBe('TEA');
+        ->and($order->pauses->first()->paused_by_id)->toBe($tech->id)
+        ->and($order->pauses->first()->vehicle_inspection_order_scope_id)->toBe($scope->id)
+        ->and($order->pauses->first()->resumed_at)->toBeNull()
+        ->and($order->fresh()->status)->toBe(VehicleInspectionOrder::STATUS_ON_HOLD);
+
+    // Resuming closes the same gap rather than opening a second one.
+    $bench->call('start', $scope->id);
+    $order->refresh()->load('pauses');
+    expect($order->pauses)->toHaveCount(1)
+        ->and($order->pauses->first()->resumed_at)->not->toBeNull();
+});
+
+it('refuses to pause without a reason', function () {
+    $order = VehicleInspectionOrder::factory()->wip()->create();
+    $tech = EmployeeMaster::factory()->create(['is_active' => true]);
+    // The bench only shows work that reaches this technician.
+    $scope = $order->workScopes()->create(['description' => 'CLUTCH JUDDER', 'sequence_no' => 1, 'technician_id' => $tech->id]);
+
+    Livewire::test(TechnicianBench::class)
+        ->set('technicianId', $tech->id)
+        ->call('start', $scope->id)
+        ->call('askPauseReason', $scope->id)
+        ->call('pause')
+        ->assertHasErrors('pauseReasonId');
+
+    expect($order->pauses()->count())->toBe(0);
 });
 
 it('deletes a work order from the index', function () {

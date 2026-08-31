@@ -226,7 +226,7 @@
                         @if ($finding->reportedBy) · {{ $finding->reportedBy->name }} @endif
                     </div>
                     @if ($finding->recommendation)
-                        <div class="text-xs text-zinc-500 mt-1 italic">{{ $finding->recommendation }}</div>
+                        <div class="text-xs text-zinc-500 mt-1 italic">{{ $TF::recommendations()[$finding->recommendation] ?? $finding->recommendation }}</div>
                     @endif
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
@@ -329,7 +329,7 @@
             </flux:radio.group>
 
             @if ($findingType === 'spare')
-                <flux:select wire:model.live="findingSpareId" variant="combobox" searchable clearable required
+                <flux:select wire:model.live="findingSpareId" variant="combobox" clearable required
                     label="Part" placeholder="Search by name or code…">
                     <x-slot name="search">
                         <flux:select.search wire:model.live.debounce.250ms="spareSearch" placeholder="Search parts…" />
@@ -342,7 +342,7 @@
                 </flux:select>
                 <flux:error name="findingSpareId" />
             @else
-                <flux:select wire:model.live="findingLabourId" variant="combobox" searchable clearable required
+                <flux:select wire:model.live="findingLabourId" variant="combobox" clearable required
                     label="Labour" placeholder="Gearbox overhaul, clutch replacement…">
                     <x-slot name="search">
                         <flux:select.search wire:model.live.debounce.250ms="labourSearch" placeholder="Search labour…" />
@@ -366,8 +366,12 @@
             </div>
             <flux:error name="findingQuantity" />
 
-            <flux:textarea wire:model="findingRecommendation" rows="2" label="Recommendation"
-                placeholder="Do now / can wait until next service" />
+            <flux:select wire:model="findingRecommendation" variant="listbox" label="Recommendation">
+                @foreach ($TF::recommendations() as $key => $label)
+                    <flux:select.option :value="$key" wire:key="rec-{{ $key }}">{{ $label }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="findingRecommendation" />
 
             <div class="flex gap-2">
                 <flux:spacer />

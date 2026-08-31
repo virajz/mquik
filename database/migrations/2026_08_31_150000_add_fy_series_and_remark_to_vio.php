@@ -33,14 +33,14 @@ return new class extends Migration
 
         DB::statement(<<<'SQL'
             update vehicle_inspection_orders
-            set fy_label = split_part(order_no, '/', 3)
+            set fy_label = substr(order_no, 8, 5)
             where order_no like 'MQ/VIO/%' and fy_label is null
         SQL);
 
         $next = DB::table('vehicle_inspection_orders')
             ->where('order_no', 'like', 'MQ/VIO/%')
-            ->selectRaw("split_part(order_no, '/', 3) as fy, max(cast(split_part(order_no, '/', 4) as integer)) as top")
-            ->groupBy('fy')
+            ->selectRaw('substr(order_no, 8, 5) as fy, max(cast(substr(order_no, 14) as integer)) as top')
+            ->groupByRaw('substr(order_no, 8, 5)')
             ->pluck('top', 'fy')
             ->map(fn ($top) => (int) $top)
             ->all();

@@ -27,15 +27,15 @@ return new class extends Migration
         // Cards already in the new form: recover their FY from the number itself.
         DB::statement(<<<'SQL'
             update job_cards
-            set fy_label = split_part(job_card_no, '/', 3)
+            set fy_label = substr(job_card_no, 7, 5)
             where job_card_no like 'MQ/JC/%' and fy_label is null
         SQL);
 
         // Highest sequence issued per FY, so stragglers continue the run.
         $next = DB::table('job_cards')
             ->where('job_card_no', 'like', 'MQ/JC/%')
-            ->selectRaw("split_part(job_card_no, '/', 3) as fy, max(cast(split_part(job_card_no, '/', 4) as integer)) as top")
-            ->groupBy('fy')
+            ->selectRaw('substr(job_card_no, 7, 5) as fy, max(cast(substr(job_card_no, 13) as integer)) as top')
+            ->groupByRaw('substr(job_card_no, 7, 5)')
             ->pluck('top', 'fy')
             ->map(fn ($top) => (int) $top)
             ->all();

@@ -96,6 +96,20 @@ trait Searchable
     {
         $query->orWhereLike($field, $needle, caseSensitive: false);
 
+        // Plates are stored spaced ("GJ 05 XYZ 7777") and typed compact, or the
+        // other way round. Comparing both sides stripped means "GJ05XYZ7777"
+        // and "711%Q7" find the car either way.
+        if (str_ends_with($field, 'registration_no') && self::isSafeIdentifier($field)) {
+            $compact = preg_replace('/[^A-Za-z0-9]/', '', $token);
+
+            if ($compact !== '') {
+                $query->orWhereRaw(
+                    "replace(replace(replace(upper(\"{$field}\"), ' ', ''), '-', ''), '.', '') like ?",
+                    ['%'.mb_strtoupper($compact).'%'],
+                );
+            }
+        }
+
         if ($isPostgres && self::isFuzzyCandidate($token) && self::isSafeIdentifier($field)) {
             $query->orWhereRaw(sprintf('word_similarity(?, "%s"::text) > 0.4', $field), [$token]);
         }

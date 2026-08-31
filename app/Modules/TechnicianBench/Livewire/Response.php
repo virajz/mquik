@@ -70,7 +70,8 @@ class Response extends Component
 
     public ?float $findingEstimatedAmount = null;
 
-    public ?string $findingRecommendation = null;
+    /** Not free text: the master's own list, so the advisor's screens agree. */
+    public string $findingRecommendation = 'new_issue';
 
     public ?int $editingFindingId = null;
 
@@ -293,6 +294,9 @@ class Response extends Component
         $this->findingType = $type === TechnicianFinding::TYPE_LABOUR
             ? TechnicianFinding::TYPE_LABOUR
             : TechnicianFinding::TYPE_SPARE;
+        $this->findingRecommendation = $this->findingType === TechnicianFinding::TYPE_LABOUR
+            ? 'additional_labour'
+            : 'additional_parts';
 
         Flux::modal('response-finding')->show();
     }
@@ -312,7 +316,7 @@ class Response extends Component
         $this->findingDescription = (string) $finding->description;
         $this->findingQuantity = (float) $finding->quantity;
         $this->findingEstimatedAmount = $finding->estimated_amount !== null ? (float) $finding->estimated_amount : null;
-        $this->findingRecommendation = $finding->recommendation;
+        $this->findingRecommendation = $finding->recommendation ?? 'new_issue';
 
         Flux::modal('response-finding')->show();
     }
@@ -330,7 +334,7 @@ class Response extends Component
             'findingDescription' => ['required', 'string', 'max:500'],
             'findingQuantity' => ['required', 'numeric', 'min:0.01'],
             'findingEstimatedAmount' => ['nullable', 'numeric', 'min:0'],
-            'findingRecommendation' => ['nullable', 'string', 'max:500'],
+            'findingRecommendation' => ['required', Rule::in(array_keys(TechnicianFinding::recommendations()))],
         ], attributes: [
             'findingSpareId' => 'part',
             'findingLabourId' => 'labour',
@@ -349,7 +353,7 @@ class Response extends Component
             'description' => mb_strtoupper($this->findingDescription),
             'quantity' => $this->findingQuantity,
             'estimated_amount' => $this->findingEstimatedAmount,
-            'recommendation' => $this->findingRecommendation ? mb_strtoupper($this->findingRecommendation) : null,
+            'recommendation' => $this->findingRecommendation,
         ];
 
         if ($this->editingFindingId && ($existing = $this->ownedFinding($this->editingFindingId))) {
@@ -398,6 +402,7 @@ class Response extends Component
             'spareSearch', 'labourSearch',
         ]);
         $this->findingQuantity = 1;
+        $this->findingRecommendation = 'new_issue';
         $this->resetErrorBag();
     }
 

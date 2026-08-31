@@ -4,12 +4,14 @@ use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Livewire\Edit as JobCardEdit;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobCard\Models\JobCardComplaint;
 use App\Modules\JobHistory\Livewire\Show;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Livewire\Livewire;
 
@@ -185,10 +187,19 @@ it('Edit JobCard form save in the wild produces the right event chain', function
     $advisor = EmployeeMaster::factory()->create();
 
     Livewire::test(JobCardEdit::class)
+        ->set('gate_event_id', GateInOut::factory()->create([
+            'customer_id' => $customer->id,
+            'customer_vehicle_id' => $vehicle->id,
+        ])->id)
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
+        ->set('fuel_level', 'half')
+        ->set('terms_accepted_by', 'customer')
+        // After the department: picking one clears the service type and the people.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 

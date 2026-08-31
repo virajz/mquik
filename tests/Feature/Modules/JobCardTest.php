@@ -9,6 +9,7 @@ use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DamageTypeMaster\Models\DamageTypeMaster;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\InsuranceCompanyMaster\Models\InsuranceCompanyMaster;
 use App\Modules\JobCard\Livewire\Edit;
 use App\Modules\JobCard\Livewire\Index;
@@ -23,18 +24,35 @@ use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobStageMaster\Models\JobStageMaster;
 use App\Modules\PhotoTypeMaster\Models\PhotoTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
-use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleInspectionOrder\Models\VehicleInspectionOrder;
 use App\Modules\VehicleInventoryItemMaster\Models\VehicleInventoryItemMaster;
 use App\Modules\VendorMaster\Models\VendorMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\FinancialYear;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 beforeEach(function () {
     $this->actingAs(adminUser());
 });
+
+/**
+ * A create form with the fields that are now mandatory already filled.
+ *
+ * Gate entry, service type, fuel level, who accepted the terms, and an owner
+ * for the work became required when the job-card form was reworked; every
+ * create-flow test needs them, and none of them is what the test is about.
+ */
+function newJobCardForm(): Testable
+{
+    return Livewire::test(Edit::class)
+        ->set('gate_event_id', GateInOut::factory()->create()->id)
+        ->set('fuel_level', 'half')
+        ->set('terms_accepted_by', 'customer');
+}
 
 it('renders the index page', function () {
     JobCard::factory()->count(3)->create();
@@ -44,10 +62,11 @@ it('renders the index page', function () {
         ->assertSeeLivewire(Index::class);
 });
 
-it('auto-stamps JC-00001 style job_card_no on create', function () {
+it('auto-stamps an FY-aware job_card_no on create', function () {
     $jc = JobCard::factory()->create();
 
-    expect($jc->fresh()->job_card_no)->toBe('JC-'.str_pad((string) $jc->id, 5, '0', STR_PAD_LEFT));
+    expect($jc->fresh()->job_card_no)
+        ->toBe('MQ/JC/'.FinancialYear::label($jc->opened_at ?? $jc->created_at).'/0001');
 });
 
 it('filters by status, advisor, and dept', function () {
@@ -75,7 +94,7 @@ it('creates a job card with capital typing and timestamps', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
@@ -88,11 +107,15 @@ it('creates a job card with capital typing and timestamps', function () {
         ->set('fuel_level', 'half')
         ->set('suggested_services', 'check brake fluid')
         ->set('terms_accepted', true)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
     $jc = JobCard::first();
-    expect($jc->job_card_no)->toStartWith('JC-')
+    expect($jc->job_card_no)->toStartWith('MQ/JC/')
         ->and($jc->opened_at->format('Y-m-d H:i'))->toBe('2026-08-01 09:30')
         ->and($jc->promised_at->format('Y-m-d H:i'))->toBe('2026-08-02 17:00')
         ->and($jc->km_at_service)->toBe(45000)
@@ -101,32 +124,36 @@ it('creates a job card with capital typing and timestamps', function () {
         ->and($jc->terms_accepted_at)->not->toBeNull();
 });
 
-it('links insurance company, policy, vendor, job description and customer approval', function () {
+it('links insurance company, vendor, job description and customer approval', function () {
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
-    $dept = WorkshopDepartmentMaster::factory()->create();
+    // Insurance is a bodyshop concern; on any other department the form drops it.
+    $dept = WorkshopDepartmentMaster::factory()->create(['name' => 'BODYSHOP']);
     $advisor = EmployeeMaster::factory()->create();
     $insurer = InsuranceCompanyMaster::factory()->create();
     $vendor = VendorMaster::factory()->create();
     $jobDescription = JobDescriptionMaster::factory()->create();
     $approval = CustomerApprovalTypeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->set('insurance_company_id', $insurer->id)
-        ->set('policy_no', 'pol-12345')
-        ->set('vendor_id', $vendor->id)
+        ->set('vendor_id', $vendor->id)   // outside contractor owns the work
         ->set('job_description_id', $jobDescription->id)
         ->set('customer_approval_type_id', $approval->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        // No technician here on purpose: an outside vendor owns this work, and
+        // picking a technician would take the vendor back off.
         ->call('save')
         ->assertHasNoErrors();
 
     $jc = JobCard::first();
     expect($jc->insurance_company_id)->toBe($insurer->id)
-        ->and($jc->policy_no)->toBe('POL-12345')
         ->and($jc->vendor_id)->toBe($vendor->id)
         ->and($jc->job_description_id)->toBe($jobDescription->id)
         ->and($jc->customer_approval_type_id)->toBe($approval->id);
@@ -136,8 +163,8 @@ it('links digital inspections from the job card header', function () {
     $jc = JobCard::factory()->create();
     $di = DigitalInspection::factory()->create(['job_card_id' => $jc->id]);
 
+    // Quick-jump links: the header lists this card's inspections and work orders.
     Livewire::test(Edit::class, ['jobCard' => $jc])
-        ->assertSee('New inspection')
         ->assertSee($di->fresh()->inspection_no);
 });
 
@@ -145,44 +172,43 @@ it('auto-sets the customer from the chosen vehicle (combined picker)', function 
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_vehicle_id', $vehicle->id)   // pick vehicle only…
         ->assertSet('customer_id', $customer->id);    // …customer is derived
 });
 
-it('persists complaints with capital typing and severity', function () {
+it('persists complaints picked from the requested-repair master', function () {
     $customer = CustomerMaster::factory()->create();
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
     $type = ComplaintTypeMaster::factory()->create();
-    $brake = StandardObservationMaster::factory()->create(['name' => 'BRAKE PADS WORN OUT']);
-    $ac = StandardObservationMaster::factory()->create(['name' => 'AC COOLING LOW']);
+    $brake = RequestedRepairMaster::factory()->create(['name' => 'BRAKE PADS WORN OUT', 'is_active' => true, 'complaint_type_id' => $type->id]);
+    $ac = RequestedRepairMaster::factory()->create(['name' => 'AC COOLING LOW', 'is_active' => true]);
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->call('addComplaint')
         ->call('addComplaint')
-        ->set('complaints.0.standard_observation_id', $brake->id)
-        ->set('complaints.0.severity', 'high')
-        ->set('complaints.0.complaint_type_id', $type->id)
-        ->set('complaints.1.standard_observation_id', $ac->id)
-        ->set('complaints.1.severity', 'medium')
+        ->set('complaints.0.requested_repair_id', $brake->id)
+        ->set('complaints.1.requested_repair_id', $ac->id)
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
     $jc = JobCard::with('complaints')->first();
     expect($jc->complaints)->toHaveCount(2)
-        ->and($jc->complaints[0]->standard_observation_id)->toBe($brake->id)
-        ->and($jc->complaints[0]->description)->toBe('BRAKE PADS WORN OUT')   // derived from the picked phrase
-        ->and($jc->complaints[0]->severity)->toBe('high')
+        ->and($jc->complaints[0]->requested_repair_id)->toBe($brake->id)
+        // Users pick, they don't type: the repair's own name is the complaint text.
+        ->and($jc->complaints[0]->description)->toBe('BRAKE PADS WORN OUT')
+        // And the group comes with it, rather than being chosen separately.
         ->and($jc->complaints[0]->complaint_type_id)->toBe($type->id)
         ->and($jc->complaints[0]->sequence_no)->toBe(1)
-        ->and($jc->complaints[1]->description)->toBe('AC COOLING LOW')
-        ->and($jc->complaints[1]->severity)->toBe('medium');
+        ->and($jc->complaints[1]->description)->toBe('AC COOLING LOW');
 });
 
 it('strips blank complaint rows before validating', function () {
@@ -191,14 +217,18 @@ it('strips blank complaint rows before validating', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->call('addComplaint')
         ->call('addComplaint')
-        ->set('complaints.0.standard_observation_id', StandardObservationMaster::factory()->create()->id)
+        ->set('complaints.0.requested_repair_id', RequestedRepairMaster::factory()->create(['is_active' => true])->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -211,13 +241,17 @@ it('does not persist a complaint row unless a complaint is picked (no free typin
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->call('addComplaint')
         ->set('complaints.0.severity', 'high')   // no observation picked — nothing to type
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -233,12 +267,16 @@ it('syncs requested repairs (many-to-many) on the job card', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->set('requestedRepairIds', [$alignment->id, $acGas->id])
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -257,7 +295,7 @@ it('persists missing and damaged inventory exceptions, skips plain present items
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
@@ -267,6 +305,10 @@ it('persists missing and damaged inventory exceptions, skips plain present items
         ->set("inventoryItems.{$b->id}.condition_notes", 'no jack in boot')
         ->set("inventoryItems.{$c->id}.status", 'damaged')
         ->set("inventoryItems.{$c->id}.damage_type_id", $damage->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -294,7 +336,7 @@ it('clears damage type when a damaged item is switched back to present or missin
     $advisor = EmployeeMaster::factory()->create();
 
     // Mark damaged with a damage type, then flip to missing before saving.
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
@@ -302,6 +344,10 @@ it('clears damage type when a damaged item is switched back to present or missin
         ->set("inventoryItems.{$item->id}.status", 'damaged')
         ->set("inventoryItems.{$item->id}.damage_type_id", $damage->id)
         ->set("inventoryItems.{$item->id}.status", 'missing')
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -333,14 +379,18 @@ it('updates an existing job card and re-syncs complaints + inventory', function 
     $jc = JobCard::factory()->create();
     $type = ComplaintTypeMaster::factory()->create();
     $jc->complaints()->createMany([
-        ['standard_observation_id' => StandardObservationMaster::factory()->create()->id, 'description' => 'OLD ONE', 'severity' => 'low', 'sequence_no' => 1],
-        ['standard_observation_id' => StandardObservationMaster::factory()->create()->id, 'description' => 'OLD TWO', 'severity' => 'high', 'sequence_no' => 2],
+        ['requested_repair_id' => RequestedRepairMaster::factory()->create(['is_active' => true])->id, 'description' => 'OLD ONE', 'severity' => 'low', 'sequence_no' => 1],
+        ['requested_repair_id' => RequestedRepairMaster::factory()->create(['is_active' => true])->id, 'description' => 'OLD TWO', 'severity' => 'high', 'sequence_no' => 2],
     ]);
     $invItem = VehicleInventoryItemMaster::factory()->create();
 
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->call('removeComplaint', 1)                              // drop second complaint
         ->set("inventoryItems.{$invItem->id}.status", 'missing')
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -359,11 +409,15 @@ it('Edit::save blocks a user without create permission', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertStatus(403);
 
@@ -400,7 +454,7 @@ it('captures slot photos and extra photos, tagging type + group', function () {
     $front = PhotoTypeMaster::factory()->inGroup('EXTERIOR', 101)->create(['name' => 'FRONT']);
     $odo = PhotoTypeMaster::factory()->inGroup('METER', 301)->create(['name' => 'ODOMETER']);
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
@@ -408,6 +462,10 @@ it('captures slot photos and extra photos, tagging type + group', function () {
         ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('front.jpg', 800, 600))
         ->set("slotFiles.{$odo->id}", UploadedFile::fake()->image('odo.jpg', 800, 600))
         ->set('extraFiles', [UploadedFile::fake()->image('scratch.jpg', 800, 600)])
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -435,7 +493,7 @@ it('tags an additional photo with damage type and location', function () {
     $advisor = EmployeeMaster::factory()->create();
     $scratch = DamageTypeMaster::factory()->create(['name' => 'SCRATCH']);
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
@@ -443,6 +501,10 @@ it('tags an additional photo with damage type and location', function () {
         ->set('extraFiles', [UploadedFile::fake()->image('scratch.jpg', 800, 600)])
         ->set('extraDamageTypes.0', $scratch->id)
         ->set('extraLocations.0', 'front-left bumper')
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -455,7 +517,7 @@ it('shows the read-only customer & vehicle summary once both are picked', functi
     $customer = CustomerMaster::factory()->create(); // factory always sets a business type
     $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->assertSee('Customer Type')
@@ -480,6 +542,10 @@ it('replaces a slot photo on retake instead of duplicating it', function () {
 
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('new-front.jpg', 800, 600))
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -504,6 +570,10 @@ it('removes existing photos on edit, deleting the file too', function () {
 
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->call('removeExistingPhoto', $photo->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -526,6 +596,10 @@ it('undoes a pending photo removal before save', function () {
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->call('removeExistingPhoto', $photo->id)
         ->call('undoRemoveExistingPhoto', $photo->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -542,13 +616,17 @@ it('drops a staged slot photo before submitting', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('a.jpg'))
         ->call('clearSlotFile', $front->id)
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -564,13 +642,17 @@ it('rejects oversized photos', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         // 9 MB image, photo cap is 8 MB
         ->set("slotFiles.{$front->id}", UploadedFile::fake()->image('huge.jpg')->size(9000))
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasErrors(['slotFiles.'.$front->id]);
 
@@ -585,13 +667,17 @@ it('captures customer signature on save and stamps the path', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->set('terms_accepted', true)
         ->set('signatureUpload', UploadedFile::fake()->image('signature.png'))
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -610,6 +696,10 @@ it('replaces an existing signature and deletes the old file', function () {
 
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->set('signatureUpload', UploadedFile::fake()->image('new-sig.png'))
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -628,6 +718,10 @@ it('clears an existing signature when markClearSignature is invoked', function (
 
     Livewire::test(Edit::class, ['jobCard' => $jc])
         ->call('markClearSignature')
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -643,12 +737,16 @@ it('rejects oversized signature uploads', function () {
     $dept = WorkshopDepartmentMaster::factory()->create();
     $advisor = EmployeeMaster::factory()->create();
 
-    Livewire::test(Edit::class)
+    newJobCardForm()
         ->set('customer_id', $customer->id)
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->set('signatureUpload', UploadedFile::fake()->image('big-sig.png')->size(3000))  // 3 MB > 2 MB cap
+        // Set last: picking a department clears the service type and the people
+        // on it, so these have to come after whatever the test itself sets.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
         ->call('save')
         ->assertHasErrors(['signatureUpload']);
 

@@ -385,13 +385,15 @@ class Edit extends Component
             'service_type_id' => ['required', 'integer', Rule::exists('service_types', 'id')->where('is_active', true)],
             'service_package_id' => ['nullable', 'integer', Rule::exists('service_packages', 'id')->where('is_active', true)],
             'job_description_id' => ['nullable', 'integer', Rule::exists('job_descriptions', 'id')->where('is_active', true)],
+            // Hydrated on load and written back on save; without a rule here it
+            // is silently dropped by validate() and never persists.
+            'customer_approval_type_id' => ['nullable', 'integer', Rule::exists('customer_approval_types', 'id')],
 
             // An insurance job is not an insurance job without the insurer.
             'insurance_company_id' => [
                 Rule::requiredIf(fn () => $this->isBodyshopDepartment && $this->isInsuranceServiceType()),
                 'nullable', 'integer', Rule::exists('insurance_companies', 'id')->where('is_active', true),
             ],
-            'vendor_id' => ['nullable', 'integer', Rule::exists('vendors', 'id')->where('is_active', true)],
             'assigned_advisor_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             // The work needs an owner: an in-house technician or an outside
             // contractor. Either satisfies it; neither does not.
