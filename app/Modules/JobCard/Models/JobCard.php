@@ -56,6 +56,8 @@ class JobCard extends Model
     protected $guarded = [];
 
     protected $casts = [
+        // Populated by the service-history subquery, not a real column.
+        'billed_at' => 'datetime',
         'opened_at' => 'datetime',
         'technician_assigned_at' => 'datetime',
         'promised_at' => 'datetime',

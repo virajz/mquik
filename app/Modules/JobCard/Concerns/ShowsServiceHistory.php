@@ -3,6 +3,7 @@
 namespace App\Modules\JobCard\Concerns;
 
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\RegularSalesInvoice\Models\RegularSalesInvoice;
 use App\Modules\ServiceIntervalMaster\Models\ServiceIntervalMaster;
 use App\Support\AppSettings;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,16 @@ trait ShowsServiceHistory
                 'workshopDepartment:id,name',
                 'complaints:id,job_card_id,description',
                 'requestedRepairs:id,name',
+            ])
+            // A customer remembers the bill, not the job card: the invoice date
+            // and number are what they quote back, so history leads with those.
+            ->addSelect([
+                'billed_at' => RegularSalesInvoice::select('invoiced_at')
+                    ->whereColumn('regular_sales_invoices.job_card_id', 'job_cards.id')
+                    ->latest('invoiced_at')->limit(1),
+                'invoice_no' => RegularSalesInvoice::select('invoice_no')
+                    ->whereColumn('regular_sales_invoices.job_card_id', 'job_cards.id')
+                    ->latest('invoiced_at')->limit(1),
             ])
             ->orderByDesc('opened_at')
             ->limit((int) AppSettings::int('service_history.visits_listed', 50))

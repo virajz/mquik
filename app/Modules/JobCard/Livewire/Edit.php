@@ -65,6 +65,8 @@ class Edit extends Component
     public ?int $customer_id = null;
 
     /** Search term for the server-backed customer+vehicle picker (~10k rows). */
+    public string $customerSearch = '';
+
     public string $vehicleSearch = '';
 
     /** Search term for the inward picker. */
@@ -481,38 +483,57 @@ class Edit extends Component
         $this->signatureUpload = null;
     }
 
+    /** A different customer means a different garage — drop a vehicle that is not theirs. */
+    public function updatedCustomerId(): void
+    {
+        if ($this->customer_vehicle_id
+            && (int) CustomerVehicleMaster::whereKey($this->customer_vehicle_id)->value('customer_id') !== (int) $this->customer_id) {
+            $this->customer_vehicle_id = null;
+        }
+
+        unset($this->vehiclePickerOptions);
+    }
+
     #[Computed]
     public function customers()
     {
-        return CustomerMaster::query()->where('is_active', true)->orderBy('first_name')->limit(200)->get(['id', 'first_name', 'last_name', 'phone']);
+        // Server-side search and A–Z: a fixed 200-row slice hid everyone past it.
+        return $this->pickerOptions(
+            query: CustomerMaster::query()->where('is_active', true)->orderBy('first_name')->orderBy('last_name'),
+            searchColumns: ['first_name', 'last_name', 'phone'],
+            term: $this->customerSearch,
+            selected: $this->customer_id,
+            columns: ['id', 'first_name', 'last_name', 'phone'],
+            limit: 30,
+        );
     }
 
     /**
-     * Combined customer + vehicle search: every active vehicle, labelled with its
-     * make/model, registration and owner so it's searchable by reg no or customer.
-     * The currently-selected vehicle is always included even if outside the cap.
+     * Vehicles for the picker, labelled with the full name the workshop says out
+     * loud — "VOGUE 3.0 LWB (DSL) AT — GJ 05 RD 1234". Filtered to the chosen
+     * customer once there is one, and sorted A–Z by that label.
+     *
+     * The brand is left off: the customer is already picked, and repeating the
+     * make on every row just pushes the part that distinguishes them off-screen.
      */
     #[Computed]
     public function vehiclePickerOptions()
     {
-        // Server-side search: ~10k vehicles, so a fixed client-side slice would
-        // hide everyone past the first page. Searchable by registration number
-        // or the owner's name; the selected vehicle is always retained.
         return $this->pickerOptions(
             query: CustomerVehicleMaster::query()
-                ->with(['model.brand:id,name', 'customer:id,first_name,last_name'])
+                ->with(['model.brand:id,name', 'variant.fuelType:id,name', 'variant.transmissionType:id,name', 'customer:id,first_name,last_name'])
                 ->where('is_active', true)
-                ->orderByDesc('id'),
+                ->when($this->customer_id, fn ($q) => $q->where('customer_id', $this->customer_id)),
             searchColumns: ['registration_no', 'customer.first_name', 'customer.last_name'],
             term: $this->vehicleSearch,
             selected: $this->customer_vehicle_id,
-            columns: ['id', 'registration_no', 'model_id', 'customer_id'],
+            columns: ['id', 'registration_no', 'model_id', 'variant_id', 'customer_id'],
             limit: 30,
         )->map(fn ($v) => [
             'id' => $v->id,
-            'label' => trim(($v->model?->brand?->name ?? '').' '.($v->model?->name ?? '')).' — '.$v->registration_no
-                .' · '.trim($v->customer?->first_name.' '.($v->customer?->last_name ?? '')),
-        ]);
+            'label' => $v->fullName(withBrand: false).' — '.$v->registration_no,
+            'owner' => trim($v->customer?->first_name.' '.($v->customer?->last_name ?? '')),
+        ])->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)->values();
     }
 
     /**
