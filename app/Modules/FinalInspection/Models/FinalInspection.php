@@ -117,16 +117,28 @@ class FinalInspection extends Model
         ];
     }
 
-    /** Per-item result — reuses the Digital Inspection condition set. */
+    /** Per-item result — reuses the Digital Inspection action set (IA / FA / NA). */
     public static function results(): array
     {
         return DigitalInspection::outcomes();
+    }
+
+    /** Including the retired condition words, so historic rows still render. */
+    public static function allResults(): array
+    {
+        return DigitalInspection::allOutcomes();
     }
 
     /** Per-item recommendation — reuses the Digital Inspection set. */
     public static function itemRecommendations(): array
     {
         return DigitalInspection::recommendations();
+    }
+
+    /** Including the retired values, so historic rows still render. */
+    public static function allItemRecommendations(): array
+    {
+        return DigitalInspection::allRecommendations();
     }
 
     /** Per-item severity — reuses the Digital Inspection set. */

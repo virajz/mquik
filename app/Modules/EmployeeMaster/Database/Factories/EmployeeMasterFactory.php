@@ -54,6 +54,14 @@ class EmployeeMasterFactory extends Factory
         ]);
     }
 
+    public function floorIncharge(): static
+    {
+        return $this->state(fn () => [
+            'designation_id' => DesignationMaster::firstOrCreate(['name' => 'FLOOR INCHARGE'], ['is_active' => true])->id,
+            'department_id' => DepartmentMaster::firstOrCreate(['name' => 'SERVICE'], ['is_active' => true])->id,
+        ]);
+    }
+
     public function advisor(): static
     {
         return $this->state(fn () => [

@@ -7,6 +7,7 @@ use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -39,7 +40,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'desc';
 
-    protected array $sortable = ['id', 'inspection_no', 'status', 'created_at', 'started_at', 'completed_at'];
+    protected array $sortable = ['id', 'inspection_no', 'status', 'created_at', 'started_at', 'completed_at', 'tat_seconds'];
 
     public function updatingSearch(): void
     {
@@ -102,6 +103,19 @@ class Index extends Component
         return InspectionTemplateMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'applies_to']);
     }
 
+    /**
+     * Elapsed seconds between the two stamps.
+     *
+     * `extract(epoch from …)` is Postgres-only and the test suite runs on
+     * SQLite, so each driver gets the expression it understands.
+     */
+    protected function tatSecondsExpression(): string
+    {
+        return DB::connection()->getDriverName() === 'pgsql'
+            ? 'extract(epoch from (completed_at - started_at))'
+            : '(julianday(completed_at) - julianday(started_at)) * 86400';
+    }
+
     public function render()
     {
         $search = trim($this->search);
@@ -115,6 +129,8 @@ class Index extends Component
                 'technician:id,name',
             ])
             ->withCount('items')
+            // Technician TAT, worked out in the database so the column sorts.
+            ->selectRaw('*, '.$this->tatSecondsExpression().' as tat_seconds')
             ->when($search !== '', fn ($q) => $q->search($search))
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->when($this->technicianFilter !== 'all', fn ($q) => $q->where('assigned_technician_id', (int) $this->technicianFilter))
@@ -125,7 +141,10 @@ class Index extends Component
 
         return view('digital-inspection::index', [
             'rows' => $rows,
+            // Filter offers the live statuses; the badge falls back to the
+            // retired ones so a historic row still renders its own name.
             'statuses' => DigitalInspection::statuses(),
+            'allStatuses' => DigitalInspection::allStatuses(),
         ]);
     }
 }

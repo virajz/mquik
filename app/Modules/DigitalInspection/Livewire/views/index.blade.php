@@ -42,6 +42,9 @@
             <flux:table.column>Job Card / Vehicle</flux:table.column>
             <flux:table.column class="w-40">Template</flux:table.column>
             <flux:table.column class="w-40">Technician</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'started_at'" :direction="$sortDirection" wire:click="sort('started_at')">Started</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'completed_at'" :direction="$sortDirection" wire:click="sort('completed_at')">Completed</flux:table.column>
+            <flux:table.column class="w-24" align="end" sortable :sorted="$sortBy === 'tat_seconds'" :direction="$sortDirection" wire:click="sort('tat_seconds')">TAT</flux:table.column>
             <flux:table.column class="w-20 text-center">Items</flux:table.column>
             <flux:table.column class="w-32" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
             <flux:table.column class="w-32" align="end">Actions</flux:table.column>
@@ -68,6 +71,33 @@
                         @endif
                     </flux:table.cell>
                     <flux:table.cell class="text-sm">{{ $row->technician?->name ?? '— unassigned —' }}</flux:table.cell>
+
+                    <flux:table.cell class="text-sm whitespace-nowrap">
+                        @if ($row->started_at)
+                            <div>{{ $row->started_at->format('d/m/Y') }}</div>
+                            <div class="text-xs text-zinc-500 mt-0.5">{{ $row->started_at->format('h:i A') }}</div>
+                        @else
+                            <span class="text-zinc-400">—</span>
+                        @endif
+                    </flux:table.cell>
+
+                    <flux:table.cell class="text-sm whitespace-nowrap">
+                        @if ($row->completed_at)
+                            <div>{{ $row->completed_at->format('d/m/Y') }}</div>
+                            <div class="text-xs text-zinc-500 mt-0.5">{{ $row->completed_at->format('h:i A') }}</div>
+                        @else
+                            <span class="text-zinc-400">—</span>
+                        @endif
+                    </flux:table.cell>
+
+                    <flux:table.cell align="end" class="font-mono text-sm tabular-nums">
+                        @if ($row->tat_seconds)
+                            {{ intdiv((int) $row->tat_seconds, 3600) }}h {{ intdiv((int) $row->tat_seconds % 3600, 60) }}m
+                        @else
+                            <span class="text-zinc-400">—</span>
+                        @endif
+                    </flux:table.cell>
+
                     <flux:table.cell class="text-center font-mono text-sm">{{ $row->items_count }}</flux:table.cell>
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) {
@@ -75,7 +105,7 @@
                             'approved' => 'green', 'rejected' => 'red', 'cancelled' => 'zinc',
                             default => 'zinc',
                         })
-                        <flux:badge :color="$statusColor" size="sm">{{ $statuses[$row->status] ?? $row->status }}</flux:badge>
+                        <flux:badge :color="$statusColor" size="sm">{{ $allStatuses[$row->status] ?? $row->status }}</flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center justify-end gap-1">
@@ -102,7 +132,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="7" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="10" class="text-center text-zinc-500 py-12">
                         <flux:icon.magnifying-glass-circle class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No inspections yet</div>
                         <flux:text class="mt-1">Open one from a job card to start the technician's checklist.</flux:text>

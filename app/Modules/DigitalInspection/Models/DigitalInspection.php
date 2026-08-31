@@ -33,6 +33,13 @@ class DigitalInspection extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const ACTION_IMMEDIATE = 'ia';
+
+    public const ACTION_FUTURE = 'fa';
+
+    /** No attention: nothing to recommend and nothing to rate. */
+    public const ACTION_NONE = 'na';
+
     protected $table = 'digital_inspections';
 
     protected $guarded = [];
@@ -124,20 +131,37 @@ class DigitalInspection extends Model
     /**
      * @return array<string, string>
      */
+    /**
+     * Approving or rejecting an inspection is not a thing that happens here —
+     * the sheet records what was found, and the decision belongs to the
+     * estimate. The constants stay so historic rows still render.
+     */
     public static function statuses(): array
     {
         return [
             self::STATUS_PENDING => 'Pending',
             self::STATUS_WIP => 'In Progress',
             self::STATUS_COMPLETED => 'Completed',
-            self::STATUS_APPROVED => 'Approved',
-            self::STATUS_REJECTED => 'Rejected',
             self::STATUS_CANCELLED => 'Cancelled',
         ];
     }
 
+    /** Including the retired values, for rendering rows that still carry them. */
+    public static function allStatuses(): array
+    {
+        return self::statuses() + [
+            self::STATUS_APPROVED => 'Approved',
+            self::STATUS_REJECTED => 'Rejected',
+        ];
+    }
+
     /**
-     * Per-item inspection result (CSV row 11 condition set; legacy rep/adj keys kept).
+     * What the technician decided about a checkpoint — the Action Type.
+     *
+     * Three answers, not fifteen: does it need attention now, later, or not at
+     * all. The old condition words (OK / Good / Poor / Faulty / Adjust …) said
+     * how the part looked without saying what to do about it, which is the only
+     * thing the advisor and the customer act on.
      *
      * @return array<string, string>
      */
@@ -145,6 +169,16 @@ class DigitalInspection extends Model
     {
         return [
             'pending' => 'Pending',
+            self::ACTION_IMMEDIATE => 'IA — Immediate Attention',
+            self::ACTION_FUTURE => 'FA — Future Attention',
+            self::ACTION_NONE => 'NA — No Attention',
+        ];
+    }
+
+    /** Including the retired condition words, so historic rows still render. */
+    public static function allOutcomes(): array
+    {
+        return self::outcomes() + [
             'ok' => 'OK',
             'good' => 'Good',
             'excellent' => 'Excellent',
@@ -155,31 +189,38 @@ class DigitalInspection extends Model
             'faulty' => 'Faulty',
             'adj' => 'Adjust',
             'rep' => 'Repair / Replace',
-            'ia' => 'Immediate Action',
-            'fa' => 'Future Action',
             'not_checked' => 'Not Checked',
-            'na' => 'Not Applicable',
         ];
     }
 
     /**
-     * Per-item recommendation (CSV: No Action / Repair / Replace / Monitor / Urgent Attention).
+     * What to do about it. "No Action Required" and "Urgent Attention" are gone:
+     * both restate the Action Type rather than naming a job.
      *
      * @return array<string, string>
      */
     public static function recommendations(): array
     {
         return [
-            'none' => 'No Action Required',
             'repair' => 'Repair',
             'replace' => 'Replace',
+            'skimming' => 'Skimming',
             'monitor' => 'Monitor',
+        ];
+    }
+
+    /** Including the retired values, so historic rows still render. */
+    public static function allRecommendations(): array
+    {
+        return self::recommendations() + [
+            'none' => 'No Action Required',
             'urgent' => 'Urgent Attention',
         ];
     }
 
     /**
-     * Per-item severity / condition rating (CSV: Low / Medium / High / Critical).
+     * How bad it is. Follows the Action Type by default — High for immediate,
+     * Low for future — and the technician can move it.
      *
      * @return array<string, string>
      */
@@ -191,5 +232,15 @@ class DigitalInspection extends Model
             'high' => 'High',
             'critical' => 'Critical',
         ];
+    }
+
+    /** The severity an action type implies, before the technician overrides it. */
+    public static function severityForAction(?string $action): ?string
+    {
+        return match ($action) {
+            self::ACTION_IMMEDIATE => 'high',
+            self::ACTION_FUTURE => 'low',
+            default => null,
+        };
     }
 }

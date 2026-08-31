@@ -15,7 +15,7 @@
                     'pending' => 'amber', 'wip' => 'blue', 'completed' => 'lime',
                     'approved' => 'green', 'rejected' => 'red', 'cancelled' => 'zinc',
                     default => 'zinc',
-                }" size="lg">{{ \App\Modules\DigitalInspection\Models\DigitalInspection::statuses()[$status] }}</flux:badge>
+                }" size="lg">{{ \App\Modules\DigitalInspection\Models\DigitalInspection::allStatuses()[$status] ?? $status }}</flux:badge>
             @endif
         </div>
 
@@ -25,17 +25,42 @@
         <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
             <div>
                 <flux:heading size="lg">Inspection Setup</flux:heading>
-                <flux:text size="sm" class="mt-1 text-zinc-500">Pick the job card and template, assign a technician.</flux:text>
+                <flux:text size="sm" class="mt-1 text-zinc-500">Pick the job card and template, assign a technician. The rest comes off the card.</flux:text>
             </div>
             <div class="space-y-4 min-w-0">
-                <flux:select wire:model.live="job_card_id" variant="listbox" searchable label="Job Card" placeholder="Pick an open job card…" required>
+                {{-- Only cards still in the workshop, shown by model and plate:
+                     the model tells the technician what they are walking up to. --}}
+                <flux:select wire:model.live="job_card_id" variant="listbox" searchable label="Job Card" placeholder="Pick a pending job card…" required>
                     @foreach ($this->jobCards as $jc)
                         <flux:select.option :value="$jc->id" wire:key="jc-{{ $jc->id }}">
-                            {{ $jc->job_card_no }} — {{ trim($jc->customer?->first_name.' '.($jc->customer?->last_name ?? '')) }}
-                            @if ($jc->customerVehicle) · {{ $jc->customerVehicle->registration_no }} @endif
+                            {{ $jc->job_card_no }}
+                            @if ($jc->customerVehicle?->model) — {{ $jc->customerVehicle->model->name }} @endif
+                            @if ($jc->customerVehicle) · {{ \App\Support\RegistrationNumber::format($jc->customerVehicle->registration_no) }} @endif
                         </flux:select.option>
                     @endforeach
                 </flux:select>
+
+                {{-- Everything the card already knows. Read-only: an inspection
+                     that disagreed with its job card would be worse than useless. --}}
+                @if ($this->jobCardContext)
+                    <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        @foreach ([
+                            'Advisor' => $this->jobCardContext->advisor?->name,
+                            'Department' => $this->jobCardContext->workshopDepartment?->name,
+                            'Service Type' => $this->jobCardContext->serviceType?->name,
+                            'Variant' => $this->jobCardContext->customerVehicle?->variant?->name,
+                            'Year' => $this->jobCardContext->customerVehicle?->year_of_manufacture,
+                            'Odometer' => $this->jobCardContext->customerVehicle?->odometer_km
+                                ? number_format((float) $this->jobCardContext->customerVehicle->odometer_km).' km'
+                                : null,
+                        ] as $label => $value)
+                            <div>
+                                <div class="text-xs text-zinc-500">{{ $label }}</div>
+                                <div class="mt-0.5 font-medium">{{ $value ?: '—' }}</div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select wire:model.live="inspection_template_id" variant="listbox" searchable label="Template" placeholder="Pick a template…" required>
@@ -43,12 +68,38 @@
                             <flux:select.option :value="$t->id" wire:key="tpl-{{ $t->id }}">{{ $t->name }} <span class="text-xs text-zinc-500">({{ strtoupper($t->applies_to) }})</span></flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:select wire:model="status" variant="listbox" label="Status" required>
-                        @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::statuses() as $key => $label)
-                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+
+                    {{-- Status follows the checklist; it is not something to pick. --}}
+                    <flux:field>
+                        <flux:label>Status</flux:label>
+                        <div class="flex items-center gap-2 h-10">
+                            <flux:badge size="sm" :color="match ($status) {
+                                'pending' => 'amber', 'wip' => 'blue', 'completed' => 'lime',
+                                'cancelled' => 'zinc', default => 'zinc',
+                            }">{{ \App\Modules\DigitalInspection\Models\DigitalInspection::allStatuses()[$status] ?? $status }}</flux:badge>
+                            <flux:text size="sm" class="text-zinc-500">{{ $this->statusExplanation }}</flux:text>
+                        </div>
+                    </flux:field>
                 </div>
+
+                {{-- Technician TAT: whose inspection it was and how long it took.
+                     Both stamps follow the checklist, so the number cannot drift
+                     from the sheet it measures. --}}
+                @if ($editingId)
+                    <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        @foreach ([
+                            'Technician' => $this->assignedTechnicianName,
+                            'Started' => $this->startedAt?->format('d/m/Y h:i A'),
+                            'Completed' => $this->completedAt?->format('d/m/Y h:i A'),
+                            'TAT' => $this->turnaround,
+                        ] as $label => $value)
+                            <div>
+                                <div class="text-xs text-zinc-500">{{ $label }}</div>
+                                <div class="mt-0.5 font-medium tabular-nums">{{ $value ?: '—' }}</div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="Technician" placeholder="Pick a technician…">
@@ -57,7 +108,7 @@
                         @endforeach
                     </flux:select>
                     <flux:select wire:model="floor_incharge_id" variant="listbox" searchable clearable label="Floor In-charge" placeholder="Optional…">
-                        @foreach ($this->technicians as $e)
+                        @foreach ($this->floorIncharges as $e)
                             <flux:select.option :value="$e->id" wire:key="fi-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
@@ -103,10 +154,9 @@
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="min-w-0">
                                             <div class="font-medium text-sm truncate">{{ $item['name'] }}</div>
-                                            <flux:text size="xs" class="text-zinc-400">{{ \Illuminate\Support\Str::headline($item['check_type']) }}</flux:text>
                                         </div>
-                                        <div class="w-44 shrink-0">
-                                            <flux:select wire:model="items.{{ $i }}.outcome" variant="listbox" size="sm">
+                                        <div class="w-56 shrink-0">
+                                            <flux:select wire:model.live="items.{{ $i }}.outcome" variant="listbox" size="sm">
                                                 @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::outcomes() as $key => $label)
                                                     <flux:select.option :value="$key" wire:key="oc-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
                                                 @endforeach
@@ -114,14 +164,22 @@
                                         </div>
                                     </div>
 
-                                    {{-- Recommendation + severity --}}
+                                    {{-- Recommendation + severity. Both go quiet on
+                                         "No Attention": there is nothing to
+                                         recommend or rate on a checkpoint that
+                                         needs nothing. Severity arrives filled in
+                                         from the action type and can be moved. --}}
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <flux:select wire:model="items.{{ $i }}.recommendation" variant="listbox" size="sm" clearable placeholder="Recommendation…">
+                                        <flux:select wire:model="items.{{ $i }}.recommendation" variant="listbox" size="sm" clearable
+                                            :disabled="($item['outcome'] ?? null) === 'na'"
+                                            :placeholder="($item['outcome'] ?? null) === 'na' ? 'Not applicable' : 'Recommendation…'">
                                             @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::recommendations() as $key => $label)
                                                 <flux:select.option :value="$key" wire:key="rec-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
-                                        <flux:select wire:model="items.{{ $i }}.severity" variant="listbox" size="sm" clearable placeholder="Severity…">
+                                        <flux:select wire:model="items.{{ $i }}.severity" variant="listbox" size="sm" clearable
+                                            :disabled="($item['outcome'] ?? null) === 'na'"
+                                            :placeholder="($item['outcome'] ?? null) === 'na' ? 'Not applicable' : 'Severity…'">
                                             @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::severities() as $key => $label)
                                                 <flux:select.option :value="$key" wire:key="sev-{{ $i }}-{{ $key }}">{{ $label }}</flux:select.option>
                                             @endforeach

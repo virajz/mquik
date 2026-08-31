@@ -3,11 +3,14 @@
 namespace App\Modules\DigitalInspection\Livewire;
 
 use App\Modules\DigitalInspection\Models\DigitalInspection;
+use App\Modules\DigitalInspection\Support\InspectionStatus;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
+use Carbon\CarbonInterface;
 use Flux\Flux;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -145,12 +148,12 @@ class Edit extends Component
             'inspection_template_id' => ['required', 'integer', Rule::exists('inspection_templates', 'id')->where('is_active', true)],
             'assigned_technician_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
             'floor_incharge_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where('is_active', true)],
-            'status' => ['required', Rule::in(array_keys(DigitalInspection::statuses()))],
+            'status' => ['required', Rule::in(array_keys(DigitalInspection::allStatuses()))],
             'summary_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['array'],
             'items.*.inspection_item_id' => ['required', 'integer', 'exists:inspection_items,id'],
-            'items.*.outcome' => ['required', 'string', Rule::in(array_keys(DigitalInspection::outcomes()))],
-            'items.*.recommendation' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::recommendations()))],
+            'items.*.outcome' => ['required', 'string', Rule::in(array_keys(DigitalInspection::allOutcomes()))],
+            'items.*.recommendation' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::allRecommendations()))],
             'items.*.severity' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::severities()))],
             'items.*.observation' => ['nullable', 'string', 'max:1000'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
@@ -180,12 +183,14 @@ class Edit extends Component
     #[Computed]
     public function jobCards()
     {
+        // Only cards still in the workshop: inspecting a closed or cancelled
+        // one is never what was meant.
         return JobCard::query()
-            ->with(['customer:id,first_name,last_name', 'customerVehicle:id,registration_no'])
-            ->whereIn('status', [JobCard::STATUS_OPEN, JobCard::STATUS_IN_PROGRESS, JobCard::STATUS_AWAITING_PARTS, JobCard::STATUS_AWAITING_APPROVAL])
+            ->with(['customerVehicle:id,registration_no,model_id', 'customerVehicle.model:id,name'])
+            ->whereIn('status', JobCard::pendingStatuses())
             ->orderByDesc('opened_at')
             ->limit(100)
-            ->get(['id', 'job_card_no', 'customer_id', 'customer_vehicle_id', 'opened_at']);
+            ->get(['id', 'job_card_no', 'customer_vehicle_id', 'opened_at']);
     }
 
     #[Computed]
@@ -194,10 +199,55 @@ class Edit extends Component
         return InspectionTemplateMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'applies_to']);
     }
 
+    /**
+     * Staff who actually do this work, by designation. Offering every employee
+     * makes the wrong pick as easy as the right one.
+     *
+     * @return Collection<int, EmployeeMaster>
+     */
+    protected function staffDesignated(string $needle)
+    {
+        return EmployeeMaster::query()
+            ->where('is_active', true)
+            ->whereHas('designation', fn ($q) => $q->whereRaw('upper(name) like ?', ['%'.mb_strtoupper($needle).'%']))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
     #[Computed]
     public function technicians()
     {
-        return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return $this->staffDesignated('TECHNICIAN');
+    }
+
+    /** The master spells it "FLOOR INCHARGE"; match either spelling. */
+    #[Computed]
+    public function floorIncharges()
+    {
+        return $this->staffDesignated('FLOOR');
+    }
+
+    /**
+     * Everything the job card already knows, shown read-only so the inspection
+     * never disagrees with the card it belongs to.
+     */
+    #[Computed]
+    public function jobCardContext(): ?JobCard
+    {
+        if (! $this->job_card_id) {
+            return null;
+        }
+
+        return JobCard::query()
+            ->with([
+                'advisor:id,name',
+                'workshopDepartment:id,name',
+                'serviceType:id,name',
+                'customerVehicle:id,registration_no,model_id,variant_id,year_of_manufacture,odometer_km',
+                'customerVehicle.model:id,name',
+                'customerVehicle.variant:id,name',
+            ])
+            ->find($this->job_card_id);
     }
 
     /**
@@ -209,6 +259,59 @@ class Edit extends Component
         return StandardObservationMaster::query()->where('is_active', true)->orderBy('name')->pluck('name');
     }
 
+    /**
+     * Technician TAT. The stamps are set by InspectionStatus as the checklist is
+     * worked through, so the elapsed figure always matches the sheet.
+     */
+    #[Computed]
+    public function startedAt(): ?CarbonInterface
+    {
+        return $this->editingId ? DigitalInspection::find($this->editingId)?->started_at : null;
+    }
+
+    #[Computed]
+    public function completedAt(): ?CarbonInterface
+    {
+        return $this->editingId ? DigitalInspection::find($this->editingId)?->completed_at : null;
+    }
+
+    #[Computed]
+    public function assignedTechnicianName(): ?string
+    {
+        return $this->assigned_technician_id
+            ? EmployeeMaster::whereKey($this->assigned_technician_id)->value('name')
+            : null;
+    }
+
+    /** Elapsed start → finish, or start → now while the sheet is still open. */
+    #[Computed]
+    public function turnaround(): ?string
+    {
+        $start = $this->startedAt;
+
+        if (! $start) {
+            return null;
+        }
+
+        $end = $this->completedAt ?? now();
+        $seconds = max(0, $end->getTimestamp() - $start->getTimestamp());
+
+        $hours = intdiv($seconds, 3600);
+        $minutes = intdiv($seconds % 3600, 60);
+
+        $elapsed = $hours > 0 ? "{$hours}h {$minutes}m" : "{$minutes}m";
+
+        return $this->completedAt ? $elapsed : $elapsed.' (running)';
+    }
+
+    #[Computed]
+    public function statusExplanation(): string
+    {
+        return InspectionStatus::explain(
+            $this->editingId ? DigitalInspection::find($this->editingId) : null
+        );
+    }
+
     public function save()
     {
         $this->authorize($this->editingId ? 'digital_inspection.update' : 'digital_inspection.create');
@@ -217,16 +320,10 @@ class Edit extends Component
         $items = $data['items'] ?? [];
         unset($data['items'], $data['itemImages']);
 
-        // Status transitions: stamp started_at on first move to wip, completed_at on completion.
-        if ($data['status'] === DigitalInspection::STATUS_WIP && $this->editingId) {
-            $existing = DigitalInspection::find($this->editingId);
-            if ($existing && ! $existing->started_at) {
-                $data['started_at'] = now();
-            }
-        }
-        if ($data['status'] === DigitalInspection::STATUS_COMPLETED) {
-            $data['completed_at'] = now();
-        }
+        // Status is derived from the checklist, never typed: keep whatever it is
+        // now and let InspectionStatus recompute once the items are written.
+        $existing = $this->editingId ? DigitalInspection::find($this->editingId) : null;
+        $data['status'] = $existing?->status ?? DigitalInspection::STATUS_PENDING;
 
         if (isset($data['summary_notes']) && is_string($data['summary_notes'])) {
             $data['summary_notes'] = strtoupper($data['summary_notes']);
@@ -248,6 +345,9 @@ class Edit extends Component
 
             return $row;
         });
+
+        InspectionStatus::refresh($di);
+        $this->status = $di->fresh()->status;
 
         // Reset transient upload state so a subsequent save on the same component
         // doesn't try to re-process them.
@@ -300,12 +400,16 @@ class Edit extends Component
                     ->store("digital-inspections/{$di->id}/items", 'public');
             }
 
+            // "No Attention" carries neither: enforced here as well as in the
+            // form, so a stale value cannot ride in on a resubmit.
+            $isNoAction = $row['outcome'] === DigitalInspection::ACTION_NONE;
+
             $payload = [
                 'inspection_item_id' => $itemId,
                 'inspection_item_group_id' => $local['inspection_item_group_id'] ?? null,
                 'outcome' => $row['outcome'],
-                'recommendation' => $local['recommendation'] ?? null,
-                'severity' => $local['severity'] ?? null,
+                'recommendation' => $isNoAction ? null : ($local['recommendation'] ?? null),
+                'severity' => $isNoAction ? null : ($local['severity'] ?? null),
                 'observation' => isset($local['observation']) && is_string($local['observation']) ? strtoupper($local['observation']) : null,
                 'notes' => isset($row['notes']) && is_string($row['notes']) ? strtoupper($row['notes']) : null,
                 'sequence_no' => (int) ($local['sequence_no'] ?? $i + 1),
@@ -332,8 +436,45 @@ class Edit extends Component
         $di->items()->whereNotIn('id', $keptIds)->delete();
     }
 
+    /**
+     * Severity follows the Action Type unless the technician has moved it, and
+     * "No Attention" clears both fields — there is nothing to recommend or rate
+     * on a checkpoint that needs nothing.
+     */
+    public function updatedItems($value, string $key): void
+    {
+        if (! str_ends_with($key, '.outcome')) {
+            return;
+        }
+
+        $index = (int) explode('.', $key)[0];
+
+        if (! isset($this->items[$index])) {
+            return;
+        }
+
+        if ($value === DigitalInspection::ACTION_NONE) {
+            $this->items[$index]['recommendation'] = null;
+            $this->items[$index]['severity'] = null;
+
+            return;
+        }
+
+        $suggested = DigitalInspection::severityForAction($value);
+
+        // Only fill a blank, or replace a value this same rule put there — a
+        // technician who chose Critical on an IA keeps Critical.
+        $current = $this->items[$index]['severity'] ?? null;
+        $wasSuggested = in_array($current, ['high', 'low'], true);
+
+        if ($suggested !== null && ($current === null || $current === '' || $wasSuggested)) {
+            $this->items[$index]['severity'] = $suggested;
+        }
+    }
+
     public function updatedJobCardId(): void
     {
+        unset($this->jobCardContext);
         $this->prefillFromJobCard();
     }
 

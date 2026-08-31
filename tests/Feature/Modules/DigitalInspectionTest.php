@@ -1,16 +1,22 @@
 <?php
 
 use App\Models\User;
+use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DigitalInspection\Livewire\Edit;
 use App\Modules\DigitalInspection\Livewire\Index;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\DigitalInspection\Models\DigitalInspectionItem;
+use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
+use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
+use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -104,7 +110,7 @@ it('persists row-11 recommendation, severity and observation per item', function
         ->and($di->items[0]->observation)->toBe('BRAKE PADS WORN OUT');
 });
 
-it('allows approved and rejected inspection statuses', function () {
+it('ignores an approved status typed at the form — the decision is not made here', function () {
     $di = DigitalInspection::factory()->create(['status' => DigitalInspection::STATUS_PENDING]);
 
     Livewire::test(Edit::class, ['digitalInspection' => $di])
@@ -112,41 +118,49 @@ it('allows approved and rejected inspection statuses', function () {
         ->call('save')
         ->assertHasNoErrors();
 
-    expect($di->fresh()->status)->toBe(DigitalInspection::STATUS_APPROVED);
+    expect($di->fresh()->status)->toBe(DigitalInspection::STATUS_PENDING);
 });
 
-it('stamps started_at when status moves to wip on update', function () {
-    $jc = JobCard::factory()->create();
-    $template = InspectionTemplateMaster::factory()->create();
+it('stamps started_at once the first checklist item is answered', function () {
     $di = DigitalInspection::factory()->create([
-        'job_card_id' => $jc->id,
-        'inspection_template_id' => $template->id,
         'status' => DigitalInspection::STATUS_PENDING,
         'started_at' => null,
     ]);
-
-    Livewire::test(Edit::class, ['digitalInspection' => $di])
-        ->set('status', DigitalInspection::STATUS_WIP)
-        ->call('save')
-        ->assertHasNoErrors();
-
-    expect($di->fresh()->started_at)->not->toBeNull();
-});
-
-it('stamps completed_at when status moves to completed', function () {
-    $jc = JobCard::factory()->create();
-    $template = InspectionTemplateMaster::factory()->create();
-    $di = DigitalInspection::factory()->wip()->create([
-        'job_card_id' => $jc->id,
-        'inspection_template_id' => $template->id,
+    $di->items()->create([
+        'inspection_item_id' => InspectionItemMaster::factory()->create()->id,
+        'outcome' => 'pending',
+        'sequence_no' => 1,
+    ]);
+    $di->items()->create([
+        'inspection_item_id' => InspectionItemMaster::factory()->create()->id,
+        'outcome' => 'pending',
+        'sequence_no' => 2,
     ]);
 
     Livewire::test(Edit::class, ['digitalInspection' => $di])
-        ->set('status', DigitalInspection::STATUS_COMPLETED)
+        ->set('items.0.outcome', 'ok')
         ->call('save')
         ->assertHasNoErrors();
 
-    expect($di->fresh()->completed_at)->not->toBeNull();
+    expect($di->fresh()->started_at)->not->toBeNull()
+        ->and($di->fresh()->status)->toBe(DigitalInspection::STATUS_WIP);
+});
+
+it('stamps completed_at once every checklist item is answered', function () {
+    $di = DigitalInspection::factory()->create(['status' => DigitalInspection::STATUS_PENDING]);
+    $di->items()->create([
+        'inspection_item_id' => InspectionItemMaster::factory()->create()->id,
+        'outcome' => 'pending',
+        'sequence_no' => 1,
+    ]);
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set('items.0.outcome', 'ok')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($di->fresh()->completed_at)->not->toBeNull()
+        ->and($di->fresh()->status)->toBe(DigitalInspection::STATUS_COMPLETED);
 });
 
 it('filters by status and template', function () {
@@ -299,3 +313,204 @@ it('offers standard observations as a quick-pick datalist', function () {
         ->assertSee('di-standard-observations', false)
         ->assertSee('OIL LEAKAGE');
 });
+
+// ---------------------------------------------------------------------------
+// Inspection Setup: what the form offers, and what it works out for itself
+// ---------------------------------------------------------------------------
+
+it('offers only job cards still in the workshop', function () {
+    $pending = JobCard::factory()->create(['status' => JobCard::STATUS_IN_PROGRESS]);
+    $closed = JobCard::factory()->create(['status' => JobCard::STATUS_CLOSED]);
+
+    $offered = Livewire::test(Edit::class)->instance()->jobCards->modelKeys();
+
+    expect($offered)->toContain($pending->id)
+        ->not->toContain($closed->id);
+});
+
+it('offers only technicians in the technician picker', function () {
+    $tech = EmployeeMaster::factory()->technician()->create(['is_active' => true]);
+    $advisor = EmployeeMaster::factory()->advisor()->create(['is_active' => true]);
+
+    $offered = Livewire::test(Edit::class)->instance()->technicians->modelKeys();
+
+    expect($offered)->toContain($tech->id)->not->toContain($advisor->id);
+});
+
+it('offers only floor in-charges in the floor in-charge picker', function () {
+    $floor = EmployeeMaster::factory()->floorIncharge()->create(['is_active' => true]);
+    $tech = EmployeeMaster::factory()->technician()->create(['is_active' => true]);
+
+    $offered = Livewire::test(Edit::class)->instance()->floorIncharges->modelKeys();
+
+    expect($offered)->toContain($floor->id)->not->toContain($tech->id);
+});
+
+it('pulls advisor, department, service type and vehicle detail off the picked job card', function () {
+    $advisor = EmployeeMaster::factory()->advisor()->create(['is_active' => true]);
+    $dept = WorkshopDepartmentMaster::factory()->create(['name' => 'MECHANICAL']);
+    $serviceType = ServiceTypeMaster::factory()->create(['name' => 'PAID SERVICE', 'is_active' => true]);
+    $variant = VehicleVariantMaster::factory()->create(['name' => '1.2 VXI']);
+    $vehicle = CustomerVehicleMaster::factory()->create([
+        'variant_id' => $variant->id,
+        'year_of_manufacture' => 2021,
+        'odometer_km' => 42000,
+    ]);
+    $jobCard = JobCard::factory()->create([
+        'customer_vehicle_id' => $vehicle->id,
+        'assigned_advisor_id' => $advisor->id,
+        'workshop_department_id' => $dept->id,
+        'service_type_id' => $serviceType->id,
+        'status' => JobCard::STATUS_OPEN,
+    ]);
+
+    $context = Livewire::test(Edit::class)
+        ->set('job_card_id', $jobCard->id)
+        ->instance()
+        ->jobCardContext;
+
+    expect($context->advisor->name)->toBe($advisor->name)
+        ->and($context->workshopDepartment->name)->toBe('MECHANICAL')
+        ->and($context->serviceType->name)->toBe('PAID SERVICE')
+        ->and($context->customerVehicle->variant->name)->toBe('1.2 VXI')
+        ->and($context->customerVehicle->year_of_manufacture)->toBe(2021)
+        ->and((int) $context->customerVehicle->odometer_km)->toBe(42000);
+});
+
+it('no longer offers approved or rejected as statuses', function () {
+    expect(array_keys(DigitalInspection::statuses()))
+        ->not->toContain(DigitalInspection::STATUS_APPROVED)
+        ->not->toContain(DigitalInspection::STATUS_REJECTED)
+        // Historic rows must still render their own name.
+        ->and(DigitalInspection::allStatuses())
+        ->toHaveKey(DigitalInspection::STATUS_APPROVED);
+});
+
+it('works the status out from the checklist rather than taking it from the form', function () {
+    $template = InspectionTemplateMaster::factory()->create(['is_active' => true]);
+    $a = InspectionItemMaster::factory()->create();
+    $b = InspectionItemMaster::factory()->create();
+    $template->items()->attach([$a->id => ['position' => 1], $b->id => ['position' => 2]]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('job_card_id', JobCard::factory()->create(['status' => JobCard::STATUS_OPEN])->id)
+        ->set('inspection_template_id', $template->id)
+        // Typed status is ignored: the sheet decides.
+        ->set('status', DigitalInspection::STATUS_COMPLETED)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $di = DigitalInspection::firstOrFail();
+    expect($di->status)->toBe(DigitalInspection::STATUS_PENDING)
+        ->and($di->completed_at)->toBeNull();
+
+    // One answered of two: in progress, and the start is stamped.
+    $component->set('items.0.outcome', 'ok')->call('save')->assertHasNoErrors();
+    $di->refresh();
+    expect($di->status)->toBe(DigitalInspection::STATUS_WIP)
+        ->and($di->started_at)->not->toBeNull()
+        ->and($di->completed_at)->toBeNull();
+
+    // Both answered: completed.
+    $component->set('items.1.outcome', 'ok')->call('save')->assertHasNoErrors();
+    $di->refresh();
+    expect($di->status)->toBe(DigitalInspection::STATUS_COMPLETED)
+        ->and($di->completed_at)->not->toBeNull();
+
+    // Reopened: the completion stamp must not outlive the completion.
+    $component->set('items.1.outcome', 'pending')->call('save')->assertHasNoErrors();
+    $di->refresh();
+    expect($di->status)->toBe(DigitalInspection::STATUS_WIP)
+        ->and($di->completed_at)->toBeNull();
+});
+
+// ---------------------------------------------------------------------------
+// Checklist: action type, recommendation, severity
+// ---------------------------------------------------------------------------
+
+it('offers only pending, IA, FA and NA as action types', function () {
+    expect(array_keys(DigitalInspection::outcomes()))
+        ->toBe(['pending', 'ia', 'fa', 'na'])
+        // Historic rows keep their own wording.
+        ->and(DigitalInspection::allOutcomes())->toHaveKeys(['ok', 'faulty', 'not_checked']);
+});
+
+it('offers skimming and drops no-action and urgent from recommendations', function () {
+    expect(array_keys(DigitalInspection::recommendations()))
+        ->toBe(['repair', 'replace', 'skimming', 'monitor'])
+        ->and(DigitalInspection::allRecommendations())->toHaveKeys(['none', 'urgent']);
+});
+
+it('fills severity in from the action type, and lets the technician move it', function () {
+    $component = inspectionWithOneItem();
+
+    $component->set('items.0.outcome', DigitalInspection::ACTION_IMMEDIATE);
+    expect($component->get('items.0.severity'))->toBe('high');
+
+    $component->set('items.0.outcome', DigitalInspection::ACTION_FUTURE);
+    expect($component->get('items.0.severity'))->toBe('low');
+
+    // A deliberate choice survives a later action-type change.
+    $component->set('items.0.severity', 'critical')
+        ->set('items.0.outcome', DigitalInspection::ACTION_IMMEDIATE);
+    expect($component->get('items.0.severity'))->toBe('critical');
+});
+
+it('clears recommendation and severity when a checkpoint needs no attention', function () {
+    $component = inspectionWithOneItem()
+        ->set('items.0.outcome', DigitalInspection::ACTION_IMMEDIATE)
+        ->set('items.0.recommendation', 'repair');
+
+    expect($component->get('items.0.severity'))->toBe('high');
+
+    $component->set('items.0.outcome', DigitalInspection::ACTION_NONE);
+
+    expect($component->get('items.0.recommendation'))->toBeNull()
+        ->and($component->get('items.0.severity'))->toBeNull();
+});
+
+it('will not persist a recommendation or severity smuggled onto a no-attention row', function () {
+    $component = inspectionWithOneItem()
+        ->set('items.0.outcome', DigitalInspection::ACTION_NONE)
+        // Set directly, bypassing the hook, the way a stale resubmit would.
+        ->set('items.0.recommendation', 'repair')
+        ->set('items.0.severity', 'critical')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $item = DigitalInspection::firstOrFail()->items()->firstOrFail();
+
+    expect($item->outcome)->toBe(DigitalInspection::ACTION_NONE)
+        ->and($item->recommendation)->toBeNull()
+        ->and($item->severity)->toBeNull();
+});
+
+it('captures technician TAT from the checklist stamps', function () {
+    $tech = EmployeeMaster::factory()->technician()->create(['is_active' => true]);
+    $component = inspectionWithOneItem()->set('assigned_technician_id', $tech->id);
+
+    expect($component->instance()->turnaround)->toBeNull();
+
+    $component->set('items.0.outcome', DigitalInspection::ACTION_FUTURE)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $di = DigitalInspection::firstOrFail();
+
+    expect($di->assigned_technician_id)->toBe($tech->id)
+        ->and($di->started_at)->not->toBeNull()
+        ->and($di->completed_at)->not->toBeNull()
+        ->and($component->instance()->turnaround)->not->toBeNull()
+        ->and($component->instance()->assignedTechnicianName)->toBe($tech->name);
+});
+
+/** A saved inspection carrying exactly one checklist item, ready to answer. */
+function inspectionWithOneItem(): Testable
+{
+    $template = InspectionTemplateMaster::factory()->create(['is_active' => true]);
+    $template->items()->attach([InspectionItemMaster::factory()->create()->id => ['position' => 1]]);
+
+    return Livewire::test(Edit::class)
+        ->set('job_card_id', JobCard::factory()->create(['status' => JobCard::STATUS_OPEN])->id)
+        ->set('inspection_template_id', $template->id);
+}

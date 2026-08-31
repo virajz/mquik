@@ -247,8 +247,8 @@ class Edit extends Component
 
             'items' => ['array'],
             'items.*.label' => ['required', 'string', 'max:255'],
-            'items.*.result' => ['required', Rule::in(array_keys(FinalInspection::results()))],
-            'items.*.recommendation' => ['nullable', Rule::in(array_keys(FinalInspection::itemRecommendations()))],
+            'items.*.result' => ['required', Rule::in(array_keys(FinalInspection::allResults()))],
+            'items.*.recommendation' => ['nullable', Rule::in(array_keys(FinalInspection::allItemRecommendations()))],
             'items.*.severity' => ['nullable', Rule::in(array_keys(FinalInspection::severities()))],
             'items.*.observation' => ['nullable', 'string', 'max:1000'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],

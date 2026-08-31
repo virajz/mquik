@@ -70,7 +70,7 @@
                                 <flux:menu.separator />
                                 @foreach ($this->digitalInspections as $di)
                                     <flux:menu.item :href="route('digital-inspection.edit', $di->id)" wire:navigate>
-                                        {{ $di->inspection_no }} · {{ \App\Modules\DigitalInspection\Models\DigitalInspection::statuses()[$di->status] ?? $di->status }}
+                                        {{ $di->inspection_no }} · {{ \App\Modules\DigitalInspection\Models\DigitalInspection::allStatuses()[$di->status] ?? $di->status }}
                                     </flux:menu.item>
                                 @endforeach
                                 @foreach ($this->inspectionOrders as $vio)

@@ -30,7 +30,7 @@ class JobCardComplaint extends Model
                 (int) $row->job_card_id,
                 JobCardHistoryEvent::TYPE_COMPLAINT_ADDED,
                 'Complaint: '.Str::limit($row->description, 80),
-                ['complaint_id' => $row->id, 'severity' => $row->severity],
+                ['complaint_id' => $row->id],
             );
         });
 

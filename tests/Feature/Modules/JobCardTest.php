@@ -247,7 +247,6 @@ it('does not persist a complaint row unless a complaint is picked (no free typin
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
         ->call('addComplaint')
-        ->set('complaints.0.severity', 'high')   // no observation picked — nothing to type
         // Set last: picking a department clears the service type and the people
         // on it, so these have to come after whatever the test itself sets.
         ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
@@ -379,8 +378,8 @@ it('updates an existing job card and re-syncs complaints + inventory', function 
     $jc = JobCard::factory()->create();
     $type = ComplaintTypeMaster::factory()->create();
     $jc->complaints()->createMany([
-        ['requested_repair_id' => RequestedRepairMaster::factory()->create(['is_active' => true])->id, 'description' => 'OLD ONE', 'severity' => 'low', 'sequence_no' => 1],
-        ['requested_repair_id' => RequestedRepairMaster::factory()->create(['is_active' => true])->id, 'description' => 'OLD TWO', 'severity' => 'high', 'sequence_no' => 2],
+        ['requested_repair_id' => RequestedRepairMaster::factory()->create(['is_active' => true])->id, 'description' => 'OLD ONE', 'sequence_no' => 1],
+        ['requested_repair_id' => RequestedRepairMaster::factory()->create(['is_active' => true])->id, 'description' => 'OLD TWO', 'sequence_no' => 2],
     ]);
     $invItem = VehicleInventoryItemMaster::factory()->create();
 
@@ -427,7 +426,7 @@ it('Edit::save blocks a user without create permission', function () {
 it('deleting a job card cascades complaints and inventory rows', function () {
     $jc = JobCard::factory()->create();
     $invItem = VehicleInventoryItemMaster::factory()->create();
-    $jc->complaints()->create(['description' => 'X', 'severity' => 'low', 'sequence_no' => 1]);
+    $jc->complaints()->create(['description' => 'X', 'sequence_no' => 1]);
     $jc->inventoryItems()->create(['vehicle_inventory_item_id' => $invItem->id, 'is_present' => true]);
 
     Livewire::test(Index::class)->call('delete', $jc->id);

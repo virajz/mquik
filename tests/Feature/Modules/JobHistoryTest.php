@@ -72,7 +72,6 @@ it('records a complaint_added event when a complaint is created', function () {
     JobCardComplaint::create([
         'job_card_id' => $jc->id,
         'description' => 'BRAKE NOISE',
-        'severity' => 'high',
         'sequence_no' => 1,
     ]);
 
@@ -82,7 +81,7 @@ it('records a complaint_added event when a complaint is created', function () {
 
     expect($event)->not->toBeNull()
         ->and($event->summary)->toContain('BRAKE NOISE')
-        ->and($event->payload['severity'])->toBe('high');
+        ->and($event->payload['complaint_id'])->not->toBeNull();
 });
 
 it('records a complaint_resolved event when a complaint is marked resolved', function () {
@@ -90,7 +89,6 @@ it('records a complaint_resolved event when a complaint is marked resolved', fun
     $complaint = JobCardComplaint::create([
         'job_card_id' => $jc->id,
         'description' => 'BRAKE NOISE',
-        'severity' => 'high',
         'sequence_no' => 1,
     ]);
 
