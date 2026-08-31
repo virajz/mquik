@@ -24,7 +24,7 @@
     <div class="mb-4 flex items-center gap-3">
         <flux:input
             wire:model.live.debounce.300ms="search"
-            placeholder="Search by name or email..."
+            placeholder="Search by user ID, username, name, phone or email…"
             icon="magnifying-glass"
             clearable
             class="max-w-sm"
@@ -45,8 +45,9 @@
 
     <flux:table>
         <flux:table.columns>
-            <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">
-                ID
+            <flux:table.column class="w-14">Sr. No.</flux:table.column>
+            <flux:table.column class="w-44" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">
+                User ID
             </flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">
                 Name
@@ -66,14 +67,24 @@
         <flux:table.rows>
             @forelse ($rows as $row)
                 <flux:table.row :key="$row->id">
-                    <flux:table.cell class="font-mono text-xs text-zinc-500">
-                        #{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}
+                    {{-- Position on the page, not the id — what people count down. --}}
+                    <flux:table.cell class="text-xs text-zinc-500 tabular-nums">
+                        {{ $rows->firstItem() + $loop->index }}
                     </flux:table.cell>
 
-                    <flux:table.cell class="font-medium">{{ $row->name }}</flux:table.cell>
+                    <flux:table.cell class="font-mono text-xs text-zinc-500">
+                        {{ $row->user_code ?? '—' }}
+                    </flux:table.cell>
+
+                    <flux:table.cell class="font-medium">
+                        {{ $row->name }}
+                        @if ($row->username)
+                            <div class="text-xs text-zinc-500 font-mono mt-0.5">{{ $row->username }}</div>
+                        @endif
+                    </flux:table.cell>
 
                     <flux:table.cell class="text-zinc-600 dark:text-zinc-300">
-                        {{ $row->email }}
+                        {{ $row->email ?: '—' }}
                     </flux:table.cell>
 
                     <flux:table.cell class="text-zinc-600 dark:text-zinc-300">
@@ -185,7 +196,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="9" class="text-center text-zinc-500 py-12">
                         <flux:icon.users class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No users yet</div>
                         <flux:text class="mt-1">Users will appear here once they sign up.</flux:text>

@@ -205,11 +205,11 @@
                         <div class="flex items-center justify-end gap-1">
                             @can('pickup_drop.update')
                                 @if (! $row->cancelled_at && $row->status !== \App\Modules\PickupDrop\Models\PickupDrop::STATUS_COMPLETED)
-                                    <flux:tooltip content="Cancel with a reason">
-                                        <flux:modal.trigger :name="'pickup-drop-cancel-' . $row->id">
+                                    <flux:modal.trigger :name="'pickup-drop-cancel-' . $row->id">
+                                        <flux:tooltip content="Cancel with a reason">
                                             <flux:button size="sm" variant="ghost" icon="x-circle" />
-                                        </flux:modal.trigger>
-                                    </flux:tooltip>
+                                        </flux:tooltip>
+                                    </flux:modal.trigger>
                                     <flux:modal :name="'pickup-drop-cancel-' . $row->id" class="md:w-96">
                                         <div class="space-y-4">
                                             <flux:heading size="lg">Cancel {{ $row->pickup_drop_no }}?</flux:heading>

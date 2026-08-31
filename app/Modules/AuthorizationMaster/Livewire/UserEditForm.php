@@ -23,6 +23,8 @@ class UserEditForm extends Component
 
     public string $name = '';
 
+    public string $username = '';
+
     public string $email = '';
 
     public string $phone = '';
@@ -39,6 +41,7 @@ class UserEditForm extends Component
         return [
             'name' => ['required', 'string', 'max:255'],
             // One reachable identifier is enough — either receives the login OTP.
+            'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($this->userId)],
             'email' => ['required_without:phone', 'nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId)],
             'phone' => ['required_without:email', 'nullable', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')->ignore($this->userId)],
             'isActive' => ['boolean'],
@@ -54,6 +57,7 @@ class UserEditForm extends Component
 
         $this->userId = $user->id;
         $this->name = (string) $user->name;
+        $this->username = (string) $user->username;
         $this->email = (string) $user->email;
         $this->phone = (string) $user->phone;
         $this->isActive = (bool) $user->is_active;
@@ -80,6 +84,7 @@ class UserEditForm extends Component
         DB::transaction(function () use ($user, $data, $phone) {
             $user->forceFill([
                 'name' => $data['name'],
+                'username' => mb_strtolower($data['username']),
                 'email' => filled($data['email'] ?? null) ? mb_strtolower($data['email']) : null,
                 'phone' => $phone,
                 'is_active' => $data['isActive'],

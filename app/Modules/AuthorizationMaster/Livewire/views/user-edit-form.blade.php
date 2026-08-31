@@ -15,6 +15,9 @@
 
             <flux:separator variant="subtle" />
 
+            <flux:input wire:model="username" label="User Name" placeholder="e.g. r.sharma"
+                description="Letters, numbers, dot, dash or underscore. This is what they sign in with." required />
+
             <flux:input wire:model="name" label="Name" placeholder="Full name" required autofocus />
 
             <flux:input wire:model="email" type="email" label="Email" icon="envelope" required />

@@ -149,6 +149,7 @@ it('creates a user without ever handling a password', function () {
     $component = Livewire::test(UserForm::class)
         ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'Ravi Sharma')
+        ->set('username', 'ravi.sharma')
         ->set('email', 'ravi@example.com')
         ->set('phone', '9812000001')
         ->call('save')
@@ -176,6 +177,7 @@ it('assigns roles on create', function () {
     Livewire::test(UserForm::class)
         ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'Cashier One')
+        ->set('username', 'cashier.one')
         ->set('email', 'cashier@example.com')
         ->set('phone', '9812000002')
         ->set('selectedRoles', [$role->id])
@@ -189,6 +191,7 @@ it('never shows a password to the admin', function () {
     $component = Livewire::test(UserForm::class)
         ->set('userType', UserForm::TYPE_MANUAL)
         ->set('name', 'No Pw')
+        ->set('username', 'no.pw')
         ->set('email', 'auto@example.com')
         ->set('phone', '9812000003')
         ->call('save');
@@ -208,6 +211,7 @@ it('blocks duplicate email on user create', function () {
         ->set('userType', UserForm::TYPE_MANUAL)
         ->set('phone', '9812000009')
         ->set('name', 'Dupe')
+        ->set('username', 'dupe')
         ->set('email', 'taken@example.com')
         ->call('save')
         ->assertHasErrors(['email']);
@@ -221,6 +225,7 @@ it('forbids user creation without authorization_master.create permission', funct
 
     Livewire::test(UserForm::class)
         ->set('name', 'Should Fail')
+        ->set('username', 'should.fail')
         ->set('email', 'shouldfail@example.com')
         ->call('save')
         ->assertForbidden();
@@ -390,6 +395,7 @@ it('creates a user with only a phone, and requires at least one identifier', fun
     Livewire::test(UserForm::class)
         ->set('userType', 'manual')
         ->set('name', 'PHONE ONLY GUARD')
+        ->set('username', 'phone.only.guard')
         ->set('phone', '9797979797')
         ->set('selectedRoles', [Role::first()->id])
         ->call('save')
@@ -400,6 +406,58 @@ it('creates a user with only a phone, and requires at least one identifier', fun
     Livewire::test(UserForm::class)
         ->set('userType', 'manual')
         ->set('name', 'UNREACHABLE')
+        ->set('username', 'unreachable')
         ->call('save')
         ->assertHasErrors(['email', 'phone']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| User ID series, username, listing
+|--------------------------------------------------------------------------
+*/
+
+it('stamps an FY-aware user code on create', function () {
+    $user = User::factory()->create();
+
+    expect($user->fresh()->user_code)->toMatch('#^MQ/US/\d{2}-\d{2}/\d{4}$#');
+});
+
+it('requires a unique username', function () {
+    $this->actingAs(adminUser());
+    $taken = User::factory()->create(['username' => 'r.sharma']);
+
+    Livewire::test(\App\Modules\AuthorizationMaster\Livewire\UserForm::class)
+        ->set('userType', 'manual')
+        ->set('name', 'Another Person')
+        ->set('username', 'r.sharma')
+        ->set('phone', '9765432100')
+        ->set('selectedRoles', [\Spatie\Permission\Models\Role::first()->id])
+        ->call('save')
+        ->assertHasErrors(['username']);
+
+    expect(User::where('username', 'r.sharma')->count())->toBe(1)
+        ->and($taken->fresh()->username)->toBe('r.sharma');
+});
+
+it('opens Manage Roles for a user with no email', function () {
+    $this->actingAs(adminUser());
+    $user = User::factory()->create(['email' => null, 'phone' => '9911223344']);
+
+    Livewire::test(\App\Modules\AuthorizationMaster\Livewire\UserRolesForm::class)
+        ->call('load', $user->id)
+        ->assertHasNoErrors()
+        ->assertSet('userContact', '+91 9911223344');
+});
+
+it('finds a user by their user code or username', function () {
+    $this->actingAs(adminUser());
+    $user = User::factory()->create(['username' => 'findme']);
+    User::factory()->count(2)->create();
+
+    Livewire::test(\App\Modules\AuthorizationMaster\Livewire\Users::class)
+        ->set('search', 'findme')
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1)
+        ->set('search', $user->fresh()->user_code)
+        ->assertViewHas('rows', fn ($rows) => $rows->total() === 1);
 });

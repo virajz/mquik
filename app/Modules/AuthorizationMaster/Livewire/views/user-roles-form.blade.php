@@ -5,7 +5,7 @@
                 <flux:heading size="lg">Manage Roles</flux:heading>
                 <flux:subheading>
                     @if ($userName !== '')
-                        {{ $userName }} &middot; <span class="text-zinc-500">{{ $userEmail }}</span>
+                        {{ $userName }} &middot; <span class="text-zinc-500">{{ $userContact }}</span>
                     @else
                         Pick the roles to assign.
                     @endif

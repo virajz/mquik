@@ -14,7 +14,8 @@ class UserRolesForm extends Component
 
     public string $userName = '';
 
-    public string $userEmail = '';
+    /** Whichever identifier the user has — email is optional now that a mobile alone can log in. */
+    public string $userContact = '';
 
     /** @var array<int, int> */
     public array $selectedRoles = [];
@@ -27,7 +28,7 @@ class UserRolesForm extends Component
         $user = User::with('roles')->findOrFail($id);
         $this->userId = $user->id;
         $this->userName = $user->name;
-        $this->userEmail = $user->email;
+        $this->userContact = $user->email ?? ($user->phone ? '+91 '.$user->phone : '');
         $this->selectedRoles = $user->roles->pluck('id')->map(fn ($v) => (int) $v)->all();
     }
 
@@ -59,7 +60,7 @@ class UserRolesForm extends Component
     {
         $this->userId = null;
         $this->userName = '';
-        $this->userEmail = '';
+        $this->userContact = '';
         $this->selectedRoles = [];
     }
 

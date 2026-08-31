@@ -183,6 +183,9 @@ class Users extends Component
                 $q->where(function ($query) use ($search) {
                     $term = '%'.$search.'%';
                     $query->whereLike('name', $term, caseSensitive: false)
+                        ->orWhereLike('username', $term, caseSensitive: false)
+                        ->orWhereLike('user_code', $term, caseSensitive: false)
+                        ->orWhereLike('phone', $term, caseSensitive: false)
                         ->orWhereLike('email', $term, caseSensitive: false);
                 });
             })

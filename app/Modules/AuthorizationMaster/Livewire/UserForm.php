@@ -35,6 +35,9 @@ class UserForm extends Component
 
     public string $name = '';
 
+    /** What staff quote to each other — unique, and never changes with the name. */
+    public string $username = '';
+
     public string $email = '';
 
     public string $phone = '';
@@ -74,6 +77,7 @@ class UserForm extends Component
                 Rule::unique('users', 'vendor_id'),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')],
             // One reachable identifier is enough — either receives the login OTP.
             'email' => ['required_without:phone', 'nullable', 'email', 'max:255', Rule::unique('users', 'email')],
             'phone' => ['required_without:email', 'nullable', 'string', 'min:10', 'max:20', Rule::unique('users', 'phone')],
@@ -160,6 +164,7 @@ class UserForm extends Component
 
         $user = User::create([
             'name' => $data['name'],
+            'username' => mb_strtolower($data['username']),
             'email' => filled($data['email'] ?? null) ? mb_strtolower($data['email']) : null,
             'phone' => filled($data['phone'] ?? null) ? preg_replace('/\D/', '', $data['phone']) : null,
             'user_type' => $data['userType'],
