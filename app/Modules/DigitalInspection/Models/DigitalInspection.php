@@ -47,6 +47,13 @@ class DigitalInspection extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'explained_on_lift' => 'boolean',
+        'media_shared' => 'boolean',
+        'questions_answered' => 'boolean',
+        'customer_approval_at' => 'datetime',
+        'technician_signed_at' => 'datetime',
+        'supervisor_signed_at' => 'datetime',
+        'advisor_signed_at' => 'datetime',
     ];
 
     protected static array $searchableFields = ['inspection_no', 'summary_notes', 'registration_no', 'jobCard.job_card_no'];
@@ -231,6 +238,20 @@ class DigitalInspection extends Model
             'medium' => 'Medium',
             'high' => 'High',
             'critical' => 'Critical',
+        ];
+    }
+
+    /**
+     * What the customer said once it was explained to them.
+     *
+     * @return array<string, string>
+     */
+    public static function customerApprovals(): array
+    {
+        return [
+            'approved' => 'Approved',
+            'deferred' => 'Deferred',
+            'declined' => 'Declined',
         ];
     }
 

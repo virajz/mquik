@@ -117,3 +117,82 @@ vocabularies instead.
 4. Set **NA**: Recommendation and Severity both grey out and empty.
 5. Save, then reopen — the header shows Technician, Started, Completed and TAT.
 6. **Digital Inspections** listing — sort by TAT, filter by technician.
+
+---
+
+# Vehicle Inspection — recommendations, ordering and sign-off
+
+| # | Requirement | Status |
+| --- | --- | --- |
+| 1a | Rename "Observation" → "Recommendation Desc" | ✅ Done |
+| 1b | Recommendation Desc filtered by Category / Sub Category from a master | ✅ Done |
+| 1c | Select multiple — Select All or one by one | ✅ Done |
+| 1d | Quick Add with category & sub category | ✅ Done |
+| 2 | Rename "Notes / Measurement" → "Notes / Observation" | ✅ Done |
+| 3 | Inspection Group & Item ordering as a user preference | ✅ Done |
+| 4 | Customer Explanation & Approval section | ✅ Done |
+| 5 | Internal Control sign-off section | ✅ Done |
+
+## Two new masters
+
+**Inspection → Recommendation Categories** (`/recommendation-category-master`)
+One self-referencing table, the way `inventory_groups` already does it here: no parent means a
+Category, a parent means a Sub Category of it. Two tables would have duplicated every field and
+every screen to say the same thing. Nesting is one level deep — a sub category cannot itself be a
+parent, and deleting a category takes its sub categories with it.
+
+**Inspection → Recommendation Descriptions** (`/recommendation-description-master`)
+The wording a technician picks. Filed under a Category and optionally a Sub Category, which must
+actually belong to that category — otherwise the filing lies. The same wording may live under two
+different categories, but not twice inside one.
+
+Both carry a `sequence_no`, so the picker order is a preference rather than an accident.
+
+## On the inspection sheet
+
+The free-text **Observation** box is gone. It is now **Recommendation Desc**, picked from the master
+rather than typed — the `standard_observations` datalist behind it went with it. Each checklist row
+gains a Category / Sub Category pair and a tick list of descriptions:
+
+- **Select all** ticks everything currently on offer; **Clear** empties the row.
+- **Quick add** creates wording in the master, with its category and sub category, and ticks it on
+  the row in one step — no leaving the inspection to go fix a master.
+- A description already ticked stays on offer even when the category narrows past it, or the row
+  would render blank for a value it actually holds.
+- **No Attention** clears the picks along with the recommendation and severity, enforced in the form
+  and again on save.
+
+Several descriptions apply to one checkpoint — "replace pads" and "skim discs" is one job to a
+technician — so they live in `digital_inspection_item_recommendations` rather than a single column.
+
+## Ordering
+
+`inspection_item_groups` and `inspection_items` both gained `sequence_no`, editable as **Order** in
+their masters and sortable in both listings. The checklist is seeded in group order, then item
+order, so the sheet is walked the way the car is — bonnet, then wheels, then interior — instead of
+alphabetically. Existing rows were seeded from their current alphabetical position, so nothing moved
+before anyone set a preference.
+
+## Customer Explanation & Approval
+
+Three ticks (explained on lift / photos shared on WhatsApp / questions answered) and one decision —
+Approved, Deferred or Declined — stamped with the moment it was recorded.
+
+## Internal Control
+
+Three sign-off rows: Technician, Floor Supervisor, Advisor. Each is a person and a moment. Naming
+someone stamps the time; clearing the name removes it; re-saving does not move a stamp that already
+exists — a signature records when somebody put their name to it, not when the form was last saved.
+Each row's picker is filtered to the right designation.
+
+## How to check on the UI
+
+1. **Inspection → Recommendation Categories** — create BRAKES, then FRONT with BRAKES as parent.
+2. **Inspection → Recommendation Descriptions** — add wording under BRAKES / FRONT.
+3. **Digital Inspections → New** — a checkpoint now shows **Recommendation Desc**, not a free-text
+   Observation box. Set Category to BRAKES: the list narrows.
+   **Select all**, then **Clear**, then **Quick add** a new phrase — it appears ticked.
+4. Set the row to **NA** — the picks, recommendation and severity all clear.
+5. **Inspection Item Groups** — change an Order value and reload a new inspection: the groups move.
+6. At the foot of the sheet, tick the customer section and name a technician in Internal Control.
+   Save, reopen, save again — the sign-off time must not have moved.

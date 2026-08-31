@@ -58,6 +58,9 @@
             <flux:table.column class="w-20" sortable :sorted="$sortBy === 'id'" :direction="$sortDirection" wire:click="sort('id')">
                 ID
             </flux:table.column>
+            <flux:table.column class="w-24 text-center" sortable :sorted="$sortBy === 'sequence_no'" :direction="$sortDirection" wire:click="sort('sequence_no')">
+                Order
+            </flux:table.column>
             <flux:table.column sortable :sorted="$sortBy === 'name'" :direction="$sortDirection" wire:click="sort('name')">
                 Name
             </flux:table.column>
@@ -77,6 +80,8 @@
                     <flux:table.cell class="font-mono text-xs text-zinc-500">
                         #{{ str_pad($row->id, 5, '0', STR_PAD_LEFT) }}
                     </flux:table.cell>
+
+                    <flux:table.cell class="text-center font-mono text-xs text-zinc-500">{{ $row->sequence_no }}</flux:table.cell>
 
                     <flux:table.cell class="font-medium">{{ $row->name }}</flux:table.cell>
 

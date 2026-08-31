@@ -123,16 +123,10 @@
             <div>
                 <flux:heading size="lg">Checklist</flux:heading>
                 <flux:text size="sm" class="mt-1 text-zinc-500">
-                    Walk each item: set a <span class="font-medium text-zinc-700 dark:text-zinc-300">result</span>, then add a recommendation, severity, observation and photo as needed.
+                    Walk each item: set an <span class="font-medium text-zinc-700 dark:text-zinc-300">action type</span>, then add the recommendation, severity, description and photo as needed.
                 </flux:text>
             </div>
             <div class="space-y-6 min-w-0">
-                {{-- Quick-pick standard observations (faster entry) --}}
-                <datalist id="di-standard-observations">
-                    @foreach ($this->standardObservations as $obs)
-                        <option value="{{ $obs }}"></option>
-                    @endforeach
-                </datalist>
 
                 @if (count($items) === 0)
                     <div class="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
@@ -186,9 +180,58 @@
                                         </flux:select>
                                     </div>
 
-                                    {{-- Observation (quick-pick) + notes --}}
-                                    <flux:input wire:model="items.{{ $i }}.observation" size="sm" list="di-standard-observations" placeholder="Observation — pick a standard comment or type…" />
-                                    <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes / measurement (optional)" />
+                                    {{-- Recommendation Desc: narrow by category,
+                                         then tick as many as apply. "Replace pads"
+                                         and "skim discs" is one job to a
+                                         technician, so this is not a single box. --}}
+                                    @if (($item['outcome'] ?? null) !== 'na')
+                                        <div class="rounded-md border border-zinc-100 dark:border-zinc-800 p-3 space-y-2">
+                                            <flux:text size="xs" class="font-medium text-zinc-600 dark:text-zinc-400">Recommendation Desc</flux:text>
+                                            <div class="flex flex-wrap items-end gap-2">
+                                                <div class="w-44">
+                                                    <flux:select wire:model.live="itemRecCategory.{{ $i }}" variant="listbox" searchable clearable
+                                                        size="sm" label="Category" placeholder="All">
+                                                        @foreach ($this->recommendationCategories as $cat)
+                                                            <flux:select.option :value="$cat->id" wire:key="irc-{{ $i }}-{{ $cat->id }}">{{ $cat->name }}</flux:select.option>
+                                                        @endforeach
+                                                    </flux:select>
+                                                </div>
+                                                <div class="w-44">
+                                                    <flux:select wire:model.live="itemRecSubCategory.{{ $i }}" variant="listbox" searchable clearable
+                                                        size="sm" label="Sub category"
+                                                        :disabled="empty($itemRecCategory[$i])"
+                                                        :placeholder="empty($itemRecCategory[$i]) ? 'Pick a category' : 'All'">
+                                                        @foreach ($this->recommendationSubCategories($itemRecCategory[$i] ?? null) as $sub)
+                                                            <flux:select.option :value="$sub->id" wire:key="irs-{{ $i }}-{{ $sub->id }}">{{ $sub->name }}</flux:select.option>
+                                                        @endforeach
+                                                    </flux:select>
+                                                </div>
+                                                <flux:spacer />
+                                                <flux:button type="button" size="xs" variant="ghost" wire:click="selectAllRecommendations({{ $i }})">Select all</flux:button>
+                                                <flux:button type="button" size="xs" variant="ghost" wire:click="clearRecommendations({{ $i }})">Clear</flux:button>
+                                                @can('recommendation_description_master.create')
+                                                    <flux:button type="button" size="xs" variant="outline" icon="plus" wire:click="openRecommendationQuickAdd({{ $i }})">Quick add</flux:button>
+                                                @endcan
+                                            </div>
+
+                                            @php($options = $this->recommendationOptions($i))
+                                            @if ($options->isEmpty())
+                                                <flux:text size="xs" class="text-zinc-400">
+                                                    Nothing filed under this category yet — use <span class="font-medium">Quick add</span>.
+                                                </flux:text>
+                                            @else
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                                                    @foreach ($options as $option)
+                                                        <flux:checkbox wire:model="itemRecommendations.{{ $i }}" :value="(string) $option->id"
+                                                            :label="$option->name" wire:key="ird-{{ $i }}-{{ $option->id }}" />
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
+
+                                    {{-- Notes --}}
+                                    <flux:input wire:model="items.{{ $i }}.notes" size="sm" placeholder="Notes / observation (optional)" />
 
                                     {{-- Photo evidence --}}
                                     <div class="flex items-center gap-3 pt-1">
@@ -235,9 +278,118 @@
 
         <flux:separator />
 
+        {{-- CUSTOMER EXPLANATION & APPROVAL — mirrors the physical checklist. --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Customer Explanation &amp; Approval</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    What the customer was shown, and what they decided. Ticked as it happens, not afterwards.
+                </flux:text>
+            </div>
+            <div class="space-y-4 min-w-0">
+                <flux:checkbox.group>
+                    <flux:checkbox wire:model="explained_on_lift" label="Explained with car on lift" />
+                    <flux:checkbox wire:model="media_shared" label="Photos / videos shared on WhatsApp" />
+                    <flux:checkbox wire:model="questions_answered" label="Customer questions answered" />
+                </flux:checkbox.group>
+
+                <flux:separator variant="subtle" />
+
+                <flux:radio.group wire:model="customer_approval" label="Customer approval" variant="segmented">
+                    @foreach (\App\Modules\DigitalInspection\Models\DigitalInspection::customerApprovals() as $key => $label)
+                        <flux:radio :value="$key" :label="$label" wire:key="ca-{{ $key }}" />
+                    @endforeach
+                </flux:radio.group>
+                <flux:error name="customer_approval" />
+
+                @if ($this->customerApprovalAt)
+                    <flux:text size="xs" class="text-zinc-500">
+                        Recorded {{ $this->customerApprovalAt->format('d/m/Y h:i A') }}
+                    </flux:text>
+                @endif
+            </div>
+        </section>
+
+        <flux:separator />
+
+        {{-- INTERNAL CONTROL — three sign-offs, each a person and a moment. --}}
+        <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+            <div>
+                <flux:heading size="lg">Internal Control</flux:heading>
+                <flux:text size="sm" class="mt-1 text-zinc-500">
+                    Who put their name to this sheet. Naming someone stamps the time; clearing the name removes it.
+                </flux:text>
+            </div>
+            <div class="space-y-3 min-w-0">
+                @foreach ([
+                    ['role' => 'technician', 'label' => 'Inspection done by Technician', 'staff' => $this->technicians],
+                    ['role' => 'supervisor', 'label' => 'Cross-checked by Floor Supervisor', 'staff' => $this->floorIncharges],
+                    ['role' => 'advisor', 'label' => 'Advisor verified &amp; explained', 'staff' => $this->advisors],
+                ] as $row)
+                    <div wire:key="signoff-{{ $row['role'] }}"
+                        class="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 grid grid-cols-1 md:grid-cols-[1fr_240px_150px] gap-3 items-center">
+                        <div class="flex items-center gap-2">
+                            <flux:icon :name="$this->signedAt($row['role']) ? 'check-circle' : 'minus-circle'"
+                                class="size-4 {{ $this->signedAt($row['role']) ? 'text-lime-500' : 'text-zinc-300 dark:text-zinc-600' }}" />
+                            <span class="text-sm font-medium">{!! $row['label'] !!}</span>
+                        </div>
+
+                        <flux:select wire:model.live="{{ $row['role'] }}_signed_by_id" variant="listbox" searchable clearable
+                            size="sm" placeholder="Not signed…">
+                            @foreach ($row['staff'] as $e)
+                                <flux:select.option :value="$e->id" wire:key="sg-{{ $row['role'] }}-{{ $e->id }}">{{ $e->name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+
+                        <flux:text size="xs" class="text-zinc-500">
+                            {{ $this->signedAt($row['role'])?->format('d/m/Y h:i A') ?? '—' }}
+                        </flux:text>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <flux:separator />
+
         <div class="flex items-center justify-end gap-2 py-6">
             <flux:button :href="route('digital-inspection.index')" variant="ghost" wire:navigate>Cancel</flux:button>
             <flux:button type="submit" variant="primary" icon="check">{{ $editingId ? 'Save Changes' : 'Create Inspection' }}</flux:button>
         </div>
     </form>
+
+    <flux:modal name="di-recommendation-quick-add" class="md:w-[28rem]">
+        <div class="space-y-5">
+            <div>
+                <flux:heading size="lg">New recommendation wording</flux:heading>
+                <flux:subheading>Added to the master and ticked on this checkpoint at once.</flux:subheading>
+            </div>
+
+            <flux:select wire:model.live="quickRecCategoryId" variant="listbox" searchable required
+                label="Category" placeholder="Pick a category…">
+                @foreach ($this->recommendationCategories as $cat)
+                    <flux:select.option :value="$cat->id" wire:key="qrc-{{ $cat->id }}">{{ $cat->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="quickRecCategoryId" />
+
+            <flux:select wire:model="quickRecSubCategoryId" variant="listbox" searchable clearable
+                label="Sub category" :disabled="! $quickRecCategoryId"
+                :placeholder="$quickRecCategoryId ? 'Optional' : 'Pick a category first'">
+                @foreach ($this->recommendationSubCategories($quickRecCategoryId) as $sub)
+                    <flux:select.option :value="$sub->id" wire:key="qrs-{{ $sub->id }}">{{ $sub->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:error name="quickRecSubCategoryId" />
+
+            <flux:input wire:model="quickRecName" label="Description" required
+                placeholder="Replace front brake pads — worn below 3mm" />
+            <flux:error name="quickRecName" />
+
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                <flux:button variant="primary" wire:click="createRecommendationDescription">Add</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

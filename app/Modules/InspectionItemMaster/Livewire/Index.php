@@ -32,7 +32,7 @@ class Index extends Component
     public string $statusFilter = 'all';
 
     #[Url(as: 'sort')]
-    public string $sortBy = 'name';
+    public string $sortBy = 'sequence_no';
 
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';

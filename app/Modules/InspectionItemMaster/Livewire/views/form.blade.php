@@ -55,6 +55,9 @@
 
                 <flux:separator variant="subtle" />
 
+                <flux:input type="number" wire:model="sequence_no" min="0" max="9999" required
+                    label="Order" description="Where this sits on the checklist. Low numbers first." />
+
                 <flux:switch wire:model="is_active" label="Active" description="Inactive items won't appear in inspection-template dropdowns." />
             </div>
 

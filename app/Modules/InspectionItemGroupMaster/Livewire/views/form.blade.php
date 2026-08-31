@@ -40,6 +40,9 @@
                     rows="2"
                 />
 
+                <flux:input type="number" wire:model="sequence_no" min="0" max="9999" required
+                    label="Order" description="Where this sits on the checklist. Low numbers first." />
+
                 <flux:separator variant="subtle" />
 
                 <flux:switch

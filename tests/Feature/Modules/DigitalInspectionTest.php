@@ -7,11 +7,13 @@ use App\Modules\DigitalInspection\Livewire\Index;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\DigitalInspection\Models\DigitalInspectionItem;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\InspectionItemGroupMaster\Models\InspectionItemGroupMaster;
 use App\Modules\InspectionItemMaster\Models\InspectionItemMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
+use App\Modules\RecommendationCategoryMaster\Models\RecommendationCategoryMaster;
+use App\Modules\RecommendationDescriptionMaster\Models\RecommendationDescriptionMaster;
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
-use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Illuminate\Http\UploadedFile;
@@ -305,12 +307,17 @@ it('rejects an oversized item image', function () {
     expect(DigitalInspection::count())->toBe(0);
 });
 
-it('offers standard observations as a quick-pick datalist', function () {
-    StandardObservationMaster::factory()->create(['name' => 'OIL LEAKAGE']);
-    $di = DigitalInspection::factory()->create();
+it('picks the recommendation description from the master instead of typing it', function () {
+    $category = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    RecommendationDescriptionMaster::factory()->create(['name' => 'OIL LEAKAGE', 'category_id' => $category->id]);
+    $template = InspectionTemplateMaster::factory()->create(['is_active' => true]);
+    $template->items()->attach([InspectionItemMaster::factory()->create()->id => ['position' => 1]]);
 
-    Livewire::test(Edit::class, ['digitalInspection' => $di])
-        ->assertSee('di-standard-observations', false)
+    Livewire::test(Edit::class)
+        ->set('inspection_template_id', $template->id)
+        // The free-text observation box is gone; the wording comes off the master.
+        ->assertDontSee('di-standard-observations', false)
+        ->assertSee('Recommendation Desc')
         ->assertSee('OIL LEAKAGE');
 });
 
@@ -514,3 +521,199 @@ function inspectionWithOneItem(): Testable
         ->set('job_card_id', JobCard::factory()->create(['status' => JobCard::STATUS_OPEN])->id)
         ->set('inspection_template_id', $template->id);
 }
+
+// ---------------------------------------------------------------------------
+// Ordering, customer approval and internal control
+// ---------------------------------------------------------------------------
+
+it('walks the checklist in the order the masters set, not alphabetically', function () {
+    $late = InspectionItemGroupMaster::factory()->create(['name' => 'ZZ LAST', 'is_active' => true, 'sequence_no' => 1]);
+    $early = InspectionItemGroupMaster::factory()->create(['name' => 'AA FIRST', 'is_active' => true, 'sequence_no' => 2]);
+    $zItem = InspectionItemMaster::factory()->create(['name' => 'ZZ ITEM', 'inspection_item_group_id' => $late->id, 'sequence_no' => 1]);
+    $aItem = InspectionItemMaster::factory()->create(['name' => 'AA ITEM', 'inspection_item_group_id' => $early->id, 'sequence_no' => 1]);
+
+    $template = InspectionTemplateMaster::factory()->create(['is_active' => true]);
+    // Attached in the opposite order, so only the masters' sequence can produce this.
+    $template->items()->attach([$aItem->id => ['position' => 1], $zItem->id => ['position' => 2]]);
+
+    $items = Livewire::test(Edit::class)
+        ->set('inspection_template_id', $template->id)
+        ->get('items');
+
+    expect(collect($items)->pluck('name')->all())->toBe(['ZZ ITEM', 'AA ITEM']);
+});
+
+it('records what the customer was shown and what they decided', function () {
+    $di = DigitalInspection::factory()->create();
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set('explained_on_lift', true)
+        ->set('media_shared', true)
+        ->set('questions_answered', true)
+        ->set('customer_approval', 'deferred')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $di->refresh();
+
+    expect($di->explained_on_lift)->toBeTrue()
+        ->and($di->media_shared)->toBeTrue()
+        ->and($di->questions_answered)->toBeTrue()
+        ->and($di->customer_approval)->toBe('deferred')
+        ->and($di->customer_approval_at)->not->toBeNull();
+});
+
+it('stamps a sign-off when the name goes on, and clears it when the name comes off', function () {
+    $di = DigitalInspection::factory()->create();
+    $tech = EmployeeMaster::factory()->technician()->create(['is_active' => true]);
+
+    $component = Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set('technician_signed_by_id', $tech->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $di->refresh();
+    $stamped = $di->technician_signed_at;
+
+    expect($stamped)->not->toBeNull()
+        ->and($di->technician_signed_by_id)->toBe($tech->id)
+        // The other two rows stay unsigned.
+        ->and($di->supervisor_signed_at)->toBeNull()
+        ->and($di->advisor_signed_at)->toBeNull();
+
+    // Saving again must not move the moment somebody put their name to it.
+    $component->call('save');
+    expect($di->fresh()->technician_signed_at->equalTo($stamped))->toBeTrue();
+
+    $component->set('technician_signed_by_id', null)->call('save');
+    expect($di->fresh()->technician_signed_at)->toBeNull();
+});
+
+it('rejects a customer approval it does not recognise', function () {
+    $di = DigitalInspection::factory()->create();
+
+    Livewire::test(Edit::class, ['digitalInspection' => $di])
+        ->set('customer_approval', 'maybe')
+        ->call('save')
+        ->assertHasErrors('customer_approval');
+});
+
+// ---------------------------------------------------------------------------
+// Recommendation descriptions: filed by category, picked several at a time
+// ---------------------------------------------------------------------------
+
+it('narrows the recommendation list to the row\'s category', function () {
+    $brakes = RecommendationCategoryMaster::factory()->create(['name' => 'BRAKES', 'is_active' => true]);
+    $engine = RecommendationCategoryMaster::factory()->create(['name' => 'ENGINE', 'is_active' => true]);
+    $pads = RecommendationDescriptionMaster::factory()->create(['name' => 'REPLACE PADS', 'category_id' => $brakes->id]);
+    $oil = RecommendationDescriptionMaster::factory()->create(['name' => 'TOP UP OIL', 'category_id' => $engine->id]);
+
+    $component = inspectionWithOneItem();
+
+    expect($component->instance()->recommendationOptions(0)->modelKeys())
+        ->toContain($pads->id)->toContain($oil->id);
+
+    $component->set('itemRecCategory.0', $brakes->id);
+
+    expect($component->instance()->recommendationOptions(0)->modelKeys())
+        ->toContain($pads->id)->not->toContain($oil->id);
+});
+
+it('keeps a chosen description on offer even after the category narrows past it', function () {
+    $brakes = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $engine = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $oil = RecommendationDescriptionMaster::factory()->create(['category_id' => $engine->id]);
+
+    $component = inspectionWithOneItem()
+        ->set('itemRecommendations.0', [$oil->id])
+        ->set('itemRecCategory.0', $brakes->id);
+
+    // Otherwise the row would render blank for a value it actually holds.
+    expect($component->instance()->recommendationOptions(0)->modelKeys())->toContain($oil->id);
+});
+
+it('ticks every offered description at once, and clears them again', function () {
+    $category = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $a = RecommendationDescriptionMaster::factory()->create(['category_id' => $category->id]);
+    $b = RecommendationDescriptionMaster::factory()->create(['category_id' => $category->id]);
+
+    $component = inspectionWithOneItem()
+        ->set('itemRecCategory.0', $category->id)
+        ->call('selectAllRecommendations', 0);
+
+    expect($component->get('itemRecommendations.0'))->toEqualCanonicalizing([$a->id, $b->id]);
+
+    $component->call('clearRecommendations', 0);
+    expect($component->get('itemRecommendations.0'))->toBe([]);
+});
+
+it('saves several recommendations against one checkpoint and reads them back', function () {
+    $category = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $a = RecommendationDescriptionMaster::factory()->create(['category_id' => $category->id]);
+    $b = RecommendationDescriptionMaster::factory()->create(['category_id' => $category->id]);
+
+    inspectionWithOneItem()
+        ->set('items.0.outcome', DigitalInspection::ACTION_IMMEDIATE)
+        ->set('itemRecommendations.0', [$a->id, $b->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $item = DigitalInspection::firstOrFail()->items()->firstOrFail();
+    expect($item->recommendationDescriptions->modelKeys())->toEqualCanonicalizing([$a->id, $b->id]);
+
+    // And they come back onto the form when it is reopened.
+    $reopened = Livewire::test(Edit::class, ['digitalInspection' => DigitalInspection::firstOrFail()]);
+    expect($reopened->get('itemRecommendations.0'))->toEqualCanonicalizing([$a->id, $b->id]);
+});
+
+it('drops the recommendations when a checkpoint turns out to need no attention', function () {
+    $category = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $a = RecommendationDescriptionMaster::factory()->create(['category_id' => $category->id]);
+
+    inspectionWithOneItem()
+        ->set('items.0.outcome', DigitalInspection::ACTION_IMMEDIATE)
+        ->set('itemRecommendations.0', [$a->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $item = DigitalInspection::firstOrFail()->items()->firstOrFail();
+    expect($item->recommendationDescriptions)->toHaveCount(1);
+
+    Livewire::test(Edit::class, ['digitalInspection' => DigitalInspection::firstOrFail()])
+        ->set('items.0.outcome', DigitalInspection::ACTION_NONE)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($item->fresh()->recommendationDescriptions)->toHaveCount(0);
+});
+
+it('quick-adds wording to the master and ticks it on the row', function () {
+    $category = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+
+    $component = inspectionWithOneItem()
+        ->call('openRecommendationQuickAdd', 0)
+        ->set('quickRecCategoryId', $category->id)
+        ->set('quickRecName', 'change air filter')
+        ->call('createRecommendationDescription')
+        ->assertHasNoErrors();
+
+    $created = RecommendationDescriptionMaster::where('name', 'CHANGE AIR FILTER')->firstOrFail();
+
+    expect($created->category_id)->toBe($category->id)
+        ->and($created->is_active)->toBeTrue()
+        ->and($component->get('itemRecommendations.0'))->toContain($created->id);
+});
+
+it('refuses a quick-add sub category that belongs to a different category', function () {
+    $brakes = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $engine = RecommendationCategoryMaster::factory()->create(['is_active' => true]);
+    $front = RecommendationCategoryMaster::factory()->under($brakes)->create(['is_active' => true]);
+
+    inspectionWithOneItem()
+        ->call('openRecommendationQuickAdd', 0)
+        ->set('quickRecCategoryId', $engine->id)
+        ->set('quickRecSubCategoryId', $front->id)
+        ->set('quickRecName', 'something')
+        ->call('createRecommendationDescription')
+        ->assertHasErrors('quickRecSubCategoryId');
+});

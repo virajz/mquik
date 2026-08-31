@@ -18,6 +18,9 @@ class Form extends Component
 
     public bool $is_active = true;
 
+    /** Running order on the checklist — the sheet is walked physically, not alphabetically. */
+    public int $sequence_no = 0;
+
     public ?string $notes = null;
 
     /**
@@ -34,6 +37,7 @@ class Form extends Component
                 Rule::unique('inspection_item_groups', 'code')->ignore($this->editingId),
             ],
             'is_active' => ['boolean'],
+            'sequence_no' => ['required', 'integer', 'min:0', 'max:9999'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -53,6 +57,7 @@ class Form extends Component
         $this->name = $record->name;
         $this->code = $record->code;
         $this->is_active = $record->is_active;
+        $this->sequence_no = (int) $record->sequence_no;
         $this->notes = $record->notes;
     }
 
@@ -63,7 +68,7 @@ class Form extends Component
         $data = $this->validate();
 
         // Workshop convention: capital typing on textual fields.
-        $skip = ['is_active'];
+        $skip = ['is_active', 'sequence_no'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -89,6 +94,8 @@ class Form extends Component
         $this->name = '';
         $this->code = null;
         $this->is_active = true;
+        // A new row lands at the end rather than jumping to the top.
+        $this->sequence_no = (int) (InspectionItemGroupMaster::max('sequence_no') ?? 0) + 1;
         $this->notes = null;
     }
 

@@ -7,7 +7,8 @@ use App\Modules\DigitalInspection\Support\InspectionStatus;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
-use App\Modules\StandardObservationMaster\Models\StandardObservationMaster;
+use App\Modules\RecommendationCategoryMaster\Models\RecommendationCategoryMaster;
+use App\Modules\RecommendationDescriptionMaster\Models\RecommendationDescriptionMaster;
 use Carbon\CarbonInterface;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -44,6 +45,44 @@ class Edit extends Component
 
     public ?string $summary_notes = null;
 
+    // ---- Customer explanation & approval (mirrors the physical checklist) ----
+    public bool $explained_on_lift = false;
+
+    public bool $media_shared = false;
+
+    public bool $questions_answered = false;
+
+    public ?string $customer_approval = null;
+
+    // ---- Internal control: who signed the sheet off ----
+    public ?int $technician_signed_by_id = null;
+
+    public ?int $supervisor_signed_by_id = null;
+
+    public ?int $advisor_signed_by_id = null;
+
+    /**
+     * Recommendation descriptions chosen per checklist row, keyed by the row's
+     * index: [0 => [3, 7], 1 => []]. Several apply to one checkpoint.
+     *
+     * @var array<int, list<int>>
+     */
+    public array $itemRecommendations = [];
+
+    /** Category / sub category narrowing the picker on each row. */
+    public array $itemRecCategory = [];
+
+    public array $itemRecSubCategory = [];
+
+    // ---- quick-add a description into the master, category and all ----
+    public ?int $quickRecIndex = null;
+
+    public string $quickRecName = '';
+
+    public ?int $quickRecCategoryId = null;
+
+    public ?int $quickRecSubCategoryId = null;
+
     /** @var list<array{id: ?int, inspection_item_id: int, inspection_item_group_id: ?int, name: string, group_name: ?string, check_type: string, outcome: string, recommendation: ?string, severity: ?string, observation: ?string, notes: ?string, sequence_no: int, image_path: ?string}> */
     public array $items = [];
 
@@ -72,7 +111,7 @@ class Edit extends Component
 
     protected function load(DigitalInspection $di): void
     {
-        $di->load(['items.inspectionItem.group']);
+        $di->load(['items.inspectionItem.group', 'items.recommendationDescriptions']);
 
         $this->editingId = $di->id;
         $this->inspection_no = $di->inspection_no;
@@ -82,6 +121,17 @@ class Edit extends Component
         $this->floor_incharge_id = $di->floor_incharge_id;
         $this->status = $di->status;
         $this->summary_notes = $di->summary_notes;
+        $this->explained_on_lift = (bool) $di->explained_on_lift;
+        $this->media_shared = (bool) $di->media_shared;
+        $this->questions_answered = (bool) $di->questions_answered;
+        $this->customer_approval = $di->customer_approval;
+        $this->technician_signed_by_id = $di->technician_signed_by_id;
+        $this->supervisor_signed_by_id = $di->supervisor_signed_by_id;
+        $this->advisor_signed_by_id = $di->advisor_signed_by_id;
+
+        $this->itemRecommendations = $di->items->values()
+            ->mapWithKeys(fn ($i, $idx) => [$idx => $i->recommendationDescriptions->modelKeys()])
+            ->all();
 
         $this->items = $di->items->map(fn ($i) => [
             'id' => $i->id,
@@ -111,6 +161,9 @@ class Edit extends Component
         }
 
         $this->items = [];
+        $this->itemRecommendations = [];
+        $this->itemRecCategory = [];
+        $this->itemRecSubCategory = [];
 
         if (! $this->inspection_template_id) {
             return;
@@ -121,8 +174,17 @@ class Edit extends Component
             return;
         }
 
+        // The sheet is walked in a physical order — bonnet, then wheels, then
+        // interior — so the masters' own sequence wins over the template's.
+        $ordered = $template->items->sortBy([
+            fn ($a, $b) => ($a->group?->sequence_no ?? 0) <=> ($b->group?->sequence_no ?? 0),
+            fn ($a, $b) => strcmp((string) $a->group?->name, (string) $b->group?->name),
+            fn ($a, $b) => ($a->sequence_no ?? 0) <=> ($b->sequence_no ?? 0),
+            fn ($a, $b) => strcmp((string) $a->name, (string) $b->name),
+        ]);
+
         $seq = 1;
-        foreach ($template->items as $tplItem) {
+        foreach ($ordered as $tplItem) {
             $this->items[] = [
                 'id' => null,
                 'inspection_item_id' => $tplItem->id,
@@ -135,9 +197,11 @@ class Edit extends Component
                 'severity' => null,
                 'observation' => null,
                 'notes' => null,
-                'sequence_no' => $seq++,
+                'sequence_no' => $seq,
                 'image_path' => null,
             ];
+            $this->itemRecommendations[$seq - 1] = [];
+            $seq++;
         }
     }
 
@@ -152,6 +216,14 @@ class Edit extends Component
             'summary_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['array'],
             'items.*.inspection_item_id' => ['required', 'integer', 'exists:inspection_items,id'],
+            'explained_on_lift' => ['boolean'],
+            'media_shared' => ['boolean'],
+            'questions_answered' => ['boolean'],
+            'customer_approval' => ['nullable', Rule::in(array_keys(DigitalInspection::customerApprovals()))],
+            'technician_signed_by_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'supervisor_signed_by_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'advisor_signed_by_id' => ['nullable', 'integer', 'exists:employees,id'],
+
             'items.*.outcome' => ['required', 'string', Rule::in(array_keys(DigitalInspection::allOutcomes()))],
             'items.*.recommendation' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::allRecommendations()))],
             'items.*.severity' => ['nullable', 'string', Rule::in(array_keys(DigitalInspection::severities()))],
@@ -251,15 +323,6 @@ class Edit extends Component
     }
 
     /**
-     * Reusable standard observations for the quick-pick datalist on each checklist item.
-     */
-    #[Computed]
-    public function standardObservations()
-    {
-        return StandardObservationMaster::query()->where('is_active', true)->orderBy('name')->pluck('name');
-    }
-
-    /**
      * Technician TAT. The stamps are set by InspectionStatus as the checklist is
      * worked through, so the elapsed figure always matches the sheet.
      */
@@ -304,6 +367,153 @@ class Edit extends Component
         return $this->completedAt ? $elapsed : $elapsed.' (running)';
     }
 
+    /** Advisors sign the third internal-control row. */
+    #[Computed]
+    public function advisors()
+    {
+        return $this->staffDesignated('ADVISOR');
+    }
+
+    #[Computed]
+    public function customerApprovalAt(): ?CarbonInterface
+    {
+        return $this->editingId ? DigitalInspection::find($this->editingId)?->customer_approval_at : null;
+    }
+
+    /** When a given internal-control row was signed, if it has been. */
+    public function signedAt(string $role): ?CarbonInterface
+    {
+        if (! in_array($role, ['technician', 'supervisor', 'advisor'], true) || ! $this->editingId) {
+            return null;
+        }
+
+        return DigitalInspection::find($this->editingId)?->{$role.'_signed_at'};
+    }
+
+    /**
+     * Descriptions offered on one checklist row.
+     *
+     * Narrowed to the row's chosen Category and Sub Category, because a
+     * technician looking at brake pads should not scroll past every phrase in
+     * the workshop. Whatever is already picked is always included, or a row
+     * would render blank for a value it holds.
+     *
+     * @return Collection<int, RecommendationDescriptionMaster>
+     */
+    public function recommendationOptions(int $index)
+    {
+        $chosen = $this->itemRecommendations[$index] ?? [];
+        $categoryId = $this->itemRecCategory[$index] ?? null;
+        $subCategoryId = $this->itemRecSubCategory[$index] ?? null;
+
+        return RecommendationDescriptionMaster::query()
+            ->where(fn ($q) => $q
+                ->where(fn ($inner) => $inner
+                    ->where('is_active', true)
+                    ->when($categoryId, fn ($c) => $c->where('category_id', (int) $categoryId))
+                    ->when($subCategoryId, fn ($c) => $c->where('sub_category_id', (int) $subCategoryId)))
+                ->orWhereIn('id', $chosen))
+            ->orderBy('sequence_no')->orderBy('name')
+            ->get(['id', 'name', 'category_id', 'sub_category_id']);
+    }
+
+    /** Tick everything currently on offer for a row. */
+    public function selectAllRecommendations(int $index): void
+    {
+        $this->itemRecommendations[$index] = $this->recommendationOptions($index)->modelKeys();
+    }
+
+    public function clearRecommendations(int $index): void
+    {
+        $this->itemRecommendations[$index] = [];
+    }
+
+    #[Computed]
+    public function recommendationCategories()
+    {
+        return RecommendationCategoryMaster::query()
+            ->categories()->where('is_active', true)
+            ->orderBy('sequence_no')->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Sub categories under whichever category a given row has chosen. */
+    public function recommendationSubCategories(?int $categoryId)
+    {
+        if (! $categoryId) {
+            return collect();
+        }
+
+        return RecommendationCategoryMaster::query()
+            ->subCategories($categoryId)->where('is_active', true)
+            ->orderBy('sequence_no')->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /** Picking a different category invalidates the sub category under the old one. */
+    public function updatedItemRecCategory($value, string $key): void
+    {
+        $this->itemRecSubCategory[(int) $key] = null;
+    }
+
+    public function openRecommendationQuickAdd(int $index): void
+    {
+        $this->quickRecIndex = $index;
+        $this->quickRecName = '';
+        $this->quickRecCategoryId = $this->itemRecCategory[$index] ?? null;
+        $this->quickRecSubCategoryId = $this->itemRecSubCategory[$index] ?? null;
+        $this->resetErrorBag(['quickRecName', 'quickRecCategoryId', 'quickRecSubCategoryId']);
+
+        Flux::modal('di-recommendation-quick-add')->show();
+    }
+
+    public function updatedQuickRecCategoryId(): void
+    {
+        $this->quickRecSubCategoryId = null;
+    }
+
+    /** Add wording to the master mid-inspection and tick it on the row at once. */
+    public function createRecommendationDescription(): void
+    {
+        $this->authorize('recommendation_description_master.create');
+
+        $this->validate([
+            'quickRecName' => ['required', 'string', 'max:255'],
+            'quickRecCategoryId' => ['required', 'integer',
+                Rule::exists('recommendation_categories', 'id')->whereNull('parent_id'),
+            ],
+            'quickRecSubCategoryId' => ['nullable', 'integer',
+                Rule::exists('recommendation_categories', 'id')->where('parent_id', $this->quickRecCategoryId),
+            ],
+        ], attributes: [
+            'quickRecName' => 'description',
+            'quickRecCategoryId' => 'category',
+            'quickRecSubCategoryId' => 'sub category',
+        ]);
+
+        $description = RecommendationDescriptionMaster::firstOrCreate(
+            [
+                'name' => mb_strtoupper($this->quickRecName),
+                'category_id' => $this->quickRecCategoryId,
+                'sub_category_id' => $this->quickRecSubCategoryId,
+            ],
+            ['is_active' => true],
+        );
+
+        $index = (int) $this->quickRecIndex;
+        $this->itemRecCategory[$index] = $this->quickRecCategoryId;
+        $this->itemRecSubCategory[$index] = $this->quickRecSubCategoryId;
+        $this->itemRecommendations[$index] = array_values(array_unique(
+            array_merge($this->itemRecommendations[$index] ?? [], [$description->id])
+        ));
+
+        $this->quickRecIndex = null;
+        $this->quickRecName = '';
+
+        Flux::modal('di-recommendation-quick-add')->close();
+        Flux::toast(text: 'Recommendation added and ticked.', variant: 'success');
+    }
+
     #[Computed]
     public function statusExplanation(): string
     {
@@ -324,6 +534,26 @@ class Edit extends Component
         // now and let InspectionStatus recompute once the items are written.
         $existing = $this->editingId ? DigitalInspection::find($this->editingId) : null;
         $data['status'] = $existing?->status ?? DigitalInspection::STATUS_PENDING;
+
+        // A signature is the moment somebody put their name to it, so the stamp
+        // is set when the name first appears and cleared when it is taken off.
+        foreach (['technician', 'supervisor', 'advisor'] as $role) {
+            $who = $data[$role.'_signed_by_id'] ?? null;
+            $wasSignedBy = $existing?->{$role.'_signed_by_id'};
+
+            $data[$role.'_signed_at'] = match (true) {
+                $who === null => null,
+                $who !== $wasSignedBy => now(),
+                default => $existing?->{$role.'_signed_at'} ?? now(),
+            };
+        }
+
+        // Same for the customer's decision.
+        $data['customer_approval_at'] = match (true) {
+            ($data['customer_approval'] ?? null) === null => null,
+            $data['customer_approval'] !== $existing?->customer_approval => now(),
+            default => $existing?->customer_approval_at ?? now(),
+        };
 
         if (isset($data['summary_notes']) && is_string($data['summary_notes'])) {
             $data['summary_notes'] = strtoupper($data['summary_notes']);
@@ -416,21 +646,29 @@ class Edit extends Component
                 'image_path' => $imagePath,
             ];
 
-            if (! empty($local['id'])) {
-                $existing = $di->items()->whereKey($local['id'])->first();
-                if ($existing) {
-                    $existing->update($payload);
-                    $keptIds[] = $existing->id;
-                    $this->items[$i]['image_path'] = $imagePath;
+            $row = null;
 
-                    continue;
+            if (! empty($local['id'])) {
+                $row = $di->items()->whereKey($local['id'])->first();
+                if ($row) {
+                    $row->update($payload);
                 }
             }
 
-            $created = $di->items()->create($payload);
-            $keptIds[] = $created->id;
-            $this->items[$i]['id'] = $created->id;
+            if (! $row) {
+                $row = $di->items()->create($payload);
+                $this->items[$i]['id'] = $row->id;
+            }
+
+            $keptIds[] = $row->id;
             $this->items[$i]['image_path'] = $imagePath;
+
+            // "No attention" carries no recommendations either.
+            $picked = $isNoAction ? [] : array_values(array_unique($this->itemRecommendations[$i] ?? []));
+            $row->recommendationDescriptions()->sync(
+                collect($picked)->mapWithKeys(fn ($id, $n) => [(int) $id => ['sequence_no' => $n + 1]])->all()
+            );
+            $this->itemRecommendations[$i] = $picked;
         }
 
         $di->items()->whereNotIn('id', $keptIds)->delete();
@@ -456,6 +694,7 @@ class Edit extends Component
         if ($value === DigitalInspection::ACTION_NONE) {
             $this->items[$index]['recommendation'] = null;
             $this->items[$index]['severity'] = null;
+            $this->itemRecommendations[$index] = [];
 
             return;
         }

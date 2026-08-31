@@ -30,6 +30,9 @@ class Form extends Component
 
     public bool $is_active = true;
 
+    /** Running order on the checklist — the sheet is walked physically, not alphabetically. */
+    public int $sequence_no = 0;
+
     public ?string $notes = null;
 
     protected function rules(): array
@@ -49,6 +52,7 @@ class Form extends Component
             'check_type' => ['required', Rule::in(InspectionItemMaster::checkTypes())],
             'measurement_unit' => ['nullable', 'string', 'max:20'],
             'is_active' => ['boolean'],
+            'sequence_no' => ['required', 'integer', 'min:0', 'max:9999'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -121,6 +125,8 @@ class Form extends Component
         $this->check_type = 'visual';
         $this->measurement_unit = null;
         $this->is_active = true;
+        // A new row lands at the end rather than jumping to the top.
+        $this->sequence_no = (int) (InspectionItemMaster::max('sequence_no') ?? 0) + 1;
         $this->notes = null;
     }
 

@@ -26,13 +26,13 @@ class Index extends Component
     public string $statusFilter = 'all';
 
     #[Url(as: 'sort')]
-    public string $sortBy = 'name';
+    public string $sortBy = 'sequence_no';
 
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
     /** Whitelist sortable columns â never trust the URL */
-    protected array $sortable = ['id', 'name', 'code', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'code', 'is_active', 'sequence_no', 'created_at'];
 
     public function updatingSearch(): void
     {
