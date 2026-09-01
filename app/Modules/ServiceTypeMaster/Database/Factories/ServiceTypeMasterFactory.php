@@ -21,6 +21,7 @@ class ServiceTypeMasterFactory extends Factory
             'workshop_department_id' => WorkshopDepartmentMaster::factory(),
             'requires_advisor' => true,
             'is_active' => true,
+            'is_insurance' => false,
             'notes' => null,
         ];
     }

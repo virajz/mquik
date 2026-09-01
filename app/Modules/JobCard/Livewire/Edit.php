@@ -86,6 +86,9 @@ class Edit extends Component
 
     public ?int $insurance_company_id = null;
 
+    /** Asked once, at intake, on a bodyshop card. The claim module owns it after that. */
+    public ?string $policy_no = null;
+
     public ?int $vendor_id = null;
 
     public ?int $customer_approval_type_id = null;
@@ -228,6 +231,7 @@ class Edit extends Component
         $this->service_package_id = $jc->service_package_id;
         $this->job_description_id = $jc->job_description_id;
         $this->insurance_company_id = $jc->insurance_company_id;
+        $this->policy_no = $jc->policy_no;
         $this->vendor_id = $jc->vendor_id;
         $this->customer_approval_type_id = $jc->customer_approval_type_id;
         $this->assigned_advisor_id = $jc->assigned_advisor_id;
@@ -390,6 +394,7 @@ class Edit extends Component
             'customer_approval_type_id' => ['nullable', 'integer', Rule::exists('customer_approval_types', 'id')],
 
             // An insurance job is not an insurance job without the insurer.
+            'policy_no' => ['nullable', 'string', 'max:60'],
             'insurance_company_id' => [
                 Rule::requiredIf(fn () => $this->isBodyshopDepartment && $this->isInsuranceServiceType()),
                 'nullable', 'integer', Rule::exists('insurance_companies', 'id')->where('is_active', true),
@@ -653,9 +658,22 @@ class Edit extends Component
             return false;
         }
 
-        $name = (string) ServiceTypeMaster::whereKey($this->service_type_id)->value('name');
+        // The master says so. Matching on the name broke the moment one was
+        // called "CASHLESS CLAIM" or "TP REPAIR".
+        return (bool) ServiceTypeMaster::whereKey($this->service_type_id)->value('is_insurance');
+    }
 
-        return str_contains(mb_strtoupper($name), 'INSURANCE');
+    /**
+     * Insurance follows the service type, not just the department: a bodyshop
+     * repair the customer pays for has no insurer, so moving onto one must not
+     * leave an insurer and policy quietly attached.
+     */
+    public function updatedServiceTypeId(): void
+    {
+        if (! $this->isInsuranceServiceType()) {
+            $this->insurance_company_id = null;
+            $this->policy_no = null;
+        }
     }
 
     /** Work goes to one place: in-house, or out. Picking one clears the other. */
@@ -1015,6 +1033,7 @@ class Edit extends Component
         // insurer and policy quietly attached to a service card.
         if (! $this->isBodyshopDepartment) {
             $this->insurance_company_id = null;
+            $this->policy_no = null;
         }
 
         $this->service_type_id = null;

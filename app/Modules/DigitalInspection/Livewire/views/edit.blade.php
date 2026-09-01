@@ -126,6 +126,12 @@
                             <flux:select.option :value="$e->id" wire:key="ad-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
+
+                    <flux:select wire:model="bay_id" variant="listbox" searchable clearable label="Bay" placeholder="Optional…">
+                        @foreach ($this->bays as $b)
+                            <flux:select.option :value="$b->id" wire:key="by-{{ $b->id }}">{{ $b->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
                 </div>
                 <flux:error name="floor_incharge_id" />
                 <flux:error name="advisor_id" />

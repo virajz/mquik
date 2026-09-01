@@ -34,7 +34,7 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'asc';
 
-    protected array $sortable = ['id', 'name', 'code', 'workshop_department_id', 'is_active', 'created_at'];
+    protected array $sortable = ['id', 'name', 'code', 'workshop_department_id', 'is_insurance', 'is_active', 'created_at'];
 
     public function updatingSearch(): void
     {

@@ -917,3 +917,162 @@ it('lists the job card\'s work orders and offers the assign-work-order link', fu
         ->assertSee($vio->order_no)
         ->assertSee(route('vehicle-inspection-order.create', ['from-job-card' => $jobCard->id]), escape: false);
 });
+
+// ---------------------------------------------------------------------------
+// The create form must be able to satisfy its own validation
+// ---------------------------------------------------------------------------
+
+it('creates a card from only the fields the create screen actually shows', function () {
+    // The regression this guards: fuel_level was required but rendered only on
+    // the edit screen, so a fully-filled create form failed on a field nobody
+    // could see and the button appeared to do nothing.
+    $vehicle = CustomerVehicleMaster::factory()->create();
+    $dept = WorkshopDepartmentMaster::factory()->create();
+
+    Livewire::test(Edit::class)
+        ->set('gate_event_id', GateInOut::factory()->create([
+            'customer_id' => $vehicle->customer_id,
+            'customer_vehicle_id' => $vehicle->id,
+        ])->id)
+        ->set('customer_id', $vehicle->customer_id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $dept->id)
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_advisor_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
+        ->set('fuel_level', 'half')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(JobCard::count())->toBe(1);
+});
+
+// ---------------------------------------------------------------------------
+// Insurance is asked at intake, not afterwards
+// ---------------------------------------------------------------------------
+
+it('asks for the insurer and policy on a bodyshop card, and only at intake', function () {
+    $vehicle = CustomerVehicleMaster::factory()->create();
+    $bodyshop = WorkshopDepartmentMaster::factory()->create(['name' => 'BODYSHOP']);
+    $insurer = InsuranceCompanyMaster::factory()->create(['is_active' => true]);
+
+    $component = Livewire::test(Edit::class)
+        ->set('gate_event_id', GateInOut::factory()->create([
+            'customer_id' => $vehicle->customer_id,
+            'customer_vehicle_id' => $vehicle->id,
+        ])->id)
+        ->set('customer_id', $vehicle->customer_id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $bodyshop->id)
+        // Insurance work, not a paid repair: that is what puts the section on screen.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create([
+            'is_active' => true, 'is_insurance' => true,
+        ])->id)
+        ->set('assigned_advisor_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
+        ->set('fuel_level', 'half')
+        ->set('insurance_company_id', $insurer->id)
+        ->set('policy_no', 'POL-98765');
+
+    expect($component->html())->toContain('wire:model="policy_no"');
+
+    $component->call('save')->assertHasNoErrors();
+
+    $card = JobCard::firstOrFail();
+
+    expect($card->insurance_company_id)->toBe($insurer->id)
+        ->and($card->policy_no)->toBe('POL-98765');
+
+    // Afterwards it is shown, not edited — the claim module owns it from here.
+    expect(Livewire::test(Edit::class, ['jobCard' => $card])->html())
+        ->not->toContain('wire:model="policy_no"')
+        ->not->toContain('wire:model="insurance_company_id"')
+        ->toContain('POL-98765');
+});
+
+it('does not ask about insurance on a card that is not bodyshop work', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create(['name' => 'MECHANICAL']);
+
+    $html = Livewire::test(Edit::class)
+        ->set('workshop_department_id', $dept->id)
+        ->html();
+
+    expect($html)->not->toContain('wire:model="insurance_company_id"');
+});
+
+it('drops the insurer and policy when the card moves off bodyshop work', function () {
+    $bodyshop = WorkshopDepartmentMaster::factory()->create(['name' => 'BODYSHOP']);
+    $mechanical = WorkshopDepartmentMaster::factory()->create(['name' => 'MECHANICAL']);
+
+    $component = Livewire::test(Edit::class)
+        ->set('workshop_department_id', $bodyshop->id)
+        ->set('insurance_company_id', InsuranceCompanyMaster::factory()->create(['is_active' => true])->id)
+        ->set('policy_no', 'POL-1')
+        ->set('workshop_department_id', $mechanical->id);
+
+    expect($component->get('insurance_company_id'))->toBeNull()
+        ->and($component->get('policy_no'))->toBeNull();
+});
+
+it('requires the insurer only when the service type is flagged as insurance', function () {
+    $bodyshop = WorkshopDepartmentMaster::factory()->create(['name' => 'BODYSHOP']);
+    // Named nothing like "insurance" on purpose: the old rule matched on the
+    // name and would have missed this one entirely.
+    $claim = ServiceTypeMaster::factory()->create([
+        'name' => 'CASHLESS CLAIM', 'workshop_department_id' => $bodyshop->id,
+        'is_active' => true, 'is_insurance' => true,
+    ]);
+    $paid = ServiceTypeMaster::factory()->create([
+        'name' => 'PAID DENT REPAIR', 'workshop_department_id' => $bodyshop->id,
+        'is_active' => true, 'is_insurance' => false,
+    ]);
+
+    $vehicle = CustomerVehicleMaster::factory()->create();
+    $form = fn ($serviceType) => Livewire::test(Edit::class)
+        ->set('gate_event_id', GateInOut::factory()->create([
+            'customer_id' => $vehicle->customer_id,
+            'customer_vehicle_id' => $vehicle->id,
+        ])->id)
+        ->set('customer_id', $vehicle->customer_id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->set('workshop_department_id', $bodyshop->id)
+        ->set('service_type_id', $serviceType->id)
+        ->set('assigned_advisor_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
+        ->set('assigned_technician_id', EmployeeMaster::factory()->create(['is_active' => true])->id)
+        ->set('fuel_level', 'half');
+
+    $form($claim)->call('save')->assertHasErrors('insurance_company_id');
+    $form($paid)->call('save')->assertHasNoErrors();
+});
+
+it('hides insurance on a bodyshop repair the customer is paying for', function () {
+    $bodyshop = WorkshopDepartmentMaster::factory()->create(['name' => 'BODYSHOP']);
+    $repair = ServiceTypeMaster::factory()->create([
+        'name' => 'BODYSHOP REPAIR', 'workshop_department_id' => $bodyshop->id,
+        'is_active' => true, 'is_insurance' => false,
+    ]);
+    $claim = ServiceTypeMaster::factory()->create([
+        'name' => 'BODYSHOP CLAIM', 'workshop_department_id' => $bodyshop->id,
+        'is_active' => true, 'is_insurance' => true,
+    ]);
+
+    $component = Livewire::test(Edit::class)->set('workshop_department_id', $bodyshop->id);
+
+    // The department alone does not put it on screen.
+    expect($component->html())->not->toContain('wire:model="policy_no"');
+
+    $component->set('service_type_id', $repair->id);
+    expect($component->html())->not->toContain('wire:model="policy_no"');
+
+    $component->set('service_type_id', $claim->id);
+    expect($component->html())->toContain('wire:model="policy_no"');
+
+    // And moving back to paid work must not leave an insurer attached.
+    $component
+        ->set('insurance_company_id', InsuranceCompanyMaster::factory()->create(['is_active' => true])->id)
+        ->set('policy_no', 'POL-1')
+        ->set('service_type_id', $repair->id);
+
+    expect($component->get('insurance_company_id'))->toBeNull()
+        ->and($component->get('policy_no'))->toBeNull();
+});

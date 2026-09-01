@@ -16,6 +16,7 @@ use App\Modules\RecommendationDescriptionMaster\Models\RecommendationDescription
 use App\Modules\ServiceTypeMaster\Models\ServiceTypeMaster;
 use App\Modules\VehicleVariantMaster\Models\VehicleVariantMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
+use App\Support\FinancialYear;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
@@ -33,10 +34,11 @@ it('renders the index page', function () {
         ->assertSeeLivewire(Index::class);
 });
 
-it('auto-stamps DI-00001 style inspection_no on create', function () {
+it('auto-stamps an FY-aware inspection_no on create', function () {
     $row = DigitalInspection::factory()->create();
 
-    expect($row->fresh()->inspection_no)->toBe('DI-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT));
+    expect($row->fresh()->inspection_no)
+        ->toBe('MQ/VI/'.FinancialYear::label($row->created_at).'/00001');
 });
 
 it('seeds template items into the form when template is selected', function () {
@@ -89,7 +91,7 @@ it('persists item outcomes and notes on save', function () {
         ->and($di->items[0]->outcome)->toBe('rep')
         ->and($di->items[0]->notes)->toBe('PAD WORN THROUGH')
         ->and($di->items[1]->outcome)->toBe('ok')
-        ->and($di->inspection_no)->toStartWith('DI-');
+        ->and($di->inspection_no)->toStartWith('MQ/VI/');
 });
 
 it('persists row-11 recommendation, severity and observation per item', function () {

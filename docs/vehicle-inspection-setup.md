@@ -244,3 +244,70 @@ can be reopened and saved. Five existing tests were updated to fill the newly ma
 2. Group headings on the checklist are noticeably larger and orange.
 3. On a checklist row, the arrow button opens Recommendation Descriptions in a new tab.
 4. At the foot: **Internal Notes** and **Customer Notes** are separate boxes.
+
+---
+
+# Vehicle Inspection — listing and reports
+
+| # | Requirement | Status |
+| --- | --- | --- |
+| 1 | Default to Pending inspections on load | ✅ Done |
+| 2 | Easy search (% or space) by vehicle + reg. no | ✅ Done |
+| 3 | New filters: From/To date, Department, Service Type, Advisor, Floor In-charge | ✅ Done |
+| 4 | New columns: Inspection date & time, Work start, Work complete, TAT, Vehicle name, Department, Service Type, Advisor, Floor In-charge, Bay No. | ✅ Done |
+| 5 | Report — date-wise & technician-wise TAT, date-wise Future Jobs (FA) not approved | ✅ Done |
+| 6 | Sort on every column heading | ✅ Done |
+| 7 | ID format `MQ/VI/26-27/00001` | ✅ Done |
+
+## What changed
+
+**Search was broken here too.** `$searchableFields` carried a bare `registration_no`, which is not a
+column on `digital_inspections` — every search threw. It now reaches the plate through the job card,
+with VIN, model, brand and customer name alongside. `GJ 05 XY 7777`, `GJ05XY7777` and `GJ05%7777`
+all find the same sheet.
+
+**Pending by default.** `pendingStatuses()` is Pending + In Progress — the day's work, not the
+archive. The status select opens on it, and the chip row says so.
+
+**Filters** follow the pickup/drop pattern: search takes the width, status inline, everything else
+behind **Filters** with removable chips. Department and Service Type filter through the job card,
+since the sheet does not carry them. The date range picks its own target column — inspection /
+work start / work complete — whitelisted in `dateColumn()`.
+
+**Columns** — No., Inspected, Job Card, Vehicle (reg + model), Department, Service Type, Advisor,
+Floor In-charge, Technician, Bay, Template, Work Start, Work Complete, TAT, Items, Status. Seventeen
+in all, scrolling horizontally inside their own container. All sortable; related names use a
+correlated subquery, because ordering by a foreign key sorts by row id and reads as random.
+
+**Bay is a new column on the sheet.** Nothing linked an inspection to a bay, so the listing had
+nowhere to read Bay No. from. There is now a Bay picker in Inspection Setup, beside Advisor.
+
+**Numbering** — `MQ/VI/26-27/00001`, per financial year, continuing from the highest issued rather
+than a count (which collides the moment the run has a gap). Portable `substr` over the known prefix,
+not `split_part`, so the SQLite test suite runs.
+
+## Inspection Reports — `/inspection-report`
+
+Menu: **Inspection → Inspection Reports**. Two tabs over one set of filters (technician, department,
+service type, date range), each exportable as CSV.
+
+**Technician TAT** — one row per day × technician: sheets, average, fastest, slowest, total. Only
+finished sheets count; an unstarted or unfinished one has no turnaround to compare. Sortable on
+every heading.
+
+**Future Jobs (FA)** — every checkpoint marked **FA** with a repair, replacement or skimming
+recommended, on a sheet the customer has **not** approved: deferred, declined, or never asked.
+Approved work drops off the list because it has already been sold; an IA checkpoint is not a future
+job; and an FA marked *Monitor* has nothing to sell. Newest first — the freshest are the ones still
+worth a phone call. Columns: date, inspection no, vehicle, checkpoint, recommendation, severity,
+technician, customer decision.
+
+## How to check on the UI
+
+1. **Inspection → Digital Inspections** — the page opens on Pending; switch to All to see the rest.
+2. Search a plate with spaces, then the same plate typed without them.
+3. **Filters** → Department narrows Service Type. Set a range and switch the target between
+   inspection / work start / work complete.
+4. Click each of the seventeen headings twice — sorts, then reverses.
+5. **Inspection Reports** → Technician TAT compares days and people; Future Jobs lists the follow-up
+   work. Export either as CSV.

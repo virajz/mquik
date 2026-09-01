@@ -4,12 +4,14 @@ namespace App\Modules\DigitalInspection\Models;
 
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
+use App\Modules\BayMaster\Models\BayMaster;
 use App\Modules\DigitalInspection\Database\Factories\DigitalInspectionFactory;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\InspectionTemplateMaster\Models\InspectionTemplateMaster;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
+use App\Support\FinancialYear;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,7 +58,20 @@ class DigitalInspection extends Model
         'advisor_signed_at' => 'datetime',
     ];
 
-    protected static array $searchableFields = ['inspection_no', 'summary_notes', 'registration_no', 'jobCard.job_card_no'];
+    /**
+     * `registration_no` is not a column here — the plate lives on the vehicle,
+     * so it is reached through the job card. Same for the model and brand, which
+     * is what makes "SWIFT KA01" or "GJ05%4311" find the right sheet.
+     */
+    protected static array $searchableFields = [
+        'inspection_no', 'summary_notes', 'customer_notes',
+        'jobCard.job_card_no',
+        'jobCard.customerVehicle.registration_no',
+        'jobCard.customerVehicle.vin',
+        'jobCard.customerVehicle.model.name',
+        'jobCard.customerVehicle.model.brand.name',
+        'jobCard.customer.first_name', 'jobCard.customer.last_name',
+    ];
 
     protected static function newFactory(): DigitalInspectionFactory
     {
@@ -68,7 +83,17 @@ class DigitalInspection extends Model
         static::created(function (self $row) {
             if ($row->inspection_no === null) {
                 $row->forceFill([
-                    'inspection_no' => 'DI-'.str_pad((string) $row->id, 5, '0', STR_PAD_LEFT),
+                    'fy_label' => $fy = FinancialYear::label($row->created_at),
+                    // Continue from the highest number issued this FY. A count
+                    // would collide the moment the sequence has any gap in it.
+                    // `split_part` is Postgres-only and the tests use SQLite, so
+                    // this reads everything after the "MQ/VI/26-27/" prefix.
+                    'inspection_no' => 'MQ/VI/'.$fy.'/'.str_pad(
+                        (string) (((int) static::where('fy_label', $fy)
+                            ->selectRaw('max(cast(substr(inspection_no, 13) as integer)) as top')
+                            ->value('top')) + 1),
+                        5, '0', STR_PAD_LEFT,
+                    ),
                 ])->saveQuietly();
             }
 
@@ -76,7 +101,7 @@ class DigitalInspection extends Model
                 JobCardHistoryRecorder::record(
                     (int) $row->job_card_id,
                     JobCardHistoryEvent::TYPE_INSPECTION_STARTED,
-                    'Inspection '.($row->inspection_no ?? 'DI-'.$row->id).' started',
+                    'Inspection '.($row->inspection_no ?? '#'.$row->id).' started',
                     ['inspection_id' => $row->id],
                 );
             }
@@ -151,6 +176,12 @@ class DigitalInspection extends Model
             self::STATUS_COMPLETED => 'Completed',
             self::STATUS_CANCELLED => 'Cancelled',
         ];
+    }
+
+    /** Everything still open — the day's work, as opposed to the archive. */
+    public static function pendingStatuses(): array
+    {
+        return [self::STATUS_PENDING, self::STATUS_WIP];
     }
 
     /** Including the retired values, for rendering rows that still carry them. */
@@ -239,6 +270,21 @@ class DigitalInspection extends Model
             'high' => 'High',
             'critical' => 'Critical',
         ];
+    }
+
+    /**
+     * What the customer said once it was explained to them.
+     *
+     * @return array<string, string>
+     */
+    public function bay(): BelongsTo
+    {
+        return $this->belongsTo(BayMaster::class, 'bay_id');
+    }
+
+    public function advisor(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeMaster::class, 'advisor_id');
     }
 
     /**

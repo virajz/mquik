@@ -26,6 +26,9 @@ class Form extends Component
 
     public bool $requires_advisor = true;
 
+    /** Marks the type as insurance work, which is what makes an insurer mandatory. */
+    public bool $is_insurance = false;
+
     public bool $is_active = true;
 
     public ?string $notes = null;
@@ -43,6 +46,7 @@ class Form extends Component
                 Rule::exists('workshop_departments', 'id')->where('is_active', true),
             ],
             'requires_advisor' => ['boolean'],
+            'is_insurance' => ['boolean'],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -64,6 +68,7 @@ class Form extends Component
         $this->code = $r->code;
         $this->workshop_department_id = $r->workshop_department_id;
         $this->requires_advisor = $r->requires_advisor;
+        $this->is_insurance = (bool) $r->is_insurance;
         $this->is_active = $r->is_active;
         $this->notes = $r->notes;
     }
@@ -85,7 +90,7 @@ class Form extends Component
 
         $data = $this->validate();
 
-        $skip = ['workshop_department_id', 'requires_advisor', 'is_active'];
+        $skip = ['workshop_department_id', 'requires_advisor', 'is_insurance', 'is_active'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -112,6 +117,7 @@ class Form extends Component
         $this->code = null;
         $this->workshop_department_id = null;
         $this->requires_advisor = true;
+        $this->is_insurance = false;
         $this->is_active = true;
         $this->notes = null;
     }

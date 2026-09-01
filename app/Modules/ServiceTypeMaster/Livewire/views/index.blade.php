@@ -70,6 +70,9 @@
             <flux:table.column class="w-40" sortable :sorted="$sortBy === 'workshop_department_id'" :direction="$sortDirection" wire:click="sort('workshop_department_id')">
                 Department
             </flux:table.column>
+            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'is_insurance'" :direction="$sortDirection" wire:click="sort('is_insurance')">
+                Insurance
+            </flux:table.column>
             <flux:table.column class="w-24" sortable :sorted="$sortBy === 'is_active'" :direction="$sortDirection" wire:click="sort('is_active')">
                 Status
             </flux:table.column>
@@ -94,6 +97,14 @@
                             <flux:badge color="zinc" size="sm">{{ $row->workshopDepartment->name }}</flux:badge>
                         @else
                             <span class="text-zinc-400">—</span>
+                        @endif
+                    </flux:table.cell>
+
+                    <flux:table.cell>
+                        @if ($row->is_insurance)
+                            <flux:badge color="sky" size="sm">Insurance</flux:badge>
+                        @else
+                            <span class="text-zinc-400 text-xs">—</span>
                         @endif
                     </flux:table.cell>
 

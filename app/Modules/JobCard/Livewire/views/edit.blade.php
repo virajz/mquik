@@ -101,6 +101,61 @@
             <flux:separator />
             @include('job-card::partials.section-timing', ['lean' => true])
             <flux:separator />
+
+            {{-- Fuel level is mandatory, so it has to be askable here. Without
+                 it the create form failed validation on a field that only
+                 existed on the edit screen — the button simply did nothing. --}}
+            <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+                <div>
+                    <flux:heading size="lg">Vehicle State at Receipt</flux:heading>
+                    <flux:text size="sm" class="mt-1 text-zinc-500">What the odometer and gauge read when the car came in.</flux:text>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
+                    <flux:input.group :label="$this->lastServiceKm
+                        ? 'Odometer In (km) · last service '.number_format($this->lastServiceKm).' km'
+                        : 'Odometer In (km)'">
+                        <flux:input wire:model="km_at_service" type="number" min="0"
+                            :placeholder="$this->lastServiceKm ? number_format($this->lastServiceKm) : '45000'"
+                            class:input="text-right font-mono" />
+                        <flux:input.group.suffix>km</flux:input.group.suffix>
+                    </flux:input.group>
+
+                    <flux:select wire:model="fuel_level" variant="listbox" required label="Fuel Level" placeholder="Pick a level…">
+                        @foreach (\App\Modules\JobCard\Models\JobCard::fuelLevels() as $key => $label)
+                            <flux:select.option :value="$key">{{ $label }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:error name="fuel_level" />
+                </div>
+            </section>
+
+            {{-- Insurance belongs to intake: who is paying is known when the car
+                 arrives, and the claim module owns it from then on. Shown only
+                 for an insurance service type — a bodyshop repair the customer
+                 is paying for has no insurer — and only here, not on the editor. --}}
+            @if ($this->isBodyshopDepartment && $this->isInsuranceServiceType())
+                <flux:separator />
+                <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+                    <div>
+                        <flux:heading size="lg">Insurance</flux:heading>
+                        <flux:text size="sm" class="mt-1 text-zinc-500">Asked once, now. Insurance jobs only.</flux:text>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
+                        <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable
+                            label="Insurance Company"
+                            placeholder="Who is paying…" required>
+                            @foreach ($this->insuranceCompanies as $ic)
+                                <flux:select.option :value="$ic->id" wire:key="cic-{{ $ic->id }}">{{ $ic->name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:input wire:model="policy_no" label="Policy No." placeholder="Optional at intake" />
+                        <flux:error name="insurance_company_id" />
+                        <flux:error name="policy_no" />
+                    </div>
+                </section>
+            @endif
+
+            <flux:separator />
             @include('job-card::partials.section-complaints')
 
             <div class="mt-6 flex items-start gap-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-4 text-sm text-zinc-500">
@@ -209,17 +264,21 @@
                                         @endforeach
                                     </flux:select>
 
-                                    <flux:select wire:model="insurance_company_id" variant="listbox" searchable clearable
-                                        label="Insurance Company"
-                                        :placeholder="$this->isInsuranceServiceType() ? 'Who is paying…' : 'Only for an insurance job'"
-                                        :required="$this->isInsuranceServiceType()">
-                                        @foreach ($this->insuranceCompanies as $ic)
-                                            <flux:select.option :value="$ic->id" wire:key="ic-{{ $ic->id }}">{{ $ic->name }}</flux:select.option>
-                                        @endforeach
-                                    </flux:select>
+                                    {{-- Read-only after intake: who is paying is
+                                         settled when the car arrives, and the
+                                         Claim Intimation owns it from there. --}}
+                                    <flux:field>
+                                        <flux:label>Insurance Company</flux:label>
+                                        <div class="flex items-center h-10 text-sm">
+                                            {{ $this->insuranceCompanies->firstWhere('id', $insurance_company_id)?->name ?? '—' }}
+                                            @if ($policy_no)
+                                                <span class="ms-2 text-zinc-500 font-mono text-xs">· {{ $policy_no }}</span>
+                                            @endif
+                                        </div>
+                                    </flux:field>
                                 </div>
                                 <flux:text size="sm" class="text-zinc-500">
-                                    Policy number is captured on the Claim Intimation, where the claim is actually raised.
+                                    Insurer and policy number are captured at intake; the claim itself is raised on the Claim Intimation.
                                 </flux:text>
                             @endif
 

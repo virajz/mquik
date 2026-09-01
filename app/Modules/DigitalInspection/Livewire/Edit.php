@@ -2,6 +2,7 @@
 
 namespace App\Modules\DigitalInspection\Livewire;
 
+use App\Modules\BayMaster\Models\BayMaster;
 use App\Modules\DigitalInspection\Models\DigitalInspection;
 use App\Modules\DigitalInspection\Support\InspectionStatus;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
@@ -42,6 +43,9 @@ class Edit extends Component
     public ?int $floor_incharge_id = null;
 
     public ?int $advisor_id = null;
+
+    /** Where the car was inspected — the listing reports it. */
+    public ?int $bay_id = null;
 
     public string $status = DigitalInspection::STATUS_PENDING;
 
@@ -125,6 +129,7 @@ class Edit extends Component
         $this->assigned_technician_id = $di->assigned_technician_id;
         $this->floor_incharge_id = $di->floor_incharge_id;
         $this->advisor_id = $di->advisor_id;
+        $this->bay_id = $di->bay_id;
         $this->status = $di->status;
         $this->summary_notes = $di->summary_notes;
         $this->customer_notes = $di->customer_notes;
@@ -232,6 +237,7 @@ class Edit extends Component
             'status' => ['required', Rule::in(array_keys(DigitalInspection::allStatuses()))],
             'summary_notes' => ['nullable', 'string', 'max:2000'],
             'customer_notes' => ['nullable', 'string', 'max:2000'],
+            'bay_id' => ['nullable', 'integer', Rule::exists('bays', 'id')->where('is_active', true)],
             'items' => ['array'],
             'items.*.inspection_item_id' => ['required', 'integer', 'exists:inspection_items,id'],
             'explained_on_lift' => ['boolean'],
@@ -281,6 +287,12 @@ class Edit extends Component
             ->orderByDesc('opened_at')
             ->limit(100)
             ->get(['id', 'job_card_no', 'customer_vehicle_id', 'opened_at']);
+    }
+
+    #[Computed]
+    public function bays()
+    {
+        return BayMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]

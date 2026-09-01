@@ -31,7 +31,7 @@
                 @endforeach
             </flux:select>
 
-            <flux:select wire:model="service_type_id" variant="listbox" searchable clearable label="2. Service Type"
+            <flux:select wire:model.live="service_type_id" variant="listbox" searchable clearable label="2. Service Type"
                 :placeholder="$workshop_department_id ? 'Pick a service type…' : 'Pick a department first'"
                 :disabled="! $workshop_department_id">
                 @foreach ($this->serviceTypesForDepartment as $st)

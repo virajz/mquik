@@ -21,6 +21,7 @@ class ServiceTypeMaster extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'is_insurance' => 'boolean',
         'requires_advisor' => 'boolean',
         'is_active' => 'boolean',
     ];

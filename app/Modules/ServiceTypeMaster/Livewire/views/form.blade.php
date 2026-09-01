@@ -49,6 +49,9 @@
 
                 <flux:switch wire:model="requires_advisor" label="Requires advisor" description="Job cards of this type must be assigned to an advisor before opening." />
 
+                <flux:switch wire:model="is_insurance" label="Insurance job"
+                    description="A bodyshop card of this type must name the insurance company." />
+
                 <flux:switch wire:model="is_active" label="Active" description="Inactive service types won't appear in appointment / job card dropdowns." />
             </div>
 
