@@ -4,6 +4,7 @@ namespace App\Modules\GateInOut\Livewire;
 
 use App\Concerns\CanQuickAddCustomerVehicle;
 use App\Concerns\SearchesPickerOptions;
+use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
@@ -15,6 +16,7 @@ use App\Modules\VendorMaster\Models\VendorMaster;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -48,6 +50,9 @@ class Edit extends Component
     public ?int $customer_id = null;
 
     public ?int $job_card_id = null;
+
+    /** The booking this arrival fulfils, when the car came in against one. */
+    public ?int $appointment_id = null;
 
     // Outward leg — left blank while the vehicle is still on site.
     public ?string $exited_date = null;
@@ -87,6 +92,7 @@ class Edit extends Component
             'parking_slot_id' => ['nullable', 'integer', Rule::exists('parking_slots', 'id')->where('is_active', true)],
             'registration_no' => ['required', 'string', 'max:20'],
             'job_card_id' => ['nullable', 'integer', 'exists:job_cards,id'],
+            'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
             // Both halves of the exit timestamp travel together or not at all.
             'exited_date' => ['nullable', 'date_format:Y-m-d', 'required_with:exited_time'],
             'exited_time' => ['nullable', 'date_format:H:i', 'required_with:exited_date'],
@@ -152,6 +158,7 @@ class Edit extends Component
         $this->customer_vehicle_id = $r->customer_vehicle_id;
         $this->customer_id = $r->customer_id;
         $this->job_card_id = $r->job_card_id;
+        $this->appointment_id = $r->appointment_id;
         $this->exited_date = $r->exited_at?->format('Y-m-d');
         $this->exited_time = $r->exited_at?->format('H:i');
         $this->exit_gate_id = $r->exit_gate_id;
@@ -212,6 +219,9 @@ class Edit extends Component
     public function updatedCustomerVehicleId($value): void
     {
         if (! $value) {
+            $this->appointment_id = null;
+            unset($this->openAppointments);
+
             return;
         }
 
@@ -220,6 +230,54 @@ class Edit extends Component
             $this->registration_no = $vehicle->registration_no;
             $this->customer_id = $vehicle->customer_id;
         }
+
+        $this->suggestAppointment();
+    }
+
+    /**
+     * Unfinished bookings for the vehicle at the barrier, nearest first.
+     *
+     * @return Collection<int, Appointment>
+     */
+    #[Computed]
+    public function openAppointments()
+    {
+        if (! $this->customer_vehicle_id) {
+            return collect();
+        }
+
+        return Appointment::query()
+            ->where('customer_vehicle_id', $this->customer_vehicle_id)
+            ->whereNull('cancelled_at')
+            ->whereIn('status', Appointment::pendingStatuses())
+            // The one it is standing in front of is the one it is nearest to.
+            ->orderByRaw('abs(julianday(appointment_at) - julianday(?))', [now()->toDateTimeString()])
+            ->when(
+                DB::connection()->getDriverName() === 'pgsql',
+                fn ($q) => $q->reorder()->orderByRaw('abs(extract(epoch from (appointment_at - ?)))', [now()->toDateTimeString()]),
+            )
+            ->with('serviceType:id,name')
+            ->limit(10)
+            ->get();
+    }
+
+    /**
+     * Fill the booking in when there is only one it could be.
+     *
+     * Guessing between several would be the vehicle-matching heuristic all over
+     * again, so more than one is left for the guard to choose.
+     */
+    protected function suggestAppointment(): void
+    {
+        unset($this->openAppointments);
+
+        if ($this->appointment_id) {
+            return;
+        }
+
+        $open = $this->openAppointments;
+
+        $this->appointment_id = $open->count() === 1 ? $open->first()->id : null;
     }
 
     /**
@@ -242,6 +300,8 @@ class Edit extends Component
 
         $this->customer_vehicle_id = $vehicle?->id;
         $this->customer_id = $vehicle?->customer_id;
+
+        $this->suggestAppointment();
     }
 
     /**
@@ -518,6 +578,7 @@ class Edit extends Component
 
         $data['customer_vehicle_id'] = $this->customer_vehicle_id;
         $data['customer_id'] = $this->customer_id;
+        $data['appointment_id'] = $this->appointment_id;
         $data['recorded_by_user_id'] = auth()->id();
 
         if ($this->editingId) {

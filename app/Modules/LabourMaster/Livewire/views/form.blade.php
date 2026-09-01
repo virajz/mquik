@@ -103,7 +103,8 @@
                                 <flux:select.option :value="$g->id" wire:key="grp-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                             @endforeach
                         </flux:select>
-                        <flux:select wire:model="inventory_sub_group_id" variant="listbox" searchable clearable label="Sub-Group" :placeholder="$inventory_group_id ? 'Sub' : 'Pick group'" :disabled="! $inventory_group_id">
+                        {{-- Keyed to its option set — see the region-pickers partial. --}}
+                        <flux:select wire:key="subgroup-{{ $this->inventorySubGroups->pluck('id')->implode('-') }}" wire:model="inventory_sub_group_id" variant="listbox" searchable clearable label="Sub-Group" :placeholder="$inventory_group_id ? 'Sub' : 'Pick group'" :disabled="! $inventory_group_id">
                             @foreach ($this->inventorySubGroups as $g)
                                 <flux:select.option :value="$g->id" wire:key="subgrp-{{ $g->id }}">{{ $g->name }}</flux:select.option>
                             @endforeach

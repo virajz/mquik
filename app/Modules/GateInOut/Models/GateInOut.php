@@ -5,6 +5,7 @@ namespace App\Modules\GateInOut\Models;
 use App\Concerns\Auditable;
 use App\Concerns\Searchable;
 use App\Models\User;
+use App\Modules\Appointment\Models\Appointment;
 use App\Modules\Appointment\Support\AppointmentStatus;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
@@ -70,9 +71,16 @@ class GateInOut extends Model
             $row->registration_no = RegistrationNumber::format($row->registration_no);
         });
 
-        // An inward means the car is physically here, which moves any open
-        // booking for that vehicle to Arrived.
+        // An inward means the car is physically here, which moves the booking it
+        // was raised against to Arrived. The vehicle sweep stays for the pickup/
+        // drop side and for re-deriving the rest of that vehicle's bookings, but
+        // the linked appointment is refreshed directly — it must not depend on
+        // the visit carrying a customer_vehicle_id, which a walk-in may not.
         static::saved(function (self $visit) {
+            if ($visit->appointment) {
+                AppointmentStatus::refresh($visit->appointment);
+            }
+
             AppointmentStatus::refreshForVehicle($visit->customer_vehicle_id);
             PickupDropStatus::refreshForVehicle($visit->customer_vehicle_id);
         });
@@ -132,6 +140,12 @@ class GateInOut extends Model
     public function jobCard(): BelongsTo
     {
         return $this->belongsTo(JobCard::class, 'job_card_id');
+    }
+
+    /** The booking this inward fulfils, when the vehicle came in against one. */
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class, 'appointment_id');
     }
 
     public function entryGate(): BelongsTo

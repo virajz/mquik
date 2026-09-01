@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Modules\Appointment\Models\Appointment;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\DesignationMaster\Models\DesignationMaster;
@@ -321,4 +322,51 @@ it('sorts by a related name column via subquery', function () {
         ->set('statusFilter', 'all')
         ->call('sort', 'exit_by')
         ->assertViewHas('rows', fn ($rows) => $rows->first()->exitBy->name === 'AAA GUARD');
+});
+
+it('fills in the booking automatically when the vehicle has exactly one open', function () {
+    $vehicle = CustomerVehicleMaster::factory()->create();
+    $appointment = Appointment::factory()->create([
+        'customer_vehicle_id' => $vehicle->id,
+        'appointment_at' => now()->addHours(2),
+    ]);
+
+    Livewire::test(Edit::class)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->assertSet('appointment_id', $appointment->id);
+});
+
+it('does not guess between two open bookings for the same vehicle', function () {
+    $vehicle = CustomerVehicleMaster::factory()->create();
+
+    Appointment::factory()->count(2)->create([
+        'customer_vehicle_id' => $vehicle->id,
+        'appointment_at' => now()->addHours(2),
+    ]);
+
+    // Picking one of two would be the old vehicle-matching heuristic again.
+    Livewire::test(Edit::class)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->assertSet('appointment_id', null)
+        ->tap(fn ($c) => expect($c->instance()->openAppointments)->toHaveCount(2));
+});
+
+it('marks the booking arrived once the inward against it is saved', function () {
+    $vehicle = CustomerVehicleMaster::factory()->create();
+    $appointment = Appointment::factory()->create([
+        'customer_vehicle_id' => $vehicle->id,
+        'appointment_at' => now()->addHours(2),
+    ]);
+
+    Livewire::test(Edit::class)
+        ->set('entered_date', now()->format('Y-m-d'))
+        ->set('entered_time', now()->format('H:i'))
+        ->set('entry_gate_id', GateMaster::factory()->create()->id)
+        ->set('customer_vehicle_id', $vehicle->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(GateInOut::latest('id')->first()->appointment_id)->toBe($appointment->id)
+        ->and($appointment->fresh()->status)
+        ->toBe(Appointment::STATUS_ARRIVED);
 });

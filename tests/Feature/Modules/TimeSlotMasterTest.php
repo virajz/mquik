@@ -34,7 +34,8 @@ it('creates a slot with window, capacity and buffer', function () {
         ->and($slot->code)->toBe('S1')
         ->and($slot->max_vehicles_per_slot)->toBe(8)
         ->and($slot->buffer_minutes)->toBe(15)
-        ->and($slot->window())->toBe('09:00 – 10:00');
+        // h:i A, the app's one time format — never a 24-hour window.
+        ->and($slot->window())->toBe('09:00 AM – 10:00 AM');
 });
 
 it('requires both times and rejects an end time before the start', function () {

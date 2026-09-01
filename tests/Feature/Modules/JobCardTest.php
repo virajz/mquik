@@ -140,13 +140,16 @@ it('links insurance company, vendor, job description and customer approval', fun
         ->set('customer_vehicle_id', $vehicle->id)
         ->set('workshop_department_id', $dept->id)
         ->set('assigned_advisor_id', $advisor->id)
-        ->set('insurance_company_id', $insurer->id)
         ->set('vendor_id', $vendor->id)   // outside contractor owns the work
         ->set('job_description_id', $jobDescription->id)
         ->set('customer_approval_type_id', $approval->id)
         // Set last: picking a department clears the service type and the people
         // on it, so these have to come after whatever the test itself sets.
-        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true])->id)
+        // It must be an insurance service type: the insurer and policy fields
+        // are gated on the service type's is_insurance flag, not on its name,
+        // and a non-insurance type clears them.
+        ->set('service_type_id', ServiceTypeMaster::factory()->create(['is_active' => true, 'is_insurance' => true])->id)
+        ->set('insurance_company_id', $insurer->id)
         // No technician here on purpose: an outside vendor owns this work, and
         // picking a technician would take the vendor back off.
         ->call('save')
@@ -1129,8 +1132,10 @@ it('ticks complaints from the grouped list, one at a time or a whole category', 
     $card = JobCard::factory()->create(['workshop_department_id' => $dept->id]);
     $brakes = ComplaintTypeMaster::factory()->create(['name' => 'BRAKE']);
 
-    $pads = RequestedRepairMaster::factory()->create(['name' => 'PAD NOISE', 'is_active' => true, 'complaint_type_id' => $brakes->id]);
-    $disc = RequestedRepairMaster::factory()->create(['name' => 'DISC WARPED', 'is_active' => true, 'complaint_type_id' => $brakes->id]);
+    // Only 'frequent' repairs get a tick box; 'general' ones live in the picker
+    // below it. Promotion to frequent is what the master form's "Shown as" does.
+    $pads = RequestedRepairMaster::factory()->create(['name' => 'PAD NOISE', 'is_active' => true, 'category' => 'frequent', 'complaint_type_id' => $brakes->id]);
+    $disc = RequestedRepairMaster::factory()->create(['name' => 'DISC WARPED', 'is_active' => true, 'category' => 'frequent', 'complaint_type_id' => $brakes->id]);
     foreach ([$pads, $disc] as $repair) {
         $repair->workshopDepartments()->syncWithoutDetaching([$dept->id]);
     }

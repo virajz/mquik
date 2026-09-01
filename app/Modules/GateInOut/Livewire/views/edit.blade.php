@@ -110,6 +110,36 @@
                     </div>
                 @endif
 
+                {{-- Which booking this arrival fulfils. Arrival used to be guessed
+                     from the plate and the clock, which matched visits weeks
+                     apart; recording it here makes it a fact. Keyed to its own
+                     option set so the list re-initialises when the vehicle
+                     changes. --}}
+                @if ($customer_vehicle_id)
+                    <flux:field>
+                        <flux:label>Against Appointment</flux:label>
+                        <flux:description>Marks the booking as arrived. Leave blank for a walk-in.</flux:description>
+                        <flux:select wire:key="appt-{{ $this->openAppointments->pluck('id')->implode('-') }}"
+                            wire:model="appointment_id" variant="listbox" searchable clearable
+                            :placeholder="$this->openAppointments->isEmpty() ? 'No open booking for this vehicle' : 'Pick the booking…'"
+                            :disabled="$this->openAppointments->isEmpty()">
+                            @foreach ($this->openAppointments as $appointment)
+                                <flux:select.option :value="$appointment->id" wire:key="oa-{{ $appointment->id }}">
+                                    {{ $appointment->appointment_no }} · {{ $appointment->appointment_at?->format('d/m/Y h:i A') }}
+                                    @if ($appointment->serviceType)· {{ $appointment->serviceType->name }}@endif
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="appointment_id" />
+                    </flux:field>
+
+                    @if ($appointment_id && $this->openAppointments->count() === 1)
+                        <flux:text size="sm" class="text-zinc-500">
+                            Only one open booking for this vehicle, so it was filled in automatically — clear it if this arrival is for something else.
+                        </flux:text>
+                    @endif
+                @endif
+
                 {{-- Photo of the car at the barrier — proof of condition on arrival. --}}
                 <flux:field>
                     <flux:label>Gate Photo</flux:label>

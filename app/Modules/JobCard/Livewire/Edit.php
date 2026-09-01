@@ -351,6 +351,12 @@ class Edit extends Component
         $this->service_type_id = $appointment->service_type_id;
         $this->assigned_advisor_id = $appointment->assigned_advisor_id;
         $this->assigned_technician_id = $appointment->assigned_technician_id;
+
+        // gate_event_id is required: a card cannot be raised for a car that has
+        // not arrived. Coming from the booking, its own inward is the only
+        // sensible answer, so fill it rather than leaving a required field the
+        // advisor has to hunt for.
+        $this->gate_event_id ??= $appointment->gateVisits()->latest('entered_at')->value('id');
     }
 
     /**
@@ -367,6 +373,14 @@ class Edit extends Component
         $this->gate_event_id = $gate->id;
         $this->customer_id = $gate->customer_id;
         $this->customer_vehicle_id = $gate->customer_vehicle_id;
+
+        // The inward is raised against a booking, and the card is raised off the
+        // inward, so the booking travels down the chain rather than having to be
+        // picked again. An arrival with no booking is a walk-in and stays null.
+        if ($gate->appointment_id && ! $this->appointment_id) {
+            $this->prefillFromAppointment($gate->appointment_id);
+            $this->gate_event_id = $gate->id;
+        }
     }
 
     protected function rules(): array

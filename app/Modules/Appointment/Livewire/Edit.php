@@ -383,9 +383,37 @@ class Edit extends Component
             $this->service_type_id = null;
         }
 
-        unset($this->serviceTypes, $this->frequentServiceGroups, $this->frequentServiceGroupsByDepartment, $this->otherJobDescriptions, $this->departmentName);
+        unset($this->serviceTypes, $this->frequentServiceGroups, $this->frequentServiceGroupsByDepartment, $this->otherJobDescriptions, $this->departmentName, $this->employeesByDepartment);
+
+        $this->dropStaffOutsideDepartment();
 
         $this->dropServicesOutsideDepartment();
+    }
+
+    /**
+     * Clear an advisor or technician the new department selection no longer
+     * offers. Only fires on an edit to the picker — a saved booking keeps
+     * whoever it was assigned to, even if that person has since moved.
+     */
+    protected function dropStaffOutsideDepartment(): void
+    {
+        $staff = $this->employeesByDepartment;
+
+        // Never clear a selection we cannot offer a replacement for. An empty
+        // list means nobody carries that designation at all, which is a gap in
+        // Employee Master — silently wiping a valid advisor over it would make
+        // a required field impossible to satisfy.
+        if ($staff['advisors']->isNotEmpty()
+            && $this->assigned_advisor_id
+            && ! $staff['advisors']->contains('id', (int) $this->assigned_advisor_id)) {
+            $this->assigned_advisor_id = null;
+        }
+
+        if ($staff['technicians']->isNotEmpty()
+            && $this->assigned_technician_id
+            && ! $staff['technicians']->contains('id', (int) $this->assigned_technician_id)) {
+            $this->assigned_technician_id = null;
+        }
     }
 
     public function updatedPickupDropOptionId(): void
@@ -682,9 +710,14 @@ class Edit extends Component
 
     /**
      * Active slots with how many vehicles are already booked on the chosen date.
+     *
+     * Both legs count against the same capacity: a collection and a return each
+     * consume a driver and a vehicle movement in that window, so counting only
+     * pickups let a slot with twenty drops still read "5 left".
+     *
      * Capacity is advisory — the form warns but still lets the advisor book.
      *
-     * @return Collection<int, array{id:int, label:string, booked:int, capacity:int, isFull:bool}>
+     * @return Collection<int, array{id:int, label:string, start:string, end:string, booked:int, pickups:int, drops:int, capacity:int, isFull:bool}>
      */
     #[Computed]
     public function timeSlots()
@@ -695,22 +728,38 @@ class Edit extends Component
             return collect();
         }
 
-        $counts = Appointment::query()
+        $onDate = fn () => Appointment::query()
             ->whereDate('appointment_at', $this->appointment_date ?: now()->toDateString())
             ->whereNotIn('status', [Appointment::STATUS_CANCELLED, Appointment::STATUS_NO_SHOW])
-            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId))
+            ->when($this->editingId, fn ($q) => $q->whereKeyNot($this->editingId));
+
+        $pickups = $onDate()
+            ->whereNotNull('time_slot_id')
             ->selectRaw('time_slot_id, count(*) as aggregate')
             ->groupBy('time_slot_id')
             ->pluck('aggregate', 'time_slot_id');
 
-        return $slots->map(function (TimeSlotMaster $slot) use ($counts) {
-            $booked = (int) ($counts[$slot->id] ?? 0);
+        $drops = $onDate()
+            ->whereNotNull('drop_time_slot_id')
+            ->selectRaw('drop_time_slot_id, count(*) as aggregate')
+            ->groupBy('drop_time_slot_id')
+            ->pluck('aggregate', 'drop_time_slot_id');
+
+        return $slots->map(function (TimeSlotMaster $slot) use ($pickups, $drops) {
+            $pickedUp = (int) ($pickups[$slot->id] ?? 0);
+            $droppedOff = (int) ($drops[$slot->id] ?? 0);
+            $booked = $pickedUp + $droppedOff;
             $capacity = (int) $slot->max_vehicles_per_slot;
 
             return [
                 'id' => $slot->id,
                 'label' => $slot->window(),
+                // "H:i:s" on both drivers, so H:i strings compare correctly.
+                'start' => substr((string) $slot->slot_start_time, 0, 5),
+                'end' => substr((string) $slot->slot_end_time, 0, 5),
                 'booked' => $booked,
+                'pickups' => $pickedUp,
+                'drops' => $droppedOff,
                 'capacity' => $capacity,
                 'isFull' => $booked >= $capacity,
             ];
@@ -746,15 +795,111 @@ class Edit extends Component
             }
         }
 
-        if ($this->time_slot_id) {
-            $slot = $this->timeSlots->firstWhere('id', $this->time_slot_id);
+        return $warnings;
+    }
 
-            if ($slot && $slot['isFull']) {
-                $warnings[] = 'Slot '.$slot['label'].' is already at capacity ('.$slot['booked'].'/'.$slot['capacity'].' vehicles).';
+    /** H:i is what the comparisons use; h:i A is what anyone reads. */
+    protected function clockTime(string $time): string
+    {
+        return Carbon::createFromFormat('H:i', $time)->format('h:i A');
+    }
+
+    /**
+     * Slot problems, keyed by the leg that caused them.
+     *
+     * These render under their own picker rather than in the callout at the top
+     * of the form: the slots sit several sections below it, so a warning up
+     * there is out of sight exactly when it matters.
+     *
+     * @return array{pickup: array<int, string>, drop: array<int, string>}
+     */
+    #[Computed]
+    public function slotWarnings(): array
+    {
+        $warnings = ['pickup' => [], 'drop' => []];
+
+        $legs = [
+            'pickup' => $this->time_slot_id ? $this->timeSlots->firstWhere('id', $this->time_slot_id) : null,
+            'drop' => $this->drop_time_slot_id ? $this->timeSlots->firstWhere('id', $this->drop_time_slot_id) : null,
+        ];
+
+        foreach ($legs as $leg => $slot) {
+            if (! $slot) {
+                continue;
+            }
+
+            if ($slot['isFull']) {
+                $warnings[$leg][] = 'At capacity — '.$slot['booked'].' of '.$slot['capacity'].' vehicles already booked.';
+            }
+
+            if ($this->appointment_time === '') {
+                continue;
+            }
+
+            // The car cannot be at the workshop before the driver has finished
+            // collecting it, and returning it before the appointment makes no sense.
+            if ($leg === 'pickup' && $slot['end'] > $this->appointment_time) {
+                $warnings[$leg][] = 'Collection ends '.$this->clockTime($slot['end']).', after the '.$this->clockTime($this->appointment_time).' appointment.';
+            }
+
+            if ($leg === 'drop' && $slot['start'] < $this->appointment_time) {
+                $warnings[$leg][] = 'Return starts '.$this->clockTime($slot['start']).', before the '.$this->clockTime($this->appointment_time).' appointment.';
             }
         }
 
         return $warnings;
+    }
+
+    /**
+     * The vehicle's day in the order it is meant to happen.
+     *
+     * Three times entered in two sections read as three unrelated fields; laid
+     * out in sequence the relationship explains itself, and a step whose clock
+     * time contradicts its position is flagged where it stands.
+     *
+     * @return array<int, array{label: string, time: string, ok: bool}>
+     */
+    #[Computed]
+    public function scheduleTimeline(): array
+    {
+        if ($this->appointment_time === '') {
+            return [];
+        }
+
+        $steps = [];
+
+        $pickup = $this->optionInvolvesPickup() && $this->time_slot_id
+            ? $this->timeSlots->firstWhere('id', $this->time_slot_id)
+            : null;
+
+        $drop = $this->optionInvolvesDrop() && $this->drop_time_slot_id
+            ? $this->timeSlots->firstWhere('id', $this->drop_time_slot_id)
+            : null;
+
+        if ($pickup) {
+            $steps[] = [
+                'label' => 'Collect from customer',
+                'time' => $pickup['label'],
+                'ok' => $pickup['end'] <= $this->appointment_time,
+            ];
+        }
+
+        $steps[] = [
+            'label' => 'At workshop',
+            'time' => $this->clockTime($this->appointment_time),
+            'ok' => true,
+        ];
+
+        if ($drop) {
+            $steps[] = [
+                'label' => 'Return to customer',
+                'time' => $drop['label'],
+                'ok' => $drop['start'] >= $this->appointment_time,
+            ];
+        }
+
+        // A single step is not a sequence and explains nothing.
+        return count($steps) > 1 ? $steps : [];
     }
 
     public function addComplaint(): void
@@ -783,6 +928,119 @@ class Edit extends Component
     public function employees()
     {
         return EmployeeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
+     * Everything this booking has spawned, as links.
+     *
+     * The form only ever offered to create a job card or a pickup/drop; it never
+     * showed what already existed, so the links ran forward and never back. All
+     * three are real foreign keys — `pickup_drops.appointment_id`,
+     * `job_cards.appointment_id` and now `gate_visits.appointment_id`.
+     *
+     * @return array<int, array{type: string, label: string, meta: ?string, url: string}>
+     */
+    #[Computed]
+    public function linkedRecords(): array
+    {
+        if (! $this->editingId) {
+            return [];
+        }
+
+        $appointment = Appointment::with([
+            'pickupDrops:id,appointment_id,pickup_drop_no,status',
+            'jobCards:id,appointment_id,job_card_no',
+            'gateVisits:id,appointment_id,gate_event_no,entered_at',
+        ])->find($this->editingId);
+
+        if (! $appointment) {
+            return [];
+        }
+
+        $links = [];
+
+        foreach ($appointment->pickupDrops as $leg) {
+            $links[] = [
+                'type' => 'Pickup / Drop',
+                'label' => $leg->pickup_drop_no ?? ('#'.$leg->id),
+                'meta' => $leg->status ? str_replace('_', ' ', $leg->status) : null,
+                'url' => route('pickup-drop.edit', $leg),
+            ];
+        }
+
+        foreach ($appointment->jobCards as $card) {
+            $links[] = [
+                'type' => 'Job Card',
+                'label' => $card->job_card_no ?? ('#'.$card->id),
+                'meta' => null,
+                'url' => route('job-card.edit', $card),
+            ];
+        }
+
+        foreach ($appointment->gateVisits as $visit) {
+            $links[] = [
+                'type' => 'Inward',
+                'label' => $visit->gate_event_no ?? ('#'.$visit->id),
+                'meta' => $visit->entered_at?->format('d/m/Y h:i A'),
+                'url' => route('gate-in-out.edit', $visit),
+            ];
+        }
+
+        return $links;
+    }
+
+    /**
+     * Advisors and technicians for the picked departments.
+     *
+     * `workshop_departments.department_id` links a workshop department to the HR
+     * department its staff belong to, so this is a real join rather than a name
+     * comparison — the same filter the job card uses.
+     *
+     * A department with nobody mapped falls back to every advisor / technician
+     * rather than an empty list: Advisor is required, and five of the eight
+     * departments currently have no staff mapped at all, so a hard filter would
+     * make them unbookable. `fellBack` lets the form say so instead of quietly
+     * offering people from elsewhere.
+     *
+     * @return array{advisors: Collection, technicians: Collection, fellBack: bool}
+     */
+    #[Computed]
+    public function employeesByDepartment(): array
+    {
+        $designation = fn ($e) => mb_strtoupper((string) $e->designation?->name);
+
+        $staff = EmployeeMaster::query()
+            ->where('is_active', true)
+            ->with('designation:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'designation_id', 'department_id']);
+
+        $advisors = $staff->filter(fn ($e) => str_contains($designation($e), 'ADVISOR'))->values();
+        $technicians = $staff->filter(fn ($e) => $designation($e) === 'TECHNICIAN')->values();
+
+        $hrDepartmentIds = WorkshopDepartmentMaster::query()
+            ->whereIn('id', $this->selectedDepartmentIdInts())
+            ->pluck('department_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($hrDepartmentIds === []) {
+            return ['advisors' => collect(), 'technicians' => collect(), 'fellBack' => false];
+        }
+
+        $scopeToDepartment = fn (Collection $people) => $people
+            ->filter(fn ($e) => in_array((int) $e->department_id, $hrDepartmentIds, true))
+            ->values();
+
+        $scopedAdvisors = $scopeToDepartment($advisors);
+        $scopedTechnicians = $scopeToDepartment($technicians);
+
+        return [
+            'advisors' => $scopedAdvisors->isNotEmpty() ? $scopedAdvisors : $advisors,
+            'technicians' => $scopedTechnicians->isNotEmpty() ? $scopedTechnicians : $technicians,
+            'fellBack' => $scopedAdvisors->isEmpty() || $scopedTechnicians->isEmpty(),
+        ];
     }
 
     /**

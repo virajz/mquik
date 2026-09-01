@@ -22,7 +22,11 @@
         @endforeach
     </flux:select>
 
-    <flux:select wire:model.live="{{ $cityProp }}" variant="combobox" clearable
+    {{-- Keyed to its own option set: Flux's "No results found" row is wire:ignore
+         and hidden by JS, so morphing options into a picker that first rendered
+         empty leaves that row stranded above real results. --}}
+    <flux:select wire:key="{{ $leg }}-city-{{ $cities->pluck('id')->implode('-') }}"
+        wire:model.live="{{ $cityProp }}" variant="combobox" clearable
         label="City" :disabled="! $$stateProp">
         <x-slot name="input">
             <flux:select.input wire:model="{{ $citySearch }}"
@@ -38,7 +42,8 @@
         @endcan
     </flux:select>
 
-    <flux:select wire:model="{{ $leg }}_region_id" variant="combobox" clearable
+    <flux:select wire:key="{{ $leg }}-area-{{ $areas->pluck('id')->implode('-') }}"
+        wire:model="{{ $leg }}_region_id" variant="combobox" clearable
         label="Area" :disabled="! $$cityProp">
         <x-slot name="input">
             <flux:select.input wire:model="{{ $areaSearch }}"

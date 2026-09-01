@@ -12,6 +12,7 @@ use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
+use App\Modules\GateInOut\Models\GateInOut;
 use App\Modules\JobCard\Models\JobCard;
 use App\Modules\JobHistory\Models\JobCardHistoryEvent;
 use App\Modules\JobHistory\Support\JobCardHistoryRecorder;
@@ -204,9 +205,16 @@ class Appointment extends Model
         return $this->belongsTo(EmployeeMaster::class, 'assigned_technician_id');
     }
 
+    /** The window the workshop collects the vehicle in. */
     public function timeSlot(): BelongsTo
     {
         return $this->belongsTo(TimeSlotMaster::class, 'time_slot_id');
+    }
+
+    /** The window the workshop returns the vehicle in — a separate leg. */
+    public function dropTimeSlot(): BelongsTo
+    {
+        return $this->belongsTo(TimeSlotMaster::class, 'drop_time_slot_id');
     }
 
     public function bookingChannel(): BelongsTo
@@ -248,6 +256,12 @@ class Appointment extends Model
     public function jobCards(): HasMany
     {
         return $this->hasMany(JobCard::class, 'appointment_id');
+    }
+
+    /** Inwards raised against this booking — a real link, not a vehicle guess. */
+    public function gateVisits(): HasMany
+    {
+        return $this->hasMany(GateInOut::class, 'appointment_id');
     }
 
     /** True when the chosen option means the workshop must collect the vehicle. */

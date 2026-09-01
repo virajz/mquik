@@ -104,19 +104,18 @@ class AppointmentStatus
     }
 
     /**
-     * An inward for this vehicle raised on or after the booking was made. The
-     * gate has no appointment reference of its own, so the vehicle and the
-     * booking's own age are what tie the two together.
+     * An inward raised against this booking.
+     *
+     * This used to be inferred — same vehicle, entered any time after the
+     * booking was created — which with no upper bound matched visits weeks
+     * apart: a booking for 03/08 read "Arrived" off a gate entry on 19/08.
+     * `gate_visits.appointment_id` makes it a recorded fact, so a car that
+     * happens to return months later no longer back-dates an old booking.
      */
     protected static function hasArrived(Appointment $appointment): bool
     {
-        if (! $appointment->customer_vehicle_id) {
-            return false;
-        }
-
         return GateInOut::query()
-            ->where('customer_vehicle_id', $appointment->customer_vehicle_id)
-            ->where('entered_at', '>=', $appointment->created_at)
+            ->where('appointment_id', $appointment->id)
             ->exists();
     }
 

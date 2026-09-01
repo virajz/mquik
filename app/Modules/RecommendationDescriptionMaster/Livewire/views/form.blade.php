@@ -21,7 +21,8 @@
                 </flux:select>
 
                 {{-- Narrowed to the chosen category, so the filing cannot lie. --}}
-                <flux:select wire:model="sub_category_id" variant="listbox" searchable clearable
+                <flux:select wire:key="subcat-{{ $this->subCategories->pluck('id')->implode('-') }}"
+                    wire:model="sub_category_id" variant="listbox" searchable clearable
                     label="Sub category" :disabled="! $category_id"
                     :placeholder="$category_id ? 'Optional' : 'Pick a category first'">
                     @foreach ($this->subCategories as $sub)

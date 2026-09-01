@@ -9,6 +9,7 @@ use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerAddress;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
+use App\Modules\DesignationMaster\Models\DesignationMaster;
 use App\Modules\DistanceSlabMaster\Models\DistanceSlabMaster;
 use App\Modules\EmployeeMaster\Models\EmployeeMaster;
 use App\Modules\GateInOut\Models\GateInOut;
@@ -324,9 +325,11 @@ it('warns but still allows booking into a full time slot', function () {
         ->set('appointment_date', $date)
         ->set('time_slot_id', $slot->id);
 
-    expect($component->instance()->schedulingWarnings)
+    // Capacity warnings live under the slot picker that caused them, not in the
+    // page-top callout — the slots sit several sections below it.
+    expect($component->instance()->slotWarnings()['pickup'])
         ->toHaveCount(1)
-        ->and($component->instance()->schedulingWarnings[0])->toContain('capacity');
+        ->and($component->instance()->slotWarnings()['pickup'][0])->toContain('capacity');
 
     // Soft warning: the save still goes through.
     $component->call('save')->assertHasNoErrors();
@@ -652,15 +655,29 @@ it('completes the booking when a job card is raised against it', function () {
     expect($appointment->fresh()->status)->toBe(Appointment::STATUS_COMPLETED);
 });
 
-it('marks the booking arrived when an inward is raised for the vehicle', function () {
+it('marks the booking arrived when an inward is raised against it', function () {
     $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
 
     GateInOut::factory()->create([
+        'appointment_id' => $appointment->id,
         'customer_vehicle_id' => $appointment->customer_vehicle_id,
         'entered_at' => now(),
     ]);
 
     expect($appointment->fresh()->status)->toBe(Appointment::STATUS_ARRIVED);
+});
+
+it('does not read arrival off an unrelated visit by the same vehicle', function () {
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+
+    // The car comes back weeks later for something else entirely. Matching on
+    // the vehicle alone used to back-date that onto the old booking.
+    GateInOut::factory()->create([
+        'customer_vehicle_id' => $appointment->customer_vehicle_id,
+        'entered_at' => now()->addWeeks(3),
+    ]);
+
+    expect($appointment->fresh()->status)->not->toBe(Appointment::STATUS_ARRIVED);
 });
 
 it('treats a pending reason as what makes a booking pending', function () {
@@ -833,4 +850,154 @@ it('leads the identity cell with the registration and drops the brand name', fun
 
     // Brand only ate width; the model alone identifies the car.
     expect($html)->not->toContain($brand->name);
+});
+
+it('offers only the picked department\'s service types, advisors and technicians', function () {
+    // The model links itself to the HR department of the same name on save, so
+    // read the link back rather than trying to set it.
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $hr = $dept->fresh()->department_id;
+    $otherHr = WorkshopDepartmentMaster::factory()->create()->fresh()->department_id;
+
+    $advisorRole = DesignationMaster::firstOrCreate(['name' => 'SERVICE ADVISOR'], ['is_active' => true]);
+    $techRole = DesignationMaster::firstOrCreate(['name' => 'TECHNICIAN'], ['is_active' => true]);
+
+    $ours = EmployeeMaster::factory()->create(['department_id' => $hr, 'designation_id' => $advisorRole->id]);
+    $ourTech = EmployeeMaster::factory()->create(['department_id' => $hr, 'designation_id' => $techRole->id]);
+    $theirs = EmployeeMaster::factory()->create(['department_id' => $otherHr, 'designation_id' => $advisorRole->id]);
+
+    $mine = ServiceTypeMaster::factory()->create(['workshop_department_id' => $dept->id]);
+    $notMine = ServiceTypeMaster::factory()->create(['workshop_department_id' => WorkshopDepartmentMaster::factory()->create()->id]);
+
+    Livewire::test(Edit::class)
+        ->set('department_ids', [(string) $dept->id])
+        ->assertSee($mine->name)
+        ->assertDontSee($notMine->name)
+        ->assertSee($ours->name)
+        ->assertSee($ourTech->name)
+        ->assertDontSee($theirs->name);
+});
+
+it('counts both pickup and drop legs against a slot\'s capacity', function () {
+    $slot = TimeSlotMaster::factory()->create(['max_vehicles_per_slot' => 10]);
+    $day = now()->addDay();
+
+    Appointment::factory()->count(2)->create(['appointment_at' => $day, 'time_slot_id' => $slot->id]);
+    Appointment::factory()->count(3)->create(['appointment_at' => $day, 'drop_time_slot_id' => $slot->id]);
+
+    $slots = Livewire::test(Edit::class)
+        ->set('appointment_date', $day->format('Y-m-d'))
+        ->instance()->timeSlots();
+
+    $row = $slots->firstWhere('id', $slot->id);
+
+    expect($row['pickups'])->toBe(2)
+        ->and($row['drops'])->toBe(3)
+        // Counting only pickups let a slot full of drops still read "8 left".
+        ->and($row['booked'])->toBe(5);
+});
+
+it('warns under the slot picker when a leg contradicts the appointment time', function () {
+    $late = TimeSlotMaster::factory()->create(['slot_start_time' => '16:00:00', 'slot_end_time' => '17:00:00']);
+    $early = TimeSlotMaster::factory()->create(['slot_start_time' => '08:00:00', 'slot_end_time' => '09:00:00']);
+
+    $component = Livewire::test(Edit::class)
+        ->set('appointment_date', now()->addDay()->format('Y-m-d'))
+        ->set('appointment_time', '10:00')
+        ->set('pickup_drop_option_id', pickupOption(true)->id)
+        ->set('time_slot_id', $late->id);
+
+    // The warning belongs to the leg that caused it, not the page-top callout.
+    // One clock throughout — h:i A, like every other time in the app.
+    expect($component->instance()->slotWarnings()['pickup'])
+        ->toContain('Collection ends 05:00 PM, after the 10:00 AM appointment.');
+
+    // And the timeline flags the step that is out of order.
+    $timeline = $component->instance()->scheduleTimeline();
+    expect($timeline[0]['ok'])->toBeFalse()
+        ->and($timeline[1]['label'])->toBe('At workshop');
+
+    // A collection that finishes before the car is due raises nothing.
+    $ok = $component->set('time_slot_id', $early->id)->instance();
+    expect($ok->slotWarnings()['pickup'])->toBe([])
+        ->and($ok->scheduleTimeline()[0]['ok'])->toBeTrue();
+});
+
+it('lists the job card, pickup/drop option and both time slots', function () {
+    $pickup = TimeSlotMaster::factory()->create(['slot_start_time' => '09:00:00', 'slot_end_time' => '10:00:00']);
+    $drop = TimeSlotMaster::factory()->create(['slot_start_time' => '16:00:00', 'slot_end_time' => '17:00:00']);
+    $option = pickupOption(true, 'WORKSHOP PICKUP & DROP BOTH');
+
+    $row = Appointment::factory()->create([
+        'appointment_at' => now()->addDay(),
+        'pickup_drop_option_id' => $option->id,
+        'time_slot_id' => $pickup->id,
+        'drop_time_slot_id' => $drop->id,
+    ]);
+
+    $card = JobCard::factory()->create(['appointment_id' => $row->id]);
+
+    Livewire::test(Index::class)
+        // A booking that has a job card derives to completed, which the default
+        // "open" filter hides — so the job card column is only ever populated
+        // once the list is widened past unfinished bookings.
+        ->set('statusFilter', 'all')
+        ->assertSee($card->job_card_no)
+        ->assertSee(route('job-card.edit', $card), escape: false)
+        ->assertSee($option->name)
+        ->assertSee('09:00 AM – 10:00 AM')
+        ->assertSee('04:00 PM – 05:00 PM');
+});
+
+it('hides a column when it is switched off, and keeps the choice', function () {
+    $row = Appointment::factory()->create([
+        'appointment_at' => now()->addDay(),
+        'pending_reason_id' => PendingReasonMaster::factory()->create(['name' => 'AWAITING PARTS'])->id,
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('AWAITING PARTS')
+        ->set('visibleColumns', ['entry', 'job_card'])
+        ->assertDontSee('AWAITING PARTS')
+        // The header travels with the cell, or the table would misalign. Both
+        // are gated on the same showsColumn() call, so checking it covers both;
+        // the column's name always appears in the picker itself.
+        ->tap(fn ($c) => expect($c->instance()->showsColumn('pending_reason'))->toBeFalse())
+        ->tap(fn ($c) => expect($c->instance()->showsColumn('entry'))->toBeTrue())
+        ->call('resetColumns')
+        ->assertSee('AWAITING PARTS');
+
+    // Remembered for next time, so the preference is not re-set every visit.
+    expect(session('appointments.columns'))->toBeArray();
+
+    expect($row->fresh()->status)->toBe('pending');
+});
+
+it('shows the pickup/drop, job card and inward it spawned, as links', function () {
+    $appointment = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+
+    $leg = PickupDrop::factory()->create(['appointment_id' => $appointment->id]);
+    $card = JobCard::factory()->create(['appointment_id' => $appointment->id]);
+    $visit = GateInOut::factory()->create([
+        'appointment_id' => $appointment->id,
+        'customer_vehicle_id' => $appointment->customer_vehicle_id,
+    ]);
+
+    $links = Livewire::test(Edit::class, ['appointment' => $appointment])
+        ->instance()->linkedRecords();
+
+    expect(collect($links)->pluck('type')->all())
+        ->toBe(['Pickup / Drop', 'Job Card', 'Inward'])
+        ->and(collect($links)->pluck('url')->all())
+        ->toBe([
+            route('pickup-drop.edit', $leg),
+            route('job-card.edit', $card),
+            route('gate-in-out.edit', $visit),
+        ]);
+
+    // And the listing reaches the pickup/drop job, not just the chosen option.
+    Livewire::test(Index::class)
+        ->set('statusFilter', 'all')
+        ->assertSee($leg->pickup_drop_no)
+        ->assertSee(route('pickup-drop.edit', $leg), escape: false);
 });

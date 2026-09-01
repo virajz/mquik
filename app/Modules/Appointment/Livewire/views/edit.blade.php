@@ -68,8 +68,9 @@
                         fixed-weeks
                         type="input"
                     />
+                    {{-- Live so a pickup/drop slot that contradicts it warns immediately. --}}
                     <flux:time-picker
-                        wire:model="appointment_time"
+                        wire:model.live="appointment_time"
                         label="Appointment Time"
                         placeholder="Select time"
                         required
@@ -128,6 +129,32 @@
                 </div>
             </div>
         </section>
+
+        {{-- LINKED RECORDS — what this booking has actually become. The form
+             offered to create a job card or a pickup/drop but never showed the
+             ones already there, so navigation only ever ran forward. --}}
+        @if (count($this->linkedRecords))
+            <flux:separator />
+
+            <section class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-10 py-8">
+                <div>
+                    <flux:heading size="lg">Linked Records</flux:heading>
+                    <flux:text size="sm" class="mt-1 text-zinc-500">What this booking has turned into so far.</flux:text>
+                </div>
+                <div class="min-w-0 divide-y divide-zinc-200 dark:divide-zinc-700 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    @foreach ($this->linkedRecords as $link)
+                        <div class="flex items-center gap-3 px-4 py-2.5" wire:key="link-{{ $link['type'] }}-{{ $link['label'] }}">
+                            <span class="w-28 shrink-0 text-xs text-zinc-500">{{ $link['type'] }}</span>
+                            <flux:link :href="$link['url']" wire:navigate class="font-mono text-sm">{{ $link['label'] }}</flux:link>
+                            @if ($link['meta'])
+                                <flux:badge size="sm" color="zinc">{{ $link['meta'] }}</flux:badge>
+                            @endif
+                            <flux:icon.arrow-top-right-on-square class="ms-auto size-3.5 text-zinc-400" />
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
         <flux:separator />
 
@@ -248,7 +275,13 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model="service_type_id" variant="listbox" searchable clearable
+                    {{-- Keyed to its own option set. Flux's "No results found" row is
+                         wire:ignore and hidden by JS, so when Livewire morphs new
+                         options into a picker that rendered empty, the element never
+                         re-initialises and the stale empty row sits above real
+                         results. A changing key makes Livewire replace it instead. --}}
+                    <flux:select wire:key="service-type-{{ $this->serviceTypes->pluck('id')->implode('-') }}"
+                        wire:model="service_type_id" variant="listbox" searchable clearable
                         label="Service Type"
                         :placeholder="count($department_ids) ? 'Pick a service type…' : 'Pick a department first'"
                         :disabled="! count($department_ids)">
@@ -258,19 +291,37 @@
                     </flux:select>
                 </div>
 
+                {{-- Staff follow the department, so both pickers wait for it. --}}
+                @php($staff = $this->employeesByDepartment)
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <flux:select wire:model="assigned_advisor_id" variant="listbox" searchable label="Advisor" placeholder="Pick an advisor…" required>
-                        @foreach ($this->employees as $e)
+                    <flux:select wire:key="advisor-{{ $staff['advisors']->pluck('id')->implode('-') }}"
+                        wire:model="assigned_advisor_id" variant="listbox" searchable
+                        label="Advisor"
+                        :placeholder="count($department_ids) ? 'Pick an advisor…' : 'Pick a department first'"
+                        :disabled="! count($department_ids)"
+                        required>
+                        @foreach ($staff['advisors'] as $e)
                             <flux:select.option :value="$e->id" wire:key="adv-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
 
-                    <flux:select wire:model="assigned_technician_id" variant="listbox" searchable clearable label="Technician (optional)" placeholder="Auto-assign later or pick now…">
-                        @foreach ($this->employees as $e)
+                    <flux:select wire:key="technician-{{ $staff['technicians']->pluck('id')->implode('-') }}"
+                        wire:model="assigned_technician_id" variant="listbox" searchable clearable
+                        label="Technician (optional)"
+                        :placeholder="count($department_ids) ? 'Auto-assign later or pick now…' : 'Pick a department first'"
+                        :disabled="! count($department_ids)">
+                        @foreach ($staff['technicians'] as $e)
                             <flux:select.option :value="$e->id" wire:key="tech-{{ $e->id }}">{{ $e->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </div>
+
+                {{-- Say it out loud rather than quietly offering the wrong people. --}}
+                @if ($staff['fellBack'])
+                    <flux:text size="sm" class="text-amber-600">
+                        No staff are mapped to the selected department, so every advisor and technician is listed. Map them in Employee Master to narrow this.
+                    </flux:text>
+                @endif
             </div>
         </section>
 
@@ -324,16 +375,25 @@
                      live here rather than in Booking, and each appears only when
                      its leg is part of the chosen option. --}}
                 @if ($this->optionInvolvesPickup() || $this->optionInvolvesDrop())
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @php($slotWarnings = $this->slotWarnings)
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                         @if ($this->optionInvolvesPickup())
                             <flux:select wire:model.live="time_slot_id" variant="listbox"
                                 label="Pickup Time Slot" placeholder="Pick a slot" required>
                                 @foreach ($this->timeSlots as $slot)
+                                    {{-- Both legs share the slot's capacity, so the
+                                         breakdown says where the load came from. --}}
                                     <flux:select.option :value="$slot['id']" wire:key="pslot-{{ $slot['id'] }}">
                                         {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                                        @if ($slot['booked'])
+                                            ({{ $slot['pickups'] }} pickup / {{ $slot['drops'] }} drop)
+                                        @endif
                                     </flux:select.option>
                                 @endforeach
                             </flux:select>
+                            @foreach ($slotWarnings['pickup'] as $warning)
+                                <flux:text size="sm" class="mt-1.5 text-amber-600">{{ $warning }}</flux:text>
+                            @endforeach
                         @endif
 
                         @if ($this->optionInvolvesDrop())
@@ -342,11 +402,39 @@
                                 @foreach ($this->timeSlots as $slot)
                                     <flux:select.option :value="$slot['id']" wire:key="dslot-{{ $slot['id'] }}">
                                         {{ $slot['label'] }} · {{ $slot['isFull'] ? 'FULL' : max($slot['capacity'] - $slot['booked'], 0).' left' }}
+                                        @if ($slot['booked'])
+                                            ({{ $slot['pickups'] }} pickup / {{ $slot['drops'] }} drop)
+                                        @endif
                                     </flux:select.option>
                                 @endforeach
                             </flux:select>
+                            @foreach ($slotWarnings['drop'] as $warning)
+                                <flux:text size="sm" class="mt-1.5 text-amber-600">{{ $warning }}</flux:text>
+                            @endforeach
                         @endif
                     </div>
+
+                    {{-- The vehicle's day in order. Three times spread across two
+                         sections read as unrelated fields; in sequence the
+                         relationship explains itself. --}}
+                    @if (count($this->scheduleTimeline))
+                        <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-3 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-3">
+                            @foreach ($this->scheduleTimeline as $step)
+                                @if (! $loop->first)
+                                    <flux:icon.arrow-right class="size-4 text-zinc-300 dark:text-zinc-600" />
+                                @endif
+                                <div class="{{ $step['ok'] ? '' : 'text-amber-600' }}">
+                                    <div class="text-sm font-medium {{ $step['ok'] ? 'text-zinc-800 dark:text-white' : '' }}">
+                                        {{ $step['time'] }}
+                                        @unless ($step['ok'])
+                                            <flux:icon.exclamation-triangle class="inline size-3.5 -mt-0.5" />
+                                        @endunless
+                                    </div>
+                                    <div class="text-xs {{ $step['ok'] ? 'text-zinc-500' : '' }}">{{ $step['label'] }}</div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 @endif
 
                 @if ($this->optionInvolvesPickup())
