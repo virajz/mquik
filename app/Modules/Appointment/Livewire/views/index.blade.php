@@ -112,62 +112,74 @@
         </div>
     @endif
 
+    {{-- One line per booking. The two-line cells this replaced doubled every
+         row height for data that reads fine inline. --}}
     <flux:table>
         <flux:table.columns>
-            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'appointment_no'" :direction="$sortDirection" wire:click="sort('appointment_no')">No.</flux:table.column>
-            <flux:table.column class="w-44" sortable :sorted="$sortBy === 'appointment_at'" :direction="$sortDirection" wire:click="sort('appointment_at')">When</flux:table.column>
-            <flux:table.column class="w-36" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection" wire:click="sort('created_at')">Entry</flux:table.column>
-            <flux:table.column>Customer / Vehicle</flux:table.column>
+            <flux:table.column class="w-24" sortable :sorted="$sortBy === 'appointment_no'" :direction="$sortDirection" wire:click="sort('appointment_no')">No.</flux:table.column>
+            <flux:table.column class="w-40" sortable :sorted="$sortBy === 'appointment_at'" :direction="$sortDirection" wire:click="sort('appointment_at')">When</flux:table.column>
+            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection" wire:click="sort('created_at')">Entry</flux:table.column>
+            <flux:table.column>Vehicle / Customer</flux:table.column>
             <flux:table.column class="w-40">Advisor / Dept</flux:table.column>
-            <flux:table.column class="w-32">Channel</flux:table.column>
-            <flux:table.column class="w-24">Priority</flux:table.column>
-            <flux:table.column class="w-32" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
-            <flux:table.column class="w-40">Pending Reason</flux:table.column>
-            <flux:table.column class="w-32" align="end">Actions</flux:table.column>
+            <flux:table.column class="w-28">Channel</flux:table.column>
+            <flux:table.column class="w-20">Priority</flux:table.column>
+            <flux:table.column class="w-28" sortable :sorted="$sortBy === 'status'" :direction="$sortDirection" wire:click="sort('status')">Status</flux:table.column>
+            <flux:table.column class="w-32">Pending Reason</flux:table.column>
+            <flux:table.column class="w-24" align="end">Actions</flux:table.column>
         </flux:table.columns>
 
         <flux:table.rows>
             @forelse ($rows as $row)
                 <flux:table.row :key="$row->id">
-                    <flux:table.cell class="font-mono text-xs">{{ $row->appointment_no ?? '—' }}</flux:table.cell>
-                    <flux:table.cell class="text-sm">
-                        <div class="font-medium">{{ $row->appointment_at?->format('d/m/Y') }}</div>
-                        <div class="text-xs text-zinc-500 mt-0.5">
-                            {{ $row->timeSlot?->window() ?? $row->appointment_at?->format('h:i A') }}
-                        </div>
+                    <flux:table.cell class="font-mono text-xs">
+                        <flux:link :href="route('appointment.edit', $row)" wire:navigate variant="ghost">{{ $row->appointment_no ?? '—' }}</flux:link>
                     </flux:table.cell>
+
+                    <flux:table.cell class="text-xs">
+                        <span class="font-medium text-zinc-800 dark:text-white">{{ $row->appointment_at?->format('d/m/Y') }}</span>
+                        <span class="ms-1 text-zinc-500">{{ $row->timeSlot?->window() ?? $row->appointment_at?->format('h:i A') }}</span>
+                    </flux:table.cell>
+
                     {{-- When the booking was taken, as distinct from when the car is due in. --}}
-                    <flux:table.cell class="text-sm text-zinc-500">
-                        <div>{{ $row->created_at?->format('d/m/Y') }}</div>
-                        <div class="text-xs mt-0.5">{{ $row->created_at?->format('h:i A') }}</div>
+                    <flux:table.cell class="text-xs text-zinc-500">
+                        {{ $row->created_at?->format('d/m/Y') }}<span class="ms-1">{{ $row->created_at?->format('h:i A') }}</span>
                     </flux:table.cell>
-                    <flux:table.cell>
-                        <div class="font-medium">{{ trim($row->customer?->first_name.' '.($row->customer?->last_name ?? '')) }}</div>
-                        <div class="text-xs text-zinc-500 mt-0.5 flex items-center gap-2">
-                            @if ($row->customer?->phone)
-                                <span class="font-mono">+91 {{ $row->customer->phone }}</span>
-                            @endif
+
+                    {{-- Registration first: it is what the workshop actually calls
+                         a booking by. Brand is dropped — the model alone identifies
+                         the car and the brand only ate width. --}}
+                    <flux:table.cell class="text-xs">
+                        <div class="truncate max-w-[26rem]">
                             @if ($row->customerVehicle)
-                                <span>·</span>
-                                <span class="font-mono">{{ $row->customerVehicle->registration_no }}</span>
-                                <span>·</span>
-                                <span>{{ trim(($row->customerVehicle->model?->brand?->name ?? '').' '.($row->customerVehicle->model?->name ?? '')) }}</span>
+                                <span class="font-medium font-mono text-zinc-800 dark:text-white">{{ $row->customerVehicle->registration_no }}</span>
+                                <span class="text-zinc-500">· {{ $row->customerVehicle->model?->name ?? '—' }}</span>
+                            @endif
+                            <span class="text-zinc-500">· {{ trim($row->customer?->first_name.' '.($row->customer?->last_name ?? '')) }}</span>
+                            @if ($row->customer?->phone)
+                                <span class="text-zinc-500 font-mono">· {{ $row->customer->phone }}</span>
                             @endif
                         </div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm">
-                        <div>{{ $row->advisor?->name ?? '—' }}</div>
-                        <div class="text-xs text-zinc-500 mt-0.5">{{ $row->workshopDepartment?->name ?? '—' }}</div>
+
+                    <flux:table.cell class="text-xs">
+                        <div class="truncate max-w-40" title="{{ trim(($row->advisor?->name ?? '—').' · '.($row->workshopDepartment?->name ?? '—')) }}">
+                            {{ $row->advisor?->name ?? '—' }}
+                            <span class="text-zinc-500">· {{ $row->workshopDepartment?->name ?? '—' }}</span>
+                        </div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">
-                        {{ $row->bookingChannel?->name ?? '—' }}
-                        @if ($row->pickupDropOption?->involves_pickup || $row->pickupDropOption?->involves_drop)
-                            <div class="mt-0.5">
-                                <flux:badge color="amber" size="sm">{{ $row->pickupDropOption->name }}</flux:badge>
-                            </div>
-                        @endif
+
+                    <flux:table.cell class="text-xs text-zinc-500">
+                        <div class="truncate max-w-28">
+                            {{ $row->bookingChannel?->name ?? '—' }}
+                            @if ($row->pickupDropOption?->involves_pickup || $row->pickupDropOption?->involves_drop)
+                                <flux:tooltip :content="$row->pickupDropOption->name">
+                                    <flux:icon.truck class="inline size-3.5 text-amber-600 align-text-bottom" />
+                                </flux:tooltip>
+                            @endif
+                        </div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">
+
+                    <flux:table.cell class="text-xs text-zinc-500">
                         @if ($row->priority)
                             @php($priorityColor = match (strtoupper($row->priority->name)) {
                                 'URGENT' => 'red', 'HIGH' => 'amber', default => 'zinc',
@@ -177,6 +189,7 @@
                             —
                         @endif
                     </flux:table.cell>
+
                     <flux:table.cell>
                         @php($statusColor = match ($row->status) {
                             'pending' => 'amber', 'confirmed' => 'blue', 'rescheduled' => 'purple',
@@ -188,42 +201,37 @@
 
                     {{-- Only meaningful while a booking is pending — why it is stuck
                          is the thing a coordinator scans this list for. --}}
-                    <flux:table.cell class="text-sm text-zinc-500">
-                        @if ($row->status === \App\Modules\Appointment\Models\Appointment::STATUS_PENDING)
-                            {{ $row->pendingReason?->name ?? 'Not specified' }}
-                        @else
-                            —
-                        @endif
+                    <flux:table.cell class="text-xs text-zinc-500">
+                        <div class="truncate max-w-32" title="{{ $row->status === \App\Modules\Appointment\Models\Appointment::STATUS_PENDING ? ($row->pendingReason?->name ?? 'Not specified') : '' }}">
+                            @if ($row->status === \App\Modules\Appointment\Models\Appointment::STATUS_PENDING)
+                                {{ $row->pendingReason?->name ?? 'Not specified' }}
+                            @else
+                                —
+                            @endif
+                        </div>
                     </flux:table.cell>
+
                     <flux:table.cell>
-                        <div class="flex items-center justify-end gap-1">
+                        <div class="flex items-center justify-end gap-0.5">
                             @can('job_card.create')
                                 <flux:tooltip content="Create job card from this appointment">
-                                    <flux:button size="sm" variant="ghost" icon="clipboard-document-check" :href="route('job-card.create', ['from-appointment' => $row->id])" wire:navigate />
+                                    <flux:button size="xs" variant="ghost" icon="clipboard-document-check" :href="route('job-card.create', ['from-appointment' => $row->id])" wire:navigate />
                                 </flux:tooltip>
                             @endcan
                             @can('pickup_drop.create')
                                 <flux:tooltip content="Create pickup / drop from this appointment">
-                                    <flux:button size="sm" variant="ghost" icon="truck" :href="route('pickup-drop.create', ['from-appointment' => $row->id])" wire:navigate />
+                                    <flux:button size="xs" variant="ghost" icon="truck" :href="route('pickup-drop.create', ['from-appointment' => $row->id])" wire:navigate />
                                 </flux:tooltip>
                             @endcan
                             @can('appointment.update')
-                                <flux:button size="sm" variant="ghost" icon="pencil-square" :href="route('appointment.edit', $row)" wire:navigate>Edit</flux:button>
+                                <flux:tooltip content="Edit">
+                                    <flux:button size="xs" variant="ghost" icon="pencil-square" :href="route('appointment.edit', $row)" wire:navigate />
+                                </flux:tooltip>
                             @endcan
                             @can('appointment.delete')
-                                <flux:modal.trigger :name="'appointment-delete-' . $row->id">
-                                    <flux:button size="sm" variant="ghost" icon="trash" />
-                                </flux:modal.trigger>
-                                <flux:modal :name="'appointment-delete-' . $row->id">
-                                    <div class="space-y-4">
-                                        <flux:heading size="lg">Delete {{ $row->appointment_no }}?</flux:heading>
-                                        <flux:text>Cannot be undone. If this appointment has spawned a job card, the delete will fail.</flux:text>
-                                        <div class="flex gap-2 justify-end">
-                                            <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
-                                            <flux:button variant="danger" wire:click="delete({{ $row->id }})" x-on:click="$flux.modal('appointment-delete-{{ $row->id }}').close()">Delete</flux:button>
-                                        </div>
-                                    </div>
-                                </flux:modal>
+                                <flux:tooltip content="Delete">
+                                    <flux:button size="xs" variant="ghost" icon="trash" wire:click="confirmDelete({{ $row->id }})" />
+                                </flux:tooltip>
                             @endcan
                         </div>
                     </flux:table.cell>
@@ -239,6 +247,20 @@
             @endforelse
         </flux:table.rows>
     </flux:table>
+
+    {{-- Shared by every row; the row id lives on the component. --}}
+    @can('appointment.delete')
+        <flux:modal name="appointment-delete" class="max-w-md">
+            <div class="space-y-4">
+                <flux:heading size="lg">Delete {{ $this->deleting?->appointment_no ?? 'this appointment' }}?</flux:heading>
+                <flux:text>Cannot be undone. If this appointment has spawned a job card, the delete will fail.</flux:text>
+                <div class="flex gap-2 justify-end">
+                    <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                    <flux:button variant="danger" wire:click="delete">Delete</flux:button>
+                </div>
+            </div>
+        </flux:modal>
+    @endcan
 
     @if ($rows->hasPages())<div class="mt-4"><flux:pagination :paginator="$rows" /></div>@endif
 </div>

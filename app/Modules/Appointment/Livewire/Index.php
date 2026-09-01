@@ -62,6 +62,9 @@ class Index extends Component
     #[Url(as: 'dir')]
     public string $sortDirection = 'desc';
 
+    /** Row queued for deletion, driving the single shared confirm modal. */
+    public ?int $deletingId = null;
+
     /** Whitelist sortable columns to prevent SQL injection via the URL */
     protected array $sortable = ['id', 'appointment_no', 'appointment_at', 'status', 'created_at'];
 
@@ -114,11 +117,40 @@ class Index extends Component
         }
     }
 
-    public function delete(int $id): void
+    /**
+     * One delete modal is shared by every row rather than rendered per row —
+     * twenty dialogs per page is DOM the browser pays for on every render.
+     */
+    public function confirmDelete(int $id): void
     {
         $this->authorize('appointment.delete');
 
+        $this->deletingId = $id;
+
+        Flux::modal('appointment-delete')->show();
+    }
+
+    #[Computed]
+    public function deleting(): ?Appointment
+    {
+        return $this->deletingId ? Appointment::find($this->deletingId) : null;
+    }
+
+    public function delete(?int $id = null): void
+    {
+        $this->authorize('appointment.delete');
+
+        $id ??= $this->deletingId;
+
+        if (! $id) {
+            return;
+        }
+
         Appointment::findOrFail($id)->delete();
+
+        $this->deletingId = null;
+
+        Flux::modal('appointment-delete')->close();
 
         Flux::toast(text: 'Appointment #'.$id.' deleted.', variant: 'success');
     }
@@ -229,8 +261,7 @@ class Index extends Component
             ->with([
                 'customer:id,first_name,last_name,phone',
                 'customerVehicle:id,registration_no,model_id',
-                'customerVehicle.model:id,name,brand_id',
-                'customerVehicle.model.brand:id,name',
+                'customerVehicle.model:id,name',
                 'workshopDepartment:id,name',
                 'advisor:id,name',
                 'serviceType:id,name',

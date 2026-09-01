@@ -91,8 +91,10 @@
                     </flux:select>
 
                     {{-- Setting a reason here is what puts the booking in Pending; clearing
-                         it lets the status fall back to whatever the car is actually doing. --}}
-                    <flux:field>
+                         it lets the status fall back to whatever the car is actually doing.
+                         Spans the full row — reasons are sentences, and half a column
+                         minus two buttons clipped them after a few words. --}}
+                    <flux:field class="md:col-span-2">
                         <flux:label>Pending Reason</flux:label>
                         <div class="flex items-stretch gap-2">
                             <div class="flex-1 min-w-0">

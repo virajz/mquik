@@ -797,3 +797,40 @@ it('shows the entry date and time, distinct from the appointment date, and sorts
         ->call('sort', 'created_at')
         ->assertSet('sortBy', 'created_at');
 });
+
+it('deletes through the one shared confirm modal rather than a modal per row', function () {
+    $row = Appointment::factory()->create(['appointment_at' => now()->addDay()]);
+
+    Livewire::test(Index::class)
+        ->call('confirmDelete', $row->id)
+        ->assertSet('deletingId', $row->id)
+        ->assertSee($row->appointment_no)
+        ->call('delete')
+        ->assertSet('deletingId', null);
+
+    expect(Appointment::find($row->id))->toBeNull();
+});
+
+it('leads the identity cell with the registration and drops the brand name', function () {
+    $customer = CustomerMaster::factory()->create(['first_name' => 'RASHMI', 'phone' => '9876543210']);
+    $vehicle = CustomerVehicleMaster::factory()->create(['customer_id' => $customer->id]);
+    $brand = $vehicle->model->brand;
+
+    $row = Appointment::factory()->create([
+        'appointment_at' => now()->addDay(),
+        'customer_id' => $customer->id,
+        'customer_vehicle_id' => $vehicle->id,
+    ]);
+
+    $html = Livewire::test(Index::class)
+        ->assertSee($vehicle->registration_no)
+        ->assertSee($vehicle->model->name)
+        ->assertSee('9876543210')
+        ->assertSee('RASHMI')
+        // The number is the way into the booking.
+        ->assertSee(route('appointment.edit', $row), escape: false)
+        ->html();
+
+    // Brand only ate width; the model alone identifies the car.
+    expect($html)->not->toContain($brand->name);
+});
