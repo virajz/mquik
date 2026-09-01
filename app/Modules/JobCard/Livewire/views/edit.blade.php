@@ -692,12 +692,7 @@
                 </div>
 
                 <flux:input wire:model="quickComplaintName" label="Complaint" placeholder="e.g. STEERING VIBRATION AT SPEED" required />
-
-                <flux:select wire:model="quickComplaintGroupId" variant="listbox" searchable label="Group (category)" placeholder="Which group does it belong to…" required>
-                    @foreach ($this->complaintTypes as $ct)
-                        <flux:select.option :value="$ct->id" wire:key="qct-{{ $ct->id }}">{{ $ct->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <flux:error name="quickComplaintName" />
 
                 <div class="flex gap-2">
                     <flux:spacer />
@@ -807,4 +802,23 @@
     @if ($editingId)
         <livewire:record-panel subject="job_card" :record-id="$editingId" :record-label="$job_card_no" />
     @endif
+
+    <flux:modal name="job-card-pending-reason-quick-add" class="md:w-96">
+        <div class="space-y-5">
+            <div>
+                <flux:heading size="lg">New pending reason</flux:heading>
+                <flux:subheading>Added to the master and selected on this card.</flux:subheading>
+            </div>
+
+            <flux:input wire:model="pendingReasonQuickName" label="Reason"
+                placeholder="Waiting for insurance survey" />
+            <flux:error name="pendingReasonQuickName" />
+
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close><flux:button variant="ghost">Cancel</flux:button></flux:modal.close>
+                <flux:button variant="primary" wire:click="createPendingReason">Add</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

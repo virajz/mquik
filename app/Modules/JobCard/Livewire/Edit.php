@@ -4,7 +4,6 @@ namespace App\Modules\JobCard\Livewire;
 
 use App\Concerns\SearchesPickerOptions;
 use App\Modules\Appointment\Models\Appointment;
-use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\CustomerApprovalTypeMaster\Models\CustomerApprovalTypeMaster;
 use App\Modules\CustomerMaster\Models\CustomerMaster;
 use App\Modules\CustomerVehicleMaster\Models\CustomerVehicleMaster;
@@ -282,6 +281,7 @@ class Edit extends Component
         }
 
         $this->requestedRepairIds = $jc->requestedRepairs->pluck('id')->all();
+        $this->syncOtherComplaintIds();
 
         // Editable damage-type / location meta for saved additional-damage photos.
         foreach (JobCardPhoto::query()->where('job_card_id', $jc->id)->whereNull('photo_type_id')->get(['id', 'damage_type_id', 'location_note']) as $photo) {
@@ -496,6 +496,8 @@ class Edit extends Component
         }
         unset($this->complaints[$index]);
         $this->complaints = array_values($this->complaints);
+        unset($this->selectedComplaintIds);
+        $this->syncOtherComplaintIds();
     }
 
     /**
@@ -572,6 +574,41 @@ class Edit extends Component
      * someone who has no business submitting the whole job card — so it saves
      * on its own.
      */
+    // ---- Pending reason: quick-add into the master --------------------------
+
+    public string $pendingReasonQuickName = '';
+
+    public function openPendingReasonQuickAdd(): void
+    {
+        $this->pendingReasonQuickName = '';
+        $this->resetErrorBag('pendingReasonQuickName');
+
+        Flux::modal('job-card-pending-reason-quick-add')->show();
+    }
+
+    /** Add a reason to the master and select it, without leaving the card. */
+    public function createPendingReason(): void
+    {
+        $this->authorize('job_card_pending_reason_master.create');
+
+        $this->validate(
+            ['pendingReasonQuickName' => ['required', 'string', 'max:255']],
+            attributes: ['pendingReasonQuickName' => 'reason'],
+        );
+
+        $reason = JobCardPendingReasonMaster::firstOrCreate(
+            ['name' => mb_strtoupper($this->pendingReasonQuickName)],
+            ['is_active' => true],
+        );
+
+        $this->pending_reason_id = $reason->id;
+        $this->pendingReasonQuickName = '';
+        unset($this->pendingReasons, $this->pendingReasonName);
+
+        Flux::modal('job-card-pending-reason-quick-add')->close();
+        Flux::toast(text: 'Reason added and selected.', variant: 'success');
+    }
+
     public function saveOdometerOut(): void
     {
         $this->authorize('job_card.update');
@@ -710,7 +747,145 @@ class Edit extends Component
             ))
             ->with('complaintType:id,name')
             ->orderBy('name')
-            ->get(['id', 'name', 'complaint_type_id']);
+            ->get(['id', 'name', 'category', 'complaint_type_id']);
+    }
+
+    /**
+     * The frequent complaints, grouped by their category — the tick list.
+     *
+     * The same split job descriptions already use: frequent earns a checkbox,
+     * general lives in the picker underneath. A complaint is promoted to
+     * frequent deliberately, so anything reaching here has been looked at.
+     *
+     * @return Collection<string, Collection<int, RequestedRepairMaster>>
+     */
+    #[Computed]
+    public function complaintGroups()
+    {
+        return $this->complaintOptions
+            ->where('category', 'frequent')
+            ->groupBy(fn ($opt) => $opt->complaintType?->name ?? 'Other')
+            ->sortKeys();
+    }
+
+    /**
+     * Everything not common enough to earn a checkbox.
+     *
+     * @return Collection<int, RequestedRepairMaster>
+     */
+    #[Computed]
+    public function otherComplaints()
+    {
+        return $this->complaintOptions->where('category', '!=', 'frequent')->values();
+    }
+
+    /**
+     * Which complaints are ticked. Derived from the rows, and written back to
+     * them — the rows stay the source of truth because they carry the repeat
+     * flag and the reported time that a checkbox has no room for.
+     *
+     * @return list<string>
+     */
+    #[Computed]
+    public function selectedComplaintIds(): array
+    {
+        return collect($this->complaints)
+            ->pluck('requested_repair_id')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+    }
+
+    /** Tick or untick one complaint, keeping whatever the row already carried. */
+    public function toggleComplaint(int $repairId): void
+    {
+        $existing = collect($this->complaints)
+            ->first(fn ($row) => (int) ($row['requested_repair_id'] ?? 0) === $repairId);
+
+        if ($existing) {
+            $this->complaints = collect($this->complaints)
+                ->reject(fn ($row) => (int) ($row['requested_repair_id'] ?? 0) === $repairId)
+                ->values()
+                ->all();
+        } else {
+            $this->complaints[] = [
+                'id' => null,
+                'complaint_type_id' => RequestedRepairMaster::whereKey($repairId)->value('complaint_type_id'),
+                'requested_repair_id' => $repairId,
+                'description' => '',
+                'reported_at' => now()->format('Y-m-d\\TH:i'),
+                'is_repeat_job' => false,
+                'sequence_no' => count($this->complaints) + 1,
+            ];
+        }
+
+        $this->resequenceComplaints();
+        unset($this->selectedComplaintIds);
+        $this->syncOtherComplaintIds();
+    }
+
+    /**
+     * The general complaints picked from the box below the checklist.
+     *
+     * A separate property because that select only ever lists its own half; the
+     * frequent ones ticked above must not be dropped just because this box has
+     * never heard of them.
+     *
+     * @var list<string>
+     */
+    public array $otherComplaintIds = [];
+
+    public function updatedOtherComplaintIds(): void
+    {
+        $wanted = array_map('intval', $this->otherComplaintIds);
+
+        foreach ($this->otherComplaints->pluck('id') as $id) {
+            $id = (int) $id;
+            $isOn = in_array((string) $id, $this->selectedComplaintIds, true);
+
+            if ($isOn !== in_array($id, $wanted, true)) {
+                $this->toggleComplaint($id);
+            }
+        }
+    }
+
+    /** Keep the picker showing exactly the general complaints on the card. */
+    protected function syncOtherComplaintIds(): void
+    {
+        $general = $this->otherComplaints->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        $this->otherComplaintIds = array_values(
+            array_intersect($this->selectedComplaintIds, $general)
+        );
+    }
+
+    /** Tick or untick a whole category at once. */
+    public function toggleComplaintGroup(string $group): void
+    {
+        $ids = $this->complaintGroups->get($group)?->pluck('id')->all() ?? [];
+        $selected = array_map('intval', $this->selectedComplaintIds);
+        $allOn = $ids !== [] && count(array_diff($ids, $selected)) === 0;
+
+        foreach ($ids as $id) {
+            $isOn = in_array($id, array_map('intval', $this->selectedComplaintIds), true);
+
+            if ($allOn === $isOn) {
+                $this->toggleComplaint((int) $id);
+            }
+        }
+    }
+
+    protected function resequenceComplaints(): void
+    {
+        $this->complaints = collect($this->complaints)
+            ->values()
+            ->map(function ($row, $i) {
+                $row['sequence_no'] = $i + 1;
+
+                return $row;
+            })
+            ->all();
     }
 
     /** Picking a complaint fills its group; the advisor never sets the category by hand. */
@@ -731,15 +906,12 @@ class Edit extends Component
 
     public string $quickComplaintName = '';
 
-    public ?int $quickComplaintGroupId = null;
-
     public function openComplaintQuickAdd(int $index): void
     {
         $this->quickComplaintIndex = $index;
         $this->quickComplaintName = '';
-        $this->quickComplaintGroupId = null;
 
-        $this->resetErrorBag(['quickComplaintName', 'quickComplaintGroupId']);
+        $this->resetErrorBag('quickComplaintName');
 
         Flux::modal('job-card-complaint-quick-add')->show();
     }
@@ -750,17 +922,17 @@ class Edit extends Component
     {
         $this->authorize('requested_repair_master.create');
 
-        $this->validate([
-            'quickComplaintName' => ['required', 'string', 'max:255'],
-            'quickComplaintGroupId' => ['required', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true)],
-        ], attributes: [
-            'quickComplaintName' => 'complaint',
-            'quickComplaintGroupId' => 'group',
-        ]);
+        $this->validate(
+            ['quickComplaintName' => ['required', 'string', 'max:255']],
+            attributes: ['quickComplaintName' => 'complaint'],
+        );
 
+        // No group asked for here: filing a complaint into a category is the
+        // Requested Repair master's job, and asking mid-job-card only got a
+        // guess. It stays unfiled until somebody files it there.
         $repair = RequestedRepairMaster::firstOrCreate(
             ['name' => mb_strtoupper(trim($this->quickComplaintName))],
-            ['complaint_type_id' => $this->quickComplaintGroupId, 'is_active' => true],
+            ['is_active' => true],
         );
 
         // A new complaint belongs to the department being worked, or it will not
@@ -1167,12 +1339,6 @@ class Edit extends Component
     public function customerApprovalTypes()
     {
         return CustomerApprovalTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
-    }
-
-    #[Computed]
-    public function complaintTypes()
-    {
-        return ComplaintTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     /** Common complaint phrases users pick from (instead of typing). */

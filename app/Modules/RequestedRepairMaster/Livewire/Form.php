@@ -2,6 +2,7 @@
 
 namespace App\Modules\RequestedRepairMaster\Livewire;
 
+use App\Modules\ComplaintTypeMaster\Models\ComplaintTypeMaster;
 use App\Modules\RequestedRepairMaster\Models\RequestedRepairMaster;
 use App\Modules\WorkshopDepartmentMaster\Models\WorkshopDepartmentMaster;
 use Flux\Flux;
@@ -19,6 +20,12 @@ class Form extends Component
     public ?string $code = null;
 
     public bool $is_active = true;
+
+    /** Frequent earns a checkbox on the job card; general lives in the picker. */
+    public string $category = 'general';
+
+    /** The heading a frequent complaint sits under on the job card. */
+    public ?int $complaint_type_id = null;
 
     public ?string $notes = null;
 
@@ -46,6 +53,12 @@ class Form extends Component
                 Rule::unique('requested_repairs', 'code')->ignore($this->editingId),
             ],
             'is_active' => ['boolean'],
+            'category' => ['required', Rule::in(RequestedRepairMaster::categories())],
+            // Only a frequent complaint needs a heading to sit under.
+            'complaint_type_id' => [
+                Rule::requiredIf(fn () => $this->category === 'frequent'),
+                'nullable', 'integer', Rule::exists('complaint_types', 'id')->where('is_active', true),
+            ],
             'notes' => ['nullable', 'string', 'max:1000'],
             'workshopDepartmentIds' => ['array'],
             'workshopDepartmentIds.*' => ['integer', Rule::exists('workshop_departments', 'id')],
@@ -67,8 +80,17 @@ class Form extends Component
         $this->name = $record->name;
         $this->code = $record->code;
         $this->is_active = $record->is_active;
+        $this->category = $record->category ?: 'general';
+        $this->complaint_type_id = $record->complaint_type_id;
         $this->notes = $record->notes;
         $this->workshopDepartmentIds = $record->workshopDepartments()->pluck('workshop_departments.id')->all();
+    }
+
+    /** The headings a frequent complaint can sit under. */
+    #[Computed]
+    public function complaintTypes()
+    {
+        return ComplaintTypeMaster::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']);
     }
 
     /** Active workshop departments for the picker. */
@@ -90,7 +112,7 @@ class Form extends Component
         unset($data['workshopDepartmentIds']);
 
         // Workshop convention: capital typing on textual fields.
-        $skip = ['is_active'];
+        $skip = ['is_active', 'category'];
         foreach ($data as $key => $value) {
             if (is_string($value) && ! in_array($key, $skip, true)) {
                 $data[$key] = strtoupper($value);
@@ -117,6 +139,8 @@ class Form extends Component
     {
         $this->editingId = null;
         $this->name = '';
+        $this->category = 'general';
+        $this->complaint_type_id = null;
         $this->code = null;
         $this->is_active = true;
         $this->notes = null;

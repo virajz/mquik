@@ -116,6 +116,7 @@
         <flux:table.columns>
             <flux:table.column class="w-28" sortable :sorted="$sortBy === 'appointment_no'" :direction="$sortDirection" wire:click="sort('appointment_no')">No.</flux:table.column>
             <flux:table.column class="w-44" sortable :sorted="$sortBy === 'appointment_at'" :direction="$sortDirection" wire:click="sort('appointment_at')">When</flux:table.column>
+            <flux:table.column class="w-36" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection" wire:click="sort('created_at')">Entry</flux:table.column>
             <flux:table.column>Customer / Vehicle</flux:table.column>
             <flux:table.column class="w-40">Advisor / Dept</flux:table.column>
             <flux:table.column class="w-32">Channel</flux:table.column>
@@ -134,6 +135,11 @@
                         <div class="text-xs text-zinc-500 mt-0.5">
                             {{ $row->timeSlot?->window() ?? $row->appointment_at?->format('h:i A') }}
                         </div>
+                    </flux:table.cell>
+                    {{-- When the booking was taken, as distinct from when the car is due in. --}}
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        <div>{{ $row->created_at?->format('d/m/Y') }}</div>
+                        <div class="text-xs mt-0.5">{{ $row->created_at?->format('h:i A') }}</div>
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="font-medium">{{ trim($row->customer?->first_name.' '.($row->customer?->last_name ?? '')) }}</div>
@@ -224,7 +230,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="8" class="text-center text-zinc-500 py-12">
+                    <flux:table.cell colspan="10" class="text-center text-zinc-500 py-12">
                         <flux:icon.calendar-days class="mx-auto mb-3 size-8 text-zinc-400" />
                         <div class="font-medium">No appointments yet</div>
                         <flux:text class="mt-1">Booking from app, website, email, or phone — they all land here.</flux:text>

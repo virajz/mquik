@@ -89,12 +89,36 @@
                             <dt class="text-[11px] uppercase tracking-wide text-zinc-400">Stage</dt>
                             <dd class="mt-0.5 text-sm font-medium">{{ $this->currentStageName ?? '—' }}</dd>
                         </div>
-                        <div>
+                        {{-- Status and stage are derived from the work, so they are
+                             shown. The pending reason is a decision somebody makes,
+                             so it is picked here. --}}
+                        <div class="min-w-72">
                             <dt class="text-[11px] uppercase tracking-wide text-zinc-400">Pending Reason</dt>
-                            <dd class="mt-0.5 text-sm font-medium">
-                                {{ $this->pendingReasonName ?? '—' }}
+                            <dd class="mt-1">
+                                <div class="flex items-end gap-1.5">
+                                    <div class="flex-1 min-w-0">
+                                        <flux:select wire:model="pending_reason_id" variant="listbox" searchable clearable size="sm"
+                                            placeholder="Not pending">
+                                            @foreach ($this->pendingReasons as $reason)
+                                                <flux:select.option :value="$reason->id" wire:key="jcpr-{{ $reason->id }}">{{ $reason->name }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    </div>
+                                    @can('job_card_pending_reason_master.create')
+                                        <flux:tooltip content="Add a reason to the master">
+                                            <flux:button type="button" size="sm" variant="ghost" icon="plus"
+                                                wire:click="openPendingReasonQuickAdd" />
+                                        </flux:tooltip>
+                                    @endcan
+                                    @can('job_card_pending_reason_master.view')
+                                        <flux:tooltip content="Open Pending Reasons in a new tab">
+                                            <flux:button type="button" size="sm" variant="ghost" icon="arrow-top-right-on-square"
+                                                :href="route('job-card-pending-reason-master.index')" target="_blank" />
+                                        </flux:tooltip>
+                                    @endcan
+                                </div>
                                 @if ($this->pendingSince)
-                                    <span class="text-xs text-zinc-500">· since {{ $this->pendingSince }}</span>
+                                    <div class="text-xs text-zinc-500 mt-1">since {{ $this->pendingSince }}</div>
                                 @endif
                             </dd>
                         </div>

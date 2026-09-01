@@ -37,6 +37,12 @@ class RequestedRepairMaster extends Model
      * Departments this repair is offered in. Empty means "all".
      */
     /** The complaint group this repair belongs to — fills the category on a job card. */
+    /** Frequent earns a checkbox on the job card; general lives in the picker. */
+    public static function categories(): array
+    {
+        return ['frequent', 'general'];
+    }
+
     public function complaintType(): BelongsTo
     {
         return $this->belongsTo(ComplaintTypeMaster::class, 'complaint_type_id');

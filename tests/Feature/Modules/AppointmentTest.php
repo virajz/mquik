@@ -785,3 +785,15 @@ it('offers the checklist grouped per department', function () {
 
     expect($boxes->keys()->all())->toBe(['AAA DEPT', 'BBB DEPT']);
 });
+
+it('shows the entry date and time, distinct from the appointment date, and sorts on it', function () {
+    // Booked yesterday for a slot next week — the two dates must not be confusable.
+    $row = Appointment::factory()->create(['appointment_at' => now()->addWeek()]);
+    $row->forceFill(['created_at' => now()->subDay()])->saveQuietly();
+
+    Livewire::test(Index::class)
+        ->assertSee($row->fresh()->created_at->format('d/m/Y'))
+        ->assertSee($row->fresh()->created_at->format('h:i A'))
+        ->call('sort', 'created_at')
+        ->assertSet('sortBy', 'created_at');
+});

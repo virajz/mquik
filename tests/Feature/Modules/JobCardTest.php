@@ -1076,3 +1076,102 @@ it('hides insurance on a bodyshop repair the customer is paying for', function (
     expect($component->get('insurance_company_id'))->toBeNull()
         ->and($component->get('policy_no'))->toBeNull();
 });
+
+it('sets a pending reason on the card and stamps it on the history', function () {
+    $card = JobCard::factory()->create();
+    $reason = JobCardPendingReasonMaster::factory()->create(['name' => 'SPARE AWAITED', 'is_active' => true]);
+
+    Livewire::test(Edit::class, ['jobCard' => $card])
+        ->set('pending_reason_id', $reason->id)
+        ->set('service_type_id', $card->service_type_id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($card->fresh()->pending_reason_id)->toBe($reason->id)
+        ->and(JobCardHistoryEvent::where('job_card_id', $card->id)
+            ->where('event_type', JobCardHistoryEvent::TYPE_PENDING_REASON_CHANGED)->exists())->toBeTrue()
+        // "since" is read off the timeline, not a column, so the two cannot drift.
+        ->and(Livewire::test(Edit::class, ['jobCard' => $card->fresh()])->instance()->pendingSince)
+        ->not->toBeNull();
+});
+
+it('adds a pending reason to the master without leaving the card', function () {
+    $card = JobCard::factory()->create();
+
+    $component = Livewire::test(Edit::class, ['jobCard' => $card])
+        ->call('openPendingReasonQuickAdd')
+        ->set('pendingReasonQuickName', 'waiting for insurance survey')
+        ->call('createPendingReason')
+        ->assertHasNoErrors();
+
+    $created = JobCardPendingReasonMaster::where('name', 'WAITING FOR INSURANCE SURVEY')->firstOrFail();
+
+    expect($created->is_active)->toBeTrue()
+        ->and($component->get('pending_reason_id'))->toBe($created->id);
+});
+
+it('stamps a complaint with the moment it was recorded, without asking', function () {
+    // The "Reported at" input is gone from the row; the value still has to land.
+    $card = JobCard::factory()->create();
+
+    Livewire::test(Edit::class, ['jobCard' => $card])
+        ->set('service_type_id', $card->service_type_id)
+        ->call('addComplaint')
+        ->set('complaints.0.requested_repair_id', RequestedRepairMaster::factory()->create(['is_active' => true])->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($card->fresh()->complaints()->latest('id')->first()->reported_at)->not->toBeNull();
+});
+
+it('ticks complaints from the grouped list, one at a time or a whole category', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $card = JobCard::factory()->create(['workshop_department_id' => $dept->id]);
+    $brakes = ComplaintTypeMaster::factory()->create(['name' => 'BRAKE']);
+
+    $pads = RequestedRepairMaster::factory()->create(['name' => 'PAD NOISE', 'is_active' => true, 'complaint_type_id' => $brakes->id]);
+    $disc = RequestedRepairMaster::factory()->create(['name' => 'DISC WARPED', 'is_active' => true, 'complaint_type_id' => $brakes->id]);
+    foreach ([$pads, $disc] as $repair) {
+        $repair->workshopDepartments()->syncWithoutDetaching([$dept->id]);
+    }
+
+    $component = Livewire::test(Edit::class, ['jobCard' => $card]);
+
+    expect($component->instance()->complaintGroups->keys()->all())->toContain('BRAKE');
+
+    // One at a time: ticking adds a row, ticking again takes it away.
+    $component->call('toggleComplaint', $pads->id);
+    expect($component->get('complaints'))->toHaveCount(1)
+        ->and($component->instance()->selectedComplaintIds)->toBe([(string) $pads->id]);
+
+    $component->call('toggleComplaint', $pads->id);
+    expect($component->get('complaints'))->toHaveCount(0);
+
+    // The category header takes the whole group with it, both ways.
+    $component->call('toggleComplaintGroup', 'BRAKE');
+    expect($component->get('complaints'))->toHaveCount(2);
+
+    $component->call('toggleComplaintGroup', 'BRAKE');
+    expect($component->get('complaints'))->toHaveCount(0);
+});
+
+it('keeps the repeat flag and reported time when a complaint is ticked', function () {
+    $dept = WorkshopDepartmentMaster::factory()->create();
+    $card = JobCard::factory()->create(['workshop_department_id' => $dept->id]);
+    $repair = RequestedRepairMaster::factory()->create(['is_active' => true]);
+    $repair->workshopDepartments()->syncWithoutDetaching([$dept->id]);
+
+    Livewire::test(Edit::class, ['jobCard' => $card])
+        ->call('toggleComplaint', $repair->id)
+        ->set('complaints.0.is_repeat_job', true)
+        ->set('service_type_id', $card->service_type_id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $complaint = $card->fresh()->complaints()->firstOrFail();
+
+    expect($complaint->requested_repair_id)->toBe($repair->id)
+        ->and($complaint->is_repeat_job)->toBeTrue()
+        // Stamped, never typed — the field is not on screen.
+        ->and($complaint->reported_at)->not->toBeNull();
+});

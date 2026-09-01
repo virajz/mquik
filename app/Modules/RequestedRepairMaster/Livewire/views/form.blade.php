@@ -52,7 +52,26 @@
 
                 <flux:separator variant="subtle" />
 
-                <flux:switch
+                                {{-- Frequent puts it on the job card as a checkbox, under its
+                     category heading. General keeps it in the search box below
+                     that list. --}}
+                <div class="grid grid-cols-2 gap-3">
+                    <flux:select wire:model.live="category" variant="listbox" label="Shown as" required>
+                        <flux:select.option value="frequent">Frequent — checkbox</flux:select.option>
+                        <flux:select.option value="general">General — in the picker</flux:select.option>
+                    </flux:select>
+
+                    <flux:select wire:model="complaint_type_id" variant="listbox" searchable clearable
+                        label="Category" :required="$category === 'frequent'"
+                        :placeholder="$category === 'frequent' ? 'Which heading…' : 'Optional'">
+                        @foreach ($this->complaintTypes as $ct)
+                            <flux:select.option :value="$ct->id" wire:key="rrct-{{ $ct->id }}">{{ $ct->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+                <flux:error name="complaint_type_id" />
+
+<flux:switch
                     wire:model="is_active"
                     label="Active"
                     description="Inactive items won't appear in the job card requested-repairs picker."
